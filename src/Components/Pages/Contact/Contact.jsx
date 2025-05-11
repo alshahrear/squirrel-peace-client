@@ -63,17 +63,16 @@ const Contact = () => {
                 </div>
 
                 {/* Address Section: 1/3 */}
-                <div className="w-1/3 space-y-4 border-gray-300 border-l border-y p-5 animate__animated animate__slideInUp animate__slow">
-                    <p></p>
+                <div className="w-1/3 space-y-4 border-gray-300 border-l border-y rounded-2xl p-5 animate__animated animate__slideInUp animate__slow">
                     <p className="flex items-center text-[16px] font-medium gap-2">
-                        <IoLocationOutline className="text-2xl text-[#2acb35]" />
+                        <IoLocationOutline className="text-3xl text-[#2acb35]" />
                         <span>Address: Road 3, Uttara Dhaka, Bangladesh</span>
                     </p>
                     <p className="flex items-center text-[16px] font-medium gap-2 border-y border-y-[#2acb35] py-5">
                         <PiPhoneCallLight className="text-2xl text-[#2acb35]" />
                         <span>Phone: +880 1612002913</span>
                     </p>
-                    <p className="flex items-center text-[16px] font-medium gap-2">
+                    <p className="flex items-center text-[16px] font-medium gap-2 mb-10">
                         <MdOutlineMarkEmailRead className="text-2xl text-[#2acb35]" />
                         <span>Email: alshahrear1@gmail.com</span>
                     </p>
