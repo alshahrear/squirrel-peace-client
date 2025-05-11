@@ -30,7 +30,6 @@ const Footer = () => {
                         <MdOutlineMarkEmailRead className="text-2xl text-[#2acb35]" />
                         <span>Email: alshahrear1@gmail.com</span>
                     </p>
-
                 </nav>
                 <nav className="flex-1 space-y-2">
                     <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Quick Links</h4>
