@@ -1,5 +1,6 @@
 import bannerHome from "../../../../assets/banner-home.jpg";
 import 'animate.css';
+import { NavLink } from "react-router-dom";
 
 const Banner = () => {
     return (
@@ -11,7 +12,7 @@ const Banner = () => {
                 backgroundColor: "rgba(0, 0, 0, 0.4)",
             }}
         >
-            <div className="py-24 max-w-screen-xl mx-auto">
+            <div className="py-24 max-w-screen-xl mx-auto http://localhost:5173/">
                 <div className="animate__animated animate__slideInLeft">
                     <h1 className="text-4xl font-bold mb-4">Welcome to Squirrel Peace</h1>
                     <h2 className="text-xl font-medium mb-4">Embrace Nature. Experience Peace.</h2>
@@ -23,9 +24,11 @@ const Banner = () => {
                     <button className="bg-[#2acb35] hover:bg-transparent hover:border-1 text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition duration-300 mr-10">
                         Explore Now
                     </button>
-                    <button className="bg-white hover:bg-transparent hover:border-1 text-[#2acb35] px-6 py-3 rounded-xl font-semibold shadow-lg transition duration-300">
+                    <NavLink to="/contact">
+                        <button className="bg-white hover:bg-transparent hover:border-1 text-[#2acb35] px-6 py-3 rounded-xl font-semibold shadow-lg transition duration-300">
                         Contact Us
                     </button>
+                    </NavLink>
                 </div>
             </div>
         </div>

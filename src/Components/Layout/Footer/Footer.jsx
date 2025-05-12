@@ -45,6 +45,9 @@ const Footer = () => {
                     <p className="text-[16px]">
                         <NavLink to="/faq">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> FAQ</span></NavLink>
                     </p>
+                    <p className="text-[16px]">
+                        <NavLink to="/testimonialsAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Testimonials Admin</span></NavLink>
+                    </p>
                     <div className="space-y-2 border-t-3 border-t-[#2acb35] pt-3">
                         <p className="link-hover text-[16px] hover:text-[#2acb35]">
                             <NavLink>Terms of Condition</NavLink>

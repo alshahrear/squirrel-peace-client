@@ -7,6 +7,7 @@ const Navbar = () => {
         <li className="text-lg font-semibold"><NavLink>About</NavLink></li>
         <li className="text-lg font-semibold"><NavLink>Blog</NavLink></li>
         <li className="text-lg font-semibold"><NavLink to="/contact">Contact</NavLink></li>
+        <li className="text-lg font-semibold"><NavLink>Newsletter</NavLink></li>
     </>
     return (
        <div className="bg-[#f7f7f7]">
