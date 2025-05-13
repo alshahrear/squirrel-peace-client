@@ -8,6 +8,7 @@ import Faq from "../Components/Pages/Faq/Faq";
 import ErrorPage from "../Components/Pages/ErrorPage/ErrorPage";
 import TestimonialsAdmin from "../Components/Pages/Home/Testimonials/TestimonialsAdmin";
 import Testimonials from "../Components/Pages/Home/Testimonials/Testimonials";
+import TestimonialPage from "../Components/Pages/TestimonialPage/TestimonialPage";
 
 export const router = createBrowserRouter([
   {
@@ -27,11 +28,10 @@ export const router = createBrowserRouter([
         path: "/faq",
         element: <Faq></Faq>
       },
-      // {
-      //   path: "/testimonials",
-      //   element: <Testimonials />,
-      //   loader: () => fetch("http://localhost:5000/reviews")
-      // },
+      {
+        path: "/testimonialPage",
+        element: <TestimonialPage></TestimonialPage>
+      },
       {
         path: "/testimonialsAdmin",
         element: <TestimonialsAdmin></TestimonialsAdmin>

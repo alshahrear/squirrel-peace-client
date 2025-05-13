@@ -13,6 +13,7 @@
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-brands-svg-icons": "^6.7.2",
     "@fortawesome/react-fontawesome": "^0.2.2",
+    "@smastrom/react-rating": "^1.5.0",
     "@tailwindcss/vite": "^4.1.6",
     "animate.css": "^4.1.1",
     "localforage": "^1.10.0",
@@ -23,6 +24,7 @@
     "react-router-dom": "^7.6.0",
     "sort-by": "^1.2.0",
     "sweetalert2": "^11.21.0",
+    "swiper": "^11.2.6",
     "tailwindcss": "^4.1.6"
   },
   "devDependencies": {
