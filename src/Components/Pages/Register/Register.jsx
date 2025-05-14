@@ -1,0 +1,175 @@
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa6";
+import { TbPhoneCalling } from "react-icons/tb";
+import toast from "react-hot-toast";
+import useAuth from "../../Layout/useAuth";
+import GoogleLogin from "../../Layout/Google/GoogleLogin";
+
+const Register = () => {
+    const [showPassword, setShowPassword] = useState(false);
+    const [password, setPassword] = useState("");
+    const [showErrors, setShowErrors] = useState(false);
+    const { createUser } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const handleRegister = e => {
+        e.preventDefault();
+        const form = e.target;
+        const name = form.name.value;
+        const email = form.email.value;
+        const registerPassword = form.password.value;
+
+        if (!isValidPassword(registerPassword)) {
+            setShowErrors(true);
+            return;
+        }
+
+        createUser(email, registerPassword)
+            .then(result => {
+                console.log(result.user);
+                form.reset();
+                setPassword("");
+                toast.success("Congratulation, Registration Successful!");
+                const redirectPath = location.state?.from?.pathname || "/";
+                navigate(redirectPath);
+            })
+            .catch(error => {
+                console.error(error);
+                toast.error("Registration Failed! Please try again.");
+            });
+    };
+
+    const isValidPassword = (pwd) => {
+        return (
+            pwd.length >= 6 &&
+            /[a-z]/.test(pwd) &&
+            /[A-Z]/.test(pwd) &&
+            /[0-9]/.test(pwd) &&
+            /[!@#$%^&*(),.?":{}|<>]/.test(pwd)
+        );
+    };
+
+    const checkStatus = {
+        min: password.length >= 6,
+        lower: /[a-z]/.test(password),
+        upper: /[A-Z]/.test(password),
+        number: /[0-9]/.test(password),
+        special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+
+    const renderItem = (condition, text) => {
+        let style = "text-gray-700";
+        let icon = "⬜";
+
+        if (condition) {
+            style = "text-green-600 font-semibold";
+            icon = "✅";
+        } else if (showErrors) {
+            style = "text-red-600 font-medium";
+            icon = "❌";
+        }
+
+        return (
+            <li className={`text-sm ${style}`}>
+                {icon} {text}
+            </li>
+        );
+    };
+
+    return (
+        <div className="pt-12 pb-20 max-w-screen-xl mx-auto flex justify-between items-center relative">
+            <div className="w-1/3 space-y-5">
+                <h2 className="text-4xl font-bold leading-12">
+                    Premium <span className="text-[#2acb35]">Gardening and Lawn Care</span> Solutions
+                </h2>
+                <p className="text-lg font-medium">
+                    Welcome to Our Best Reliable Gardening and Lawn Services! Register now to get expert care for your plants!
+                </p>
+                <Link to="/contact">
+                    <button className="btn px-6 py-5 text-lg font-medium rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]">
+                        <TbPhoneCalling className="text-lg" /> Call Us
+                    </button>
+                </Link>
+            </div>
+            <div className="w-3/7">
+                <form onSubmit={handleRegister}>
+                    <div className="p-8 border-2 border-gray-300 rounded-lg shadow-lg">
+                        <h2 className="text-3xl text-center font-extrabold mb-6 text-[#2acb35]">
+                            Register Now
+                        </h2>
+                        <div className="mb-4">
+                            <label className="block mb-2 font-medium text-gray-700">Name</label>
+                            <input
+                                type="text"
+                                name="name"
+                                className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                placeholder="Enter your name"
+                                required
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block mb-2 font-medium text-gray-700">Email</label>
+                            <input
+                                type="email"
+                                name="email"
+                                className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                placeholder="Enter your email"
+                                required
+                            />
+                        </div>
+                        <div className="mb-2">
+                            <label className="block mb-2 text-gray-700 font-medium">Password</label>
+                            <div className="relative">
+                                <input
+                                    name="password"
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        setShowErrors(false);
+                                    }}
+                                    className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    placeholder="Enter your password"
+                                    required
+                                />
+                                <span
+                                    className="absolute text-xl right-4 top-3 cursor-pointer text-gray-600 hover:text-gray-900"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                </span>
+                            </div>
+                        </div>
+                        <p className="text-[#2acb35] text-lg font-semibold">Password must be -</p>
+                        <ul className="mb-4 ml-2 mt-3 space-y-1">
+                            {renderItem(checkStatus.min, "Minimum 6 characters")}
+                            {renderItem(checkStatus.upper, "At least one uppercase letter")}
+                            {renderItem(checkStatus.lower, "At least one lowercase letter")}
+                            {renderItem(checkStatus.number, "At least one number")}
+                            {renderItem(checkStatus.special, "At least one special character")}
+                        </ul>
+                        <button
+                            type="submit"
+                            className="btn w-full py-2 text-lg font-semibold rounded-md text-white bg-gradient-to-r from-[#2acb35] via-green-500 to-[#2acb35] shadow-md"
+                        >
+                            Register
+                        </button>
+                        <p className="text-center text-lg font-medium mt-4 text-gray-700">
+                            Already have an account? {' '}
+                            <Link to="/login" className="text-[#2acb35] hover:underline hover:text-[#60c300] font-semibold">
+                                Login Now
+                            </Link>
+                        </p>
+                    </div>
+                </form>
+                <div>
+                    <GoogleLogin></GoogleLogin>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Register;

@@ -9,7 +9,6 @@ import { PiPhoneCallLight } from "react-icons/pi";
 import { MdOutlineMarkEmailRead } from "react-icons/md";
 import { NavLink } from "react-router-dom";
 import { HiOutlineMailOpen } from "react-icons/hi";
-import { PiPaperPlaneTilt } from "react-icons/pi";
 import { FaPaperPlane } from "react-icons/fa6";
 
 

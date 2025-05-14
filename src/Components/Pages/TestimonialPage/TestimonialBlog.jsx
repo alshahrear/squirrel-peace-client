@@ -104,7 +104,7 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
               <Rating style={{ maxWidth: 100 }} value={parseFloat(rating)} readOnly itemStyles={customStyle} />
             </div>
           </div>
-          <p className="mt-3 font-medium text-gray-700">{review}</p>
+          <p className="mt-3 font-medium text-gray-700">"{review}"</p>
         </div>
       </div>
 

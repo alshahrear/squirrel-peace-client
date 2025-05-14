@@ -1,5 +1,6 @@
 import { Rating, Star } from '@smastrom/react-rating';
 import '@smastrom/react-rating/style.css';
+import { BiSolidQuoteAltRight } from "react-icons/bi";
 
 const customStyle = {
   itemShapes: Star,
@@ -13,7 +14,8 @@ const Testimonial = ({ testimonial }) => {
   return (
     <div className="flex p-3 h-64 ">
       <div className="card bg-base-100 bg-opacity-80 shadow-xl h-full flex flex-col min-h-[200px] group transform transition-transform duration-300 hover:scale-105 hover:shadow-2xl">
-        <div className="card-body flex-grow">
+        <div className="relative card-body flex-grow">
+          <span className='absolute -mt-10'><BiSolidQuoteAltRight className='text-3xl text-[#2acb35] rounded-full'></BiSolidQuoteAltRight></span>
           <div className="flex items-center">
             <img
               src={profileLink}
@@ -31,7 +33,7 @@ const Testimonial = ({ testimonial }) => {
             </div>
           </div>
           <div className="pt-3 flex-grow">
-            <p className="text-[16px] font-medium text-gray-700">{review}</p>
+            <p className="text-[16px] font-medium text-gray-700">"{review}"</p>
           </div>
         </div>
       </div>
