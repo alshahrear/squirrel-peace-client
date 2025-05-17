@@ -148,7 +148,7 @@ const Register = () => {
                             {renderItem(checkStatus.upper, "At least one uppercase letter")}
                             {renderItem(checkStatus.lower, "At least one lowercase letter")}
                             {renderItem(checkStatus.number, "At least one number")}
-                            {renderItem(checkStatus.special, "At least one special character")}
+                            {renderItem(checkStatus.special, "At least one special character such as ( @#$%^&*? )")}
                         </ul>
                         <button
                             type="submit"

@@ -11,6 +11,7 @@ import Testimonials from "../Components/Pages/Home/Testimonials/Testimonials";
 import TestimonialPage from "../Components/Pages/TestimonialPage/TestimonialPage";
 import Login from "../Components/Pages/Login/Login";
 import Register from "../Components/Pages/Register/Register";
+import FaqAdmin from "../Components/Pages/FaqAdmin/FaqAdmin";
 
 export const router = createBrowserRouter([
   {
@@ -31,6 +32,10 @@ export const router = createBrowserRouter([
         element: <Faq></Faq>
       },
       {
+        path: "/faqAdmin",
+        element: <FaqAdmin></FaqAdmin>
+      },
+      {
         path: "/testimonialPage",
         element: <TestimonialPage></TestimonialPage>
       },
@@ -45,7 +50,8 @@ export const router = createBrowserRouter([
       {
         path: "/register",
         element: <Register></Register>
-      }
+      },
+      
     ]
   },
 ]);

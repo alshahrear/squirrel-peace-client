@@ -2,6 +2,7 @@ import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { FcGoogle } from "react-icons/fc";
 import { useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../../Firebase/firebase.config";
+import toast from "react-hot-toast";
 
 const GoogleLogin = () => {
     const googleProvider = new GoogleAuthProvider();
@@ -16,6 +17,10 @@ const GoogleLogin = () => {
                 console.log(result.user);
                 const redirectPath = location.state?.from?.pathname || "/";
                 // console.log("Redirecting to:", redirectPath);
+                toast.success("Welcome back! You've logged in successfully.", {
+                                    position: "top-right",
+                                    autoClose: 3000,
+                                });
                 navigate(redirectPath);
             })
             .catch(error => {
