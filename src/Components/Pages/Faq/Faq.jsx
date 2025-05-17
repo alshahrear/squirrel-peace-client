@@ -119,6 +119,11 @@ const Faq = () => {
               You can reach us through our contact form or email us directly at support@squirrelpeace.com. We typically respond within 24 hours.
             </div>
           </div>
+          <button
+              className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
+            >
+              Add Faq
+            </button>
         </div>
 
         {/* Question Submission Form */}
