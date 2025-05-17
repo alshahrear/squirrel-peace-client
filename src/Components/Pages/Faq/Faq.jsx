@@ -1,22 +1,74 @@
 import { NavLink } from "react-router-dom";
 import Swal from "sweetalert2";
+import { useEffect, useState } from "react";
+import FaqList from "./FaqList";
 
 const Faq = () => {
-  const handlefaq = (e) => {
+  const [faqsAdd, setFaqsAdd] = useState([]);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/faqsAdd")
+      .then((res) => res.json())
+      .then((data) => setFaqsAdd(data));
+  }, []);
+
+  // Delete হলে UI থেকে remove করা
+  const handleDeleteFaqFromUI = (id) => {
+    setFaqsAdd((prev) => prev.filter((faq) => faq._id !== id));
+  };
+
+  // Update হলে UI থেকে update করা
+  const handleUpdateFaqFromUI = (id, updatedFaq) => {
+    setFaqsAdd((prev) =>
+      prev.map((faq) => (faq._id === id ? { ...faq, ...updatedFaq } : faq))
+    );
+  };
+
+  // Add FAQ from modal
+  const handleAddFaq = (e) => {
     e.preventDefault();
     const form = e.target;
+    const faqQuestion = form.faqQuestion.value;
+    const faqAnswer = form.faqAnswer.value;
+    const addFaqList = { faqQuestion, faqAnswer };
 
+    fetch("http://localhost:5000/faqsAdd", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(addFaqList),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.insertedId) {
+          document.getElementById("my_modal_3").close();
+          Swal.fire({
+            position: "top-end",
+            icon: "success",
+            title: "Your new FAQ has been added to the list. Thank you.",
+            showConfirmButton: false,
+            timer: 2000,
+          });
+          // নতুন FAQ কে UI তে যোগ করলাম
+          setFaqsAdd((prev) => [...prev, { _id: data.insertedId, faqQuestion, faqAnswer }]);
+          form.reset();
+        }
+      });
+  };
+
+  // Your existing question submit handler (optional)
+  const handleFaq = (e) => {
+    e.preventDefault();
+    const form = e.target;
     const name = form.name.value;
     const email = form.email.value;
     const question = form.question.value;
-    const addfaq = { name, email, question };
+
+    const addFaqQus = { name, email, question };
 
     fetch("http://localhost:5000/faqs", {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(addfaq),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(addFaqQus),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -36,7 +88,6 @@ const Faq = () => {
 
   return (
     <div className="my-12 max-w-screen-xl mx-auto px-4">
-      {/* Header with Button */}
       <div className="flex items-center justify-between flex-wrap mb-6">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           Frequently Asked Questions <span className="text-[#2acb35]">__</span>
@@ -56,7 +107,7 @@ const Faq = () => {
       </p>
 
       <div className="flex flex-wrap">
-        <style jsx>{`
+        <style>{`
           input:checked ~ .collapse-title {
             background-color: #2acb35;
             color: white;
@@ -68,105 +119,90 @@ const Faq = () => {
           }
         `}</style>
 
-        {/* FAQ Section */}
         <div className="w-full md:w-2/3 pr-0 md:pr-4">
-          <div className="collapse collapse-arrow bg-base-100 border border-base-300">
-            <input type="radio" name="my-accordion-2" defaultChecked />
-            <div className="collapse-title text-lg font-semibold">
-              What is Squirrel Peace?
-            </div>
-            <div className="collapse-content text-lg font-medium">
-              Squirrel Peace is a creative platform offering unique handmade and digital art products designed to bring calm and beauty to your space.
-            </div>
-          </div>
+          {faqsAdd.map((faqAdd) => (
+            <FaqList
+              key={faqAdd._id}
+              faqAdd={faqAdd}
+              onDelete={handleDeleteFaqFromUI}
+              onUpdate={handleUpdateFaqFromUI}
+            />
+          ))}
 
-          <div className="collapse collapse-arrow bg-base-100 border border-base-300 mt-2">
-            <input type="radio" name="my-accordion-2" />
-            <div className="collapse-title text-lg font-semibold">
-              How can I place an order?
-            </div>
-            <div className="collapse-content text-lg font-medium">
-              Simply browse our catalog, add items to your cart, and proceed to checkout using your preferred payment method.
-            </div>
-          </div>
-
-          <div className="collapse collapse-arrow bg-base-100 border border-base-300 mt-2">
-            <input type="radio" name="my-accordion-2" />
-            <div className="collapse-title text-lg font-semibold">
-              Do you offer custom artwork?
-            </div>
-            <div className="collapse-content text-lg font-medium">
-              Yes! We accept custom orders. You can contact us with your idea and we'll work with you to bring it to life.
-            </div>
-          </div>
-
-          <div className="collapse collapse-arrow bg-base-100 border border-base-300 mt-2">
-            <input type="radio" name="my-accordion-2" />
-            <div className="collapse-title text-lg font-semibold">
-              What is your return policy?
-            </div>
-            <div className="collapse-content text-lg font-medium">
-              We accept returns within 7 days of delivery for damaged or incorrect products. Please read our full return policy before placing your order.
-            </div>
-          </div>
-
-          <div className="collapse collapse-arrow bg-base-100 border border-base-300 mt-2">
-            <input type="radio" name="my-accordion-2" />
-            <div className="collapse-title text-lg font-semibold">
-              How can I contact your support team?
-            </div>
-            <div className="collapse-content text-lg font-medium">
-              You can reach us through our contact form or email us directly at support@squirrelpeace.com. We typically respond within 24 hours.
-            </div>
-          </div>
           <button
-              className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
-            >
-              Add Faq
-            </button>
+            className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
+            onClick={() => document.getElementById("my_modal_3").showModal()}
+          >
+            Add Faq
+          </button>
+
+          <dialog id="my_modal_3" className="modal">
+            <div className="modal-box">
+              <form method="dialog">
+                <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+                  ✕
+                </button>
+              </form>
+              <h3 className="font-bold text-2xl mb-4">Add New FAQ</h3>
+              <form onSubmit={handleAddFaq} className="space-y-4">
+                <div>
+                  <label className="block font-medium mb-1">Question</label>
+                  <textarea
+                    rows="3"
+                    name="faqQuestion"
+                    required
+                    className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  ></textarea>
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">Answer</label>
+                  <textarea
+                    rows="5"
+                    name="faqAnswer"
+                    required
+                    className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  ></textarea>
+                </div>
+                <button
+                  type="submit"
+                  className="btn px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600"
+                >
+                  Add FAQ
+                </button>
+              </form>
+            </div>
+          </dialog>
         </div>
 
-        {/* Question Submission Form */}
-        <div className="w-full md:w-1/3 mt-8 md:mt-0 p-6 border border-gray-200 rounded-lg bg-white">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Didn't find your answer? <br /> Submit your question <span className="text-[#2acb35]">__</span>
-          </h2>
-          <form onSubmit={handlefaq} className="space-y-4">
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-1">Your Name</label>
-              <input
-                type="text"
-                name="name"
-                required
-                className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                placeholder="Enter your name"
-              />
-            </div>
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-1">Email Address</label>
-              <input
-                type="email"
-                name="email"
-                required
-                className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                placeholder="Enter your email"
-              />
-            </div>
-            <div>
-              <label className="block text-lg font-medium text-gray-700 mb-1">Your Question</label>
-              <textarea
-                rows="4"
-                name="question"
-                required
-                className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                placeholder="Type your question here..."
-              ></textarea>
-            </div>
+        <div className="w-full md:w-1/3">
+          <form onSubmit={handleFaq} className="bg-white p-6 rounded-md shadow-md">
+            <h2 className="text-xl font-bold mb-4">Submit Your Question</h2>
+            <input
+              type="text"
+              name="name"
+              placeholder="Name"
+              className="mb-3 p-2 w-full border border-gray-300 rounded"
+              required
+            />
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              className="mb-3 p-2 w-full border border-gray-300 rounded"
+              required
+            />
+            <textarea
+              name="question"
+              rows="4"
+              placeholder="Your Question"
+              className="mb-3 p-2 w-full border border-gray-300 rounded"
+              required
+            ></textarea>
             <button
               type="submit"
-              className="btn px-6 py-5 text-lg font-medium rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
+              className="btn px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600"
             >
-              Submit Now
+              Submit Question
             </button>
           </form>
         </div>
