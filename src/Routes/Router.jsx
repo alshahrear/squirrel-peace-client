@@ -12,6 +12,7 @@ import TestimonialPage from "../Components/Pages/TestimonialPage/TestimonialPage
 import Login from "../Components/Pages/Login/Login";
 import Register from "../Components/Pages/Register/Register";
 import FaqAdmin from "../Components/Pages/FaqAdmin/FaqAdmin";
+import ContactAdmin from "../Components/Pages/Contact/ContactAdmin";
 
 export const router = createBrowserRouter([
   {
@@ -26,6 +27,10 @@ export const router = createBrowserRouter([
       {
         path: "/contact",
         element: <Contact></Contact>
+      },
+      {
+        path: "/contactAdmin",
+        element: <ContactAdmin></ContactAdmin>
       },
       {
         path: "/faq",

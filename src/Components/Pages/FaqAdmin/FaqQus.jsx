@@ -47,7 +47,7 @@ const FaqQus = ({ faq, index, setFaqs, faqs }) => {
             <td className="py-4 px-4 text-center">
                 <button
                     onClick={handleFaqDelete}
-                    className="btn bg-[#2acb35] hover:bg-[#25b22f] text-white p-2 rounded-full"
+                    className="btn bg-[#e53935] hover:bg-[#d32f2f] text-white p-2 rounded-full"
                 >
                     <LuMessageCircleX className="text-2xl" />
                 </button>

@@ -102,13 +102,13 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
           <div className="mt-3 flex gap-3">
             <button
               onClick={openModal}
-              className="px-4 py-1 text-white bg-blue-600 rounded hover:bg-blue-700"
+              className="btn px-5 py-1 text-white bg-[#2acb35] rounded hover:bg-[#2acb35dc] hover:scale-105"
             >
               Edit
             </button>
             <button
               onClick={handleDelete}
-              className="px-4 py-1 text-white bg-red-600 rounded hover:bg-red-700"
+              className="btn px-4 py-1 text-white bg-red-600 rounded hover:bg-red-700 hover:scale-105"
             >
               Delete
             </button>

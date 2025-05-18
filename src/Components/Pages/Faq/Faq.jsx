@@ -119,7 +119,7 @@ const Faq = () => {
           }
         `}</style>
 
-        <div className="w-full md:w-2/3 pr-0 md:pr-4">
+        <div className="w-2/3 pr-0 md:pr-4">
           {faqsAdd.map((faqAdd) => (
             <FaqList
               key={faqAdd._id}
@@ -174,33 +174,33 @@ const Faq = () => {
           </dialog>
         </div>
 
-        <div className="w-full md:w-1/3">
-          <form onSubmit={handleFaq} className="bg-white p-6 rounded-md shadow-md">
-            <h2 className="text-xl font-bold mb-4">Submit Your Question</h2>
+        <div className="w-1/3 ">
+          <form onSubmit={handleFaq} className="bg-white p-6 rounded-md shadow-md ">
+            <h2 className="text-2xl font-bold mb-4">Submit Your Question</h2>
             <input
               type="text"
               name="name"
-              placeholder="Name"
-              className="mb-3 p-2 w-full border border-gray-300 rounded"
+              placeholder="Enter Your Name"
+              className="mb-5 p-2 w-full border border-gray-300 rounded"
               required
             />
             <input
               type="email"
               name="email"
-              placeholder="Email"
-              className="mb-3 p-2 w-full border border-gray-300 rounded"
+              placeholder="Enter Your Email"
+              className="mb-5 p-2 w-full border border-gray-300 rounded"
               required
             />
             <textarea
               name="question"
-              rows="4"
-              placeholder="Your Question"
+              rows="6"
+              placeholder="Type Your Question"
               className="mb-3 p-2 w-full border border-gray-300 rounded"
               required
             ></textarea>
             <button
               type="submit"
-              className="btn px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600"
+              className="btn px-5 py-2 text-[16px] font-medium text-white bg-[#2acb35] rounded hover:bg-green-600 hover:scale-105"
             >
               Submit Question
             </button>
