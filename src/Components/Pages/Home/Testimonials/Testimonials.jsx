@@ -25,7 +25,7 @@ const Testimonials = () => {
     }, []);
 
     return (
-        <div className="bg-[#f5f4f3] pb-16 relative">
+        <div className="bg-[#f5f8ed] pb-16 relative">
             <div className="flex justify-end text-end pt-5 pr-10">
                 <NavLink to="/testimonialPage">
                     <button className="relative overflow-hidden px-6 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">

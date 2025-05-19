@@ -4,6 +4,8 @@ import testimonial from "../../../assets/Testimonialshome.jpg";
 import { FaBookReader } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
+import Testimonials from "../Home/Testimonials/Testimonials";
+import NewsletterSubscribe from "../../Layout/NewslettterSubscribe/NewsletterSubscribe";
 
 const skills = [
     { name: "Recycling", percentage: 90 },
@@ -27,8 +29,8 @@ const NewsletterPage = () => {
     }, []);
 
     return (
-        <div className="my-10 ">
-            <div className="text-center space-y-3 mb-12">
+        <div className="">
+            <div className="text-center space-y-3 py-10 bg-[#f5f7ec]">
                 <h1 className="text-4xl font-bold text-[#082c2f]">
                     Join Our Weekly Newsletter
                 </h1>
@@ -36,7 +38,9 @@ const NewsletterPage = () => {
                     Once a week, Squirrel Peace sends thoughtful, helpful content about freelancing, focus, and finding balance in your creative work.
                 </p>
             </div>
-
+            <div className="bg-[#f5f7ec]">
+                <NewsletterSubscribe></NewsletterSubscribe>
+            </div>
             <div className="bg-[#f5f8ed]">
                 <div className="py-12 rounded-2xl">
                     <div className="text-center space-y-2 mb-12">
@@ -111,8 +115,10 @@ const NewsletterPage = () => {
                     </div>
                 </div>
             </div>
-            
-            <div className="-mb-10">
+            <div>
+                <Testimonials></Testimonials>
+            </div>
+            <div >
                 <NewsletterOption></NewsletterOption>
             </div>
         </div>
