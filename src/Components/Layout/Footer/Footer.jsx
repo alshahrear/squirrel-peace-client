@@ -16,7 +16,7 @@ const Footer = () => {
     return (
         <div className="bg-[#222426]">
             <footer className="footer flex max-w-screen-xl mx-auto  text-[#878787] pt-10 pb-10">
-                <nav className="flex-1 space-y-2">
+                <nav className="flex-2 space-y-2">
                     <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Get in Touch</h4>
                     <p className="w-1/2 text-[16px] font-medium"><span className="text-[#2acb35] text-lg">Squirrel Peace</span> brings 3 years of interior designs experience right to your home or office. Our design professionals are to help you determine.</p>
                     <p className="flex items-center text-[16px] font-medium gap-2"><IoLocationOutline className="text-2xl text-[#2acb35]"></IoLocationOutline>
@@ -45,13 +45,10 @@ const Footer = () => {
                         <NavLink to="/faq">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> FAQ</span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink to="/faqAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> FAQ Admin</span></NavLink>
+                        <NavLink to="/testimonialPage">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Testimonial</span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink to="/testimonialsAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Testimonials Admin</span></NavLink>
-                    </p>
-                    <p className="text-[16px]">
-                        <NavLink to="/contactAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Contact Admin</span></NavLink>
+                        <NavLink to="/newsletterPage">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Newsletter</span></NavLink>
                     </p>
                     <div className="space-y-2 border-t-3 border-t-[#2acb35] pt-3">
                         <p className="link-hover text-[16px] hover:text-[#2acb35]">
@@ -62,6 +59,22 @@ const Footer = () => {
                         </p>
                     </div>
                 </nav>
+                <nav className="flex-1 space-y-2">
+                    <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Admin Links</h4>
+                    <p className="text-[16px]">
+                        <NavLink to="/testimonialsAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Testimonials Admin</span></NavLink>
+                    </p>
+                    <p className="text-[16px]">
+                        <NavLink to="/contactAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Contact Admin</span></NavLink>
+                    </p>
+                    <p className="text-[16px]">
+                        <NavLink to="/faqAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Faq Admin</span></NavLink>
+                    </p>
+                    <p className="text-[16px]">
+                        <NavLink to="/users">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Users Page</span></NavLink>
+                    </p>
+                </nav>
+
                 <nav className="flex-1">
                     <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2"><span className="text-[#2acb35]
                   text-3xl font-bold">N</span>ewsletter</h4>

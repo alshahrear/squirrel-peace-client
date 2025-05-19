@@ -13,6 +13,8 @@ import Login from "../Components/Pages/Login/Login";
 import Register from "../Components/Pages/Register/Register";
 import FaqAdmin from "../Components/Pages/FaqAdmin/FaqAdmin";
 import ContactAdmin from "../Components/Pages/Contact/ContactAdmin";
+import Users from "../Components/Pages/Users/Users";
+import NewsletterPage from "../Components/Pages/NewsletterPage/NewsletterPage";
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +25,10 @@ export const router = createBrowserRouter([
       {
         path: "/",
         element: <Home></Home>
+      },
+      {
+        path: "/newsletterPage",
+        element: <NewsletterPage></NewsletterPage>
       },
       {
         path: "/contact",
@@ -56,6 +62,10 @@ export const router = createBrowserRouter([
         path: "/register",
         element: <Register></Register>
       },
+      {
+        path: "/users",
+        element: <Users></Users>
+      }
       
     ]
   },

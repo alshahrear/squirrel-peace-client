@@ -5,12 +5,21 @@ import FaqList from "./FaqList";
 
 const Faq = () => {
   const [faqsAdd, setFaqsAdd] = useState([]);
+  const [faqs, setFaqs] = useState([]);
 
   useEffect(() => {
     fetch("http://localhost:5000/faqsAdd")
       .then((res) => res.json())
       .then((data) => setFaqsAdd(data));
   }, []);
+
+  useEffect(() => {
+    fetch('http://localhost:5000/faqs')
+      .then(res => res.json())
+      .then(data => setFaqs(data))
+      .catch(error => console.error("Error loading FAQs:", error));
+  }, []);
+
 
   // Delete হলে UI থেকে remove করা
   const handleDeleteFaqFromUI = (id) => {
@@ -81,7 +90,11 @@ const Faq = () => {
             showConfirmButton: false,
             timer: 2500,
           });
-          form.reset();
+          // ফর্ম রিসেট
+                form.reset();
+
+                // নতুন মেসেজ যোগ করো স্টেটে
+                setFaqs([...faqs, { _id: data.insertedId, ...addFaqQus }]);
         }
       });
   };
@@ -93,12 +106,15 @@ const Faq = () => {
           Frequently Asked Questions <span className="text-[#2acb35]">__</span>
         </h1>
         <NavLink to="/faqAdmin">
-          <button className="relative overflow-hidden px-6 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
-            <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040]">
-              Faq Admin Page
-            </span>
-            <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
-          </button>
+          <div className="indicator mt-5">
+            <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">{faqs.length}</span>
+            <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
+              <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040] hover:scale-105">
+                Faq Admin Page
+              </span>
+              <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
+            </button>
+          </div>
         </NavLink>
       </div>
 
