@@ -3,6 +3,7 @@ import coffee from "../../../assets/Testimonialshome.jpg";
 import TestimonialBlog from "./TestimonialBlog";
 import { NavLink } from "react-router-dom";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
+import TestimonialCard from "../../Layout/TestimonialCard/TestimonialCard";
 
 
 const TestimonialPage = () => {
@@ -28,8 +29,8 @@ const TestimonialPage = () => {
     };
 
     return (
-        <div className="">
-            <div className="max-w-screen-xl mx-auto my-10 ">
+        <div className="bg-[#f5f7ec]">
+            <div className="max-w-screen-xl mx-auto py-10 ">
                 <div className="flex flex-col md:flex-row items-center gap-10 px-4">
                     <div className="flex-1 space-y-5">
                         <h3 className="text-2xl text-[#2acb35] font-semibold">Some Story Behind Us</h3>
@@ -59,7 +60,7 @@ const TestimonialPage = () => {
                     </div>
                 </div>
 
-                <div className="my-10 space-y-4">
+                <div className="pt-12 space-y-4">
                     <div className="flex justify-between items-center px-4">
                         <h3 className="text-3xl font-bold text-center mx-auto">Successful Stories</h3>
                         <NavLink to="/testimonialsAdmin">
@@ -81,7 +82,10 @@ const TestimonialPage = () => {
                     </div>
                 </div>
             </div>
-
+            <div>
+            <h2 className="text-3xl font-bold text-center">Process To Safe Environment</h2>
+             <TestimonialCard></TestimonialCard>
+            </div>
             {/* NewsletterOption */}
             <div>
                 <NewsletterOption></NewsletterOption>

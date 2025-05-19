@@ -91,39 +91,40 @@ const Faq = () => {
             timer: 2500,
           });
           // ফর্ম রিসেট
-                form.reset();
+          form.reset();
 
-                // নতুন মেসেজ যোগ করো স্টেটে
-                setFaqs([...faqs, { _id: data.insertedId, ...addFaqQus }]);
+          // নতুন মেসেজ যোগ করো স্টেটে
+          setFaqs([...faqs, { _id: data.insertedId, ...addFaqQus }]);
         }
       });
   };
 
   return (
-    <div className="my-12 max-w-screen-xl mx-auto px-4">
-      <div className="flex items-center justify-between flex-wrap mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          Frequently Asked Questions <span className="text-[#2acb35]">__</span>
-        </h1>
-        <NavLink to="/faqAdmin">
-          <div className="indicator mt-5">
-            <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">{faqs.length}</span>
-            <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
-              <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040] hover:scale-105">
-                Faq Admin Page
-              </span>
-              <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
-            </button>
-          </div>
-        </NavLink>
-      </div>
+    <div className="bg-[#f5f7ec]">
+      <div className="py-10 max-w-screen-xl mx-auto px-4">
+        <div className="flex items-center justify-between flex-wrap mb-6">
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            Frequently Asked Questions <span className="text-[#2acb35]">__</span>
+          </h1>
+          <NavLink to="/faqAdmin">
+            <div className="indicator mt-5">
+              <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">{faqs.length}</span>
+              <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
+                <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040] hover:scale-105">
+                  Faq Admin Page
+                </span>
+                <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
+              </button>
+            </div>
+          </NavLink>
+        </div>
 
-      <p className="text-lg font-medium my-5">
-        Discover your question from underneath or present your inquiry from the submit box.
-      </p>
+        <p className="text-lg font-medium my-5">
+          Discover your question from underneath or present your inquiry from the submit box.
+        </p>
 
-      <div className="flex flex-wrap">
-        <style>{`
+        <div className="flex flex-wrap">
+          <style>{`
           input:checked ~ .collapse-title {
             background-color: #2acb35;
             color: white;
@@ -135,92 +136,93 @@ const Faq = () => {
           }
         `}</style>
 
-        <div className="w-2/3 pr-0 md:pr-4">
-          {faqsAdd.map((faqAdd) => (
-            <FaqList
-              key={faqAdd._id}
-              faqAdd={faqAdd}
-              onDelete={handleDeleteFaqFromUI}
-              onUpdate={handleUpdateFaqFromUI}
-            />
-          ))}
+          <div className="w-2/3 pr-0 md:pr-4">
+            {faqsAdd.map((faqAdd) => (
+              <FaqList
+                key={faqAdd._id}
+                faqAdd={faqAdd}
+                onDelete={handleDeleteFaqFromUI}
+                onUpdate={handleUpdateFaqFromUI}
+              />
+            ))}
 
-          <button
-            className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
-            onClick={() => document.getElementById("my_modal_3").showModal()}
-          >
-            Add Faq
-          </button>
-
-          <dialog id="my_modal_3" className="modal">
-            <div className="modal-box">
-              <form method="dialog">
-                <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-                  ✕
-                </button>
-              </form>
-              <h3 className="font-bold text-2xl mb-4">Add New FAQ</h3>
-              <form onSubmit={handleAddFaq} className="space-y-4">
-                <div>
-                  <label className="block font-medium mb-1">Question</label>
-                  <textarea
-                    rows="3"
-                    name="faqQuestion"
-                    required
-                    className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                  ></textarea>
-                </div>
-                <div>
-                  <label className="block font-medium mb-1">Answer</label>
-                  <textarea
-                    rows="5"
-                    name="faqAnswer"
-                    required
-                    className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                  ></textarea>
-                </div>
-                <button
-                  type="submit"
-                  className="btn px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600"
-                >
-                  Add FAQ
-                </button>
-              </form>
-            </div>
-          </dialog>
-        </div>
-
-        <div className="w-1/3 ">
-          <form onSubmit={handleFaq} className="bg-white p-6 rounded-md shadow-md ">
-            <h2 className="text-2xl font-bold mb-4">Submit Your Question</h2>
-            <input
-              type="text"
-              name="name"
-              placeholder="Enter Your Name"
-              className="mb-5 p-2 w-full border border-gray-300 rounded"
-              required
-            />
-            <input
-              type="email"
-              name="email"
-              placeholder="Enter Your Email"
-              className="mb-5 p-2 w-full border border-gray-300 rounded"
-              required
-            />
-            <textarea
-              name="question"
-              rows="6"
-              placeholder="Type Your Question"
-              className="mb-3 p-2 w-full border border-gray-300 rounded"
-              required
-            ></textarea>
             <button
-              type="submit"
-              className="btn px-5 py-2 text-[16px] font-medium text-white bg-[#2acb35] rounded hover:bg-green-600 hover:scale-105"
+              className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
+              onClick={() => document.getElementById("my_modal_3").showModal()}
             >
-              Submit Question
+              Add Faq
             </button>
-          </form>
+
+            <dialog id="my_modal_3" className="modal">
+              <div className="modal-box">
+                <form method="dialog">
+                  <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+                    ✕
+                  </button>
+                </form>
+                <h3 className="font-bold text-2xl mb-4">Add New FAQ</h3>
+                <form onSubmit={handleAddFaq} className="space-y-4">
+                  <div>
+                    <label className="block font-medium mb-1">Question</label>
+                    <textarea
+                      rows="3"
+                      name="faqQuestion"
+                      required
+                      className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    ></textarea>
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1">Answer</label>
+                    <textarea
+                      rows="5"
+                      name="faqAnswer"
+                      required
+                      className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    ></textarea>
+                  </div>
+                  <button
+                    type="submit"
+                    className="btn px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600"
+                  >
+                    Add FAQ
+                  </button>
+                </form>
+              </div>
+            </dialog>
+          </div>
+
+          <div className="w-1/3 ">
+            <form onSubmit={handleFaq} className="bg-[#f5f7ec] p-6 rounded-md shadow-md ">
+              <h2 className="text-2xl font-bold mb-4">Submit Your Question</h2>
+              <input
+                type="text"
+                name="name"
+                placeholder="Enter Your Name"
+                className="mb-5 p-2 w-full border border-gray-300 rounded"
+                required
+              />
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter Your Email"
+                className="mb-5 p-2 w-full border border-gray-300 rounded"
+                required
+              />
+              <textarea
+                name="question"
+                rows="6"
+                placeholder="Type Your Question"
+                className="mb-3 p-2 w-full border border-gray-300 rounded"
+                required
+              ></textarea>
+              <button
+                type="submit"
+                className="btn px-5 py-2 text-[16px] font-medium text-white bg-[#2acb35] rounded hover:bg-green-600 hover:scale-105"
+              >
+                Submit Question
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

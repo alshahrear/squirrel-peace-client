@@ -17,7 +17,7 @@ const NewsletterSubscribe = () => {
   }, []);
 
   return (
-    <div className="flex flex-col md:flex-row h-[450px] w-full max-w-7xl mx-auto overflow-hidden shadow-2xl p-5">
+    <div className="flex flex-col md:flex-row h-[450px] w-full max-w-7xl mx-auto overflow-hidden shadow-2xl p-x-5">
       {/* Left Image Section */}
       <div className="relative rounded-lg w-full md:w-1/2 h-full overflow-hidden bg-black">
         {images.map((img, index) => (
