@@ -29,7 +29,7 @@ const BlogHomeCat = () => {
     ];
 
     return (
-        <div className="grid md:grid-cols-3 gap-10 max-w-7xl mx-auto p-6">
+        <div className="grid md:grid-cols-3 gap-10 max-w-7xl mx-auto py-5">
             {blogs.map((blog, index) => (
                 <div
                     key={index}
@@ -42,10 +42,10 @@ const BlogHomeCat = () => {
                             alt={blog.title}
                             className="relative w-full h-full object-cover rounded-xl transition-all duration-500 ease-in-out group-hover:brightness-75"
                         />
-                        {/* Overlay Button */}
-                        <button className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 px-5 py-2 text-white font-semibold rounded-full border border-white bg-white/20 backdrop-blur-md shadow-lg">
-                            View More
-                        </button>
+                        {/* Overlay Text instead of Button */}
+                        <p className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 px-5 py-2 text-white font-semibold rounded-full border border-white bg-white/20 backdrop-blur-md shadow-lg">
+                            Explore Now
+                        </p>
                     </div>
 
                     {/* Content Section */}
