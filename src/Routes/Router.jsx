@@ -7,7 +7,6 @@ import Contact from "../Components/Pages/Contact/Contact";
 import Faq from "../Components/Pages/Faq/Faq";
 import ErrorPage from "../Components/Pages/ErrorPage/ErrorPage";
 import TestimonialsAdmin from "../Components/Pages/Home/Testimonials/TestimonialsAdmin";
-import Testimonials from "../Components/Pages/Home/Testimonials/Testimonials";
 import TestimonialPage from "../Components/Pages/TestimonialPage/TestimonialPage";
 import Login from "../Components/Pages/Login/Login";
 import Register from "../Components/Pages/Register/Register";
@@ -15,6 +14,7 @@ import FaqAdmin from "../Components/Pages/FaqAdmin/FaqAdmin";
 import ContactAdmin from "../Components/Pages/Contact/ContactAdmin";
 import Users from "../Components/Pages/Users/Users";
 import NewsletterPage from "../Components/Pages/NewsletterPage/NewsletterPage";
+import BlogHomeCats from "../Components/Pages/Home/BlogHomeCats/BlogHomeCats";
 
 export const router = createBrowserRouter([
   {
@@ -25,6 +25,10 @@ export const router = createBrowserRouter([
       {
         path: "/",
         element: <Home></Home>
+      },
+      {
+        path: "/blogHomeCats",
+        element: <BlogHomeCats></BlogHomeCats>
       },
       {
         path: "/newsletterPage",
@@ -66,7 +70,7 @@ export const router = createBrowserRouter([
         path: "/users",
         element: <Users></Users>
       }
-      
+
     ]
   },
 ]);

@@ -59,6 +59,7 @@ const Footer = () => {
                         </p>
                     </div>
                 </nav>
+                {/* admin link */}
                 <nav className="flex-1 space-y-2">
                     <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Admin Links</h4>
                     <p className="text-[16px]">
