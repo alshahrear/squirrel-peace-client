@@ -50,9 +50,11 @@ const TestimonialPage = () => {
                             </div>
                         </div>
 
-                        <button className="btn px-8 py-4 rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]">
-                            About Us
-                        </button>
+                        <NavLink to="/aboutPage">
+                            <button className="btn px-8 py-4 rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]">
+                                About Us
+                            </button>
+                        </NavLink>
                     </div>
 
                     <div className="flex-1">
@@ -83,8 +85,8 @@ const TestimonialPage = () => {
                 </div>
             </div>
             <div>
-            <h2 className="text-3xl font-bold text-center">Process To Safe Environment</h2>
-             <TestimonialCard></TestimonialCard>
+                <h2 className="text-3xl font-bold text-center">Process To Safe Environment</h2>
+                <TestimonialCard></TestimonialCard>
             </div>
             {/* NewsletterOption */}
             <div>

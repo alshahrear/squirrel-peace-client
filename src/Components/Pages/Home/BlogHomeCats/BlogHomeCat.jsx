@@ -29,7 +29,7 @@ const BlogHomeCat = () => {
     ];
 
     return (
-        <div className="grid md:grid-cols-3 gap-10 max-w-7xl mx-auto py-5">
+        <div className="grid md:grid-cols-3 gap-10 max-w-screen-xl mx-auto pt-5">
             {blogs.map((blog, index) => (
                 <div
                     key={index}

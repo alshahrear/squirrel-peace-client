@@ -13,11 +13,20 @@ const Navbar = () => {
 
     const navLinks = <>
         <li className="text-lg font-semibold"><NavLink>Home</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink>About</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink>Blog</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink>Kid's Story</NavLink></li>
+        <li className="text-lg font-semibold"><NavLink to="/aboutPage">About</NavLink></li>
+        <div className="dropdown-hover">
+            <li className="dropdown ">
+                <div tabIndex={0} role="button" className="text-lg font-semibold">Blog</div>
+                <ul tabIndex={0} className="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm font-semibold">
+                    <li><a>Life Style</a></li>
+                    <li><a>Travel</a></li>
+                    <li><a>Health</a></li>
+                </ul>
+            </li>
+        </div>
+        <li className="text-lg font-semibold"><NavLink>Our Story</NavLink></li>
         <li className="text-lg font-semibold"><NavLink to="/newsletterPage">Newsletter</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink to="/contact">Contact</NavLink></li> 
+        <li className="text-lg font-semibold"><NavLink to="/contact">Contact</NavLink></li>
     </>
     return (
         <div className="bg-[#f7f7f7]">

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import newsletter from "../../../../assets/newsletter.jpg"
+import newsHome from "../../../../assets/news5.jpg";
 import { toast, Toaster } from "react-hot-toast";
 import "animate.css";
+import Marquee from "react-fast-marquee";
 
 const Newsletter = () => {
     const [isVisible, setIsVisible] = useState(false);
@@ -38,44 +39,53 @@ const Newsletter = () => {
             return;
         }
 
-        // console.log(email);
         toast.success("Thank you for subscribing to our newsletter! 🎉");
-
         form.reset();
     };
 
     return (
-        <div className="max-w-screen-xl mx-auto mb-10" ref={sectionRef}>
+        <div ref={sectionRef}>
+            <Marquee
+                speed={50}
+                gradient={false}
+                className="bg-[#2acb35] text-white py-4 text-lg font-medium"
+            >
+                🌱 Stay in the Loop! Get Squirrel Peace tips, exclusive offers & plant updates
+                delivered straight to your inbox! 💌 Subscribe now and grow with us! 🌿
+            </Marquee>
+
             <Toaster position="top-right" reverseOrder={false} />
-            
+
             <div
-                className="relative h-[400px] flex flex-col items-center justify-center text-center text-white space-y-4 px-6 rounded-xl"
+                className="relative h-[400px] flex flex-col items-center justify-center text-center text-white px-6"
                 style={{
-                    backgroundImage: `url(${newsletter})`,
+                    backgroundImage: `url(${newsHome})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
                 }}
             >
-                {/* Overlay for better text visibility */}
-                <div className="absolute inset-0 bg-black/30 rounded-lg"></div>
+                <div className="absolute inset-0 bg-black/40 rounded-md"></div>
 
-                <div className={`relative z-10 space-y-3 ${isVisible ? "animate__animated animate__zoomInUp" : "opacity-0"}`}>
-                    <h2 className="text-xl font-bold">Stay Connected with Nature! 🌿</h2>
-                    <p className="text-lg font-semibold">
-                        Subscribe to our <span className="text-xl text-[#e6e94d] font-bold">Newsletter</span> for eco-friendly tips, special offers, <br /> and the latest updates on new plants! 🌱
+                <div className={`relative z-10 space-y-4 ${isVisible ? "animate__animated animate__zoomInUp" : "opacity-0"}`}>
+                    <h2 className="text-2xl md:text-3xl font-bold">Stay Connected with Nature! 🌿</h2>
+                    <p className="text-lg font-medium">
+                        Subscribe to our <span className="text-[#e6e94d] font-bold">Newsletter</span> for eco-friendly tips, special offers,<br />
+                        and the latest updates on new plants! 🌱
                     </p>
-                    <form onSubmit={handleNewsletter} className="space-y-3">
+                    <form onSubmit={handleNewsletter} className="flex flex-col md:flex-row items-center gap-4 justify-center">
                         <input
-                            className="border-2 px-3 py-2 rounded-md border-[#b7d5ba] text-black"
+                            className="border border-[#b7d5ba] px-4 py-2 rounded-md text-black w-72"
                             type="email"
                             name="email"
                             placeholder="Enter your email"
                         />
-                        <div>
-                            <button type="submit" className="btn font-semibold text-white bg-gradient-to-r from-[#2acb35] via-green-600 to-[#2acb35] hover:from-green-800 hover:via-green-700 hover:to-lime-600 transition-all duration-300 border-0 px-6 py-2 rounded-md">
-                                Subscribe
-                            </button>
-                        </div>
+                        <button
+                            type="submit"
+                            className="bg-gradient-to-r from-[#2acb35] via-green-600 to-[#2acb35] text-white font-semibold px-6 py-2 rounded-md hover:from-green-800 hover:via-green-700 hover:to-lime-600 transition-all duration-300"
+                        >
+                            Subscribe
+                        </button>
                     </form>
                 </div>
             </div>

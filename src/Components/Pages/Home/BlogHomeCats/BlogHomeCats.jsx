@@ -1,5 +1,4 @@
 
-import { NavLink } from 'react-router-dom';
 import BlogHomeCat from './BlogHomeCat';
 
 const BlogHomeCats = () => {

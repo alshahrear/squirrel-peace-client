@@ -15,6 +15,7 @@ import ContactAdmin from "../Components/Pages/Contact/ContactAdmin";
 import Users from "../Components/Pages/Users/Users";
 import NewsletterPage from "../Components/Pages/NewsletterPage/NewsletterPage";
 import BlogHomeCats from "../Components/Pages/Home/BlogHomeCats/BlogHomeCats";
+import AboutPage from "../Components/Pages/About/AboutPage";
 
 export const router = createBrowserRouter([
   {
@@ -25,6 +26,10 @@ export const router = createBrowserRouter([
       {
         path: "/",
         element: <Home></Home>
+      },
+      {
+        path: "/aboutPage",
+        element: <AboutPage></AboutPage>
       },
       {
         path: "/blogHomeCats",
