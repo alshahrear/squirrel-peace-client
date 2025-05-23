@@ -18,7 +18,7 @@
     "@tailwindcss/vite": "^4.1.6",
     "animate.css": "^4.1.1",
     "firebase": "^11.7.1",
-    "framer-motion": "^12.12.1",
+    "framer-motion": "^12.12.2",
     "keen-slider": "^6.8.6",
     "localforage": "^1.10.0",
     "match-sorter": "^8.0.1",
