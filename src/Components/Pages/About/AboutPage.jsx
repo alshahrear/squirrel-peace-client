@@ -3,6 +3,7 @@ import about0 from "../../../assets/blogcat2.jpg";
 import ImageBanner from "../../Layout/ImageBanner/ImageBanner";
 import AboutChoose from "../../Layout/AboutSection/AboutChoose";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
+import NewsScore from "../../Layout/NewsScore";
 
 
 const AboutPage = () => {
@@ -37,6 +38,7 @@ const AboutPage = () => {
                 </div>
                 <AboutChoose></AboutChoose>
             </div>
+            <NewsScore></NewsScore>
             <NewsletterOption></NewsletterOption>
         </div>
     );

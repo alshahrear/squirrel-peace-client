@@ -14,7 +14,7 @@ const images = [banner1, banner2, banner3, banner4];
 const Banner = () => {
     return (
         <div>
-            <div className="relative w-full h-[500px] overflow-hidden mb-10">
+            <div className="relative w-full h-[500px] overflow-hidden">
                 {/* Background Swiper Image Slider */}
                 <Swiper
                     modules={[Autoplay]}

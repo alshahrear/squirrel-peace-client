@@ -1,4 +1,5 @@
 import StoryPic from "../../Layout/StoryPic/StoryPic";
+import AboutHome from "./AboutHome/AboutHome";
 import Banner from "./Banner/Banner";
 import BlogHomeCats from "./BlogHomeCats/BlogHomeCats";
 import BlogHomeLatests from "./BlogHomeLatests/BlogHomeLatests";
@@ -9,6 +10,7 @@ const Home = () => {
     return (
         <div>
             <Banner></Banner>
+            <AboutHome></AboutHome>
             <BlogHomeCats></BlogHomeCats>
             <StoryPic></StoryPic>
             <BlogHomeLatests></BlogHomeLatests>
