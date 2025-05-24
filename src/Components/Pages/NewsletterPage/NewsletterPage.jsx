@@ -5,7 +5,7 @@ import newscover from "../../../assets/newscover.jpg";
 import newsletter from "../../../assets/newsletter.jpg";
 import testimonial from "../../../assets/Testimonialshome.jpg";
 import { FaBookReader, FaRegHandshake } from "react-icons/fa";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
 import NewsletterReview from "../../Layout/NewsletterReview/NewsletterReview";
 import Slider from "react-slick";
@@ -22,6 +22,8 @@ const skills = [
 const NewsletterPage = () => {
     const [progress, setProgress] = useState(skills.map(() => 0));
     const [testimonials, setTestimonials] = useState([]);
+    const progressRef = useRef(null);
+    const [isProgressVisible, setIsProgressVisible] = useState(false);
 
     useEffect(() => {
         fetch('http://localhost:5000/reviews')
@@ -35,6 +37,30 @@ const NewsletterPage = () => {
     }, []);
 
     useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setIsProgressVisible(true);
+                        observer.disconnect(); // Trigger only once
+                    }
+                });
+            },
+            { threshold: 0.4 }
+        );
+
+        if (progressRef.current) {
+            observer.observe(progressRef.current);
+        }
+
+        return () => {
+            observer.disconnect();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isProgressVisible) return;
+
         const interval = setInterval(() => {
             setProgress((prev) =>
                 prev.map((value, index) =>
@@ -42,8 +68,9 @@ const NewsletterPage = () => {
                 )
             );
         }, 20);
+
         return () => clearInterval(interval);
-    }, []);
+    }, [isProgressVisible]);
 
     const sliderSettings = {
         dots: true,
@@ -110,7 +137,7 @@ const NewsletterPage = () => {
                             </div>
 
                             {/* Progress Bars */}
-                            <div className="bg-[#f5f7ec] rounded-xl space-y-6 p-4">
+                            <div className="bg-[#f5f7ec] rounded-xl space-y-6 p-4" ref={progressRef}>
                                 {skills.map((skill, index) => (
                                     <div key={index}>
                                         <div className="flex justify-between text-[#082c2f] text-lg font-semibold mb-1">
