@@ -1,22 +1,24 @@
 import { NavLink } from "react-router-dom";
 import about0 from "../../../assets/blogcat2.jpg";
 import ImageBanner from "../../Layout/ImageBanner/ImageBanner";
+import AboutChoose from "../../Layout/AboutSection/AboutChoose";
+import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
 
 
 const AboutPage = () => {
     return (
-        <div className="mb-10 ">
+        <div className="">
             <div>
                 <ImageBanner></ImageBanner>
             </div>
             <div className="max-w-screen-xl mx-auto mt-10">
-                <div className="text-center space-y-2 mb-5">
+                <div className="text-center space-y-2 mb-10">
                     <h1 className="text-3xl font-bold">Words About Us</h1>
                     <p> We are ECO Green, Our Mission is save water, animals, power energy, natutre <br /> and our environment our activities are taken around the world.</p>
                 </div>
                 <div className="flex">
                     <div className="flex-1">
-                        <img className="w-9/10 rounded" src={about0} alt="" />
+                        <img className="w-9/10 rounded-lg" src={about0} alt="" />
                     </div>
                     <div className="flex-1">
                         <h3 className="text-xl font-bold text-[#2acb35]">We Have The Best Caretaker to Providing Best <br /> Services <span>Purchase - Healthcoach.</span></h3>
@@ -33,7 +35,9 @@ const AboutPage = () => {
                         </NavLink>
                     </div>
                 </div>
+                <AboutChoose></AboutChoose>
             </div>
+            <NewsletterOption></NewsletterOption>
         </div>
     );
 };
