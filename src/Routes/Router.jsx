@@ -17,6 +17,8 @@ import NewsletterPage from "../Components/Pages/NewsletterPage/NewsletterPage";
 import BlogHomeCats from "../Components/Pages/Home/BlogHomeCats/BlogHomeCats";
 import AboutPage from "../Components/Pages/About/AboutPage";
 import StoryPages from "../Components/Pages/StoryPage/StoryPages";
+import StoryBlogAdmin from "../Components/Pages/StoryPage/StoryBlogAdmin";
+import StoryBlogs from "../Components/Pages/StoryPage/StoryBlogs";
 
 export const router = createBrowserRouter([
   {
@@ -39,6 +41,14 @@ export const router = createBrowserRouter([
       {
         path: "/storyPages",
         element: <StoryPages></StoryPages>
+      },
+      {
+        path: "/storyBlogs",
+        element: <StoryBlogs></StoryBlogs>
+      },
+      {
+        path: "/storyBlogAdmin",
+        element: <StoryBlogAdmin></StoryBlogAdmin>
       },
       {
         path: "/newsletterPage",
