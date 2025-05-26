@@ -1,16 +1,22 @@
-// StoryBlogs.jsx
 import { NavLink } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import StoryBlog from './StoryBlog';
 
-const StoryBlogs = () => {
+const StoryHomes = () => {
     const [stories, setStories] = useState([]);
+
+    // র‍্যান্ডম ৬ ব্লগ সিলেক্ট করার ফাংশন
+    const getRandomSix = (arr) => {
+        let shuffled = arr.slice().sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, 6);
+    };
 
     useEffect(() => {
         fetch('http://localhost:5000/story')
             .then(res => res.json())
             .then(data => {
-                setStories(data);
+                const randomSix = getRandomSix(data);
+                setStories(randomSix);
             })
             .catch(error => {
                 console.error("Error loading stories:", error);
@@ -51,7 +57,7 @@ const StoryBlogs = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {
-                    stories.slice().reverse().map(storyBlog => (
+                    stories.map(storyBlog => (
                         <StoryBlog
                             key={storyBlog._id}
                             storyBlog={storyBlog}
@@ -65,4 +71,4 @@ const StoryBlogs = () => {
     );
 };
 
-export default StoryBlogs;
+export default StoryHomes;

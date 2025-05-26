@@ -9,7 +9,7 @@ import { LuMessageCircleMore } from 'react-icons/lu';
 import { FcLike } from 'react-icons/fc';
 import { FiCopy } from 'react-icons/fi';
 
-const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
+const StoryHome = ({ storyBlog, onDelete, onUpdate }) => {
     const { _id, storyTitle, storyCategory, storyImage, storyDescription } = storyBlog;
 
     const [hovered, setHovered] = useState(false);
@@ -234,4 +234,4 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
     );
 };
 
-export default StoryBlog;
+export default StoryHome;

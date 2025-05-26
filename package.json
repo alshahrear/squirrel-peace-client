@@ -18,6 +18,7 @@
     "@tailwindcss/vite": "^4.1.6",
     "animate.css": "^4.1.1",
     "aos": "^2.3.4",
+    "axios": "^1.9.0",
     "firebase": "^11.7.1",
     "framer-motion": "^12.12.2",
     "keen-slider": "^6.8.6",
