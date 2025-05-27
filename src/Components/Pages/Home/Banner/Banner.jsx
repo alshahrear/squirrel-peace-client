@@ -44,9 +44,6 @@ const Banner = () => {
                         <h1 className="text-5xl font-bold mb-4">
                             Welcome to Squirrel Peace
                         </h1>
-                        <h2 className="text-2xl font-medium mb-6">
-                            Embrace Nature. Experience Peace.
-                        </h2>
                         <p className="max-w-lg text-base mb-8 drop-shadow-md">
                             Discover the soothing harmony of nature — where every tree, breeze, and birdsong whispers calm into your soul. Let your journey toward natural serenity begin here.
                         </p>
