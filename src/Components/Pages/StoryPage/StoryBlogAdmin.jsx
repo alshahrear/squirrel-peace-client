@@ -94,7 +94,7 @@ const StoryBlogAdmin = () => {
                                 type="submit"
                                 className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase"
                             >
-                                Add Story Blog
+                                Add Story
                             </button>
                         </div>
                     </form>

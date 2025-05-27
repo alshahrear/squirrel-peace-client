@@ -9,8 +9,8 @@ import { LuMessageCircleMore } from 'react-icons/lu';
 import { FcLike } from 'react-icons/fc';
 import { FiCopy } from 'react-icons/fi';
 
-const HealthBlog = ({ lifeBlog, onDelete, onUpdate }) => {
-    const { _id, blogTitle, blogCategory, blogImage, blogDescription } = lifeBlog;
+const HealthBlog = ({ healthBlog, onDelete, onUpdate }) => {
+    const { _id, blogTitle, blogCategory, blogImage, blogDescription } = healthBlog;
 
     const [hovered, setHovered] = useState(false);
     const [copied, setCopied] = useState(false);

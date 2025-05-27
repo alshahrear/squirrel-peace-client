@@ -38,8 +38,8 @@ const StoryHomes = () => {
     };
 
     return (
-        <div className="max-w-screen-xl mx-auto px-4">
-            <div className="pb-10">
+        <div className="max-w-screen-xl mx-auto py-10">
+            <div className="pb-5">
                 <div className="flex justify-between items-center relative">
                     <h2 className="text-2xl font-bold text-center w-full">
                         Our <span className="text-[#2acb35]">Story</span>
@@ -55,7 +55,7 @@ const StoryHomes = () => {
                     teacher, your motivator, your coach and your friend.
                 </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
                     stories.map(storyBlog => (
                         <StoryBlog

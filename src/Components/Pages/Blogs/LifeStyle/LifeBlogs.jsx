@@ -3,29 +3,29 @@ import { useEffect, useState } from 'react';
 import LifeBlog from './LifeBlog';
 
 const LifeBlogs = () => {
-    const [stories, setStories] = useState([]);
+    const [blogs, setBlogs] = useState([]);
 
     useEffect(() => {
         fetch('http://localhost:5000/blog')
             .then(res => res.json())
             .then(data => {
-                setStories(data);
+                setBlogs(data);
             })
             .catch(error => {
-                console.error("Error loading stories:", error);
+                console.error("Error loading blogs:", error);
             });
     }, []);
 
     const handleDeleteFromUI = (id) => {
-        const updatedStories = stories.filter(blog => blog._id !== id);
-        setStories(updatedStories);
+        const updatedBlogs = blogs.filter(blog => blog._id !== id);
+        setBlogs(updatedBlogs);
     };
 
     const handleUpdateFromUI = (id, updatedData) => {
-        const updatedStories = stories.map(blog =>
+        const updatedBlogs = blogs.map(blog =>
             blog._id === id ? { ...blog, ...updatedData } : blog
         );
-        setStories(updatedStories);
+        setBlogs(updatedBlogs);
     };
 
     return (
@@ -46,16 +46,19 @@ const LifeBlogs = () => {
                     teacher, your motivator, your coach and your friend.
                 </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
-                    stories.slice().reverse().map(lifeBlog => (
-                        <LifeBlog
-                            key={lifeBlog._id}
-                            lifeBlog={lifeBlog}
-                            onDelete={handleDeleteFromUI}
-                            onUpdate={handleUpdateFromUI}
-                        />
-                    ))
+                    blogs
+                        .filter(blog => blog.blogCategory === "Life Style")
+                        .reverse()
+                        .map(lifeBlog => (
+                            <LifeBlog
+                                key={lifeBlog._id}
+                                lifeBlog={lifeBlog}
+                                onDelete={handleDeleteFromUI}
+                                onUpdate={handleUpdateFromUI}
+                            />
+                        ))
                 }
             </div>
         </div>
