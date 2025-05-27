@@ -63,6 +63,9 @@ const Footer = () => {
                 <nav className="flex-1 space-y-2">
                     <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Admin Links</h4>
                     <p className="text-[16px]">
+                        <NavLink to="/blogPageAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Blog Page Admin</span></NavLink>
+                    </p>
+                    <p className="text-[16px]">
                         <NavLink to="/storyBlogAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Story Blog Admin</span></NavLink>
                     </p>
                     <p className="text-[16px]">

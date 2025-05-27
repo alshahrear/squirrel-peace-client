@@ -20,6 +20,9 @@ import StoryPages from "../Components/Pages/StoryPage/StoryPages";
 import StoryBlogAdmin from "../Components/Pages/StoryPage/StoryBlogAdmin";
 import StoryBlogs from "../Components/Pages/StoryPage/StoryBlogs";
 import LifeStylePages from "../Components/Pages/Blogs/LifeStyle/LifeStylePages";
+import BlogPageAdmin from "../Components/Pages/Blogs/BlogPageAdmin";
+import HealthPages from "../Components/Pages/Blogs/Health/HealthPages";
+import TravelPages from "../Components/Pages/Blogs/Travel/TravelPages";
 
 export const router = createBrowserRouter([
   {
@@ -40,6 +43,14 @@ export const router = createBrowserRouter([
         element: <LifeStylePages></LifeStylePages>
       },
       {
+        path: "/healthPages",
+        element: <HealthPages></HealthPages>
+      },
+      {
+        path: "/travelPages",
+        element: <TravelPages></TravelPages>
+      },
+      {
         path: "/blogHomeCats",
         element: <BlogHomeCats></BlogHomeCats>
       },
@@ -54,6 +65,10 @@ export const router = createBrowserRouter([
       {
         path: "/storyBlogAdmin",
         element: <StoryBlogAdmin></StoryBlogAdmin>
+      },
+      {
+        path: "/blogPageAdmin",
+        element: <BlogPageAdmin></BlogPageAdmin>
       },
       {
         path: "/newsletterPage",

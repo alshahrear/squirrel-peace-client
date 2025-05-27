@@ -18,9 +18,9 @@ const Navbar = () => {
                 <div tabIndex={0} role="button" className="text-lg font-semibold">Blog</div>
                 <ul tabIndex={0} className="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm font-semibold">
                     <li><NavLink to="/lifeStylePages">Life Style</NavLink></li>
-                    <li><a>Travel</a></li>
-                    <li><a>Health</a></li>
-                </ul>
+                    <li><NavLink to="/travelPages">Travel</NavLink></li>
+                    <li><NavLink to="/healthPages">Health</NavLink></li>
+                </ul> 
             </li>
         </div>
         <li className="text-lg font-semibold"><NavLink to="/storyPages">Story</NavLink></li>
