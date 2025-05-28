@@ -17,9 +17,9 @@ const NewsletterSubscribe = () => {
   }, []);
 
   return (
-    <div className="flex flex-col md:flex-row h-[450px] w-full max-w-7xl mx-auto overflow-hidden shadow-2xl p-x-5">
+    <div className="flex flex-col md:flex-row h-[450px] w-full max-w-7xl mx-auto overflow-hidden shadow-lg rounded-2xl">
       {/* Left Image Section */}
-      <div className="relative rounded-lg w-full md:w-1/2 h-full overflow-hidden bg-black">
+      <div className="relative rounded-l-2xl w-full md:w-1/2 h-full overflow-hidden bg-black">
         {images.map((img, index) => (
           <AnimatePresence key={index}>
             {current === index && (
@@ -44,7 +44,7 @@ const NewsletterSubscribe = () => {
       </div>
 
       {/* Right Content Section */}
-      <div className="w-full md:w-1/2 flex flex-col justify-center items-center text-center bg-[#f5f7ec] p-8">
+      <div className="w-full md:w-1/2 flex flex-col justify-center items-center text-center bg-white rounded-r-2xl p-8">
         <h2 className="text-3xl font-extrabold text-gray-800 mb-4">
           Join Our Newsletter
         </h2>

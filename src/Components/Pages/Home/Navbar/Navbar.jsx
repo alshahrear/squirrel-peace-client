@@ -20,11 +20,12 @@ const Navbar = () => {
                     <li><NavLink to="/lifeStylePages">Life Style</NavLink></li>
                     <li><NavLink to="/travelPages">Travel</NavLink></li>
                     <li><NavLink to="/healthPages">Health</NavLink></li>
-                </ul> 
+                </ul>
             </li>
         </div>
-        <li className="text-lg font-semibold"><NavLink to="/storyPages">Story</NavLink></li>
         <li className="text-lg font-semibold"><NavLink to="/newsletterPage">Newsletter</NavLink></li>
+        <li className="text-lg font-semibold"><NavLink to="/storyPages">Story</NavLink></li>
+        <li className="text-lg font-semibold"><NavLink to="/letterPages">Letter</NavLink></li>
         <li className="text-lg font-semibold"><NavLink to="/contact">Contact</NavLink></li>
     </>
     return (

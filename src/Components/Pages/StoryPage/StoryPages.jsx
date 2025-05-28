@@ -2,6 +2,7 @@ import story1 from "../../../assets/story2.jpg";
 import { GiLoveLetter } from "react-icons/gi";
 import StoryDown from "./StoryDown";
 import StoryBlogs from "./StoryBlogs";
+import { NavLink } from "react-router-dom";
 
 
 const StoryPages = () => {
@@ -20,9 +21,11 @@ const StoryPages = () => {
                         took a galley of type and scrambled it to make a type specimen book. when an unknown printer
                         took a galley of type and scrambled it to make a type specimen book.
                     </p>
-                    <button className="flex mx-auto bg-[#f7f7f7] items-center btn mt-5 border-1 shadow-lg hover:scale-105">Get letter
-                        <GiLoveLetter className="text-2xl"></GiLoveLetter>
-                    </button>
+                    <NavLink to="/letterPages">
+                        <button className="flex mx-auto bg-[#f7f7f7] items-center btn mt-5 border-1 shadow-lg hover:scale-105">Explore letter
+                            <GiLoveLetter className="text-2xl"></GiLoveLetter>
+                        </button>
+                    </NavLink>
                 </div>
             </div>
             <StoryDown></StoryDown>

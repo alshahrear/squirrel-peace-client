@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import Swal from "sweetalert2";
 import { useEffect, useState } from "react";
 import FaqList from "./FaqList";
@@ -192,6 +192,12 @@ const Faq = () => {
           </div>
 
           <div className="w-1/3 ">
+          <p className="text-lg text-center font-semibold">
+            If you want, you can also ask your question on the {" "}
+            <span className="text-[#2acb35] underline hover:font-bold hover:text-gray-600">
+              <Link to="/contact">Contact Page</Link>
+            </span>
+          </p>
             <form onSubmit={handleFaq} className="bg-[#f5f7ec] p-6 rounded-md shadow-md ">
               <h2 className="text-2xl font-bold mb-4">Submit Your Question</h2>
               <input

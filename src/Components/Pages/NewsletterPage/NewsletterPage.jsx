@@ -11,6 +11,7 @@ import NewsletterReview from "../../Layout/NewsletterReview/NewsletterReview";
 import Slider from "react-slick";
 import NewsletterSubscribe from "../../Layout/NewslettterSubscribe/NewsletterSubscribe";
 import { NavLink } from "react-router-dom";
+import NewsletterWhy from "./NewsletterWhy";
 
 const skills = [
     { name: "Recycling", percentage: 90 },
@@ -85,22 +86,10 @@ const NewsletterPage = () => {
 
     return (
         <div>
-            {/* Newsletter Heading */}
-            <div className="text-center space-y-3 py-10 bg-[#f5f7ec]">
-                <h1 className="text-4xl font-bold text-[#082c2f]">
-                    Join Our Weekly Newsletter
-                </h1>
-                <p className="text-lg text-gray-700 font-medium max-w-3xl mx-auto">
-                    Once a week, Squirrel Peace sends thoughtful, helpful content about freelancing, focus, and finding balance in your creative work.
-                </p>
-            </div>
-            <div className="bg-[#f5f8ed]">
-                <NewsletterSubscribe></NewsletterSubscribe>
-            </div>
             {/* Image Grid Section */}
-            <div className="bg-[#f5f8ed]">
-                <div className="py-12 rounded-2xl">
-                    <div className="text-center space-y-2 mb-12">
+            <div className="bg-[#f5f8ed] ">
+                <div className="py-10 rounded-2xl">
+                    <div className="text-center space-y-2 mb-10">
                         <h2 className="text-3xl font-bold text-[#082c2f]">
                             <span className="text-[#2acb35]">1000+</span> People Join With Us
                         </h2>
@@ -152,6 +141,27 @@ const NewsletterPage = () => {
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Why choose Us */}
+
+            <div>
+                <NewsletterWhy></NewsletterWhy>
+            </div>
+            
+            {/* Newsletter Heading */}
+            <div className="rounded-2xl">
+                <div className="text-center space-y-3 pb-10 bg-[#f5f7ec]">
+                    <h1 className="text-4xl font-bold text-[#082c2f]">
+                        Join Our Weekly Newsletter
+                    </h1>
+                    <p className="text-lg text-gray-700 font-medium max-w-3xl mx-auto">
+                        Once a week, Squirrel Peace sends thoughtful, helpful content about freelancing, focus, and finding balance in your creative work.
+                    </p>
+                </div>
+                <div className="bg-[#f5f8ed] pb-10 ">
+                    <NewsletterSubscribe></NewsletterSubscribe>
                 </div>
             </div>
 
