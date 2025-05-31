@@ -4,6 +4,8 @@ import LetterAbout from "./LetterAbout";
 import LetterPackage from "./LetterPackage";
 import LetterPreview from "./LetterPreview";
 import LetterWhy from "./LetterWhy";
+import LetterFaqs from "./LetterFaqs";
+import LetterTestimonials from "./LetterTestimonials";
 
 const LettersPages = () => {
     const footerRef = useRef(null);
@@ -44,6 +46,8 @@ const LettersPages = () => {
                     <LetterPreview />
                     <LetterAbout />
                     <LetterWhy />
+                    <LetterFaqs></LetterFaqs>
+                    <LetterTestimonials></LetterTestimonials>
                 </div>
 
                 {/* Right fixed box */}

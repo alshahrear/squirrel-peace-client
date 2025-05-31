@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import book1 from '../../../../assets/story3.jpg';
 import book2 from '../../../../assets/story2.jpg';
 
@@ -27,11 +27,11 @@ const LetterHome = () => {
                 <p className="text-gray-600 mb-6">
                     Subscribe to receive weekly letters filled with love, encouragement, and magical words for your child. Designed to boost confidence, spark imagination, and bring a smile to their face — one letter at a time.
                 </p>
-                <Link to="/letterPages">
+                <NavLink to="/letterPages">
                     <button className="px-5 py-2 border-2 border-[#2acb35] text-[#2acb35] hover:bg-[#2acb35] hover:text-white rounded-full transition-all">
                         More info
                     </button>
-                </Link>
+                </NavLink>
             </div>
         </div>
     );
