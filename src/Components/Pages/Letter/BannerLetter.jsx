@@ -1,4 +1,3 @@
-
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import "swiper/css";
@@ -14,11 +13,11 @@ const images = [img1, img2, img3, img4];
 const BannerLetter = () => {
     return (
         <div>
-            <div className="relative w-full h-[500px] overflow-hidden">
+            <div className="relative w-full h-[450px] overflow-hidden">
                 {/* Background Swiper Image Slider */}
                 <Swiper
                     modules={[Autoplay]}
-                    autoplay={{ delay: 4000, disableOnInteraction: false, reverseDirection: false }}
+                    autoplay={{ delay: 4000, disableOnInteraction: false }}
                     loop={true}
                     slidesPerView={1}
                     className="w-full h-full"
@@ -39,7 +38,7 @@ const BannerLetter = () => {
                 </Swiper>
 
                 {/* Fixed Foreground Content */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 z-10">
+                <div className="absolute max-w-screen-xl mx-auto inset-0 flex flex-col items-start justify-start text-left px-4 pt-16 md:pt-24 z-10">
                     <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-md mb-4">
                         Discover the Art of Creativity
                     </h1>
@@ -47,14 +46,12 @@ const BannerLetter = () => {
                         Join us on a journey through color, imagination, and inspiration. Your creative world begins here.
                     </p>
                     <NavLink to="">
-                        <button className="bg-[#2acb35] hover:bg-transparent hover:border-1 text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition duration-300 mt-5">
+                        <button className="bg-[#2acb35] hover:bg-transparent hover:border hover:border-white text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition duration-300 mt-5">
                             Join Letter
                         </button>
                     </NavLink>
                 </div>
             </div>
-            {/* social contact */}
-
         </div>
     );
 };

@@ -1,45 +1,37 @@
-import letter from "../../../../assets/story2.jpg";
-import { Toaster } from "react-hot-toast";
-import "animate.css";
-import Marquee from "react-fast-marquee";
-import { GiLoveLetter } from "react-icons/gi";
+import { Link } from 'react-router-dom';
+import book1 from '../../../../assets/story3.jpg';
+import book2 from '../../../../assets/story2.jpg';
 
 const LetterHome = () => {
-
     return (
-        <div>
-            <Marquee
-                speed={50}
-                gradient={false}
-                className="bg-[#2acb35] text-white py-4 text-lg font-medium"
-            >
-                🌱 Stay in the Loop! Get Squirrel Peace tips, exclusive offers & plant updates
-                delivered straight to your inbox! 💌 Subscribe now and grow with us! 🌿
-            </Marquee>
+        <div className="bg-[#f1f1f1] py-10 px-4 md:px-20 flex flex-col lg:flex-row items-center justify-between gap-10">
+            {/* Books Section */}
+            <div className="flex items-center justify-center space-x-[-30px]">
+                <img
+                    src={book1}
+                    alt="Happy Healthy Young and Beautiful"
+                    className="w-60 z-10 shadow-lg rounded"
+                />
+                <img
+                    src={book2}
+                    alt="Realistic Book Mockup"
+                    className="w-60 translate-x-[-40px] opacity-90 rounded"
+                />
+            </div>
 
-            <Toaster position="top-right" reverseOrder={false} />
-
-            <div
-                className="relative h-[400px] flex flex-col items-center justify-center text-center text-white px-6"
-                style={{
-                    backgroundImage: `url(${letter})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat",
-                }}
-            >
-                <div className="absolute inset-0 bg-black/40 rounded-md"></div>
-
-                <div className="relative z-10 space-y-4 animate__animated animate__zoomInUp">
-                    <h2 className="text-2xl md:text-3xl font-bold">Stay Connected with Nature! 🌿</h2>
-                    <p className="text-lg font-medium">
-                        Subscribe to our <span className="text-[#e6e94d] font-bold">letter</span> for eco-friendly tips, special offers,<br />
-                        and the latest updates on new plants! 🌱
-                    </p>
-                    <button className="flex mx-auto bg-[#f7f7f7] items-center btn mt-5 border-1 shadow-lg hover:scale-105">Get letter
-                        <GiLoveLetter className="text-2xl"></GiLoveLetter>
+            {/* Text Section */}
+            <div className="text-center lg:text-left max-w-xl">
+                <h2 className="text-3xl md:text-4xl font-semibold text-[#2acb35] mb-4">
+                    Heartfelt Letters for Your Little One 💌
+                </h2>
+                <p className="text-gray-600 mb-6">
+                    Subscribe to receive weekly letters filled with love, encouragement, and magical words for your child. Designed to boost confidence, spark imagination, and bring a smile to their face — one letter at a time.
+                </p>
+                <Link to="/letterPages">
+                    <button className="px-5 py-2 border-2 border-[#2acb35] text-[#2acb35] hover:bg-[#2acb35] hover:text-white rounded-full transition-all">
+                        More info
                     </button>
-                </div>
+                </Link>
             </div>
         </div>
     );

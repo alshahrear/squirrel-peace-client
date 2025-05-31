@@ -16,22 +16,26 @@ const BlogHomeLatests = () => {
         fetch('http://localhost:5000/blog')
             .then(res => res.json())
             .then(data => {
-                const result = [];
-                for (let i = 0; i < 3; i++) {
-                    const travel = getRandomByCategory(data, "Travel", 1);
-                    const lifestyle = getRandomByCategory(data, "Life Style", 1);
-                    const health = getRandomByCategory(data, "Health", 1);
-                    result.push(...travel, ...lifestyle, ...health);
-                }
+                const result = new Map();
+
+                // প্রত্যেক ক্যাটাগরি থেকে 3টি blog নেওয়া
+                const travel = getRandomByCategory(data, "Travel", 3);
+                const lifestyle = getRandomByCategory(data, "Life Style", 3);
+                const health = getRandomByCategory(data, "Health", 3);
+
+                [...travel, ...lifestyle, ...health].forEach(blog => {
+                    result.set(blog._id, blog); // duplicate আটকায়
+                });
 
                 // সর্বোচ্চ ৯টি blog রাখবে
-                const limitedResult = result.slice(0, 9);
+                const limitedResult = Array.from(result.values()).slice(0, 9);
                 setBlogs(limitedResult);
             })
             .catch(error => {
                 console.error("Error loading blogs:", error);
             });
     }, []);
+
 
     const handleDeleteFromUI = (id) => {
         const updated = blogs.filter(blog => blog._id !== id);

@@ -25,7 +25,7 @@ const Navbar = () => {
         </div>
         <li className="text-lg font-semibold"><NavLink to="/newsletterPage">Newsletter</NavLink></li>
         <li className="text-lg font-semibold"><NavLink to="/storyPages">Story</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink to="/letterPages">Letter</NavLink></li>
+        <li className="text-lg font-semibold"><NavLink to="/letterPages"> Kid's Letter</NavLink></li>
         <li className="text-lg font-semibold"><NavLink to="/contact">Contact</NavLink></li>
     </>
     return (
@@ -55,7 +55,6 @@ const Navbar = () => {
                             <>
                                 <NavLink to="/">
                                     <button onClick={handleSignOut} className="btn px-8 py-6 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040]  hover:bg-white hover:border-[#2acb35]  "><span className="relative text-lg font-medium ">Log Out</span>
-                                        <GiCurledLeaf className="absolute text-2xl top-4 ml-20"></GiCurledLeaf>
                                     </button>
                                 </NavLink>
                             </> :

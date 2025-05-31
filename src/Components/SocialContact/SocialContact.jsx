@@ -17,8 +17,8 @@ const SocialContact = () => {
       <div className="flex justify-between max-w-screen-xl mx-auto py-2 px-3">
         <div className="flex items-center gap-8 text-white font-medium text-[16px]">
           <p className="flex items-center gap-3">
-            <PiSealQuestionFill className="text-[#2acb35] text-xl" />
             Have any need
+            <PiSealQuestionFill className="text-[#2acb35] text-xl" />
           </p>
           <p className="flex items-center gap-3">
             <PiPhoneCallFill className="text-[#2acb35] text-xl" />

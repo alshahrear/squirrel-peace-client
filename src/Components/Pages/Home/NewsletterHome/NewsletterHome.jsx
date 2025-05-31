@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import newsHome from "../../../../assets/news5.jpg";
+import newsHome from "../../../../assets/story2.jpg";
 import { toast, Toaster } from "react-hot-toast";
 import "animate.css";
 import Marquee from "react-fast-marquee";
