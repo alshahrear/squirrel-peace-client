@@ -36,10 +36,25 @@ const Footer = () => {
                         <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> About Us </span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Blog </span></NavLink>
+                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Life Style Blog </span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink to="/contact">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Contact Us</span></NavLink>
+                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Travel Blog </span></NavLink>
+                    </p>
+                    <p className="text-[16px]">
+                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Health Blog </span></NavLink>
+                    </p>
+                    <p className="text-[16px]">
+                        <NavLink to="/newsletterPage">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Newsletter</span></NavLink>
+                    </p>
+                </nav>
+                <nav className="flex-1 space-y-2">
+                    <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Quick Links</h4>
+                    <p className="text-[16px]">
+                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Story </span></NavLink>
+                    </p>
+                    <p className="text-[16px]">
+                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Letter </span></NavLink>
                     </p>
                     <p className="text-[16px]">
                         <NavLink to="/faq">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> FAQ</span></NavLink>
@@ -48,40 +63,9 @@ const Footer = () => {
                         <NavLink to="/testimonialPage">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Testimonial</span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink to="/newsletterPage">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Newsletter</span></NavLink>
-                    </p>
-                    <div className="space-y-2 border-t-3 border-t-[#2acb35] pt-3">
-                        <p className="link-hover text-[16px] hover:text-[#2acb35]">
-                            <NavLink>Terms of Condition</NavLink>
-                        </p>
-                        <p className="link-hover text-[16px] hover:text-[#2acb35]">
-                            <NavLink>Privacy policy</NavLink>
-                        </p>
-                    </div>
-                </nav>
-                {/* admin link */}
-                <nav className="flex-1 space-y-2">
-                    <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Admin Links</h4>
-                    <p className="text-[16px]">
-                        <NavLink to="/blogPageAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Blog Page Admin</span></NavLink>
-                    </p>
-                    <p className="text-[16px]">
-                        <NavLink to="/storyBlogAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Story Blog Admin</span></NavLink>
-                    </p>
-                    <p className="text-[16px]">
-                        <NavLink to="/testimonialsAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Testimonials Admin</span></NavLink>
-                    </p>
-                    <p className="text-[16px]">
-                        <NavLink to="/contactAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Contact Admin</span></NavLink>
-                    </p>
-                    <p className="text-[16px]">
-                        <NavLink to="/faqAdmin">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Faq Admin</span></NavLink>
-                    </p>
-                    <p className="text-[16px]">
-                        <NavLink to="/users">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Users Page</span></NavLink>
+                        <NavLink to="/contact">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Contact Us</span></NavLink>
                     </p>
                 </nav>
-
                 <nav className="flex-1">
                     <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2"><span className="text-[#2acb35]
                   text-3xl font-bold">N</span>ewsletter</h4>
@@ -111,6 +95,14 @@ const Footer = () => {
                 <div className="w-full flex justify-between items-center px-4 py-3 ">
                     <div>
                         <p>© {new Date().getFullYear()} All Rights Reserved, Powered by <span className="text-[#29bf33]">Squirrel Peace</span>.</p>
+                    </div>
+                    <div className="flex items-center gap-10">
+                        <p className="link-hover text-[16px] hover:text-[#2acb35]">
+                            <NavLink>Terms of Condition</NavLink>
+                        </p>
+                        <p className="link-hover text-[16px] hover:text-[#2acb35]">
+                            <NavLink>Privacy policy</NavLink>
+                        </p>
                     </div>
                     <div className='flex items-center space-x-5'>
                         <button title="Facebook" className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:bg-[#2acb35] transition transform hover:scale-115">

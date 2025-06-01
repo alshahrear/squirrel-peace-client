@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import BannerLetter from "./BannerLetter";
 import LetterAbout from "./LetterAbout";
 import LetterPackage from "./LetterPackage";
@@ -11,6 +12,7 @@ const LettersPages = () => {
     const footerRef = useRef(null);
     const leftSectionRef = useRef(null);
     const [shouldMoveUp, setShouldMoveUp] = useState(false);
+    const [showPackage, setShowPackage] = useState(false);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -34,6 +36,13 @@ const LettersPages = () => {
         };
     }, []);
 
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            setShowPackage(true);
+        }, 200); // slight delay
+        return () => clearTimeout(timeout);
+    }, []);
+
     return (
         <div className="relative">
             {/* Top Banner */}
@@ -46,22 +55,30 @@ const LettersPages = () => {
                     <LetterPreview />
                     <LetterAbout />
                     <LetterWhy />
-                    <LetterFaqs></LetterFaqs>
-                    <LetterTestimonials></LetterTestimonials>
+                    <LetterFaqs />
+                    <LetterTestimonials />
+                    
                 </div>
 
-                {/* Right fixed box */}
+                {/* Right fixed box with smooth spring animation */}
                 <div className="w-1/3 relative">
-                    <div
+                    <motion.div
+                        initial={{ x: 150, opacity: 0 }}
+                        animate={showPackage ? { x: 0, opacity: 1 } : {}}
+                        transition={{
+                            type: "spring",
+                            stiffness: 40,
+                            damping: 12,
+                            mass: 0.4,
+                        }}
                         className="sticky top-[10px]"
                         style={{
                             marginTop: "-40vh",
                             marginBottom: shouldMoveUp ? "2.5rem" : "0",
-                            transition: "margin-bottom 0.3s ease",
                         }}
                     >
                         <LetterPackage />
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 

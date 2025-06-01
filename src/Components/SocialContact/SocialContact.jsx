@@ -9,6 +9,7 @@ import { PiSealQuestionFill } from "react-icons/pi";
 import { FcFaq } from "react-icons/fc";
 import { NavLink } from "react-router-dom";
 import { FaAward } from "react-icons/fa";
+import { RiAdminFill } from "react-icons/ri";
 
 
 const SocialContact = () => {
@@ -45,6 +46,10 @@ const SocialContact = () => {
           <NavLink to="/faq" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
             <FcFaq className="text-[#2acb35] text-xl" />
             Faq
+          </NavLink>
+          <NavLink to="" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
+            <RiAdminFill className="text-[#2acb35] text-xl" />
+            Admin
           </NavLink>
         </div>
         <div className="flex items-center space-x-5">
