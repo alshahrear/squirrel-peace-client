@@ -47,7 +47,7 @@ const SocialContact = () => {
             <FcFaq className="text-[#2acb35] text-xl" />
             Faq
           </NavLink>
-          <NavLink to="" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
+          <NavLink to="/adminPages" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
             <RiAdminFill className="text-[#2acb35] text-xl" />
             Admin
           </NavLink>

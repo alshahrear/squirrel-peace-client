@@ -109,11 +109,13 @@ const LetterPackage = () => {
 
             <div className="mt-3">
                 <h2 className="text-xl font-semibold text-gray-800">৳ 999/month</h2>
-                <button className="btn mt-2 bg-[#2acb35] text-white px-6 py-2 rounded-lg text-lg font-semibold w-full">
-                    Subscribe Letter
-                </button>
+                <Link to="/letterPayment">
+                    <button className="btn mt-2 bg-[#2acb35] text-white px-6 py-2 rounded-lg text-lg font-semibold w-full">
+                        Subscribe Letter
+                    </button>
+                </Link>
             </div>
-
+            
             {/* Features */}
             <div className="mt-5 space-y-2 font-medium text-[#4a4f5b]">
                 {(showAllFeatures ? allFeatures : allFeatures.slice(0, 4)).map((feature, idx) => (
