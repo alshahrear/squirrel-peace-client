@@ -23,9 +23,7 @@ import LifeStylePages from "../Components/Pages/Blogs/LifeStyle/LifeStylePages";
 import BlogPageAdmin from "../Components/Pages/Blogs/BlogPageAdmin";
 import HealthPages from "../Components/Pages/Blogs/Health/HealthPages";
 import TravelPages from "../Components/Pages/Blogs/Travel/TravelPages";
-import LettersPages from "../Components/Pages/Letter/LettersPages";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
-import LetterPayment from "../Components/Pages/Letter/LetterPayment";
 
 export const router = createBrowserRouter([
   {
@@ -80,14 +78,6 @@ export const router = createBrowserRouter([
       {
         path: "/newsletterPage",
         element: <NewsletterPage></NewsletterPage>
-      },
-      {
-        path: "/letterPages",
-        element: <LettersPages></LettersPages>
-      },
-      {
-        path: "/letterPayment",
-        element: <LetterPayment></LetterPayment>
       },
       {
         path: "/contact",

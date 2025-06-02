@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import girl1 from "../../../../assets/about4.jpg";
 import girl2 from "../../../../assets/about3.jpg";
 import girl3 from "../../../../assets/about5.jpg";
-import NewsAndLetter from "../NewsAndLetter/NewsAndLetter";
+// import NewsAndLetter from "../NewsAndLetter/NewsAndLetter";
 
 const features = [
   {
@@ -49,7 +49,7 @@ const AboutHome = () => {
 
   return (
     <div className="bg-[#f5f7ec] relative">
-      <NewsAndLetter />
+      {/* <NewsAndLetter /> */}
       {/* Header Section */}
       <div className="text-center px-4 md:px-0 py-10 max-w-3xl mx-auto">
         <h2 className="text-2xl md:text-4xl font-bold text-gray-900">

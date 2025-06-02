@@ -25,7 +25,6 @@ const Navbar = () => {
         </div>
         <li className="text-lg font-semibold"><NavLink to="/newsletterPage">Newsletter</NavLink></li>
         <li className="text-lg font-semibold"><NavLink to="/storyPages">Story</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink to="/letterPages"> Kid's Letter</NavLink></li>
         <li className="text-lg font-semibold"><NavLink to="/contact">Contact</NavLink></li>
     </>
     return (
@@ -45,7 +44,7 @@ const Navbar = () => {
                     <h2 className="text-2xl font-semibold">Squirrel Peace</h2>
                 </div>
                 <div className="navbar-center hidden lg:flex">
-                    <ul className="menu menu-horizontal px-1 space-x-7">
+                    <ul className="menu menu-horizontal px-1 space-x-16">
                         {navLinks}
                     </ul>
                 </div>

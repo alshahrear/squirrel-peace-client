@@ -54,9 +54,6 @@ const Footer = () => {
                         <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Story </span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Letter </span></NavLink>
-                    </p>
-                    <p className="text-[16px]">
                         <NavLink to="/faq">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> FAQ</span></NavLink>
                     </p>
                     <p className="text-[16px]">

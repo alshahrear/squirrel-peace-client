@@ -21,7 +21,7 @@ const StoryPages = () => {
                         took a galley of type and scrambled it to make a type specimen book. when an unknown printer
                         took a galley of type and scrambled it to make a type specimen book.
                     </p>
-                    <NavLink to="/letterPages">
+                    <NavLink>
                         <button className="flex mx-auto bg-[#f7f7f7] items-center btn mt-5 border-1 shadow-lg hover:scale-105">Explore letter
                             <GiLoveLetter className="text-2xl"></GiLoveLetter>
                         </button>
