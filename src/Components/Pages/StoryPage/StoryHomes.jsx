@@ -1,16 +1,14 @@
 import { NavLink } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import StoryBlog from './StoryBlog';
 import useAuth from '../../Layout/useAuth';
 import useAdmin from '../../../hooks/useAdmin';
+import StoryHome from './StoryHome';
 
 const StoryHomes = () => {
     const [stories, setStories] = useState([]);
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
 
-
-    // র‍্যান্ডম ৬ ব্লগ সিলেক্ট করার ফাংশন
     const getRandomSix = (arr) => {
         let shuffled = arr.slice().sort(() => 0.5 - Math.random());
         return shuffled.slice(0, 6);
@@ -28,26 +26,12 @@ const StoryHomes = () => {
             });
     }, []);
 
-    // Delete from UI
-    const handleDeleteFromUI = (id) => {
-        const updatedStories = stories.filter(story => story._id !== id);
-        setStories(updatedStories);
-    };
-
-    // Update from UI
-    const handleUpdateFromUI = (id, updatedData) => {
-        const updatedStories = stories.map(story =>
-            story._id === id ? { ...story, ...updatedData } : story
-        );
-        setStories(updatedStories);
-    };
-
     return (
         <div className="max-w-screen-xl mx-auto py-10">
             <div className="pb-5">
                 <div className="flex justify-between items-center relative">
                     <h2 className="text-2xl font-bold text-center w-full">
-                        Our <span className="text-[#2acb35]">Story</span>
+                        Our <span className="text-[#2acb35]">Story Home</span>
                     </h2>
                     {
                         user && isAdmin &&
@@ -65,12 +49,10 @@ const StoryHomes = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
-                    stories.map(storyBlog => (
-                        <StoryBlog
-                            key={storyBlog._id}
-                            storyBlog={storyBlog}
-                            onDelete={handleDeleteFromUI}
-                            onUpdate={handleUpdateFromUI}
+                    stories.map(storyHome => (
+                        <StoryHome
+                            key={storyHome._id}
+                            storyHome={storyHome}
                         />
                     ))
                 }

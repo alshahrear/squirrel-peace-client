@@ -5,9 +5,11 @@ import { LuMessageCircleX } from "react-icons/lu";
 import { TbMessageCheck } from "react-icons/tb";
 import useAxiosSecure from "../../../hooks/useAxiosSecure";
 import { useQuery } from "@tanstack/react-query";
+import useAuth from "../../Layout/useAuth";
 
 const ContactAdmin = () => {
     const axiosSecure = useAxiosSecure();
+    const {user} = useAuth();
 
     const { data: contacts = [], refetch } = useQuery({
         queryKey: ["admin-contacts"],
@@ -21,7 +23,7 @@ const ContactAdmin = () => {
         <div className="my-10 max-w-screen-xl mx-auto">
             <div className="text-center space-y-3 mb-8">
                 <h1 className="text-3xl font-bold">
-                    Welcome <i className="text-[#2acb35]">Shishir Rayhan</i> to the Contact Administration Panel
+                    Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Contact Administration Panel
                 </h1>
                 <p className="text-lg text-gray-700 font-medium">
                     Here are the people who reached out to us using the contact form!

@@ -7,6 +7,9 @@ import { useState } from 'react';
 import useAuth from '../../Layout/useAuth';
 import useAdmin from '../../../hooks/useAdmin';
 
+const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
+const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
+
 const customStyle = {
   itemShapes: Star,
   activeFillColor: '#FFD700',
@@ -19,7 +22,7 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
-
+  const [newImageFile, setNewImageFile] = useState(null);
 
   const handleReviewDelete = (id) => {
     Swal.fire({
@@ -52,13 +55,30 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
     });
   };
 
-  const handleReviewUpdate = e => {
+  const handleReviewUpdate = async e => {
     e.preventDefault();
+
+    let updatedData = { ...formData };
+
+    if (newImageFile) {
+      const imageData = new FormData();
+      imageData.append('image', newImageFile);
+
+      const res = await fetch(image_hosting_api, {
+        method: 'POST',
+        body: imageData,
+      });
+
+      const imageResponse = await res.json();
+      if (imageResponse.success) {
+        updatedData.profileLink = imageResponse.data.display_url;
+      }
+    }
 
     fetch(`http://localhost:5000/reviews/${_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData)
+      body: JSON.stringify(updatedData)
     })
       .then(res => res.json())
       .then(data => {
@@ -70,8 +90,8 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
             showConfirmButton: false,
             timer: 1500
           });
-          onUpdate(_id, formData); // Update parent state
-          document.getElementById(`edit_modal_${_id}`).close(); // Close modal
+          onUpdate(_id, updatedData);
+          document.getElementById(`edit_modal_${_id}`).close();
         }
       });
   };
@@ -80,9 +100,7 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
     <div className="p-4 h-64">
       <div className="card bg-base-100 bg-opacity-80 shadow-xl h-full flex flex-col group hover:scale-105 hover:shadow-2xl transition duration-300 relative">
 
-        {/* Dropdown menu */}
-        {
-          user && isAdmin &&
+        {user && isAdmin &&
           <div className="absolute top-2 right-3 z-20 dropdown dropdown-top dropdown-end">
             <div tabIndex={0} role="button" className="btn m-1 p-2 h-10 w-10 border-2 border-[#2acb35] text-[#2acb35] hover:bg-[#2acb35] hover:text-white rounded-lg">
               <RiMenu2Line className="text-lg" />
@@ -104,7 +122,6 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
           </div>
         }
 
-        {/* Testimonial Content */}
         <div className="card-body">
           <div className="flex items-center">
             <img src={profileLink} alt={customerName} className="w-20 h-20 rounded-full object-cover border-4 border-white group-hover:border-[#2acb35]" />
@@ -117,7 +134,6 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
         </div>
       </div>
 
-      {/* Edit Modal */}
       <dialog id={`edit_modal_${_id}`} className="modal">
         <div className="modal-box w-11/12 max-w-2xl">
           <form method="dialog">
@@ -152,12 +168,10 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
             </div>
 
             <input
-              type="text"
-              name="profileLink"
-              value={formData.profileLink}
-              onChange={e => setFormData({ ...formData, profileLink: e.target.value })}
-              placeholder="Profile Image Link"
-              className="w-full p-3 border rounded-md"
+              type="file"
+              accept="image/*"
+              onChange={e => setNewImageFile(e.target.files[0])}
+              className="file-input file-input-ghost w-full"
             />
 
             <textarea

@@ -8,9 +8,14 @@ import { RiDeleteBin6Line, RiEdit2Fill } from 'react-icons/ri';
 import { LuMessageCircleMore } from 'react-icons/lu';
 import { FcLike } from 'react-icons/fc';
 import { FiCopy } from 'react-icons/fi';
+import useAuth from '../../../Layout/useAuth';
+import useAdmin from '../../../../hooks/useAdmin';
 
 const TravelBlog = ({ travelBlog, onDelete, onUpdate }) => {
     const { _id, blogTitle, blogCategory, blogImage, blogDescription } = travelBlog;
+
+    const { user } = useAuth();
+    const [isAdmin] = useAdmin();
 
     const [hovered, setHovered] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -102,40 +107,43 @@ const TravelBlog = ({ travelBlog, onDelete, onUpdate }) => {
             <div className="absolute inset-0 bg-black/30 backdrop-brightness-90"></div>
 
             {/* Dropdown menu */}
-            <div className="absolute top-3 right-3 z-30 dropdown dropdown-end">
-                <div
-                    tabIndex={0}
-                    role="button"
-                    className="border border-white text-white p-1 rounded-md cursor-pointer transition-all duration-300 hover:border-[#2acb35] hover:text-[#2acb35] hover:bg-white bg-transparent"
-                >
-                    <CgMenuLeftAlt size={20} />
-                </div>
-
-                <ul
-                    tabIndex={0}
-                    className="dropdown-content menu rounded-box z-50 w-48 p-2 shadow-md bg-[#2acb35] gap-2 "
-                >
-                    <div className="px-2 py-2 rounded-md bg-gray-100 flex items-center justify-between text-xs font-medium">
-                        <span className="truncate max-w-[110px]">{_id}</span>
-                        <FiCopy onClick={handleCopy} className="cursor-pointer text-gray-600 hover:text-[#2acb35] text-xl" />
+            {
+                user && isAdmin &&
+                <div className="absolute top-3 right-3 z-30 dropdown dropdown-end">
+                    <div
+                        tabIndex={0}
+                        role="button"
+                        className="border border-white text-white p-1 rounded-md cursor-pointer transition-all duration-300 hover:border-[#2acb35] hover:text-[#2acb35] hover:bg-white bg-transparent"
+                    >
+                        <CgMenuLeftAlt size={20} />
                     </div>
-                    {copied && (
-                        <p className="text-xs text-white font-semibold px-2 -mt-1 mb-1">ID Copied!</p>
-                    )}
-                    <button
-                        onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
-                        className="btn text-sm font-semibold text-gray-700 hover:bg-green-100 hover:text-[#2acb35] transition-all duration-200 rounded-md hover:scale-105"
+
+                    <ul
+                        tabIndex={0}
+                        className="dropdown-content menu rounded-box z-50 w-48 p-2 shadow-md bg-[#2acb35] gap-2 "
                     >
-                        Edit <RiEdit2Fill className='ml-1 -mt-1 text-xl ' />
-                    </button>
-                    <button
-                        onClick={() => handleBlogDelete(_id)}
-                        className="btn text-sm font-semibold text-gray-700 hover:bg-red-100 hover:text-red-700 transition-all duration-200 rounded-md hover:scale-105"
-                    >
-                        Delete <RiDeleteBin6Line className='ml-1 -mt-1 text-xl' />
-                    </button>
-                </ul>
-            </div>
+                        <div className="px-2 py-2 rounded-md bg-gray-100 flex items-center justify-between text-xs font-medium">
+                            <span className="truncate max-w-[110px]">{_id}</span>
+                            <FiCopy onClick={handleCopy} className="cursor-pointer text-gray-600 hover:text-[#2acb35] text-xl" />
+                        </div>
+                        {copied && (
+                            <p className="text-xs text-white font-semibold px-2 -mt-1 mb-1">ID Copied!</p>
+                        )}
+                        <button
+                            onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
+                            className="btn text-sm font-semibold text-gray-700 hover:bg-green-100 hover:text-[#2acb35] transition-all duration-200 rounded-md hover:scale-105"
+                        >
+                            Edit <RiEdit2Fill className='ml-1 -mt-1 text-xl ' />
+                        </button>
+                        <button
+                            onClick={() => handleBlogDelete(_id)}
+                            className="btn text-sm font-semibold text-gray-700 hover:bg-red-100 hover:text-red-700 transition-all duration-200 rounded-md hover:scale-105"
+                        >
+                            Delete <RiDeleteBin6Line className='ml-1 -mt-1 text-xl' />
+                        </button>
+                    </ul>
+                </div>
+            }
 
             {/* Main content */}
             <div

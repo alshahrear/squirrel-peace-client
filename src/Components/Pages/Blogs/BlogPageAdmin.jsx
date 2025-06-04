@@ -1,8 +1,10 @@
 
 import { NavLink } from 'react-router-dom';
 import Swal from 'sweetalert2'
+import useAuth from '../../Layout/useAuth';
 
 const BlogPageAdmin = () => {
+    const {user} = useAuth();
     
     const handleBlog = e => {
         e.preventDefault();
@@ -41,7 +43,7 @@ const BlogPageAdmin = () => {
 
     return (
         <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2">
-            <h1 className="text-3xl font-bold">Welcome <i className="text-[#2acb35]">Shishir Rayhan</i> to the Blog Page Administration Panel</h1>
+            <h1 className="text-3xl font-bold">Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Blog Page Administration Panel</h1>
             <p className="text-xl font-semibold">Please add a new story blog to help us build trust and credibility with future clients.</p>
             <div className='my-5'>
                 <NavLink to="/lifeStylePages">

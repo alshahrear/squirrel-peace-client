@@ -1,19 +1,14 @@
 import 'animate.css';
 import { useInView } from 'react-intersection-observer';
 import { useState } from "react";
-import { CgMenuLeftAlt } from "react-icons/cg";
 import { ImCross } from "react-icons/im";
-import Swal from 'sweetalert2';
-import { RiDeleteBin6Line, RiEdit2Fill } from 'react-icons/ri';
 import { LuMessageCircleMore } from 'react-icons/lu';
 import { FcLike } from 'react-icons/fc';
-import { FiCopy } from 'react-icons/fi';
 
-const BlogHomeLatest = ({ latestBlog, onDelete, onUpdate }) => {
+const BlogHomeLatest = ({ latestBlog}) => {
     const { _id, blogTitle, blogCategory, blogImage, blogDescription } = latestBlog;
 
     const [hovered, setHovered] = useState(false);
-    const [copied, setCopied] = useState(false);
     const [formData, setFormData] = useState({
         blogTitle,
         blogCategory,
@@ -26,66 +21,6 @@ const BlogHomeLatest = ({ latestBlog, onDelete, onUpdate }) => {
         threshold: 0.2,
     });
 
-    const handleBlogDelete = (id) => {
-        Swal.fire({
-            title: "Are you sure to delete it?",
-            text: "You won't be able to revert this!",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#2acb35",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Yes, delete it!"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(`http://localhost:5000/blog/${id}`, {
-                    method: 'DELETE',
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.deletedCount > 0) {
-                            Swal.fire({
-                                position: "top-end",
-                                icon: "success",
-                                title: "Your blog card has been deleted",
-                                showConfirmButton: false,
-                                timer: 1500
-                            });
-                            onDelete(id);
-                        }
-                    });
-            }
-        });
-    };
-
-    const handleBlogUpdate = (e) => {
-        e.preventDefault();
-
-        fetch(`http://localhost:5000/blog/${_id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(formData)
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.modifiedCount > 0) {
-                    Swal.fire({
-                        position: "top-end",
-                        icon: "success",
-                        title: "Your blog card has been updated",
-                        showConfirmButton: false,
-                        timer: 1500
-                    });
-                    onUpdate(_id, formData);
-                    document.getElementById(`edit_modal_${_id}`).close();
-                }
-            });
-    };
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(_id);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-    };
 
     return (
         <div
@@ -95,42 +30,6 @@ const BlogHomeLatest = ({ latestBlog, onDelete, onUpdate }) => {
         >
             <img src={blogImage} alt="blog-img" className="w-full h-80 object-cover" />
             <div className="absolute inset-0 bg-black/30 backdrop-brightness-90"></div>
-
-            {/* Dropdown menu */}
-            <div className="absolute top-3 right-3 z-30 dropdown dropdown-end">
-                <div
-                    tabIndex={0}
-                    role="button"
-                    className="border border-white text-white p-1 rounded-md cursor-pointer transition-all duration-300 hover:border-[#2acb35] hover:text-[#2acb35] hover:bg-white bg-transparent"
-                >
-                    <CgMenuLeftAlt size={20} />
-                </div>
-
-                <ul
-                    tabIndex={0}
-                    className="dropdown-content menu rounded-box z-50 w-48 p-2 shadow-md bg-[#2acb35] gap-2"
-                >
-                    <div className="px-2 py-2 rounded-md bg-gray-100 flex items-center justify-between text-xs font-medium">
-                        <span className="truncate max-w-[110px]">{_id}</span>
-                        <FiCopy onClick={handleCopy} className="cursor-pointer text-gray-600 hover:text-[#2acb35] text-xl" />
-                    </div>
-                    {copied && (
-                        <p className="text-xs text-white font-semibold px-2 -mt-1 mb-1">ID Copied!</p>
-                    )}
-                    <button
-                        onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
-                        className="btn text-sm font-semibold text-gray-700 hover:bg-green-100 hover:text-[#2acb35] transition-all duration-200 rounded-md hover:scale-105"
-                    >
-                        Edit <RiEdit2Fill className='ml-1 -mt-1 text-xl' />
-                    </button>
-                    <button
-                        onClick={() => handleBlogDelete(_id)}
-                        className="btn text-sm font-semibold text-gray-700 hover:bg-red-100 hover:text-red-700 transition-all duration-200 rounded-md hover:scale-105"
-                    >
-                        Delete <RiDeleteBin6Line className='ml-1 -mt-1 text-xl' />
-                    </button>
-                </ul>
-            </div>
 
             {/* Main content */}
             <div
@@ -177,7 +76,7 @@ const BlogHomeLatest = ({ latestBlog, onDelete, onUpdate }) => {
                         Edit your <span className="text-[#2acb35]">Blog</span>
                     </p>
 
-                    <form onSubmit={handleBlogUpdate} className="space-y-5">
+                    <form className="space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <input
                                 type="text"

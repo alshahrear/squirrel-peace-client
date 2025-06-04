@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { LuMessageCircleX } from "react-icons/lu";
 import Swal from "sweetalert2";
+import useAuth from "../../Layout/useAuth";
 
 const FaqAdmin = () => {
     const [faqs, setFaqs] = useState([]);
+    const {user} = useAuth();
     
     useEffect(() => {
         fetch("http://localhost:5000/faqs")
@@ -17,7 +19,7 @@ const FaqAdmin = () => {
         <div className="my-12 max-w-screen-xl mx-auto px-4">
             <div className="text-center space-y-3 mb-8">
                 <h1 className="text-3xl font-bold">
-                    Welcome <i className="text-[#2acb35]">Shishir Rayhan</i> to the FAQ
+                    Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the FAQ
                     Administration Panel
                 </h1>
                 <p className="text-lg text-gray-700 font-medium">
