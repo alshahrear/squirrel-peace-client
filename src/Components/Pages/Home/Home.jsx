@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet";
 import StoryHomes from "../StoryPage/StoryHomes";
 import AboutHome from "./AboutHome/AboutHome";
 import Banner from "./Banner/Banner";
@@ -9,6 +10,9 @@ import Testimonials from "./Testimonials/Testimonials";
 const Home = () => {
     return (
         <div>
+            <Helmet>
+                <title>Storial Peace | Home</title>
+            </Helmet>
             <Banner></Banner>
             <AboutHome></AboutHome>
             <BlogHomeCats></BlogHomeCats>

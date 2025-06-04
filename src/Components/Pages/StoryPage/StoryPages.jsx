@@ -3,11 +3,15 @@ import { GiLoveLetter } from "react-icons/gi";
 import StoryDown from "./StoryDown";
 import StoryBlogs from "./StoryBlogs";
 import { NavLink } from "react-router-dom";
+import { Helmet } from "react-helmet";
 
 
 const StoryPages = () => {
     return (
         <div>
+            <Helmet>
+                <title>Story</title>
+            </Helmet>
             <div
                 className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"
                 style={{ backgroundImage: `url(${story1})` }}

@@ -1,10 +1,16 @@
 import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
+import useAuth from "../../Layout/useAuth";
+import useAdmin from "../../../hooks/useAdmin";
 
 const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
     const { _id, faqQuestion, faqAnswer } = faq;
     const [editQ, setEditQ] = useState(faqQuestion);
     const [editA, setEditA] = useState(faqAnswer);
+
+    const { user } = useAuth();
+    const [isAdmin] = useAdmin();
+
 
     useEffect(() => {
         setEditQ(faqQuestion);
@@ -79,20 +85,23 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
                 </div>
                 <div className="collapse-content peer-checked:bg-gray-100">
                     <p className="mb-4 mt-2">{faqAnswer}</p>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
-                            className="btn bg-[#2acb35] text-white hover:bg-green-600"
-                        >
-                            Edit
-                        </button>
-                        <button
-                            onClick={handleDelete}
-                            className="btn bg-red-600 text-white hover:bg-red-700"
-                        >
-                            Delete
-                        </button>
-                    </div>
+                    {
+                        user && isAdmin &&
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
+                                className="btn bg-[#2acb35] text-white hover:bg-green-600"
+                            >
+                                Edit
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                className="btn bg-red-600 text-white hover:bg-red-700"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    }
                 </div>
             </div>
 

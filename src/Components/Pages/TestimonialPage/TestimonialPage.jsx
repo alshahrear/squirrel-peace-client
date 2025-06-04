@@ -4,10 +4,14 @@ import TestimonialBlog from "./TestimonialBlog";
 import { NavLink } from "react-router-dom";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
 import TestimonialCard from "../../Layout/TestimonialCard/TestimonialCard";
+import useAuth from "../../Layout/useAuth";
+import useAdmin from "../../../hooks/useAdmin";
 
 
 const TestimonialPage = () => {
     const [testimonials, setTestimonials] = useState([]);
+    const { user } = useAuth();
+    const [isAdmin] = useAdmin();
 
     useEffect(() => {
         fetch('http://localhost:5000/reviews')
@@ -65,11 +69,14 @@ const TestimonialPage = () => {
                 <div className="pt-12 space-y-4">
                     <div className="flex justify-between items-center px-4">
                         <h3 className="text-3xl font-bold text-center mx-auto">Successful Stories</h3>
-                        <NavLink to="/testimonialsAdmin">
-                            <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
-                                Add Testimonial
-                            </button>
-                        </NavLink>
+                        {
+                            user && isAdmin &&
+                            <NavLink to="/testimonialsAdmin">
+                                <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
+                                    Add Testimonial
+                                </button>
+                            </NavLink>
+                        }
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-5 ">

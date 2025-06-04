@@ -5,8 +5,10 @@ import { TbPhoneCalling } from "react-icons/tb";
 import toast from "react-hot-toast";
 import useAuth from "../../Layout/useAuth";
 import GoogleLogin from "../../Layout/Google/GoogleLogin";
+import useAxiosPublic from "../../../hooks/useAxiosPublic";
 
 const Register = () => {
+    const axiosPublic = useAxiosPublic();
     const [showPassword, setShowPassword] = useState(false);
     const [password, setPassword] = useState("");
     const [showErrors, setShowErrors] = useState(false);
@@ -29,11 +31,23 @@ const Register = () => {
         createUser(email, registerPassword)
             .then(result => {
                 console.log(result.user);
-                form.reset();
-                setPassword("");
-                toast.success("Congratulation, Registration Successful!");
-                const redirectPath = location.state?.from?.pathname || "/";
-                navigate(redirectPath);
+
+                const userInfo = {
+                    name: name,
+                    email: email
+                };
+
+                axiosPublic.post('/users', userInfo)
+                    .then(res => {
+                        if (res.data.insertedId) {
+                            console.log('user added to database');
+                            form.reset();
+                            setPassword("");
+                            toast.success("Congratulation, Registration Successful!");
+                            const redirectPath = location.state?.from?.pathname || "/";
+                            navigate(redirectPath);
+                        }
+                    });
             })
             .catch(error => {
                 console.error(error);

@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
+import useAuth from "../../Layout/useAuth";
+import useAdmin from "../../../hooks/useAdmin";
 
 const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
   const { _id, faqQuestion, faqAnswer } = faqAdd;
+
+  const { user } = useAuth();
+  const [isAdmin] = useAdmin();
 
   // Edit Modal এর জন্য state
   const [editQuestion, setEditQuestion] = useState(faqQuestion);
@@ -99,20 +104,23 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
         </div>
         <div className="collapse-content text-gray-700 peer-checked:bg-[#f7f7f7] peer-checked:py-3">
           <p>{faqAnswer}</p>
-          <div className="mt-3 flex gap-3">
-            <button
-              onClick={openModal}
-              className="btn px-5 py-1 text-white bg-[#2acb35] rounded hover:bg-[#2acb35dc] hover:scale-105"
-            >
-              Edit
-            </button>
-            <button
-              onClick={handleDelete}
-              className="btn px-4 py-1 text-white bg-red-600 rounded hover:bg-red-700 hover:scale-105"
-            >
-              Delete
-            </button>
-          </div>
+          {
+            user && isAdmin &&
+            <div className="mt-3 flex gap-3">
+              <button
+                onClick={openModal}
+                className="btn px-5 py-1 text-white bg-[#2acb35] rounded hover:bg-[#2acb35dc] hover:scale-105"
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleDelete}
+                className="btn px-4 py-1 text-white bg-red-600 rounded hover:bg-red-700 hover:scale-105"
+              >
+                Delete
+              </button>
+            </div>
+          }
         </div>
       </div>
 

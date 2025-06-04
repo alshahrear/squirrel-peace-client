@@ -10,9 +10,14 @@ import { FcFaq } from "react-icons/fc";
 import { NavLink } from "react-router-dom";
 import { FaAward } from "react-icons/fa";
 import { RiAdminFill } from "react-icons/ri";
+import useAuth from "../Layout/useAuth";
+import useAdmin from "../../hooks/useAdmin";
 
 
 const SocialContact = () => {
+  const {user} = useAuth();
+  const [isAdmin] = useAdmin();
+
   return (
     <div className="bg-[#262626]">
       <div className="flex justify-between max-w-screen-xl mx-auto py-2 px-3">
@@ -47,10 +52,14 @@ const SocialContact = () => {
             <FcFaq className="text-[#2acb35] text-xl" />
             Faq
           </NavLink>
-          <NavLink to="/adminPages" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
+          
+          {
+            user && isAdmin && 
+            <NavLink to="/adminPages" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
             <RiAdminFill className="text-[#2acb35] text-xl" />
             Admin
           </NavLink>
+          }
         </div>
         <div className="flex items-center space-x-5">
           <button

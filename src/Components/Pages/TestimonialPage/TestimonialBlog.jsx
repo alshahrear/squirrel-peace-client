@@ -4,6 +4,8 @@ import { RiMenu2Line, RiDeleteBin6Line, RiEdit2Fill } from "react-icons/ri";
 import Swal from 'sweetalert2';
 import { ImCross } from "react-icons/im";
 import { useState } from 'react';
+import useAuth from '../../Layout/useAuth';
+import useAdmin from '../../../hooks/useAdmin';
 
 const customStyle = {
   itemShapes: Star,
@@ -14,6 +16,10 @@ const customStyle = {
 const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
   const { _id, customerName, rating, review, profileLink } = testimonialBlog;
   const [formData, setFormData] = useState({ customerName, rating, review, profileLink });
+
+  const { user } = useAuth();
+  const [isAdmin] = useAdmin();
+
 
   const handleReviewDelete = (id) => {
     Swal.fire({
@@ -75,25 +81,28 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
       <div className="card bg-base-100 bg-opacity-80 shadow-xl h-full flex flex-col group hover:scale-105 hover:shadow-2xl transition duration-300 relative">
 
         {/* Dropdown menu */}
-        <div className="absolute top-2 right-3 z-20 dropdown dropdown-top dropdown-end">
-          <div tabIndex={0} role="button" className="btn m-1 p-2 h-10 w-10 border-2 border-[#2acb35] text-[#2acb35] hover:bg-[#2acb35] hover:text-white rounded-lg">
-            <RiMenu2Line className="text-lg" />
+        {
+          user && isAdmin &&
+          <div className="absolute top-2 right-3 z-20 dropdown dropdown-top dropdown-end">
+            <div tabIndex={0} role="button" className="btn m-1 p-2 h-10 w-10 border-2 border-[#2acb35] text-[#2acb35] hover:bg-[#2acb35] hover:text-white rounded-lg">
+              <RiMenu2Line className="text-lg" />
+            </div>
+            <ul tabIndex={0} className="dropdown-content menu text-lg font-medium text-white bg-[#2acb35] rounded-box w-52 p-2">
+              <button
+                className="btn bg-white font-semibold text-black hover:bg-white/70 mb-2"
+                onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
+              >
+                Edit <RiEdit2Fill className='ml-1 -mt-1 text-xl ' />
+              </button>
+              <button
+                onClick={() => handleReviewDelete(_id)}
+                className="btn bg-white font-semibold text-black hover:bg-white/70"
+              >
+                Delete <RiDeleteBin6Line className='ml-1 -mt-1 text-xl' />
+              </button>
+            </ul>
           </div>
-          <ul tabIndex={0} className="dropdown-content menu text-lg font-medium text-white bg-[#2acb35] rounded-box w-52 p-2">
-            <button
-              className="btn bg-white font-semibold text-black hover:bg-white/70 mb-2"
-              onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
-            >
-              Edit <RiEdit2Fill className='ml-1 -mt-1 text-xl ' />
-            </button>
-            <button
-              onClick={() => handleReviewDelete(_id)}
-              className="btn bg-white font-semibold text-black hover:bg-white/70"
-            >
-              Delete <RiDeleteBin6Line className='ml-1 -mt-1 text-xl' />
-            </button>
-          </ul>
-        </div>
+        }
 
         {/* Testimonial Content */}
         <div className="card-body">

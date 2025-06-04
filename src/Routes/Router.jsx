@@ -24,6 +24,7 @@ import BlogPageAdmin from "../Components/Pages/Blogs/BlogPageAdmin";
 import HealthPages from "../Components/Pages/Blogs/Health/HealthPages";
 import TravelPages from "../Components/Pages/Blogs/Travel/TravelPages";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
+import AdminRoute from "../Components/Layout/Privet/AdminRoute";
 
 export const router = createBrowserRouter([
   {
@@ -37,7 +38,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/adminPages",
-        element: <AdminPages></AdminPages>
+        element: <AdminRoute><AdminPages></AdminPages></AdminRoute>
       },
       {
         path: "/aboutPage",
@@ -69,11 +70,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "/storyBlogAdmin",
-        element: <StoryBlogAdmin></StoryBlogAdmin>
+        element: <AdminRoute><StoryBlogAdmin></StoryBlogAdmin></AdminRoute>
       },
       {
         path: "/blogPageAdmin",
-        element: <BlogPageAdmin></BlogPageAdmin>
+        element: <AdminRoute><BlogPageAdmin></BlogPageAdmin></AdminRoute>
       },
       {
         path: "/newsletterPage",
@@ -85,7 +86,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/contactAdmin",
-        element: <ContactAdmin></ContactAdmin>
+        element: <AdminRoute><ContactAdmin></ContactAdmin></AdminRoute>
       },
       {
         path: "/faq",
@@ -93,7 +94,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/faqAdmin",
-        element: <FaqAdmin></FaqAdmin>
+        element: <AdminRoute><FaqAdmin></FaqAdmin></AdminRoute>
       },
       {
         path: "/testimonialPage",
@@ -101,7 +102,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/testimonialsAdmin",
-        element: <TestimonialsAdmin></TestimonialsAdmin>
+        element: <AdminRoute><TestimonialsAdmin></TestimonialsAdmin></AdminRoute>
       },
       {
         path: "/login",
@@ -113,7 +114,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/users",
-        element: <Users></Users>
+        element: <AdminRoute><Users></Users></AdminRoute>
       }
 
     ]

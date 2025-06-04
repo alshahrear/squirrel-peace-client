@@ -2,10 +2,14 @@ import { Link, NavLink } from "react-router-dom";
 import Swal from "sweetalert2";
 import { useEffect, useState } from "react";
 import FaqList from "./FaqList";
+import useAuth from "../../Layout/useAuth";
+import useAdmin from "../../../hooks/useAdmin";
 
 const Faq = () => {
   const [faqsAdd, setFaqsAdd] = useState([]);
   const [faqs, setFaqs] = useState([]);
+  const { user } = useAuth();
+  const [isAdmin] = useAdmin();
 
   useEffect(() => {
     fetch("http://localhost:5000/faqsAdd")
@@ -106,17 +110,20 @@ const Faq = () => {
           <h1 className="text-3xl font-bold flex items-center gap-2">
             Frequently Asked Questions <span className="text-[#2acb35]">__</span>
           </h1>
-          <NavLink to="/faqAdmin">
-            <div className="indicator mt-5">
-              <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">{faqs.length}</span>
-              <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
-                <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040] hover:scale-105">
-                  Faq Admin Page
-                </span>
-                <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
-              </button>
-            </div>
-          </NavLink>
+          {
+            user && isAdmin &&
+            <NavLink to="/faqAdmin">
+              <div className="indicator mt-5">
+                <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">{faqs.length}</span>
+                <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
+                  <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040] hover:scale-105">
+                    Faq Admin Page
+                  </span>
+                  <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
+                </button>
+              </div>
+            </NavLink>
+          }
         </div>
 
         <p className="text-lg font-medium my-5">
@@ -146,12 +153,15 @@ const Faq = () => {
               />
             ))}
 
-            <button
-              className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
-              onClick={() => document.getElementById("my_modal_3").showModal()}
-            >
-              Add Faq
-            </button>
+            {
+              user && isAdmin &&
+              <button
+                className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
+                onClick={() => document.getElementById("my_modal_3").showModal()}
+              >
+                Add Faq
+              </button>
+            }
 
             <dialog id="my_modal_3" className="modal">
               <div className="modal-box">
@@ -192,12 +202,12 @@ const Faq = () => {
           </div>
 
           <div className="w-1/3 ">
-          <p className="text-lg text-center font-semibold">
-            If you want, you can also ask your question on the {" "}
-            <span className="text-[#2acb35] underline hover:font-bold hover:text-gray-600">
-              <Link to="/contact">Contact Page</Link>
-            </span>
-          </p>
+            <p className="text-lg text-center font-semibold">
+              If you want, you can also ask your question on the {" "}
+              <span className="text-[#2acb35] underline hover:font-bold hover:text-gray-600">
+                <Link to="/contact">Contact Page</Link>
+              </span>
+            </p>
             <form onSubmit={handleFaq} className="bg-[#f5f7ec] p-6 rounded-md shadow-md ">
               <h2 className="text-2xl font-bold mb-4">Submit Your Question</h2>
               <input

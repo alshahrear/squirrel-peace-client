@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import NewsletterFaq from "./NewsletterFaq";
+import useAuth from "../../Layout/useAuth";
+import useAdmin from "../../../hooks/useAdmin";
 
 const NewsletterFaqs = () => {
     const [faqs, setFaqs] = useState([]);
+    const { user } = useAuth();
+    const [isAdmin] = useAdmin();
+
 
     useEffect(() => {
         fetch("http://localhost:5000/newsletterFaq")
@@ -54,12 +59,15 @@ const NewsletterFaqs = () => {
         <div className="max-w-4xl mx-auto px-4">
             <div className="pb-5 flex items-center justify-between">
                 <h2 className="text-3xl font-bold">Newsletter FAQs</h2>
-                <button
-                    className="btn bg-[#2acb35] text-white hover:bg-green-600"
-                    onClick={() => document.getElementById("faq_modal").showModal()}
-                >
-                    Add FAQ
-                </button>
+                {
+                    user && isAdmin &&
+                    <button
+                        className="btn bg-[#2acb35] text-white hover:bg-green-600"
+                        onClick={() => document.getElementById("faq_modal").showModal()}
+                    >
+                        Add FAQ
+                    </button>
+                }
             </div>
 
             <div className="space-y-4">
