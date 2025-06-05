@@ -34,10 +34,15 @@ const StoryHomes = () => {
                         Our <span className="text-[#2acb35]">Story Home</span>
                     </h2>
                     {
-                        user && isAdmin &&
+                        user && isAdmin ?
                         <NavLink to="/storyBlogAdmin" className="absolute right-4 sm:right-10">
                             <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
                                 Add Story
+                            </button>
+                        </NavLink> :
+                        <NavLink to="/storyPages" className="absolute right-4 sm:right-10">
+                            <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
+                                View All
                             </button>
                         </NavLink>
                     }

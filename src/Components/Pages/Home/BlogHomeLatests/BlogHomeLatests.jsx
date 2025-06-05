@@ -9,7 +9,6 @@ const BlogHomeLatests = () => {
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
 
-
     // ক্যাটাগরি অনুযায়ী নির্দিষ্ট blog নিতে
     const getRandomByCategory = (arr, category, count) => {
         const filtered = arr.filter(blog => blog.blogCategory === category);
@@ -41,7 +40,6 @@ const BlogHomeLatests = () => {
             });
     }, []);
 
-
     const handleDeleteFromUI = (id) => {
         const updated = blogs.filter(blog => blog._id !== id);
         setBlogs(updated);
@@ -62,12 +60,31 @@ const BlogHomeLatests = () => {
                         Our <span className="text-[#2acb35]">Latest Blog</span>
                     </h2>
                     {
-                        user && isAdmin &&
-                        <NavLink to="/blogPageAdmin" className="absolute right-4 sm:right-10">
-                            <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
-                                Add Blog
-                            </button>
-                        </NavLink>
+                        user && isAdmin ? (
+                            <NavLink to="/blogPageAdmin" className="absolute right-4 sm:right-10">
+                                <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
+                                    Add Blog
+                                </button>
+                            </NavLink>
+                        ) : (
+                            <div className="dropdown dropdown-hover absolute right-4 sm:right-10 z-20">
+                                <div
+                                    tabIndex={0}
+                                    role="button"
+                                    className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition"
+                                >
+                                    View All
+                                </div>
+                                <ul
+                                    tabIndex={0}
+                                    className="dropdown-content menu bg-base-100 font-semibold rounded-box shadow -mt-1 w-40"
+                                >
+                                    <li><NavLink to="/lifeStylePages" className="hover:text-[#2acb35]">Life Style</NavLink></li>
+                                    <li><NavLink to="/travelPages" className="hover:text-[#2acb35]">Travel</NavLink></li>
+                                    <li><NavLink to="/healthPages" className="hover:text-[#2acb35]">Health</NavLink></li>
+                                </ul>
+                            </div>
+                        )
                     }
                 </div>
                 <p className="text-center mt-2">

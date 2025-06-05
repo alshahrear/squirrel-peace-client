@@ -1,39 +1,77 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import useAuth from "../../../Layout/useAuth";
 
 const Navbar = () => {
     const { user, logOut } = useAuth();
+    const location = useLocation();
 
     const handleSignOut = () => {
-        logOut()
-            .then()
-            .catch();
+        logOut().then().catch();
     };
 
-    const navLinks = <>
-        <li className="text-lg font-semibold"><NavLink>Home</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink to="/aboutPage">About</NavLink></li>
-        <div className="dropdown-hover">
-            <li className="dropdown ">
-                <div tabIndex={0} role="button" className="text-lg font-semibold">Blog</div>
-                <ul tabIndex={0} className="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm font-semibold">
-                    <li><NavLink to="/lifeStylePages">Life Style</NavLink></li>
-                    <li><NavLink to="/travelPages">Travel</NavLink></li>
-                    <li><NavLink to="/healthPages">Health</NavLink></li>
-                </ul>
+    // Check if current path is any of the blog subroutes
+    const isBlogActive = ["/lifeStylePages", "/travelPages", "/healthPages"].includes(location.pathname);
+
+    const navLinkStyle = ({ isActive }) =>
+        `text-lg font-semibold rounded ${
+            isActive ? "text-[#2acb35]" : "text-black"
+        } hover:bg-gray-200`;
+
+    const dropdownLinkStyle = ({ isActive }) =>
+        `hover:bg-[#2acb35] hover:text-white ${
+            isActive ? "text-[#2acb35]" : ""
+        }`;
+
+    const navLinks = (
+        <>
+            <li>
+                <NavLink to="/" className={navLinkStyle}>Home</NavLink>
             </li>
-        </div>
-        <li className="text-lg font-semibold"><NavLink to="/newsletterPage">Newsletter</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink to="/storyPages">Story</NavLink></li>
-        <li className="text-lg font-semibold"><NavLink to="/contact">Contact</NavLink></li>
-    </>
+            <li>
+                <NavLink to="/aboutPage" className={navLinkStyle}>About</NavLink>
+            </li>
+            <li>
+                <div className="dropdown dropdown-hover relative">
+                    <div
+                        tabIndex={0}
+                        role="button"
+                        className={`text-lg font-semibold rounded ${
+                            isBlogActive ? "text-[#2acb35]" : "text-black"
+                        } hover:bg-gray-200`}
+                    >
+                        Blog
+                    </div>
+                    <ul
+                        tabIndex={0}
+                        className="dropdown-content menu bg-base-100 rounded-box shadow font-semibold mt-1 w-52 absolute left-1/2 -translate-x-1/2 z-10"
+                    >
+                        <li><NavLink to="/lifeStylePages" className={dropdownLinkStyle}>Life Style</NavLink></li>
+                        <li><NavLink to="/travelPages" className={dropdownLinkStyle}>Travel</NavLink></li>
+                        <li><NavLink to="/healthPages" className={dropdownLinkStyle}>Health</NavLink></li>
+                    </ul>
+                </div>
+            </li>
+            <li>
+                <NavLink to="/newsletterPage" className={navLinkStyle}>Newsletter</NavLink>
+            </li>
+            <li>
+                <NavLink to="/storyPages" className={navLinkStyle}>Story</NavLink>
+            </li>
+            <li>
+                <NavLink to="/contact" className={navLinkStyle}>Contact</NavLink>
+            </li>
+        </>
+    );
+
     return (
         <div className="bg-[#f7f7f7]">
             <div className="navbar max-w-screen-xl mx-auto">
                 <div className="navbar-start">
                     <div className="dropdown">
                         <div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" /> </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
+                            </svg>
                         </div>
                         <ul
                             tabIndex={0}
@@ -50,19 +88,22 @@ const Navbar = () => {
                 </div>
                 <div className="navbar-end">
                     {
-                        user ?
-                            <>
-                                <NavLink to="/">
-                                    <button onClick={handleSignOut} className="btn px-8 py-6 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040]  hover:bg-white hover:border-[#2acb35]  "><span className="relative text-lg font-medium ">Log Out</span>
-                                    </button>
-                                </NavLink>
-                            </> :
-                            <>
-                                <NavLink to="/login">
-                                    <button className="btn px-7 py-5 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040]  hover:bg-white hover:border-[#2acb35]  "><span className="text-lg font-medium ">Login</span>
-                                    </button>
-                                </NavLink>
-                            </>
+                        user ? (
+                            <NavLink to="/">
+                                <button
+                                    onClick={handleSignOut}
+                                    className="btn px-8 py-6 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040] hover:bg-white hover:border-[#2acb35]">
+                                    <span className="relative text-lg font-medium">Log Out</span>
+                                </button>
+                            </NavLink>
+                        ) : (
+                            <NavLink to="/login">
+                                <button
+                                    className="btn px-7 py-5 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040] hover:bg-white hover:border-[#2acb35]">
+                                    <span className="text-lg font-medium">Login</span>
+                                </button>
+                            </NavLink>
+                        )
                     }
                 </div>
             </div>
