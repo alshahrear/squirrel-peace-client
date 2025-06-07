@@ -10,6 +10,7 @@ import { FcLike } from 'react-icons/fc';
 import { FiCopy } from 'react-icons/fi';
 import useAuth from '../../Layout/useAuth';
 import useAdmin from '../../../hooks/useAdmin';
+import { useNavigate } from 'react-router-dom';
 
 const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
     const { _id, storyTitle, storyCategory, storyImage, storyDescription } = storyBlog;
@@ -30,6 +31,8 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
         triggerOnce: true,
         threshold: 0.2,
     });
+
+    const navigate = useNavigate();
 
     const handleStoryDelete = (id) => {
         Swal.fire({
@@ -94,7 +97,8 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
 
     return (
         <div
-            className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group"
+            className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
+            onClick={() => navigate(`/story/${_id}`)}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
@@ -106,10 +110,9 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
 
             <div className="absolute inset-0 bg-black/30 backdrop-brightness-90"></div>
 
-            {/* Dropdown menu */}
             {
                 user && isAdmin &&
-                <div className="absolute top-3 right-3 z-30 dropdown dropdown-end">
+                <div className="absolute top-3 right-3 z-30 dropdown dropdown-end" onClick={(e) => e.stopPropagation()}>
                     <div
                         tabIndex={0}
                         role="button"
@@ -130,13 +133,19 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
                             <p className="text-xs text-white font-semibold px-2 -mt-1 mb-1">ID Copied!</p>
                         )}
                         <button
-                            onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                document.getElementById(`edit_modal_${_id}`).showModal();
+                            }}
                             className="btn text-sm font-semibold text-gray-700 hover:bg-green-100 hover:text-[#2acb35] transition-all duration-200 rounded-md hover:scale-105"
                         >
                             Edit <RiEdit2Fill className='ml-1 -mt-1 text-xl ' />
                         </button>
                         <button
-                            onClick={() => handleStoryDelete(_id)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleStoryDelete(_id);
+                            }}
                             className="btn text-sm font-semibold text-gray-700 hover:bg-red-100 hover:text-red-700 transition-all duration-200 rounded-md hover:scale-105"
                         >
                             Delete <RiDeleteBin6Line className='ml-1 -mt-1 text-xl' />
@@ -145,41 +154,40 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
                 </div>
             }
 
-            {/* Main content */}
             <div
                 ref={ref}
-                className={`absolute inset-0 flex flex-col justify-center text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
+                className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
             >
-                <h2 className="text-xl font-bold mb-2 drop-shadow-sm ">{storyTitle}</h2>
-                <p className="text-sm group-hover:font-medium mb-4 leading-relaxed drop-shadow-sm transition-all duration-300">
-                    {storyDescription}
-                </p>
-                <button
-                    className={`btn self-start px-4 py-2 text-white rounded-md transition-all duration-300 hover:scale-110 hover:font-semibold hover:border-[#2acb35]
-                        ${hovered ? "bg-transparent border-white animate__animated animate__heartBeat animate" : "bg-[#2acb35] border-0"}`}
+                {/* Category badge - TOP LEFT */}
+                <div
+                    className={`absolute top-3 z-20 ${(user && isAdmin) ? "left-3" : "right-3"
+                        }`}
                 >
-                    See More
-                </button>
-
-                <div className='absolute bottom-6 left-0 w-full px-4 flex items-center justify-between z-20'>
-                    <div className="flex items-center gap-3">
-                        <p className="flex items-center gap-1">
-                            <LuMessageCircleMore className="text-[#2acb35]" />
-                            <span className="beat-on-hover font-semibold">6</span>
-                        </p>
-                        <p className="flex items-center gap-1">
-                            <FcLike />
-                            <span className="beat-on-hover font-semibold">10</span>
-                        </p>
-                    </div>
-                    <div className="text-white text-xs px-4 py-2 border border-white rounded-full">
+                    <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
                         {storyCategory}
                     </div>
+                </div>
+
+                {/* Title & Description - Centered vertically */}
+                <div className="flex-grow flex flex-col justify-center">
+                    <h2 className="text-xl font-bold mb-2 drop-shadow-sm text-left">{storyTitle}</h2>
+                    <p className="text-sm group-hover:font-medium mb-6 leading-relaxed drop-shadow-sm transition-all duration-300 text-left">
+                        {storyDescription}
+                    </p>
+                </div>
+
+                {/* Button at the very bottom */}
+                <div>
+                    <button
+                        className="w-full py-1 border border-white text-white rounded-md transition-all duration-300 hover:scale-105 hover:font-semibold hover:border-[#2acb35]"
+                    >
+                        See More
+                    </button>
                 </div>
             </div>
 
             {/* Edit Modal */}
-            <dialog id={`edit_modal_${_id}`} className="modal">
+            <dialog id={`edit_modal_${_id}`} className="modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-box w-11/12 max-w-2xl">
                     <form method="dialog">
                         <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">

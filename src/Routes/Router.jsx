@@ -25,6 +25,7 @@ import HealthPages from "../Components/Pages/Blogs/Health/HealthPages";
 import TravelPages from "../Components/Pages/Blogs/Travel/TravelPages";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
 import AdminRoute from "../Components/Layout/Privet/AdminRoute";
+import StoryDetails from "../Components/Pages/StoryPage/StoryDetails";
 
 export const router = createBrowserRouter([
   {
@@ -67,6 +68,10 @@ export const router = createBrowserRouter([
       {
         path: "/storyBlogs",
         element: <StoryBlogs></StoryBlogs>
+      },
+      {
+        path: "/story/:id",
+        element: <StoryDetails></StoryDetails>
       },
       {
         path: "/storyBlogAdmin",

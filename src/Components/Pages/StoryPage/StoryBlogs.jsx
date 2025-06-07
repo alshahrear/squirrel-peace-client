@@ -62,6 +62,7 @@ const StoryBlogs = () => {
                         <StoryBlog
                             key={storyBlog._id}
                             storyBlog={storyBlog}
+                            stories={stories}
                             onDelete={handleDeleteFromUI}
                             onUpdate={handleUpdateFromUI}
                         />

@@ -43,7 +43,7 @@ const Navbar = () => {
                     </div>
                     <ul
                         tabIndex={0}
-                        className="dropdown-content menu bg-base-100 rounded-box shadow font-semibold mt-1 w-52 absolute left-1/2 -translate-x-1/2 z-10"
+                        className="dropdown-content menu bg-base-100 rounded-box shadow font-semibold w-52 absolute left-1/2 -translate-x-1/2 z-10"
                     >
                         <li><NavLink to="/lifeStylePages" className={dropdownLinkStyle}>Life Style</NavLink></li>
                         <li><NavLink to="/travelPages" className={dropdownLinkStyle}>Travel</NavLink></li>
@@ -92,7 +92,7 @@ const Navbar = () => {
                             <NavLink to="/">
                                 <button
                                     onClick={handleSignOut}
-                                    className="btn px-8 py-6 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040] hover:bg-white hover:border-[#2acb35]">
+                                    className="btn px-7 py-5 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040] hover:bg-white hover:border-[#2acb35]">
                                     <span className="relative text-lg font-medium">Log Out</span>
                                 </button>
                             </NavLink>
