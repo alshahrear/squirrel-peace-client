@@ -26,6 +26,7 @@ import TravelPages from "../Components/Pages/Blogs/Travel/TravelPages";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
 import AdminRoute from "../Components/Layout/Privet/AdminRoute";
 import StoryDetails from "../Components/Pages/StoryPage/StoryDetails";
+import CommentsAdmin from "../Components/Pages/StoryPage/CommentsAdmin";
 
 export const router = createBrowserRouter([
   {
@@ -82,6 +83,10 @@ export const router = createBrowserRouter([
         element: <AdminRoute><BlogPageAdmin></BlogPageAdmin></AdminRoute>
       },
       {
+        path: "/commentAdmin",
+        element: <AdminRoute><CommentsAdmin></CommentsAdmin></AdminRoute>
+      },
+      {
         path: "/newsletterPage",
         element: <NewsletterPage></NewsletterPage>
       },
@@ -120,8 +125,7 @@ export const router = createBrowserRouter([
       {
         path: "/users",
         element: <AdminRoute><Users></Users></AdminRoute>
-      }
-
+      },
     ]
   },
 ]);

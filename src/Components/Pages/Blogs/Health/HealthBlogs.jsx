@@ -6,9 +6,10 @@ import useAdmin from '../../../../hooks/useAdmin';
 
 const HealthBlogs = () => {
     const [blogs, setBlogs] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const blogsPerPage = 12;
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
-
 
     useEffect(() => {
         fetch('http://localhost:5000/blog')
@@ -27,6 +28,36 @@ const HealthBlogs = () => {
             blog._id === id ? { ...blog, ...updatedData } : blog
         );
         setBlogs(updatedBlogs);
+    };
+
+    const filteredBlogs = blogs.filter(blog => blog.blogCategory === "Health").reverse();
+    const totalPages = Math.ceil(filteredBlogs.length / blogsPerPage);
+    const indexOfLastBlog = currentPage * blogsPerPage;
+    const indexOfFirstBlog = indexOfLastBlog - blogsPerPage;
+    const currentBlogs = filteredBlogs.slice(indexOfFirstBlog, indexOfLastBlog);
+
+    const getPageNumbers = () => {
+        let startPage = Math.max(currentPage - 2, 1);
+        let endPage = startPage + 4;
+
+        if (endPage > totalPages) {
+            endPage = totalPages;
+            startPage = Math.max(endPage - 4, 1);
+        }
+
+        const pages = [];
+        for (let i = startPage; i <= endPage; i++) {
+            pages.push(i);
+        }
+        return pages;
+    };
+
+    const handlePrevious = () => {
+        if (currentPage > 1) setCurrentPage(prev => prev - 1);
+    };
+
+    const handleNext = () => {
+        if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
     };
 
     return (
@@ -50,20 +81,61 @@ const HealthBlogs = () => {
                     teacher, your motivator, your coach and your friend.
                 </p>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
-                    blogs
-                        .filter(blog => blog.blogCategory === "Health")
-                        .reverse()
-                        .map(healthBlog => (
-                            <HealthBlog
-                                key={healthBlog._id}
-                                healthBlog={healthBlog}
-                                onDelete={handleDeleteFromUI}
-                                onUpdate={handleUpdateFromUI}
-                            />
-                        ))
+                    currentBlogs.map(healthBlog => (
+                        <HealthBlog
+                            key={healthBlog._id}
+                            healthBlog={healthBlog}
+                            onDelete={handleDeleteFromUI}
+                            onUpdate={handleUpdateFromUI}
+                        />
+                    ))
                 }
+            </div>
+
+            {/* Pagination */}
+            <div className="flex justify-center mt-10 space-x-2 items-center">
+                <button
+                    onClick={handlePrevious}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 rounded ${
+                        currentPage === 1
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'bg-[#2acb35] text-white hover:bg-green-600'
+                    }`}
+                >
+                    Previous
+                </button>
+
+                {
+                    getPageNumbers().map(number => (
+                        <button
+                            key={number}
+                            onClick={() => setCurrentPage(number)}
+                            className={`px-4 py-2 border rounded ${
+                                currentPage === number
+                                    ? 'bg-[#2acb35] text-white'
+                                    : 'bg-white text-[#2acb35] border-[#2acb35] hover:bg-[#2acb35] hover:text-white'
+                            }`}
+                        >
+                            {number}
+                        </button>
+                    ))
+                }
+
+                <button
+                    onClick={handleNext}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 rounded ${
+                        currentPage === totalPages
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'bg-[#2acb35] text-white hover:bg-green-600'
+                    }`}
+                >
+                    Next
+                </button>
             </div>
         </div>
     );

@@ -1,4 +1,3 @@
-// StoryBlogs.jsx
 import { NavLink } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import StoryBlog from './StoryBlog';
@@ -7,6 +6,8 @@ import useAdmin from '../../../hooks/useAdmin';
 
 const StoryBlogs = () => {
     const [stories, setStories] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const storiesPerPage = 9;
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
 
@@ -21,18 +22,45 @@ const StoryBlogs = () => {
             });
     }, []);
 
-    // Delete from UI
     const handleDeleteFromUI = (id) => {
         const updatedStories = stories.filter(story => story._id !== id);
         setStories(updatedStories);
     };
 
-    // Update from UI
     const handleUpdateFromUI = (id, updatedData) => {
         const updatedStories = stories.map(story =>
             story._id === id ? { ...story, ...updatedData } : story
         );
         setStories(updatedStories);
+    };
+
+    const totalPages = Math.ceil(stories.length / storiesPerPage);
+    const indexOfLastStory = currentPage * storiesPerPage;
+    const indexOfFirstStory = indexOfLastStory - storiesPerPage;
+    const currentStories = stories.slice().reverse().slice(indexOfFirstStory, indexOfLastStory);
+
+    const getPageNumbers = () => {
+        let startPage = Math.max(currentPage - 2, 1);
+        let endPage = startPage + 4;
+
+        if (endPage > totalPages) {
+            endPage = totalPages;
+            startPage = Math.max(endPage - 4, 1);
+        }
+
+        const pages = [];
+        for (let i = startPage; i <= endPage; i++) {
+            pages.push(i);
+        }
+        return pages;
+    };
+
+    const handlePrevious = () => {
+        if (currentPage > 1) setCurrentPage(prev => prev - 1);
+    };
+
+    const handleNext = () => {
+        if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
     };
 
     return (
@@ -56,9 +84,10 @@ const StoryBlogs = () => {
                     teacher, your motivator, your coach and your friend.
                 </p>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
-                    stories.slice().reverse().map(storyBlog => (
+                    currentStories.map(storyBlog => (
                         <StoryBlog
                             key={storyBlog._id}
                             storyBlog={storyBlog}
@@ -68,6 +97,49 @@ const StoryBlogs = () => {
                         />
                     ))
                 }
+            </div>
+
+            {/* Pagination */}
+            <div className="flex justify-center mt-10 space-x-2 items-center">
+                <button
+                    onClick={handlePrevious}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 rounded ${
+                        currentPage === 1
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'bg-[#2acb35] text-white hover:bg-green-600'
+                    }`}
+                >
+                    Previous
+                </button>
+
+                {
+                    getPageNumbers().map(number => (
+                        <button
+                            key={number}
+                            onClick={() => setCurrentPage(number)}
+                            className={`px-4 py-2 border rounded ${
+                                currentPage === number
+                                    ? 'bg-[#2acb35] text-white'
+                                    : 'bg-white text-[#2acb35] border-[#2acb35] hover:bg-[#2acb35] hover:text-white'
+                            }`}
+                        >
+                            {number}
+                        </button>
+                    ))
+                }
+
+                <button
+                    onClick={handleNext}
+                    disabled={currentPage === totalPages}
+                    className={`px-6 py-2 rounded ${
+                        currentPage === totalPages
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'bg-[#2acb35] text-white hover:bg-green-600'
+                    }`}
+                >
+                    Next
+                </button>
             </div>
         </div>
     );

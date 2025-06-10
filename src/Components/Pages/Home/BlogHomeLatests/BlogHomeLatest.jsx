@@ -5,7 +5,7 @@ import { ImCross } from "react-icons/im";
 import { LuMessageCircleMore } from 'react-icons/lu';
 import { FcLike } from 'react-icons/fc';
 
-const BlogHomeLatest = ({ latestBlog}) => {
+const BlogHomeLatest = ({ latestBlog }) => {
     const { _id, blogTitle, blogCategory, blogImage, blogDescription } = latestBlog;
 
     const [hovered, setHovered] = useState(false);
@@ -33,36 +33,30 @@ const BlogHomeLatest = ({ latestBlog}) => {
 
             {/* Main content */}
             <div
-                ref={ref}
-                className={`absolute inset-0 flex flex-col justify-center text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
-            >
-                <h2 className="text-xl font-bold mb-2 drop-shadow-sm">{blogTitle}</h2>
-                <p className="text-sm group-hover:font-medium mb-4 leading-relaxed drop-shadow-sm transition-all duration-300">
-                    {blogDescription}
-                </p>
-                <button
-                    className={`btn self-start px-4 py-2 text-white rounded-md transition-all duration-300 hover:scale-110 hover:font-semibold hover:border-[#2acb35]
-                    ${hovered ? "bg-transparent border-white animate__animated animate__heartBeat animate" : "bg-[#2acb35] border-0"}`}
-                >
-                    See More
-                </button>
+    ref={ref}
+    className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
+>
+    {/* Top right category */}
+    <div className="absolute top-4 right-4 text-white text-xs px-4 py-2 border border-white rounded-full z-20">
+        {blogCategory}
+    </div>
 
-                <div className='absolute bottom-6 left-0 w-full px-4 flex items-center justify-between z-20'>
-                    <div className="flex items-center gap-3">
-                        <p className="flex items-center gap-1">
-                            <LuMessageCircleMore className="text-[#2acb35]" />
-                            <span className="beat-on-hover font-semibold">6</span>
-                        </p>
-                        <p className="flex items-center gap-1">
-                            <FcLike />
-                            <span className="beat-on-hover font-semibold">10</span>
-                        </p>
-                    </div>
-                    <div className="text-white text-xs px-4 py-2 border border-white rounded-full">
-                        {blogCategory}
-                    </div>
-                </div>
-            </div>
+    {/* Centered content with left alignment */}
+    <div className="flex-1 flex flex-col justify-center text-left">
+        <h2 className="text-xl font-bold mb-2 drop-shadow-sm">{blogTitle}</h2>
+        <p className="text-sm group-hover:font-medium mb-4 leading-relaxed drop-shadow-sm transition-all duration-300">
+            {blogDescription}
+        </p>
+    </div>
+
+    {/* See More Button at bottom */}
+    <button
+        className="w-full px-4 mt-3 py-2 text-white border border-white rounded-md transition-all duration-300 hover:scale-110 hover:font-semibold hover:border-[#2acb35] bg-transparent"
+    >
+        See More
+    </button>
+</div>
+
 
             {/* Edit Modal */}
             <dialog id={`edit_modal_${_id}`} className="modal">

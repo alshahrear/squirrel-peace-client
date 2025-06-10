@@ -5,8 +5,6 @@ import { CgMenuLeftAlt } from "react-icons/cg";
 import { ImCross } from "react-icons/im";
 import Swal from 'sweetalert2';
 import { RiDeleteBin6Line, RiEdit2Fill } from 'react-icons/ri';
-import { LuMessageCircleMore } from 'react-icons/lu';
-import { FcLike } from 'react-icons/fc';
 import { FiCopy } from 'react-icons/fi';
 import useAuth from '../../Layout/useAuth';
 import useAdmin from '../../../hooks/useAdmin';

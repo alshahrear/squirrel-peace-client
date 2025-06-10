@@ -1,7 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { LuMessageCircleMore } from "react-icons/lu";
-import { FcLike } from "react-icons/fc";
+import StoryBottoms from "./StoryBottoms";
 
 const StoryDetails = () => {
     const { id } = useParams();
@@ -54,9 +53,11 @@ const StoryDetails = () => {
                     </p>
                 </div>
             </div>
-
+            <em className="flex justify-end pt-3 max-w-screen-xl mx-auto text-lg font-semibold">
+                Publish Date: 27 september, 2025
+            </em>
             {/* Main Content */}
-            <div className="flex flex-col lg:flex-row max-w-screen-xl mx-auto py-10 px-4 gap-8">
+            <div className="flex flex-col lg:flex-row max-w-screen-xl mx-auto py-5 px-4 gap-8 border-b border-gray-300 mb-5">
                 {/* Main Story */}
                 <div className="lg:w-2/3">
                     <h2 className="text-3xl font-bold mb-4">{story.storyTitle}</h2>
@@ -64,9 +65,9 @@ const StoryDetails = () => {
                 </div>
 
                 {/* Sidebar - Other Stories */}
-                <div className="lg:w-1/3 grid gap-6">
-                    <h3 className="text-2xl font-bold">Other Stories</h3>
-                    {otherStories.map(item => (
+                <div className="lg:w-1/3 grid gap-6 border-l border-t pl-5 pt-3 border-gray-300 rounded-l-2xl ">
+                    <h3 className="text-2xl font-bold text-center -mb-3">Other Stories</h3>
+                    {otherStories.slice(0, 10).map(item => (
                         <Link
                             key={item._id}
                             to={`/story/${item._id}`}
@@ -105,6 +106,16 @@ const StoryDetails = () => {
                         </Link>
                     ))}
                 </div>
+            </div>
+
+            {/* bottom */}
+            <div className="max-w-screen-xl mx-auto py-5">
+                <StoryBottoms 
+                    blogId={story._id}
+                    storyTitle={story.storyTitle}
+                    storyCategory={story.storyCategory}
+                    storyImage={story.storyImage}
+                />
             </div>
         </div>
     );

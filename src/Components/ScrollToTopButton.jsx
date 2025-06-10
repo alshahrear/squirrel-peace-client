@@ -1,0 +1,43 @@
+// src/components/ScrollToTopButton.jsx
+import React, { useEffect, useState } from "react";
+import { IoIosArrowDropupCircle } from "react-icons/io";
+
+const ScrollToTopButton = () => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const toggleVisibility = () => {
+      if (window.scrollY > 300) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener("scroll", toggleVisibility);
+    return () => window.removeEventListener("scroll", toggleVisibility);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    isVisible && (
+      <button
+        onClick={scrollToTop}
+        className="fixed bottom-10 right-1 z-50 text-green-500 hover:text-green-600 transition-all duration-300"
+        aria-label="Scroll to top"
+      >
+        <div className="p-1 border-2 border-green-500 bg-white rounded hover:scale-110">
+            <IoIosArrowDropupCircle className="w-8 h-8 text-green-600 " />
+        </div>
+      </button>
+    )
+  );
+};
+
+export default ScrollToTopButton;
