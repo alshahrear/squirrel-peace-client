@@ -11,7 +11,7 @@ import useAdmin from '../../../hooks/useAdmin';
 import { useNavigate } from 'react-router-dom';
 
 const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
-    const { _id, storyTitle, storyCategory, storyImage, storyDescription } = storyBlog;
+    const { _id, storyTitle, storyShortDescription, storyCategory, storyImage, storyDescription } = storyBlog;
 
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
@@ -170,7 +170,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
                 <div className="flex-grow flex flex-col justify-center">
                     <h2 className="text-xl font-bold mb-2 drop-shadow-sm text-left">{storyTitle}</h2>
                     <p className="text-sm group-hover:font-medium mb-6 leading-relaxed drop-shadow-sm transition-all duration-300 text-left">
-                        {storyDescription}
+                        {storyShortDescription}
                     </p>
                 </div>
 

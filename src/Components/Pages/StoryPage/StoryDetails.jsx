@@ -49,19 +49,19 @@ const StoryDetails = () => {
                 <div className="bg-black/60 text-white text-center p-10 w-3/5 rounded-3xl">
                     <h2 className="text-3xl font-semibold mb-4 tracking-wide">{story.storyTitle}</h2>
                     <p className="text-sm md:text-base text-gray-200 leading-relaxed">
-                        Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.
+                        {story.storyShortDescription}
                     </p>
                 </div>
             </div>
             <em className="flex justify-end pt-3 max-w-screen-xl mx-auto text-lg font-semibold">
-                Publish Date: 27 september, 2025
+                Publish Date: {story.storyDate}
             </em>
             {/* Main Content */}
             <div className="flex flex-col lg:flex-row max-w-screen-xl mx-auto py-5 px-4 gap-8 border-b border-gray-300 mb-5">
                 {/* Main Story */}
                 <div className="lg:w-2/3">
                     <h2 className="text-3xl font-bold mb-4">{story.storyTitle}</h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">{story.storyDescription}</p>
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">{story.storyLongDescription}</p>
                 </div>
 
                 {/* Sidebar - Other Stories */}

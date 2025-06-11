@@ -3,6 +3,8 @@ import Swal from 'sweetalert2';
 import useAuth from '../../Layout/useAuth';
 import { useForm } from 'react-hook-form';
 import useAxiosPublic from '../../../hooks/useAxiosPublic';
+import { useState } from 'react';
+import dayjs from 'dayjs'; // এটা আগেই install করেছেন ধরে নিচ্ছি
 
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
@@ -12,11 +14,14 @@ const StoryBlogAdmin = () => {
     const axiosPublic = useAxiosPublic();
     const { register, handleSubmit, reset } = useForm();
 
+    // আজকের তারিখ yyyy-MM-dd ফরম্যাটে (date input এর জন্য)
+    const today = dayjs().format("YYYY-MM-DD");
+    const [storyDate, setStoryDate] = useState(today);
+
     const onSubmit = async (data) => {
         const imageFile = { image: data.storyImage[0] };
 
         try {
-            // Upload image to imgbb
             const imageRes = await axiosPublic.post(image_hosting_api, imageFile, {
                 headers: { "Content-Type": "multipart/form-data" }
             });
@@ -24,14 +29,18 @@ const StoryBlogAdmin = () => {
             const imageUrl = imageRes.data?.data?.display_url;
             if (!imageUrl) throw new Error("Image upload failed");
 
+            // Date format: 23 October, 2026
+            const formattedDate = dayjs(storyDate).format("D MMMM, YYYY");
+
             const storyData = {
                 storyTitle: data.storyTitle,
                 storyCategory: data.storyCategory,
+                storyShortDescription: data.storyShortDescription,
+                storyLongDescription: data.storyLongDescription,
                 storyImage: imageUrl,
-                storyDescription: data.storyDescription
+                storyDate: formattedDate
             };
 
-            // Post story to backend
             const res = await axiosPublic.post('/story', storyData);
 
             if (res.data?.insertedId) {
@@ -43,6 +52,7 @@ const StoryBlogAdmin = () => {
                     timer: 1500
                 });
                 reset();
+                setStoryDate(today); // আবার default set করানো
             } else {
                 throw new Error("Failed to save story");
             }
@@ -94,16 +104,33 @@ const StoryBlogAdmin = () => {
                                 className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
                             />
                         </div>
-                        <div className="space-y-2">
+                        <div>
+                            <textarea
+                                rows="2"
+                                {...register("storyShortDescription", { required: true })}
+                                placeholder="Story Short Description..."
+                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                            ></textarea>
+                        </div>
+                        <div className="grid grid-cols-2 gap-6 items-center">
                             <input
                                 type="file"
                                 {...register("storyImage", { required: true })}
-                                className="flex justify-baseline file-input file-input-ghost"
+                                className="file-input w-full file-input-ghost"
                             />
+                            <input
+                                type="date"
+                                value={storyDate}
+                                onChange={(e) => setStoryDate(e.target.value)}
+                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                                required
+                            />
+                        </div>
+                        <div>
                             <textarea
                                 rows="5"
-                                {...register("storyDescription", { required: true })}
-                                placeholder="Story Description..."
+                                {...register("storyLongDescription", { required: true })}
+                                placeholder="Story Long Description..."
                                 className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
                             ></textarea>
                         </div>

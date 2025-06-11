@@ -27,6 +27,8 @@ import AdminPages from "../Components/Pages/Admin/AdminPages";
 import AdminRoute from "../Components/Layout/Privet/AdminRoute";
 import StoryDetails from "../Components/Pages/StoryPage/StoryDetails";
 import CommentsAdmin from "../Components/Pages/StoryPage/CommentsAdmin";
+import PrivacyPolicy from "../Components/Pages/PrivacyPolicy";
+import TermCondition from "../Components/Pages/TermCondition";
 
 export const router = createBrowserRouter([
   {
@@ -125,6 +127,14 @@ export const router = createBrowserRouter([
       {
         path: "/users",
         element: <AdminRoute><Users></Users></AdminRoute>
+      },
+      {
+        path: "/privacyPolicy",
+        element: <PrivacyPolicy></PrivacyPolicy>
+      },
+      {
+        path: "/termCondition",
+        element: <TermCondition></TermCondition>
       },
     ]
   },
