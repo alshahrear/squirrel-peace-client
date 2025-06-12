@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import useAxiosPublic from '../../../hooks/useAxiosPublic';
 import { useState } from 'react';
 import dayjs from 'dayjs'; // এটা আগেই install করেছেন ধরে নিচ্ছি
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
@@ -14,9 +16,9 @@ const StoryBlogAdmin = () => {
     const axiosPublic = useAxiosPublic();
     const { register, handleSubmit, reset } = useForm();
 
-    // আজকের তারিখ yyyy-MM-dd ফরম্যাটে (date input এর জন্য)
     const today = dayjs().format("YYYY-MM-DD");
     const [storyDate, setStoryDate] = useState(today);
+    const [longDescription, setLongDescription] = useState('');
 
     const onSubmit = async (data) => {
         const imageFile = { image: data.storyImage[0] };
@@ -29,16 +31,15 @@ const StoryBlogAdmin = () => {
             const imageUrl = imageRes.data?.data?.display_url;
             if (!imageUrl) throw new Error("Image upload failed");
 
-            // Date format: 23 October, 2026
             const formattedDate = dayjs(storyDate).format("D MMMM, YYYY");
 
             const storyData = {
                 storyTitle: data.storyTitle,
                 storyCategory: data.storyCategory,
-                storyShortDescription: data.storyShortDescription,
-                storyLongDescription: data.storyLongDescription,
+                storyDate: formattedDate,
                 storyImage: imageUrl,
-                storyDate: formattedDate
+                storyShortDescription: data.storyShortDescription,
+                storyLongDescription: longDescription, // customized HTML content
             };
 
             const res = await axiosPublic.post('/story', storyData);
@@ -52,7 +53,8 @@ const StoryBlogAdmin = () => {
                     timer: 1500
                 });
                 reset();
-                setStoryDate(today); // আবার default set করানো
+                setStoryDate(today);
+                setLongDescription('');
             } else {
                 throw new Error("Failed to save story");
             }
@@ -127,12 +129,14 @@ const StoryBlogAdmin = () => {
                             />
                         </div>
                         <div>
-                            <textarea
-                                rows="5"
-                                {...register("storyLongDescription", { required: true })}
-                                placeholder="Story Long Description..."
-                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                            ></textarea>
+                            {/* Custom Rich Text Editor */}
+                            <ReactQuill
+                                theme="snow"
+                                value={longDescription}
+                                onChange={setLongDescription}
+                                placeholder="Write your full story with formatting, links, images, etc..."
+                                className="bg-white"
+                            />
                         </div>
                         <div>
                             <button

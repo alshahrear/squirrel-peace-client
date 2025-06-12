@@ -29,6 +29,7 @@ import StoryDetails from "../Components/Pages/StoryPage/StoryDetails";
 import CommentsAdmin from "../Components/Pages/StoryPage/CommentsAdmin";
 import PrivacyPolicy from "../Components/Pages/PrivacyPolicy";
 import TermCondition from "../Components/Pages/TermCondition";
+import BlogDetails from "../Components/Pages/Blogs/BlogDetails";
 
 export const router = createBrowserRouter([
   {
@@ -63,6 +64,10 @@ export const router = createBrowserRouter([
       {
         path: "/blogHomeCats",
         element: <BlogHomeCats></BlogHomeCats>
+      },
+      {
+        path: "/blog/:id",
+        element: <BlogDetails></BlogDetails>
       },
       {
         path: "/storyPages",

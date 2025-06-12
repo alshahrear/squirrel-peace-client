@@ -1,6 +1,6 @@
 import Swal from "sweetalert2";
 
-const StoryBottoms = ({ storyId, storyTitle, storyCategory, storyImage }) => {
+const BlogBottoms = ({ blogId, blogTitle, blogCategory, blogImage }) => {
 
     const handleComment = (e) => {
         e.preventDefault();
@@ -14,13 +14,13 @@ const StoryBottoms = ({ storyId, storyTitle, storyCategory, storyImage }) => {
             name,
             email,
             comment,
-            storyId,
-            storyTitle: storyTitle,
-            storyCategory: storyCategory,
-            storyImage: storyImage,
+            blogId,
+            blogTitle: blogTitle,
+            blogCategory: blogCategory,
+            blogImage: blogImage,
         };
 
-        fetch("http://localhost:5000/comment/story", {
+        fetch("http://localhost:5000/comment/blog", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newComment),
@@ -84,4 +84,4 @@ const StoryBottoms = ({ storyId, storyTitle, storyCategory, storyImage }) => {
     );
 };
 
-export default StoryBottoms;
+export default BlogBottoms;

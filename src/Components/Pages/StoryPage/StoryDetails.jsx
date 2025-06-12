@@ -9,6 +9,7 @@ const StoryDetails = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        window.scrollTo(0, 0);
         fetch(`http://localhost:5000/story/${id}`)
             .then(res => res.json())
             .then(data => {
@@ -40,7 +41,7 @@ const StoryDetails = () => {
     if (!story) return <div className="text-center py-10">Loading...</div>;
 
     return (
-        <div>
+        <div key={id}>
             {/* Top Banner */}
             <div
                 className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"
@@ -111,7 +112,7 @@ const StoryDetails = () => {
             {/* bottom */}
             <div className="max-w-screen-xl mx-auto py-5">
                 <StoryBottoms 
-                    blogId={story._id}
+                    storyId={story._id}
                     storyTitle={story.storyTitle}
                     storyCategory={story.storyCategory}
                     storyImage={story.storyImage}

@@ -1,8 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import useAuth from '../../Layout/useAuth';
-import useAxiosPublic from '../../../hooks/useAxiosPublic';
 import { useForm } from 'react-hook-form';
+import useAxiosPublic from '../../../hooks/useAxiosPublic';
+import { useState } from 'react';
+import dayjs from 'dayjs';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
@@ -12,42 +16,57 @@ const BlogPageAdmin = () => {
     const axiosPublic = useAxiosPublic();
     const { register, handleSubmit, reset } = useForm();
 
-    const onSubmit = async (data) => {
-        const imageFile = { image: data.storyImage[0] };
+    const today = dayjs().format("YYYY-MM-DD");
+    const [blogDate, setBlogDate] = useState(today);
+    const [blogLongDescription, setBlogLongDescription] = useState('');
 
+    const onSubmit = async (data) => {
         try {
+            const imageFile = new FormData();
+            imageFile.append('image', data.storyImage[0]);
+
             // Upload image to imgbb
-            const res = await axiosPublic.post(image_hosting_api, imageFile, {
+            const imageRes = await axiosPublic.post(image_hosting_api, imageFile, {
                 headers: {
-                    'content-type': 'multipart/form-data',
+                    'Content-Type': 'multipart/form-data',
                 },
             });
 
-            if (res.data.success) {
-                const blogData = {
-                    blogTitle: data.blogTitle,
-                    blogCategory: data.blogCategory,
-                    blogImage: res.data.data.display_url,
-                    blogDescription: data.blogDescription,
-                };
+            const imageUrl = imageRes.data?.data?.display_url;
+            if (!imageUrl) throw new Error("Image upload failed");
 
-                const blogRes = await axiosPublic.post('/blog', blogData);
-                if (blogRes.data.insertedId) {
-                    Swal.fire({
-                        position: "top-end",
-                        icon: "success",
-                        title: "Your blog has been added",
-                        showConfirmButton: false,
-                        timer: 1500,
-                    });
-                    reset();
-                }
+            const formattedDate = dayjs(blogDate).format("D MMMM, YYYY");
+
+            const blogData = {
+                blogTitle: data.blogTitle,
+                blogCategory: data.blogCategory,
+                blogDate: formattedDate,
+                blogImage: imageUrl,
+                blogShortDescription: data.blogShortDescription,
+                blogLongDescription: blogLongDescription,
+            };
+
+            const blogRes = await axiosPublic.post('/blog', blogData);
+
+            if (blogRes.data?.insertedId) {
+                Swal.fire({
+                    position: "top-end",
+                    icon: "success",
+                    title: "Your blog has been added",
+                    showConfirmButton: false,
+                    timer: 1500,
+                });
+                reset();
+                setBlogDate(today);
+                setBlogLongDescription('');
+            } else {
+                throw new Error("Failed to save blog");
             }
         } catch (error) {
             console.error(error);
             Swal.fire({
                 icon: "error",
-                title: "Upload Failed",
+                title: "Oops...",
                 text: error.message || "Something went wrong!",
             });
         }
@@ -109,19 +128,38 @@ const BlogPageAdmin = () => {
                                 <option>Health</option>
                             </select>
                         </div>
-                        <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-6 items-center">
                             <input
                                 type="file"
                                 {...register("storyImage", { required: true })}
-                                className="file-input file-input-bordered flex justify-baseline"
+                                className="file-input file-input-bordered"
                                 accept="image/*"
                             />
+                            <input
+                                type="date"
+                                value={blogDate}
+                                onChange={(e) => setBlogDate(e.target.value)}
+                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                                required
+                            />
+                        </div>
+                        <div>
                             <textarea
-                                rows="5"
-                                {...register("blogDescription", { required: true })}
-                                placeholder="Blog Description..."
+                                rows="2"
+                                {...register("blogShortDescription", { required: true })}
+                                placeholder="Blog Short Description..."
                                 className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
                             ></textarea>
+                        </div>
+                        <div>
+                            {/* Custom Rich Text Editor */}
+                            <ReactQuill
+                                theme="snow"
+                                value={blogLongDescription}
+                                onChange={setBlogLongDescription}
+                                placeholder="Write your full blog with formatting, links, images, etc..."
+                                className="bg-white"
+                            />
                         </div>
                         <div>
                             <button

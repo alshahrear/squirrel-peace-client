@@ -10,8 +10,6 @@ import { useNavigate } from "react-router-dom";
 const CommentsAdmin = () => {
     const axiosSecure = useAxiosSecure();
     const { user } = useAuth();
-    const navigate = useNavigate();
-
     const { data: comments = [], refetch } = useQuery({
         queryKey: ["admin-comments"],
         queryFn: async () => {
@@ -42,7 +40,7 @@ const CommentsAdmin = () => {
                             <th className="py-3 px-4">#</th>
                             <th className="py-3 px-4">Name</th>
                             <th className="py-3 px-4">Email</th>
-                            <th className="py-3 px-4">Blog ID</th>
+                            <th className="py-3 px-4">Type</th>
                             <th className="py-3 px-4 text-center">Comment</th>
                             <th className="py-3 px-4 text-center">Delete</th>
                         </tr>
@@ -70,11 +68,11 @@ const CommentsAdmin = () => {
 };
 
 const CommentRow = ({ comment, index, refetch }) => {
-    const { _id, name, email, comment: message, blogId } = comment;
+    const { _id, name, email, comment: message } = comment;
     const [showModal, setShowModal] = useState(false);
     const [copied, setCopied] = useState(false);
     const axiosSecure = useAxiosSecure();
-    const navigate = useNavigate(); // ✅ navigation hook
+    const navigate = useNavigate();
 
     const handleDeleteComment = async () => {
         const result = await Swal.fire({
@@ -103,10 +101,19 @@ const CommentRow = ({ comment, index, refetch }) => {
     };
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(blogId);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        const id = comment.blogId || comment.storyId;
+        if (id) {
+            navigator.clipboard.writeText(id);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        }
     };
+
+    const id = comment.blogId || comment.storyId;
+    const title = comment.blogTitle || comment.storyTitle;
+    const category = comment.blogCategory || comment.storyCategory;
+    const image = comment.blogImage || comment.storyImage;
+    const type = comment.blogId ? "Blog" : comment.storyId ? "Story" : "";
 
     return (
         <>
@@ -114,20 +121,7 @@ const CommentRow = ({ comment, index, refetch }) => {
                 <td className="py-4 px-4 font-semibold text-gray-700">{index + 1}</td>
                 <td className="py-4 px-4 text-lg font-bold text-gray-800">{name}</td>
                 <td className="py-4 px-4 text-lg text-gray-700">{email}</td>
-                <td className="py-4 px-4 text-lg text-gray-700 flex items-center gap-2">
-                    {blogId}
-                    <button
-                        className="text-[#2acb35] hover:text-[#25b22f]"
-                        onClick={handleCopy}
-                        title="Copy Blog ID"
-                    >
-                        {copied ? (
-                            <LuCheck className="text-xl" />
-                        ) : (
-                            <LuCopy className="text-xl" />
-                        )}
-                    </button>
-                </td>
+                <td className="py-4 px-4 text-lg text-gray-700 font-medium">{type}</td>
                 <td className="py-4 px-4 text-center">
                     <button
                         className="btn bg-[#2acb35] hover:bg-[#25b22f] text-white p-2 rounded-full"
@@ -161,56 +155,66 @@ const CommentRow = ({ comment, index, refetch }) => {
                             <span className="text-[#2acb35]">{name}</span>'s Comment Details
                         </h2>
 
-                        {/* Blog Title */}
-                        <p className="text-lg font-medium text-gray-700 mb-2">
-                            Title: <span className="font-semibold ">{comment.blogTitle}</span>
-                        </p>
-                        <p className="text-lg font-medium text-gray-700 mb-2">
-                            Category: <span className="font-semibold">{comment.blogCategory}</span>
-                        </p>
-                        {/* Blog ID */}
-                        <p className="text-lg flex items-center gap-2">
-                            Blog ID: <span className="font-semibold">{blogId}</span>
-                            <button
-                                className="text-[#2acb35] hover:text-[#25b22f]"
-                                onClick={handleCopy}
-                                title="Copy Blog ID"
-                            >
-                                {copied ? (
-                                    <LuCheck className="text-lg" />
-                                ) : (
-                                    <LuCopy className="text-lg" />
+                        {title && (
+                            <p className="text-lg font-medium text-gray-700 mb-2">
+                                Title: <span className="font-semibold">{title}</span>
+                            </p>
+                        )}
+                        {category && (
+                            <p className="text-lg font-medium text-gray-700 mb-2">
+                                Category: <span className="font-semibold">{category}</span>
+                            </p>
+                        )}
+
+                        {id && (
+                            <p className="text-lg flex items-center gap-2">
+                                ID: <span className="font-semibold">{id}</span>
+                                <button
+                                    className="text-[#2acb35] hover:text-[#25b22f]"
+                                    onClick={handleCopy}
+                                    title="Copy ID"
+                                >
+                                    {copied ? (
+                                        <LuCheck className="text-lg" />
+                                    ) : (
+                                        <LuCopy className="text-lg" />
+                                    )}
+                                </button>
+                            </p>
+                        )}
+
+                        {image && (
+                            <div className="my-4 w-full max-h-64 overflow-hidden rounded-lg border">
+                                <img
+                                    src={image}
+                                    alt="Blog"
+                                    className="w-full h-48 object-cover"
+                                />
+                                {id && (
+                                    <button
+                                        onClick={() => {
+                                            if (type === "Blog") {
+                                                navigate(`/blog/${id}`);
+                                            } else if (type === "Story") {
+                                                navigate(`/story/${id}`);
+                                            }
+                                        }}
+                                        className="w-full h-16 text-white font-semibold relative"
+                                        style={{
+                                            backgroundImage: `url(${image})`,
+                                            backgroundSize: 'cover',
+                                            backgroundPosition: 'center',
+                                        }}
+                                    >
+                                        <div className="absolute inset-0 bg-black/50 rounded-b-lg"></div>
+                                        <span className="relative z-10 border py-1 px-4 rounded-full hover:scale-105 hover:border-[#2acb35]">
+                                            {type === "Blog" ? "View Blog" : "View Story"}
+                                        </span>
+                                    </button>
                                 )}
-                            </button>
-                        </p>
+                            </div>
+                        )}
 
-                        {/* Blog Image + View Blog Button */}
-                        <div className="my-4 w-full max-h-64 overflow-hidden rounded-lg border">
-                            {/* Blog Top Image */}
-                            <img
-                                src={comment.blogImage}
-                                alt="Blog"
-                                className="w-full h-48 object-cover"
-                            />
-
-                            {/* View Blog Button */}
-                            <button
-                                onClick={() => navigate(`/story/${comment.blogId}`)}
-                                className="w-full h-16 text-white font-semibold relative"
-                                style={{
-                                    backgroundImage: `url(${comment.blogImage})`,
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'center',
-                                }}
-                            >
-                                <div className="absolute inset-0 bg-black/50 rounded-b-lg"></div>
-                                <span className="relative z-10 border py-1 px-4 rounded-full hover:scale-105 hover:border-[#2acb35]">
-                                    View Blog
-                                </span>
-                            </button>
-                        </div>
-
-                        {/* Comment message */}
                         <div className="border border-gray-300 rounded-xl p-5 mb-4">
                             <p className="text-lg font-semibold pb-3">
                                 Comment <span className="text-[#2acb35] text-lg">_</span>

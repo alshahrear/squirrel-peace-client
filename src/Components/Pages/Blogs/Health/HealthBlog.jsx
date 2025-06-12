@@ -5,14 +5,13 @@ import { CgMenuLeftAlt } from "react-icons/cg";
 import { ImCross } from "react-icons/im";
 import Swal from 'sweetalert2';
 import { RiDeleteBin6Line, RiEdit2Fill } from 'react-icons/ri';
-import { LuMessageCircleMore } from 'react-icons/lu';
-import { FcLike } from 'react-icons/fc';
 import { FiCopy } from 'react-icons/fi';
 import useAuth from '../../../Layout/useAuth';
 import useAdmin from '../../../../hooks/useAdmin';
+import { useNavigate } from 'react-router-dom';
 
 const HealthBlog = ({ healthBlog, onDelete, onUpdate }) => {
-    const { _id, blogTitle, blogCategory, blogImage, blogDescription } = healthBlog;
+    const { _id, blogTitle, blogShortDescription, blogCategory, blogImage, blogDescription } = healthBlog;
 
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
@@ -30,6 +29,8 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate }) => {
         triggerOnce: true,
         threshold: 0.2,
     });
+
+    const navigate = useNavigate();
 
     const handleBlogDelete = (id) => {
         Swal.fire({
@@ -94,9 +95,10 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate }) => {
 
     return (
         <div
-            className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group"
+            className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onClick={() => navigate(`/blog/${_id}`)}
         >
             <img
                 src={blogImage}
@@ -109,7 +111,10 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate }) => {
             {/* Dropdown */}
             {
                 user && isAdmin &&
-                <div className="absolute top-3 right-3 z-30 dropdown dropdown-end">
+                <div
+                    className="absolute top-3 right-3 z-30 dropdown dropdown-end"
+                    onClick={e => e.stopPropagation()} // prevent navigate when clicking dropdown
+                >
                     <div
                         tabIndex={0}
                         role="button"
@@ -160,8 +165,8 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate }) => {
                 {/* Centered content with left alignment */}
                 <div className="flex-1 flex flex-col justify-center text-left">
                     <h2 className="text-xl font-bold mb-2 drop-shadow-sm">{blogTitle}</h2>
-                    <p className="text-sm group-hover:font-medium mb-4 leading-relaxed drop-shadow-sm transition-all duration-300">
-                        {blogDescription}
+                    <p className="text-sm group-hover:font-medium leading-relaxed drop-shadow-sm transition-all duration-300">
+                        {blogShortDescription}
                     </p>
                 </div>
 
