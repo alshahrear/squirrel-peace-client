@@ -4,6 +4,7 @@ import ImageBanner from "../../Layout/ImageBanner/ImageBanner";
 import AboutChoose from "../../Layout/AboutSection/AboutChoose";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
 import NewsScore from "../../Layout/NewsScore";
+import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 
 
 const AboutPage = () => {
@@ -39,6 +40,7 @@ const AboutPage = () => {
                 <AboutChoose></AboutChoose>
             </div>
             <NewsScore></NewsScore>
+            <BlogAll></BlogAll>
             <NewsletterOption></NewsletterOption>
         </div>
     );

@@ -4,6 +4,7 @@ import StoryDown from "./StoryDown";
 import StoryBlogs from "./StoryBlogs";
 import { NavLink } from "react-router-dom";
 import { Helmet } from "react-helmet";
+import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 
 
 const StoryPages = () => {
@@ -35,6 +36,9 @@ const StoryPages = () => {
             <StoryDown></StoryDown>
             <div className="py-10">
                 <StoryBlogs></StoryBlogs>
+            </div>
+            <div>
+                <BlogAll></BlogAll>
             </div>
         </div>
     );

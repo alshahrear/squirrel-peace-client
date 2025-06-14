@@ -1,4 +1,5 @@
 import travel1 from "../../../../assets/travel1.jpg";
+import BlogAll from "../../../Layout/BlogSuggest.jsx/BlogAll";
 import BlogDown from "../BlogDown";
 import TravelBlogs from "./TravelBlogs";
 
@@ -22,6 +23,7 @@ const TravelPages = () => {
             </div>
            <BlogDown></BlogDown>
            <TravelBlogs></TravelBlogs>
+           <BlogAll></BlogAll>
         </div>
     );
 };

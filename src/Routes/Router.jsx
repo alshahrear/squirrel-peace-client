@@ -14,7 +14,6 @@ import FaqAdmin from "../Components/Pages/FaqAdmin/FaqAdmin";
 import ContactAdmin from "../Components/Pages/Contact/ContactAdmin";
 import Users from "../Components/Pages/Users/Users";
 import NewsletterPage from "../Components/Pages/NewsletterPage/NewsletterPage";
-import BlogHomeCats from "../Components/Pages/Home/BlogHomeCats/BlogHomeCats";
 import AboutPage from "../Components/Pages/About/AboutPage";
 import StoryPages from "../Components/Pages/StoryPage/StoryPages";
 import StoryBlogAdmin from "../Components/Pages/StoryPage/StoryBlogAdmin";
@@ -60,10 +59,6 @@ export const router = createBrowserRouter([
       {
         path: "/travelPages",
         element: <TravelPages></TravelPages>
-      },
-      {
-        path: "/blogHomeCats",
-        element: <BlogHomeCats></BlogHomeCats>
       },
       {
         path: "/blog/:id",

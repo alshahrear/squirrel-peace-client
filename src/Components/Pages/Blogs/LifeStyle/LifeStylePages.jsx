@@ -1,4 +1,5 @@
 import life1 from "../../../../assets/life1.jpg";
+import BlogAll from "../../../Layout/BlogSuggest.jsx/BlogAll";
 import BlogDown from "../BlogDown";
 import LifeBlogs from "./LifeBlogs";
 
@@ -22,6 +23,7 @@ const LifeStylePages = () => {
             </div>
            <BlogDown></BlogDown>
            <LifeBlogs></LifeBlogs>
+           <BlogAll></BlogAll>
         </div>
     );
 };

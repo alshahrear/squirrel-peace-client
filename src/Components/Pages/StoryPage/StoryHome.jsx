@@ -1,24 +1,25 @@
 import 'animate.css';
 import { useInView } from 'react-intersection-observer';
 import { useState } from "react";
-import { LuMessageCircleMore } from 'react-icons/lu';
-import { FcLike } from 'react-icons/fc';
+import { useNavigate } from "react-router-dom";
 
 const StoryHome = ({ storyHome }) => {
-    const { storyTitle, storyCategory, storyImage, storyDescription } = storyHome;
+    const { _id, storyTitle, storyCategory, storyImage, storyShortDescription } = storyHome;
 
     const [hovered, setHovered] = useState(false);
-
     const { ref, inView } = useInView({
         triggerOnce: true,
         threshold: 0.2,
     });
 
+    const navigate = useNavigate();
+
     return (
         <div
-            className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group"
+            className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onClick={() => navigate(`/story/${_id}`)}
         >
             <img
                 src={storyImage}
@@ -41,18 +42,19 @@ const StoryHome = ({ storyHome }) => {
                 <div className="flex-1 flex flex-col justify-center text-left">
                     <h2 className="text-xl font-bold mb-2 drop-shadow-sm">{storyTitle}</h2>
                     <p className="text-sm group-hover:font-medium mb-4 leading-relaxed drop-shadow-sm transition-all duration-300">
-                        {storyDescription}
+                        {storyShortDescription}
                     </p>
                 </div>
 
                 {/* See More Button at bottom */}
-                <button
-                    className="w-full px-4 mt-3 py-2 text-white border border-white rounded-md transition-all duration-300 hover:scale-110 hover:font-semibold hover:border-[#2acb35] bg-transparent"
-                >
-                    See More
-                </button>
+                <div className="w-full">
+                    <button
+                        className="w-full px-4 mt-3 py-2 text-white border border-white rounded-md transition-all duration-300 group-hover:scale-110 group-hover:font-semibold group-hover:border-[#2acb35] bg-transparent"
+                    >
+                        See More
+                    </button>
+                </div>
             </div>
-
         </div>
     );
 };

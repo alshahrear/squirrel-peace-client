@@ -1,4 +1,5 @@
 import health1 from "../../../../assets/health1.jpg";
+import BlogAll from "../../../Layout/BlogSuggest.jsx/BlogAll";
 import BlogDown from "../BlogDown";
 import HealthBlogs from "./HealthBlogs";
 
@@ -23,6 +24,7 @@ const HealthPages = () => {
             </div>
            <BlogDown></BlogDown>
            <HealthBlogs></HealthBlogs>
+           <BlogAll></BlogAll>
         </div>
     );
 };
