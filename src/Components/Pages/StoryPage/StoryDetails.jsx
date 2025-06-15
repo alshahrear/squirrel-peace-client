@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import StoryBottoms from "./StoryBottoms";
+import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 
 const StoryDetails = () => {
     const { id } = useParams();
@@ -121,6 +122,9 @@ const StoryDetails = () => {
                     storyCategory={story.storyCategory}
                     storyImage={story.storyImage}
                 />
+            </div>
+            <div>
+               <BlogAll></BlogAll>
             </div>
         </div>
     );

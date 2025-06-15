@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
-const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
+const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
   const { _id, storyTitle, storyShortDescription, storyCategory, storyImage } = storyBlog;
 
   const { user } = useAuth();
@@ -114,6 +114,22 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const highlightText = (text, searchTerm) => {
+    if (!searchTerm) return text;
+
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    const parts = text.split(regex);
+
+    return parts.map((part, i) =>
+      part.toLowerCase() === searchTerm.toLowerCase() ? (
+        <mark key={i} className="bg-yellow-300 text-black">{part}</mark>
+      ) : (
+        part
+      )
+    );
+  };
+
+
   return (
     <div
       className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
@@ -182,15 +198,17 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate }) => {
             }`}
         >
           <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
-            {storyCategory}
+            {highlightText(storyCategory, searchTerm)}
           </div>
         </div>
 
         <div className="flex-grow flex flex-col justify-center">
-          <h2 className="text-xl font-bold mb-2 drop-shadow-sm text-left">{storyTitle}</h2>
+          <h2 className="text-xl font-bold mb-2 drop-shadow-sm text-left">
+            {highlightText(storyTitle, searchTerm)}
+          </h2>
           <p className="text-sm group-hover:font-medium mb-6 leading-relaxed drop-shadow-sm transition-all duration-300 text-left">
-            {storyShortDescription}
-          </p>
+            {highlightText(storyShortDescription, searchTerm)}
+        </p>
         </div>
 
         <div>

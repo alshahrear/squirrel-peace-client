@@ -6,6 +6,7 @@ import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
 import TestimonialCard from "../../Layout/TestimonialCard/TestimonialCard";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
+import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 
 
 const TestimonialPage = () => {
@@ -94,6 +95,9 @@ const TestimonialPage = () => {
             <div>
                 <h2 className="text-3xl font-bold text-center">Process To Safe Environment</h2>
                 <TestimonialCard></TestimonialCard>
+            </div>
+            <div>
+                <BlogAll></BlogAll>
             </div>
             {/* NewsletterOption */}
             <div>
