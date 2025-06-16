@@ -29,7 +29,8 @@ import CommentsAdmin from "../Components/Pages/StoryPage/CommentsAdmin";
 import PrivacyPolicy from "../Components/Pages/PrivacyPolicy";
 import TermCondition from "../Components/Pages/TermCondition";
 import BlogDetails from "../Components/Pages/Blogs/BlogDetails";
-
+import DraftBlogAdmin from "../Components/Pages/DraftBlogAdmin/DraftBlogAdmin";
+import DraftDetails from "../Components/Pages/DraftBlogAdmin/DraftDetails";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -65,6 +66,10 @@ export const router = createBrowserRouter([
         element: <BlogDetails></BlogDetails>
       },
       {
+        path: "/draft/:id",
+        element: <DraftDetails></DraftDetails>
+      },
+      {
         path: "/storyPages",
         element: <StoryPages></StoryPages>
       },
@@ -83,6 +88,10 @@ export const router = createBrowserRouter([
       {
         path: "/blogPageAdmin",
         element: <AdminRoute><BlogPageAdmin></BlogPageAdmin></AdminRoute>
+      },
+      {
+        path: "/draftBlogAdmin",
+        element: <AdminRoute><DraftBlogAdmin></DraftBlogAdmin></AdminRoute>
       },
       {
         path: "/commentAdmin",
