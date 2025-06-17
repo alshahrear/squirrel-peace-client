@@ -14,7 +14,7 @@ const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
 const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
-  const { _id, storyTitle, storyShortDescription, storyCategory, storyImage } = storyBlog;
+  const { _id, storyTitle, storyRandom, storyShortDescription, storyCategory, storyImage } = storyBlog;
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -25,6 +25,7 @@ const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
   const [formData, setFormData] = useState({
     storyTitle,
     storyCategory,
+    storyRandom,
     storyImage,
     storyShortDescription
   });
@@ -248,12 +249,23 @@ const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
               />
             </div>
 
-            <input
-              type="file"
-              className="file-input w-full file-input-ghost"
-              accept="image/*"
-              onChange={e => setNewImageFile(e.target.files[0])}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="file"
+                className="file-input w-full file-input-ghost"
+                accept="image/*"
+                onChange={e => setNewImageFile(e.target.files[0])}
+              />
+              <input
+                type="text"
+                name="storyRandom"
+                value={formData.storyRandom}
+                onChange={e => setFormData({ ...formData, storyRandom: e.target.value })}
+                placeholder="Story Random"
+                className="w-full p-3 border rounded-md"
+                required
+              />
+            </div>
 
             <textarea
               rows="4"

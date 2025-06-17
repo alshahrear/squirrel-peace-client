@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet";
 import life1 from "../../../../assets/life1.jpg";
 import BlogAll from "../../../Layout/BlogSuggest.jsx/BlogAll";
 import BlogDown from "../BlogDown";
@@ -6,6 +7,9 @@ import LifeBlogs from "./LifeBlogs";
 const LifeStylePages = () => {
     return (
         <div>
+            <Helmet>
+                <title>Life - Storial Peace </title>
+            </Helmet>
             <div
                 className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"
                 style={{ backgroundImage: `url(${life1})` }}
@@ -21,9 +25,9 @@ const LifeStylePages = () => {
                     </p>
                 </div>
             </div>
-           <BlogDown></BlogDown>
-           <LifeBlogs></LifeBlogs>
-           <BlogAll></BlogAll>
+            <BlogDown></BlogDown>
+            <LifeBlogs></LifeBlogs>
+            <BlogAll></BlogAll>
         </div>
     );
 };

@@ -28,7 +28,7 @@ const Navbar = () => {
                 <NavLink to="/" className={navLinkStyle}>Home</NavLink>
             </li>
             <li>
-                <NavLink to="/aboutPage" className={navLinkStyle}>About</NavLink>
+                <NavLink to="/about" className={navLinkStyle}>About</NavLink>
             </li>
             <li>
                 <div className="dropdown dropdown-hover relative">
@@ -45,17 +45,17 @@ const Navbar = () => {
                         tabIndex={0}
                         className="dropdown-content menu bg-base-100 rounded-box shadow font-semibold w-52 absolute left-1/2 -translate-x-1/2 z-10"
                     >
-                        <li><NavLink to="/lifeStylePages" className={dropdownLinkStyle}>Life Style</NavLink></li>
-                        <li><NavLink to="/travelPages" className={dropdownLinkStyle}>Travel</NavLink></li>
-                        <li><NavLink to="/healthPages" className={dropdownLinkStyle}>Health</NavLink></li>
+                        <li><NavLink to="/lifeStyle" className={dropdownLinkStyle}>Life Style</NavLink></li>
+                        <li><NavLink to="/travel" className={dropdownLinkStyle}>Travel</NavLink></li>
+                        <li><NavLink to="/health" className={dropdownLinkStyle}>Health</NavLink></li>
                     </ul>
                 </div>
             </li>
             <li>
-                <NavLink to="/newsletterPage" className={navLinkStyle}>Newsletter</NavLink>
+                <NavLink to="/newsletter" className={navLinkStyle}>Newsletter</NavLink>
             </li>
             <li>
-                <NavLink to="/storyPages" className={navLinkStyle}>Story</NavLink>
+                <NavLink to="/story" className={navLinkStyle}>Story</NavLink>
             </li>
             <li>
                 <NavLink to="/contact" className={navLinkStyle}>Contact</NavLink>

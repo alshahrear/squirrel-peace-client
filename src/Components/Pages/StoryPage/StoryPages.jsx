@@ -11,7 +11,7 @@ const StoryPages = () => {
     return (
         <div>
             <Helmet>
-                <title>Story</title>
+                <title>Story - Storial Peace </title>
             </Helmet>
             <div
                 className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"

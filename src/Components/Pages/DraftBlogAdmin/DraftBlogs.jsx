@@ -1,29 +1,28 @@
 import { useState, useEffect } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import DraftBlog from './DraftBlog';
-import useAuth from '../../Layout/useAuth';
-import useAdmin from '../../../hooks/useAdmin';
+import Loader from "../../../Components/Loader";
 
 const DraftBlogs = ({ stories, setStories }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const storiesPerPage = 12;
-    const { user } = useAuth();
-    const [isAdmin] = useAdmin();
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Only fetch stories if not already fetched
     useEffect(() => {
-        if (stories.length === 0) {
-            fetch('http://localhost:5000/draft')
-                .then(res => res.json())
-                .then(data => {
-                    setStories(data);
-                })
-                .catch(error => {
-                    console.error("Error loading stories:", error);
-                });
-        }
-    }, [stories, setStories]);
+        setLoading(true);
+        fetch('http://localhost:5000/draft')
+            .then(res => res.json())
+            .then(data => {
+                const reversedData = data.slice().reverse(); // latest first
+                setStories(reversedData);
+                setLoading(false);
+            })
+            .catch(error => {
+                console.error("Error Loading Draft:", error);
+                setLoading(false);
+            });
+    }, []);
 
     const handleDeleteFromUI = (id) => {
         const updatedStories = stories.filter(story => story._id !== id);
@@ -38,20 +37,16 @@ const DraftBlogs = ({ stories, setStories }) => {
     };
 
     const filteredStories = stories.filter(story => {
-        const title = story.storyTitle.toLowerCase();
-        const description = story.storyShortDescription.toLowerCase();
+        const title = story.storyTitle?.toLowerCase() || "";
+        const description = story.storyShortDescription?.toLowerCase() || "";
         const term = searchTerm.toLowerCase();
-
-        return (
-            title.includes(term) ||
-            description.includes(term)
-        );
+        return title.includes(term) || description.includes(term);
     });
 
     const totalPages = Math.ceil(filteredStories.length / storiesPerPage);
     const indexOfLastStory = currentPage * storiesPerPage;
     const indexOfFirstStory = indexOfLastStory - storiesPerPage;
-    const currentStories = filteredStories.slice().reverse().slice(indexOfFirstStory, indexOfLastStory);
+    const currentStories = filteredStories.slice(indexOfFirstStory, indexOfLastStory);
 
     const getPageNumbers = () => {
         let startPage = Math.max(currentPage - 2, 1);
@@ -111,7 +106,11 @@ const DraftBlogs = ({ stories, setStories }) => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
-                    currentStories.length === 0 ? (
+                    loading ? (
+                        <div className="col-span-full flex justify-center items-center h-40">
+                            <Loader />
+                        </div>
+                    ) : currentStories.length === 0 && searchTerm ? (
                         <p className="text-center text-red-400 mt-5 font-semibold text-xl col-span-full">
                             No Result Found
                         </p>

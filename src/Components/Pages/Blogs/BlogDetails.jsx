@@ -2,15 +2,19 @@ import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import BlogBottoms from "./BlogBottoms";
 import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
+import Loader from "../../../Components/Loader";
+import { Helmet } from "react-helmet";
 
 const BlogDetails = () => {
     const { id } = useParams();
     const [blog, setBlog] = useState(null);
     const [otherBlogs, setOtherBlogs] = useState([]);
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         window.scrollTo(0, 0);
+        setLoading(true);
         fetch(`http://localhost:5000/blog/${id}`)
             .then(res => res.json())
             .then(data => {
@@ -23,8 +27,12 @@ const BlogDetails = () => {
                 } else {
                     setError("Unexpected data format.");
                 }
+                setLoading(false);
             })
-            .catch(() => setError("Failed to fetch blog."));
+            .catch(() => {
+                setError("Failed to fetch blog.");
+                setLoading(false);
+            });
     }, [id]);
 
     useEffect(() => {
@@ -33,17 +41,21 @@ const BlogDetails = () => {
             .then(data => {
                 if (Array.isArray(data)) {
                     const filtered = data.filter(item => item._id !== id);
-                    const shuffled = filtered.sort(() => 0.5 - Math.random()); // Random shuffle
-                    setOtherBlogs(shuffled); // Set randomly ordered blogs
+                    const shuffled = filtered.sort(() => 0.5 - Math.random());
+                    setOtherBlogs(shuffled);
                 }
             });
     }, [id]);
 
+    if (loading) return <Loader />;
     if (error) return <div className="text-center text-red-500 py-10">{error}</div>;
-    if (!blog) return <div className="text-center py-10">Loading...</div>;
+    if (!blog) return <div className="text-center py-10">No blog found.</div>;
 
     return (
         <div key={id}>
+            <Helmet>
+                <title>{blog.blogTitle} - Storial Peace</title>
+            </Helmet>
             {/* Top Banner */}
             <div
                 className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"
@@ -65,11 +77,14 @@ const BlogDetails = () => {
                     {/* Main blog */}
                     <div className="lg:col-span-2">
                         <h2 className="text-3xl font-bold mb-4">{blog.blogTitle}</h2>
-                        <div className="text-gray-700 leading-relaxed whitespace-pre-line" dangerouslySetInnerHTML={{ __html: blog.blogLongDescription }} />
+                        <div
+                            className="text-gray-700 leading-relaxed whitespace-pre-line"
+                            dangerouslySetInnerHTML={{ __html: blog.blogLongDescription }}
+                        />
                     </div>
 
                     {/* Sidebar - Other blogs */}
-                    <div className="border-l border-t  border-gray-300 pl-5 rounded-tl-2xl flex flex-col gap-6">
+                    <div className="border-l border-t border-gray-300 pl-5 rounded-tl-2xl flex flex-col gap-6">
                         <h3 className="text-2xl pt-2 font-bold text-center">Other Blogs</h3>
 
                         {otherBlogs.slice(0, 10).map(item => (
@@ -110,7 +125,6 @@ const BlogDetails = () => {
                             </Link>
                         ))}
                     </div>
-
                 </div>
             </div>
 
@@ -124,9 +138,9 @@ const BlogDetails = () => {
                 />
             </div>
             <div>
-                <BlogAll></BlogAll>
+                <BlogAll />
             </div>
-        </div>
+        </div >
     );
 };
 

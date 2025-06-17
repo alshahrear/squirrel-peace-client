@@ -7,18 +7,27 @@ import TestimonialCard from "../../Layout/TestimonialCard/TestimonialCard";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
 import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
-
+import { Helmet } from "react-helmet";
+import Loader from "../../../Components/Loader"; 
 
 const TestimonialPage = () => {
     const [testimonials, setTestimonials] = useState([]);
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        setLoading(true);
         fetch('http://localhost:5000/reviews')
             .then(res => res.json())
-            .then(data => setTestimonials(data))
-            .catch(error => console.error("Error loading testimonials:", error));
+            .then(data => {
+                setTestimonials(data);
+                setLoading(false);
+            })
+            .catch(error => {
+                console.error("Error loading testimonials:", error);
+                setLoading(false);
+            });
     }, []);
 
     const handleDelete = (id) => {
@@ -35,6 +44,9 @@ const TestimonialPage = () => {
 
     return (
         <div className="bg-[#f5f7ec]">
+            <Helmet>
+                <title>Success - Storial Peace </title>
+            </Helmet>
             <div className="max-w-screen-xl mx-auto py-10 ">
                 <div className="flex flex-col md:flex-row items-center gap-10 px-4">
                     <div className="flex-1 space-y-5">
@@ -55,7 +67,7 @@ const TestimonialPage = () => {
                             </div>
                         </div>
 
-                        <NavLink to="/aboutPage">
+                        <NavLink to="/about">
                             <button className="btn px-8 py-4 rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]">
                                 About Us
                             </button>
@@ -80,28 +92,42 @@ const TestimonialPage = () => {
                         }
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-5 ">
-                        {testimonials.map(testimonial => (
-                            <TestimonialBlog
-                                key={testimonial._id}
-                                testimonialBlog={testimonial}
-                                onDelete={handleDelete}
-                                onUpdate={handleUpdate}
-                            />
-                        ))}
-                    </div>
+                    {/* Loading & Testimonials Grid */}
+                    {
+                        loading ? (
+                            <div className="flex justify-center items-center h-40">
+                                <Loader />
+                            </div>
+                        ) : testimonials.length === 0 ? (
+                            <p className="text-center text-gray-500 text-lg">No testimonials found.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-5 ">
+                                {testimonials.map(testimonial => (
+                                    <TestimonialBlog
+                                        key={testimonial._id}
+                                        testimonialBlog={testimonial}
+                                        onDelete={handleDelete}
+                                        onUpdate={handleUpdate}
+                                    />
+                                ))}
+                            </div>
+                        )
+                    }
                 </div>
             </div>
+
             <div>
                 <h2 className="text-3xl font-bold text-center">Process To Safe Environment</h2>
-                <TestimonialCard></TestimonialCard>
+                <TestimonialCard />
             </div>
+
             <div>
-                <BlogAll></BlogAll>
+                <BlogAll />
             </div>
+
             {/* NewsletterOption */}
             <div>
-                <NewsletterOption></NewsletterOption>
+                <NewsletterOption />
             </div>
         </div>
     );

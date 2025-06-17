@@ -33,31 +33,31 @@ const Footer = () => {
                 <nav className="flex-1 space-y-2">
                     <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Quick Links</h4>
                     <p className="text-[16px]">
-                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> About Us </span></NavLink>
+                        <NavLink to="/about">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> About Us </span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Life Style Blog </span></NavLink>
+                        <NavLink to="/lifeStyle">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Life Style Blog </span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Travel Blog </span></NavLink>
+                        <NavLink to="/travel">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Travel Blog </span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Health Blog </span></NavLink>
+                        <NavLink to="/health">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Health Blog </span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink to="/newsletterPage">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Newsletter</span></NavLink>
+                        <NavLink to="/newsletter">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Newsletter</span></NavLink>
                     </p>
                 </nav>
                 <nav className="flex-1 space-y-2">
                     <h4 className="text-2xl font-semibold text-white border-b-3 border-b-[#2acb35] pb-2">Quick Links</h4>
                     <p className="text-[16px]">
-                        <NavLink>-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Story </span></NavLink>
+                        <NavLink to="/story">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Story </span></NavLink>
                     </p>
                     <p className="text-[16px]">
                         <NavLink to="/faq">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> FAQ</span></NavLink>
                     </p>
                     <p className="text-[16px]">
-                        <NavLink to="/testimonialPage">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Testimonial</span></NavLink>
+                        <NavLink to="/success">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">Testimonial</span></NavLink>
                     </p>
                     <p className="text-[16px]">
                         <NavLink to="/contact">-  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"> Contact Us</span></NavLink>

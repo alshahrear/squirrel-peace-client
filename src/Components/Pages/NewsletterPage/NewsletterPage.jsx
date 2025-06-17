@@ -12,6 +12,7 @@ import Slider from "react-slick";
 import NewsletterSubscribe from "../../Layout/NewslettterSubscribe/NewsletterSubscribe";
 import { NavLink } from "react-router-dom";
 import NewsletterWhy from "./NewsletterWhy";
+import { Helmet } from "react-helmet";
 
 const skills = [
     { name: "Recycling", percentage: 90 },
@@ -86,6 +87,9 @@ const NewsletterPage = () => {
 
     return (
         <div>
+            <Helmet>
+                <title>Newsletter - Storial Peace </title>
+            </Helmet>
             {/* Image Grid Section */}
             <div className="bg-[#f5f8ed] ">
                 <div className="py-10 rounded-2xl">
@@ -149,7 +153,7 @@ const NewsletterPage = () => {
             <div>
                 <NewsletterWhy></NewsletterWhy>
             </div>
-            
+
             {/* Newsletter Heading */}
             <div className="rounded-2xl">
                 <div className="text-center space-y-3 pb-10 bg-[#f5f7ec]">
@@ -182,7 +186,7 @@ const NewsletterPage = () => {
                         <p className="text-gray-600 mt-2">
                             Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
                         </p>
-                        <NavLink to="/testimonialPage">
+                        <NavLink to="/success">
                             <button className="mt-6 bg-[#2acb35] hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-full">
                                 View More
                             </button>

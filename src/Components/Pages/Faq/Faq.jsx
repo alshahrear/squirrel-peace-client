@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import FaqList from "./FaqList";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
+import { Helmet } from "react-helmet";
 
 const Faq = () => {
   const [faqsAdd, setFaqsAdd] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
+  const [loading, setLoading] = useState(false); // ✅ Loading state added
 
   useEffect(() => {
     fetch("http://localhost:5000/faqsAdd")
@@ -18,26 +20,22 @@ const Faq = () => {
   }, []);
 
   useEffect(() => {
-    fetch('http://localhost:5000/faqs')
-      .then(res => res.json())
-      .then(data => setFaqs(data))
-      .catch(error => console.error("Error loading FAQs:", error));
+    fetch("http://localhost:5000/faqs")
+      .then((res) => res.json())
+      .then((data) => setFaqs(data))
+      .catch((error) => console.error("Error loading FAQs:", error));
   }, []);
 
-
-  // Delete হলে UI থেকে remove করা
   const handleDeleteFaqFromUI = (id) => {
     setFaqsAdd((prev) => prev.filter((faq) => faq._id !== id));
   };
 
-  // Update হলে UI থেকে update করা
   const handleUpdateFaqFromUI = (id, updatedFaq) => {
     setFaqsAdd((prev) =>
       prev.map((faq) => (faq._id === id ? { ...faq, ...updatedFaq } : faq))
     );
   };
 
-  // Add FAQ from modal
   const handleAddFaq = (e) => {
     e.preventDefault();
     const form = e.target;
@@ -61,16 +59,18 @@ const Faq = () => {
             showConfirmButton: false,
             timer: 2000,
           });
-          // নতুন FAQ কে UI তে যোগ করলাম
-          setFaqsAdd((prev) => [...prev, { _id: data.insertedId, faqQuestion, faqAnswer }]);
+          setFaqsAdd((prev) => [
+            ...prev,
+            { _id: data.insertedId, faqQuestion, faqAnswer },
+          ]);
           form.reset();
         }
       });
   };
 
-  // Your existing question submit handler (optional)
   const handleFaq = (e) => {
     e.preventDefault();
+    setLoading(true); // ✅ Start loading
     const form = e.target;
     const name = form.name.value;
     const email = form.email.value;
@@ -85,6 +85,7 @@ const Faq = () => {
     })
       .then((res) => res.json())
       .then((data) => {
+        setLoading(false); // ✅ Stop loading
         if (data.insertedId) {
           Swal.fire({
             position: "top-end",
@@ -94,27 +95,29 @@ const Faq = () => {
             showConfirmButton: false,
             timer: 2500,
           });
-          // ফর্ম রিসেট
           form.reset();
-
-          // নতুন মেসেজ যোগ করো স্টেটে
           setFaqs([...faqs, { _id: data.insertedId, ...addFaqQus }]);
         }
-      });
+      })
+      .catch(() => setLoading(false)); // ✅ Handle fetch failure
   };
 
   return (
     <div className="bg-[#f5f7ec]">
+      <Helmet>
+        <title>Faq - Storial Peace </title>
+      </Helmet>
       <div className="py-10 max-w-screen-xl mx-auto px-4">
         <div className="flex items-center justify-between flex-wrap mb-6">
           <h1 className="text-3xl font-bold flex items-center gap-2">
             Frequently Asked Questions <span className="text-[#2acb35]">__</span>
           </h1>
-          {
-            user && isAdmin &&
+          {user && isAdmin && (
             <NavLink to="/faqAdmin">
               <div className="indicator mt-5">
-                <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">{faqs.length}</span>
+                <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
+                  {faqs.length}
+                </span>
                 <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
                   <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040] hover:scale-105">
                     Faq Admin Page
@@ -123,7 +126,7 @@ const Faq = () => {
                 </button>
               </div>
             </NavLink>
-          }
+          )}
         </div>
 
         <p className="text-lg font-medium my-5">
@@ -132,16 +135,16 @@ const Faq = () => {
 
         <div className="flex flex-wrap">
           <style>{`
-          input:checked ~ .collapse-title {
-            background-color: #2acb35;
-            color: white;
-          }
-          input:checked ~ .collapse-content {
-            background-color: #f7f7f7;
-            padding-top: 0.75rem;
-            padding-bottom: 0.75rem;
-          }
-        `}</style>
+            input:checked ~ .collapse-title {
+              background-color: #2acb35;
+              color: white;
+            }
+            input:checked ~ .collapse-content {
+              background-color: #f7f7f7;
+              padding-top: 0.75rem;
+              padding-bottom: 0.75rem;
+            }
+          `}</style>
 
           <div className="w-2/3 pr-0 md:pr-4">
             {faqsAdd.map((faqAdd) => (
@@ -153,15 +156,14 @@ const Faq = () => {
               />
             ))}
 
-            {
-              user && isAdmin &&
+            {user && isAdmin && (
               <button
                 className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
                 onClick={() => document.getElementById("my_modal_3").showModal()}
               >
                 Add Faq
               </button>
-            }
+            )}
 
             <dialog id="my_modal_3" className="modal">
               <div className="modal-box">
@@ -201,14 +203,17 @@ const Faq = () => {
             </dialog>
           </div>
 
-          <div className="w-1/3 ">
+          <div className="w-1/3">
             <p className="text-lg text-center font-semibold">
-              If you want, you can also ask your question on the {" "}
+              If you want, you can also ask your question on the{" "}
               <span className="text-[#2acb35] underline hover:font-bold hover:text-gray-600">
                 <Link to="/contact">Contact Page</Link>
               </span>
             </p>
-            <form onSubmit={handleFaq} className="bg-[#f5f7ec] p-6 rounded-md shadow-md ">
+            <form
+              onSubmit={handleFaq}
+              className="bg-[#f5f7ec] p-6 rounded-md shadow-md"
+            >
               <h2 className="text-2xl font-bold mb-4">Submit Your Question</h2>
               <input
                 type="text"
@@ -233,9 +238,12 @@ const Faq = () => {
               ></textarea>
               <button
                 type="submit"
-                className="btn px-5 py-2 text-[16px] font-medium text-white bg-[#2acb35] rounded hover:bg-green-600 hover:scale-105"
+                className={`btn px-5 py-2 text-[16px] font-medium text-white bg-[#2acb35] rounded transition-all duration-300 hover:bg-green-600 hover:scale-105 ${
+                  loading ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                disabled={loading}
               >
-                Submit Question
+                {loading ? "Submitting Question..." : "Submit Question"}
               </button>
             </form>
           </div>

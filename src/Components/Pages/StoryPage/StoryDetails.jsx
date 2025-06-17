@@ -2,15 +2,20 @@ import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import StoryBottoms from "./StoryBottoms";
 import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
+import Loader from "../../../Components/Loader";
+import { Helmet } from "react-helmet";
+import DOMPurify from 'dompurify';
 
 const StoryDetails = () => {
     const { id } = useParams();
     const [story, setStory] = useState(null);
     const [otherStories, setOtherStories] = useState([]);
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         window.scrollTo(0, 0);
+        setLoading(true);
         fetch(`http://localhost:5000/story/${id}`)
             .then(res => res.json())
             .then(data => {
@@ -23,8 +28,12 @@ const StoryDetails = () => {
                 } else {
                     setError("Unexpected data format.");
                 }
+                setLoading(false);
             })
-            .catch(() => setError("Failed to fetch story."));
+            .catch(() => {
+                setError("Failed to fetch story.");
+                setLoading(false);
+            });
     }, [id]);
 
     useEffect(() => {
@@ -33,17 +42,24 @@ const StoryDetails = () => {
             .then(data => {
                 if (Array.isArray(data)) {
                     const filtered = data.filter(item => item._id !== id);
-                    const shuffled = filtered.sort(() => 0.5 - Math.random()); // Random shuffle
-                    setOtherStories(shuffled); // Set randomly ordered stories
+                    const shuffled = filtered.sort(() => 0.5 - Math.random());
+                    setOtherStories(shuffled);
                 }
             });
     }, [id]);
 
+    if (loading) return <Loader />;
     if (error) return <div className="text-center text-red-500 py-10">{error}</div>;
-    if (!story) return <div className="text-center py-10">Loading...</div>;
+    if (!story) return <div className="text-center py-10">No story found.</div>;
+
+    // sanitize before rendering
+    const cleanLongDescription = DOMPurify.sanitize(story.storyLongDescription || '');
 
     return (
         <div key={id}>
+            <Helmet>
+                <title>{story.storyTitle} - Storial Peace</title>
+            </Helmet>
             {/* Top Banner */}
             <div
                 className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"
@@ -65,11 +81,14 @@ const StoryDetails = () => {
                     {/* Main Story */}
                     <div className="lg:col-span-2">
                         <h2 className="text-3xl font-bold mb-4">{story.storyTitle}</h2>
-                        <div className="text-gray-700 leading-relaxed whitespace-pre-line" dangerouslySetInnerHTML={{ __html: story.storyLongDescription }} />
+                        <div
+                            className="text-gray-700 leading-relaxed whitespace-pre-line"
+                            dangerouslySetInnerHTML={{ __html: cleanLongDescription }}
+                        />
                     </div>
 
                     {/* Sidebar - Other Stories */}
-                    <div className="border-l border-t  border-gray-300 pl-5 rounded-tl-2xl flex flex-col gap-6">
+                    <div className="border-l border-t border-gray-300 pl-5 rounded-tl-2xl flex flex-col gap-6">
                         <h3 className="text-2xl pt-2 font-bold text-center">Other Stories</h3>
 
                         {otherStories.slice(0, 10).map(item => (
@@ -110,7 +129,6 @@ const StoryDetails = () => {
                             </Link>
                         ))}
                     </div>
-
                 </div>
             </div>
 
@@ -124,7 +142,7 @@ const StoryDetails = () => {
                 />
             </div>
             <div>
-               <BlogAll></BlogAll>
+                <BlogAll />
             </div>
         </div>
     );

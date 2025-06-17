@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import useAuth from "../../Layout/useAuth";
 import GoogleLogin from "../../Layout/Google/GoogleLogin";
 import useAxiosPublic from "../../../hooks/useAxiosPublic";
+import { Helmet } from "react-helmet";
 
 const Register = () => {
     const axiosPublic = useAxiosPublic();
@@ -43,9 +44,14 @@ const Register = () => {
                             console.log('user added to database');
                             form.reset();
                             setPassword("");
-                            toast.success("Congratulation, Registration Successful!");
+                            toast.success("Congratulation, Registration Successful!", {
+                                position: "top-right",
+                                duration: 2000,
+                            });
                             const redirectPath = location.state?.from?.pathname || "/";
-                            navigate(redirectPath);
+                            setTimeout(() => {
+                                navigate(redirectPath);
+                            }, 2100);
                         }
                     });
             })
@@ -94,6 +100,9 @@ const Register = () => {
 
     return (
         <div className="pt-12 pb-20 max-w-screen-xl mx-auto flex justify-between items-center relative">
+            <Helmet>
+                <title>Register - Storial Peace</title>
+            </Helmet>
             <div className="w-1/3 space-y-5">
                 <h2 className="text-4xl font-bold leading-12">
                     Premium <span className="text-[#2acb35]">Gardening and Lawn Care</span> Solutions

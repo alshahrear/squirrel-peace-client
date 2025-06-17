@@ -1,14 +1,17 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import Loader from "../../../Components/Loader";
 
 const DraftDetails = () => {
     const { id } = useParams();
     const [story, setStory] = useState(null);
     const [otherStories, setOtherStories] = useState([]);
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         window.scrollTo(0, 0);
+        setLoading(true);
         fetch(`http://localhost:5000/draft/${id}`)
             .then(res => res.json())
             .then(data => {
@@ -21,8 +24,12 @@ const DraftDetails = () => {
                 } else {
                     setError("Unexpected data format.");
                 }
+                setLoading(false);
             })
-            .catch(() => setError("Failed to fetch story."));
+            .catch(() => {
+                setError("Failed to fetch story.");
+                setLoading(false);
+            });
     }, [id]);
 
     useEffect(() => {
@@ -38,7 +45,12 @@ const DraftDetails = () => {
     }, [id]);
 
     if (error) return <div className="text-center text-red-500 py-10">{error}</div>;
-    if (!story) return <div className="text-center py-10">Loading...</div>;
+    if (loading) return (
+        <div className="flex justify-center items-center h-[300px]">
+            <Loader />
+        </div>
+    );
+    if (!story) return <div className="text-center py-10">No story found.</div>;
 
     return (
         <div key={id}>
@@ -57,6 +69,7 @@ const DraftDetails = () => {
             <em className="flex justify-end pt-3 max-w-screen-xl mx-auto text-lg font-semibold">
                 Publish Date: {story.storyDate}
             </em>
+
             {/* Main Content */}
             <div className="max-w-screen-xl mx-auto px-4 py-5">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 border-b border-gray-300 pb-8 mb-5">

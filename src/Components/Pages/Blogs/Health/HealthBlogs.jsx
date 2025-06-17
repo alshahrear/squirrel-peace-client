@@ -4,6 +4,7 @@ import { FaSearch } from 'react-icons/fa';
 import HealthBlog from './HealthBlog';
 import useAuth from '../../../Layout/useAuth';
 import useAdmin from '../../../../hooks/useAdmin';
+import Loader from '../../../Loader';
 
 const HealthBlogs = () => {
     const [blogs, setBlogs] = useState([]);
@@ -11,13 +12,21 @@ const HealthBlogs = () => {
     const blogsPerPage = 12;
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
+        setLoading(true);
         fetch('http://localhost:5000/blog')
             .then(res => res.json())
-            .then(data => setBlogs(data))
-            .catch(error => console.error("Error loading blogs:", error));
+            .then(data => {
+                setBlogs(data);
+                setLoading(false);
+            })
+            .catch(error => {
+                console.error("Error Loading Blogs:", error);
+                setLoading(false);
+            });
     }, []);
 
     const handleDeleteFromUI = (id) => {
@@ -117,7 +126,11 @@ const HealthBlogs = () => {
             {/* Blog Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
-                    currentBlogs.length === 0 ? (
+                    loading ? (
+                        <div className="col-span-full flex justify-center items-center h-40">
+                            <Loader />
+                        </div>
+                    ) : currentBlogs.length === 0 && searchTerm ? (
                         <p className="text-center text-red-400 mt-5 font-semibold text-xl col-span-full">
                             No Result Found
                         </p>

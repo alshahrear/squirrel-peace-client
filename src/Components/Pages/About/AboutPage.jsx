@@ -5,11 +5,15 @@ import AboutChoose from "../../Layout/AboutSection/AboutChoose";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
 import NewsScore from "../../Layout/NewsScore";
 import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
+import { Helmet } from "react-helmet";
 
 
 const AboutPage = () => {
     return (
         <div className="">
+            <Helmet>
+                <title>About - Storial Peace </title>
+            </Helmet>
             <div>
                 <ImageBanner></ImageBanner>
             </div>

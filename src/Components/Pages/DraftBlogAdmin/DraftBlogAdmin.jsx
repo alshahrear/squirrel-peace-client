@@ -20,11 +20,12 @@ const DraftBlogAdmin = () => {
     const today = dayjs().format("YYYY-MM-DD");
     const [storyDate, setStoryDate] = useState(today);
     const [longDescription, setLongDescription] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false); // loader
 
-    // Lift stories state here
     const [stories, setStories] = useState([]);
 
     const onSubmit = async (data) => {
+        setIsSubmitting(true);
         const imageFile = new FormData();
         imageFile.append('image', data.storyImage[0]);
 
@@ -41,6 +42,7 @@ const DraftBlogAdmin = () => {
             const storyData = {
                 storyTitle: data.storyTitle,
                 storyCategory: data.storyCategory,
+                storyRandom: data.storyRandom,
                 storyDate: formattedDate,
                 storyImage: imageUrl,
                 storyShortDescription: data.storyShortDescription,
@@ -50,7 +52,6 @@ const DraftBlogAdmin = () => {
             const res = await axiosPublic.post('/draft', storyData);
 
             if (res.data?.insertedId) {
-                // Add the new draft to the stories state immediately
                 const newStory = { _id: res.data.insertedId, ...storyData };
                 setStories(prev => [newStory, ...prev]);
 
@@ -61,6 +62,7 @@ const DraftBlogAdmin = () => {
                     showConfirmButton: false,
                     timer: 1500
                 });
+
                 reset();
                 setStoryDate(today);
                 setLongDescription('');
@@ -75,6 +77,8 @@ const DraftBlogAdmin = () => {
                 title: "Oops...",
                 text: error.message || "Something went wrong!"
             });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -88,17 +92,8 @@ const DraftBlogAdmin = () => {
                     <p className="text-xl font-semibold">
                         Please add a new draft blog to help us build trust and credibility with future clients.
                     </p>
-                    <NavLink to="/storyPages">
-                        <button className="relative overflow-hidden px-5 py-2 text-white bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
-                            <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040]">
-                                Go Story Page
-                            </span>
-                            <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
-                        </button>
-                    </NavLink>
                 </div>
                 <div className='mt-10'>
-                    {/* Pass stories & setStories as props */}
                     <DraftBlogs stories={stories} setStories={setStories}></DraftBlogs>
                 </div>
                 <div className="flex justify-center mt-5">
@@ -111,13 +106,21 @@ const DraftBlogAdmin = () => {
                                 <input
                                     type="text"
                                     {...register("storyTitle", { required: true })}
-                                    placeholder="draft Title*"
+                                    placeholder="Draft Title*"
                                     className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
                                 />
                                 <input
                                     type="text"
                                     {...register("storyCategory", { required: true })}
-                                    placeholder="draft Category*"
+                                    placeholder="Draft Category*"
+                                    className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                                />
+                            </div>
+                            <div>
+                                <input
+                                    type="text"
+                                    {...register("storyRandom", { required: true })}
+                                    placeholder="Draft Random*"
                                     className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
                                 />
                             </div>
@@ -125,7 +128,7 @@ const DraftBlogAdmin = () => {
                                 <textarea
                                     rows="2"
                                     {...register("storyShortDescription", { required: true })}
-                                    placeholder="draft Short Description..."
+                                    placeholder="Draft Short Description..."
                                     className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
                                 ></textarea>
                             </div>
@@ -156,8 +159,9 @@ const DraftBlogAdmin = () => {
                                 <button
                                     type="submit"
                                     className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase"
+                                    disabled={isSubmitting}
                                 >
-                                    Add Draft
+                                    {isSubmitting ? "Adding Draft..." : "Add Draft"}
                                 </button>
                             </div>
                         </form>

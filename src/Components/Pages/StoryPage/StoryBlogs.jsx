@@ -4,24 +4,28 @@ import StoryBlog from './StoryBlog';
 import useAuth from '../../Layout/useAuth';
 import useAdmin from '../../../hooks/useAdmin';
 import { FaSearch } from 'react-icons/fa';
-
+import Loader from "../../../Components/Loader";
 
 const StoryBlogs = () => {
     const [stories, setStories] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState(true);  // loader state added
     const storiesPerPage = 12;
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
+        setLoading(true);
         fetch('http://localhost:5000/story')
             .then(res => res.json())
             .then(data => {
                 setStories(data);
+                setLoading(false);
             })
             .catch(error => {
                 console.error("Error loading stories:", error);
+                setLoading(false);
             });
     }, []);
 
@@ -49,7 +53,6 @@ const StoryBlogs = () => {
             category.includes(term)
         );
     });
-
 
     const totalPages = Math.ceil(filteredStories.length / storiesPerPage);
     const indexOfLastStory = currentPage * storiesPerPage;
@@ -99,7 +102,6 @@ const StoryBlogs = () => {
                         </div>
                     </div>
 
-
                     {/* Title */}
                     <h2 className="text-2xl font-bold text-center w-full">
                         Our <span className="text-[#2acb35]">Story</span>
@@ -125,7 +127,11 @@ const StoryBlogs = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
-                    currentStories.length === 0 ? (
+                    loading ? (
+                        <div className="col-span-full flex justify-center items-center h-40">
+                            <Loader />
+                        </div>
+                    ) : currentStories.length === 0 && searchTerm ? (
                         <p className="text-center text-red-400 mt-5 font-semibold text-xl col-span-full">
                             No Result Found
                         </p>

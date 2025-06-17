@@ -3,11 +3,12 @@ import { NavLink } from "react-router-dom";
 import { LuMessageCircleX } from "react-icons/lu";
 import Swal from "sweetalert2";
 import useAuth from "../../Layout/useAuth";
+import { Helmet } from "react-helmet";
 
 const FaqAdmin = () => {
     const [faqs, setFaqs] = useState([]);
-    const {user} = useAuth();
-    
+    const { user } = useAuth();
+
     useEffect(() => {
         fetch("http://localhost:5000/faqs")
             .then((res) => res.json())
@@ -17,6 +18,9 @@ const FaqAdmin = () => {
 
     return (
         <div className="my-12 max-w-screen-xl mx-auto px-4">
+            <Helmet>
+                <title>FaqAdmin - Storial Peace</title>
+            </Helmet>
             <div className="text-center space-y-3 mb-8">
                 <h1 className="text-3xl font-bold">
                     Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the FAQ

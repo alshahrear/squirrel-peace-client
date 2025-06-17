@@ -46,19 +46,19 @@ export const router = createBrowserRouter([
         element: <AdminRoute><AdminPages></AdminPages></AdminRoute>
       },
       {
-        path: "/aboutPage",
+        path: "/about",
         element: <AboutPage></AboutPage>
       },
       {
-        path: "/lifeStylePages",
+        path: "/lifeStyle",
         element: <LifeStylePages></LifeStylePages>
       },
       {
-        path: "/healthPages",
+        path: "/health",
         element: <HealthPages></HealthPages>
       },
       {
-        path: "/travelPages",
+        path: "/travel",
         element: <TravelPages></TravelPages>
       },
       {
@@ -67,10 +67,10 @@ export const router = createBrowserRouter([
       },
       {
         path: "/draft/:id",
-        element: <DraftDetails></DraftDetails>
+        element: <AdminRoute><DraftDetails></DraftDetails></AdminRoute>
       },
       {
-        path: "/storyPages",
+        path: "/story",
         element: <StoryPages></StoryPages>
       },
       {
@@ -98,7 +98,7 @@ export const router = createBrowserRouter([
         element: <AdminRoute><CommentsAdmin></CommentsAdmin></AdminRoute>
       },
       {
-        path: "/newsletterPage",
+        path: "/newsletter",
         element: <NewsletterPage></NewsletterPage>
       },
       {
@@ -118,7 +118,7 @@ export const router = createBrowserRouter([
         element: <AdminRoute><FaqAdmin></FaqAdmin></AdminRoute>
       },
       {
-        path: "/testimonialPage",
+        path: "/success",
         element: <TestimonialPage></TestimonialPage>
       },
       {

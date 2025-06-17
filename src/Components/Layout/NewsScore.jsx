@@ -71,7 +71,7 @@ const NewsScore = () => {
             <div className="pb-12 px-4 text-center">
                 <div className='border-y border-dashed border-gray-300 pb-10'>
                     <div className="flex justify-end mb-4">
-                        <NavLink to="/testimonialPage">
+                        <NavLink to="/success">
                             <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition mt-5">
                                 Success Story
                             </button>

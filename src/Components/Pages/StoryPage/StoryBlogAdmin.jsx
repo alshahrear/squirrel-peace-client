@@ -4,9 +4,12 @@ import useAuth from '../../Layout/useAuth';
 import { useForm } from 'react-hook-form';
 import useAxiosPublic from '../../../hooks/useAxiosPublic';
 import { useState } from 'react';
-import dayjs from 'dayjs'; // এটা আগেই install করেছেন ধরে নিচ্ছি
+import dayjs from 'dayjs';
 import ReactQuill from 'react-quill';
+import DOMPurify from 'dompurify';
 import 'react-quill/dist/quill.snow.css';
+import { FaSpinner } from 'react-icons/fa';
+import { Helmet } from 'react-helmet';
 
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
@@ -19,8 +22,18 @@ const StoryBlogAdmin = () => {
     const today = dayjs().format("YYYY-MM-DD");
     const [storyDate, setStoryDate] = useState(today);
     const [longDescription, setLongDescription] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleLongDescriptionChange = (content) => {
+        const clean = DOMPurify.sanitize(content, {
+            ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'img'],
+            ALLOWED_ATTR: ['href', 'target', 'alt', 'src', 'title', 'style'],
+        });
+        setLongDescription(clean);
+    };
 
     const onSubmit = async (data) => {
+        setIsSubmitting(true);
         const imageFile = { image: data.storyImage[0] };
 
         try {
@@ -36,10 +49,11 @@ const StoryBlogAdmin = () => {
             const storyData = {
                 storyTitle: data.storyTitle,
                 storyCategory: data.storyCategory,
+                storyRandom: data.storyRandom,
                 storyDate: formattedDate,
                 storyImage: imageUrl,
                 storyShortDescription: data.storyShortDescription,
-                storyLongDescription: longDescription, // customized HTML content
+                storyLongDescription: longDescription,
             };
 
             const res = await axiosPublic.post('/story', storyData);
@@ -66,18 +80,23 @@ const StoryBlogAdmin = () => {
                 title: "Oops...",
                 text: error.message || "Something went wrong!"
             });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     return (
         <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2">
+            <Helmet>
+                <title>StoryAdmin - Storial Peace</title>
+            </Helmet>
             <h1 className="text-3xl font-bold">
                 Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Story Blog Administration Panel
             </h1>
             <p className="text-xl font-semibold">
                 Please add a new story blog to help us build trust and credibility with future clients.
             </p>
-            <NavLink to="/storyPages">
+            <NavLink to="/story">
                 <button className="relative overflow-hidden px-5 py-2 text-white bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
                     <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040]">
                         Go Story Page
@@ -106,6 +125,12 @@ const StoryBlogAdmin = () => {
                                 className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
                             />
                         </div>
+                        <input
+                                type="text"
+                                {...register("storyRandom", { required: true })}
+                                placeholder="Story Random (xyz)*"
+                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                            />
                         <div>
                             <textarea
                                 rows="2"
@@ -129,11 +154,10 @@ const StoryBlogAdmin = () => {
                             />
                         </div>
                         <div>
-                            {/* Custom Rich Text Editor */}
                             <ReactQuill
                                 theme="snow"
                                 value={longDescription}
-                                onChange={setLongDescription}
+                                onChange={handleLongDescriptionChange}
                                 placeholder="Write your full story with formatting, links, images, etc..."
                                 className="bg-white"
                             />
@@ -141,9 +165,16 @@ const StoryBlogAdmin = () => {
                         <div>
                             <button
                                 type="submit"
-                                className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase"
+                                disabled={isSubmitting}
+                                className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase flex items-center justify-center gap-3"
                             >
-                                Add Story
+                                {isSubmitting ? (
+                                    <>
+                                        Adding Story <FaSpinner className="animate-spin" />
+                                    </>
+                                ) : (
+                                    "Add Story"
+                                )}
                             </button>
                         </div>
                     </form>

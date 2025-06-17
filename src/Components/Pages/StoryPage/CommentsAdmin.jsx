@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import useAxiosSecure from "../../../hooks/useAxiosSecure";
 import useAuth from "../../Layout/useAuth";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet";
 
 const CommentsAdmin = () => {
     const axiosSecure = useAxiosSecure();
@@ -118,6 +119,9 @@ const CommentRow = ({ comment, index, refetch }) => {
     return (
         <>
             <tr className="odd:bg-white even:bg-gray-100 transition-all duration-200">
+                <Helmet>
+                    <title>CommentAdmin - Storial Peace</title>
+                </Helmet>
                 <td className="py-4 px-4 font-semibold text-gray-700">{index + 1}</td>
                 <td className="py-4 px-4 text-lg font-bold text-gray-800">{name}</td>
                 <td className="py-4 px-4 text-lg text-gray-700">{email}</td>

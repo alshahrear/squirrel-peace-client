@@ -1,15 +1,18 @@
 import Swal from "sweetalert2";
+import { useState } from "react";
 
 const StoryBottoms = ({ storyId, storyTitle, storyCategory, storyImage }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false); // loading state
 
     const handleComment = (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
+
         const form = e.target;
         const name = form.name.value;
         const email = form.email.value;
         const comment = form.comment.value;
 
-        // updated with additional blog info
         const newComment = {
             name,
             email,
@@ -40,6 +43,9 @@ const StoryBottoms = ({ storyId, storyTitle, storyCategory, storyImage }) => {
             })
             .catch((error) => {
                 console.error("Error submitting comment:", error);
+            })
+            .finally(() => {
+                setIsSubmitting(false);
             });
     };
 
@@ -76,8 +82,9 @@ const StoryBottoms = ({ storyId, storyTitle, storyCategory, storyImage }) => {
                 <button
                     type="submit"
                     className="bg-[#2acb35] text-white font-semibold py-3 px-8 rounded-full transition duration-300"
+                    disabled={isSubmitting}
                 >
-                    Submit Comment
+                    {isSubmitting ? "Submitting Comment..." : "Submit Comment"}
                 </button>
             </form>
         </div>

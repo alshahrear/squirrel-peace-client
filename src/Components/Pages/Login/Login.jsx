@@ -6,6 +6,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import GoogleLogin from "../../Layout/Google/GoogleLogin";
 import useAuth from "../../Layout/useAuth";
+import { Helmet } from "react-helmet";
 
 const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -27,9 +28,7 @@ const Login = () => {
                     position: "top-right",
                     autoClose: 2000,
                 });
-
                 const redirectPath = location.state?.from?.pathname || "/";
-
                 // Wait for toast to show before navigating
                 setTimeout(() => {
                     navigate(redirectPath);
@@ -46,6 +45,9 @@ const Login = () => {
 
     return (
         <div className="pt-12 pb-20 max-w-screen-xl mx-auto flex justify-between items-center relative">
+            <Helmet>
+                <title>Login - Storial Peace</title>
+            </Helmet>
             {/* Left Side Content */}
             <div className="w-3/8 space-y-5">
                 <h2 className="text-4xl font-bold leading-12">

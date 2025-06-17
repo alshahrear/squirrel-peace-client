@@ -6,6 +6,7 @@ import { TbMessageCheck } from "react-icons/tb";
 import useAxiosSecure from "../../../hooks/useAxiosSecure";
 import { useQuery } from "@tanstack/react-query";
 import useAuth from "../../Layout/useAuth";
+import { Helmet } from "react-helmet";
 
 const ContactAdmin = () => {
     const axiosSecure = useAxiosSecure();
@@ -21,6 +22,9 @@ const ContactAdmin = () => {
 
     return (
         <div className="my-10 max-w-screen-xl mx-auto">
+            <Helmet>
+                <title>ContactAdmin - Storial Peace</title>
+            </Helmet>
             <div className="text-center space-y-3 mb-8">
                 <h1 className="text-3xl font-bold">
                     Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Contact Administration Panel

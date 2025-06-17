@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet";
 import travel1 from "../../../../assets/travel1.jpg";
 import BlogAll from "../../../Layout/BlogSuggest.jsx/BlogAll";
 import BlogDown from "../BlogDown";
@@ -6,6 +7,9 @@ import TravelBlogs from "./TravelBlogs";
 const TravelPages = () => {
     return (
         <div>
+            <Helmet>
+                <title>Travel - Storial Peace </title>
+            </Helmet>
             <div
                 className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"
                 style={{ backgroundImage: `url(${travel1})` }}
@@ -21,9 +25,9 @@ const TravelPages = () => {
                     </p>
                 </div>
             </div>
-           <BlogDown></BlogDown>
-           <TravelBlogs></TravelBlogs>
-           <BlogAll></BlogAll>
+            <BlogDown></BlogDown>
+            <TravelBlogs></TravelBlogs>
+            <BlogAll></BlogAll>
         </div>
     );
 };

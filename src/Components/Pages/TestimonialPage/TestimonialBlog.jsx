@@ -17,8 +17,8 @@ const customStyle = {
 };
 
 const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
-  const { _id, customerName, rating, review, profileLink } = testimonialBlog;
-  const [formData, setFormData] = useState({ customerName, rating, review, profileLink });
+  const { _id, customerName, rating, random, review, profileLink } = testimonialBlog;
+  const [formData, setFormData] = useState({ customerName, rating, random, review, profileLink });
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -167,12 +167,22 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
               </select>
             </div>
 
-            <input
-              type="file"
-              accept="image/*"
-              onChange={e => setNewImageFile(e.target.files[0])}
-              className="file-input file-input-ghost w-full"
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => setNewImageFile(e.target.files[0])}
+                className="file-input file-input-ghost w-full"
+              />
+              <input
+                type="text"
+                name="random"
+                value={formData.random}
+                onChange={e => setFormData({ ...formData, random: e.target.value })}
+                placeholder="Random*"
+                className="w-full p-3 border rounded-md"
+              />
+            </div>
 
             <textarea
               rows="4"

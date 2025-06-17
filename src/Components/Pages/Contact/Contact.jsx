@@ -6,78 +6,54 @@ import { PiPhoneCallLight, PiArrowBendRightDownFill } from "react-icons/pi";
 import { RiTwitterXLine } from "react-icons/ri";
 import { RxInstagramLogo } from "react-icons/rx";
 import { TfiPinterest } from "react-icons/tfi";
-import { NavLink } from "react-router-dom";
-import Swal from "sweetalert2";
 import { Helmet } from "react-helmet";
-import useAuth from "../../Layout/useAuth";
-import useAdmin from "../../../hooks/useAdmin";
+import Swal from "sweetalert2";
+import { useForm } from "react-hook-form";
 import useAxiosPublic from "../../../hooks/useAxiosPublic";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
-const Contact = () => {
+const SendMessage = () => {
     const axiosPublic = useAxiosPublic();
-    const { user } = useAuth();
-    const [isAdmin] = useAdmin();
+    const { register, handleSubmit, reset } = useForm();
+    const [isSending, setIsSending] = useState(false);
 
-    const { data: contacts = [], refetch } = useQuery({
-        queryKey: ["contacts"],
-        queryFn: async () => {
-            const res = await axiosPublic.get("/contact");
-            return res.data;
-        },
-    });
-
-    const handleAddContact = async (e) => {
-        e.preventDefault();
-        const form = e.target;
-        const name = form.name.value;
-        const email = form.email.value;
-        const phone = form.phone.value;
-        const subject = form.subject.value;
-        const message = form.message.value;
-
-        const addContact = { name, email, phone, subject, message };
-        const res = await axiosPublic.post("/contact", addContact);
-
-        if (res.data.insertedId) {
+    const onSubmit = async (data) => {
+        try {
+            setIsSending(true);
+            const res = await axiosPublic.post("/message", data);
+            if (res.data.insertedId) {
+                Swal.fire({
+                    position: "top-end",
+                    icon: "success",
+                    title: "Your message has been sent!",
+                    showConfirmButton: false,
+                    timer: 2000,
+                });
+                reset();
+            } else {
+                throw new Error("Failed to send message");
+            }
+        } catch (error) {
             Swal.fire({
-                position: "top-end",
-                icon: "success",
-                title: "Message received! We'll reply to your email soon.",
-                showConfirmButton: false,
-                timer: 2000,
+                icon: "error",
+                title: "Oops...",
+                text: error.message || "Something went wrong!",
             });
-            form.reset();
-            refetch();
+        } finally {
+            setIsSending(false);
         }
     };
 
     return (
         <div className="bg-[#f5f7ec]">
             <Helmet>
-                <title>Contact</title>
+                <title>Contact - Storial Peace</title>
             </Helmet>
 
             <div className="py-10 max-w-screen-xl mx-auto">
                 <div className="text-center">
-                    <i className="text-2xl font-semibold text-[#2acb35]">Quick Contact</i>
-                    <h2 className="text-3xl font-bold mt-2 uppercase">Get Touch With Us</h2>
-
-                    {user && isAdmin && (
-                        <NavLink to="/contactAdmin">
-                            <div className="indicator mt-5">
-                                <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
-                                    {contacts.length}
-                                </span>
-                                <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
-                                    <span className="relative z-10 group-hover:text-[#404040] hover:scale-105">
-                                        Contact Admin Page
-                                    </span>
-                                    <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
-                                </button>
-                            </div>
-                        </NavLink>
-                    )}
+                    <i className="text-2xl font-semibold text-[#2acb35]">Message Us</i>
+                    <h2 className="text-3xl font-bold mt-2 uppercase">We'd Love To Hear From You</h2>
                 </div>
 
                 <div className="max-w-6xl mx-auto border-2 border-[#f5f4f3] my-12 p-10 flex gap-10 rounded-2xl">
@@ -85,16 +61,16 @@ const Contact = () => {
                         <p className="text-2xl font-semibold mb-3">
                             Leave your <em className="text-[#2acb35]">message</em> here
                         </p>
-                        <form onSubmit={handleAddContact} className="space-y-6">
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                             <div className="grid grid-cols-2 gap-6">
-                                <input type="text" name="name" required placeholder="Your Name*" className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]" />
-                                <input type="email" name="email" required placeholder="Your Email*" className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]" />
-                                <input type="text" name="phone" placeholder="Phone (Optional)" className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]" />
-                                <input type="text" name="subject" placeholder="Subject (Optional)" className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]" />
+                                <input type="text" {...register("name", { required: true })} placeholder="Your Name*" className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]" />
+                                <input type="email" {...register("email", { required: true })} placeholder="Your Email*" className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]" />
+                                <input type="text" {...register("phone")} placeholder="Phone (Optional)" className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]" />
+                                <input type="text" {...register("subject")} placeholder="Subject (Optional)" className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]" />
                             </div>
-                            <textarea rows="5" name="message" required placeholder="Your Message..." className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"></textarea>
-                            <button type="submit" className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 hover:scale-105">
-                                SEND MESSAGE
+                            <textarea rows="5" {...register("message", { required: true })} placeholder="Your Message..." className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"></textarea>
+                            <button type="submit" disabled={isSending} className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 hover:scale-105">
+                                {isSending ? "SENDING MESSAGE..." : "SEND MESSAGE"}
                             </button>
                         </form>
                     </div>
@@ -138,4 +114,4 @@ const SocialButton = ({ Icon, title }) => (
     </button>
 );
 
-export default Contact;
+export default SendMessage;

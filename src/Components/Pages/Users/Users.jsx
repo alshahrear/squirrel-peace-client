@@ -6,6 +6,8 @@ import { FaUsers } from 'react-icons/fa6';
 import Swal from 'sweetalert2';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
+import Loader from "../../../Components/Loader";
+import { Helmet } from 'react-helmet';
 
 const Users = () => {
     const { user } = useAuth();
@@ -130,11 +132,16 @@ const Users = () => {
         }
     };
 
-    if (isLoading) return <p className="text-center mt-10">Loading users...</p>;
+    if (isLoading) return <Loader />;
+
+    // 👇 error হলে fallback
     if (error) return <p className="text-center mt-10 text-red-600">Failed to load users.</p>;
 
     return (
         <div className="my-10 max-w-screen-xl mx-auto">
+            <Helmet>
+                <title>Users - Storial Peace</title>
+            </Helmet>
             <div className="text-center space-y-3 mb-8">
                 <h1 className="text-3xl font-bold">
                     Welcome <i className="text-[#2acb35]">{user?.displayName || "Admin"}</i> To The Users Administration Panel

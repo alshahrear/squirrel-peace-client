@@ -13,8 +13,8 @@ import useAdmin from '../../../../hooks/useAdmin';
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
-const LifeBlog = ({lifeBlog, onDelete, onUpdate, searchTerm }) => {
-  const { _id, blogTitle, blogShortDescription, blogCategory, blogImage } = lifeBlog;
+const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
+  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage } = lifeBlog;
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -25,6 +25,7 @@ const LifeBlog = ({lifeBlog, onDelete, onUpdate, searchTerm }) => {
   const [formData, setFormData] = useState({
     blogTitle,
     blogCategory,
+    blogRandom,
     blogImage,
     blogShortDescription
   });
@@ -253,12 +254,24 @@ const LifeBlog = ({lifeBlog, onDelete, onUpdate, searchTerm }) => {
               </select>
             </div>
 
-            <input
-              type="file"
-              className="file-input w-full file-input-ghost"
-              accept="image/*"
-              onChange={e => setNewImageFile(e.target.files[0])}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="file"
+                className="file-input w-full file-input-ghost"
+                accept="image/*"
+                onChange={e => setNewImageFile(e.target.files[0])}
+              />
+
+              <input
+                type="text"
+                name="blogRandom"
+                value={formData.blogRandom}
+                onChange={e => setFormData({ ...formData, blogRandom: e.target.value })}
+                placeholder="blog Random"
+                className="w-full p-3 border rounded-md"
+                required
+              />
+            </div>
 
             <textarea
               rows="4"

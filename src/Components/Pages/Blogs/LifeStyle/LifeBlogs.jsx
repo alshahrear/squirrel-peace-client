@@ -4,23 +4,28 @@ import { FaSearch } from 'react-icons/fa';
 import LifeBlog from './LifeBlog';
 import useAuth from '../../../Layout/useAuth';
 import useAdmin from '../../../../hooks/useAdmin';
+import Loader from "../../../../Components/Loader";
 
 const LifeBlogs = () => {
     const [blogs, setBlogs] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const blogsPerPage = 12;
     const { user } = useAuth();
+    const [loading, setLoading] = useState(true);
     const [isAdmin] = useAdmin();
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
+        setLoading(true);
         fetch('http://localhost:5000/blog')
             .then(res => res.json())
             .then(data => {
                 setBlogs(data);
+                setLoading(false);
             })
             .catch(error => {
-                console.error("Error loading blogs:", error);
+                console.error("Error Loading Blogs:", error);
+                setLoading(false);
             });
     }, []);
 
@@ -116,7 +121,11 @@ const LifeBlogs = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                 {
-                    currentBlogs.length === 0 ? (
+                    loading ? (
+                        <div className="col-span-full flex justify-center items-center h-40">
+                            <Loader />
+                        </div>
+                    ) : currentBlogs.length === 0 && searchTerm ? (
                         <p className="text-center text-red-400 mt-5 font-semibold text-xl col-span-full">
                             No Result Found
                         </p>
@@ -134,17 +143,17 @@ const LifeBlogs = () => {
                 }
             </div>
 
+
             {/* Pagination */}
             {filteredBlogs.length > 0 && (
                 <div className="flex justify-center mt-10 space-x-2 items-center">
                     <button
                         onClick={handlePrevious}
                         disabled={currentPage === 1}
-                        className={`px-4 py-2 rounded ${
-                            currentPage === 1
+                        className={`px-4 py-2 rounded ${currentPage === 1
                                 ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                                 : 'bg-[#2acb35] text-white hover:bg-green-600'
-                        }`}
+                            }`}
                     >
                         Previous
                     </button>
@@ -154,11 +163,10 @@ const LifeBlogs = () => {
                             <button
                                 key={number}
                                 onClick={() => setCurrentPage(number)}
-                                className={`px-4 py-2 border rounded ${
-                                    currentPage === number
+                                className={`px-4 py-2 border rounded ${currentPage === number
                                         ? 'bg-[#2acb35] text-white'
                                         : 'bg-white text-[#2acb35] border-[#2acb35] hover:bg-[#2acb35] hover:text-white'
-                                }`}
+                                    }`}
                             >
                                 {number}
                             </button>
@@ -168,11 +176,10 @@ const LifeBlogs = () => {
                     <button
                         onClick={handleNext}
                         disabled={currentPage === totalPages}
-                        className={`px-4 py-2 rounded ${
-                            currentPage === totalPages
+                        className={`px-4 py-2 rounded ${currentPage === totalPages
                                 ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                                 : 'bg-[#2acb35] text-white hover:bg-green-600'
-                        }`}
+                            }`}
                     >
                         Next
                     </button>

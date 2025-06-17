@@ -44,7 +44,7 @@ const SocialContact = () => {
               alshahrear1@gmail.com
             </a>
           </p>
-          <NavLink to="/testimonialPage" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
+          <NavLink to="/success" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
             <FaAward className="text-[#2acb35] text-xl" />
             Success
           </NavLink>
