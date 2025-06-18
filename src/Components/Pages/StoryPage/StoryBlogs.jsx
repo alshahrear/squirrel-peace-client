@@ -17,7 +17,7 @@ const StoryBlogs = () => {
 
     useEffect(() => {
         setLoading(true);
-        fetch('http://localhost:5000/story')
+        fetch('https://squirrel-peace-server.vercel.app/story')
             .then(res => res.json())
             .then(data => {
                 setStories(data);

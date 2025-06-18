@@ -46,7 +46,7 @@ const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
       confirmButtonText: "Yes, delete it!"
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`http://localhost:5000/draft/${id}`, {
+        fetch(`https://squirrel-peace-server.vercel.app/draft/${id}`, {
           method: 'DELETE',
         })
           .then(res => res.json())
@@ -86,7 +86,7 @@ const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
       }
     }
 
-    fetch(`http://localhost:5000/draft/${_id}`, {
+    fetch(`https://squirrel-peace-server.vercel.app/draft/${_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedData)

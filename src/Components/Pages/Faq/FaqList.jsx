@@ -38,7 +38,7 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`http://localhost:5000/faqsAdd/${_id}`, { method: "DELETE" })
+        fetch(`https://squirrel-peace-server.vercel.app/faqsAdd/${_id}`, { method: "DELETE" })
           .then((res) => res.json())
           .then((data) => {
             if (data.deletedCount > 0) {
@@ -68,7 +68,7 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
       faqAnswer: editAnswer,
     };
 
-    fetch(`http://localhost:5000/faqsAdd/${_id}`, {
+    fetch(`https://squirrel-peace-server.vercel.app/faqsAdd/${_id}`, {
       method: "PATCH",  // PATCH is better for partial update
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedFaq),

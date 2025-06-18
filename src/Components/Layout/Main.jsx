@@ -9,8 +9,8 @@ const Main = () => {
     return (
         <div>
             <ScrollToTop></ScrollToTop>
-             <ScrollToTopButton />
-            <SocialContact></SocialContact>
+            <ScrollToTopButton />      
+            <SocialContact />
             <Navbar></Navbar>
             <Outlet></Outlet>
             <Footer></Footer>

@@ -11,7 +11,7 @@ const DraftBlogs = ({ stories, setStories }) => {
 
     useEffect(() => {
         setLoading(true);
-        fetch('http://localhost:5000/draft')
+        fetch('https://squirrel-peace-server.vercel.app/draft')
             .then(res => res.json())
             .then(data => {
                 const reversedData = data.slice().reverse(); // latest first

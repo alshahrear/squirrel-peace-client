@@ -1,9 +1,10 @@
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import useAuth from '../../Layout/useAuth';
 import { useForm } from 'react-hook-form';
 import useAxiosPublic from '../../../hooks/useAxiosPublic';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import dayjs from 'dayjs';
 import ReactQuill from 'react-quill';
 import DOMPurify from 'dompurify';
@@ -85,6 +86,49 @@ const StoryBlogAdmin = () => {
         }
     };
 
+    const imageHandler = () => {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = async () => {
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const res = await axiosPublic.post(image_hosting_api, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+
+                const imageUrl = res.data?.data?.display_url;
+                const quill = quillRef.current.getEditor();
+                const range = quill.getSelection();
+                quill.insertEmbed(range.index, 'image', imageUrl);
+            } catch (err) {
+                console.error("Image upload failed", err);
+            }
+        };
+    };
+
+    const quillRef = useMemo(() => React.createRef(), []);
+
+    const modules = useMemo(() => ({
+        toolbar: {
+            container: [
+                [{ header: [1, 2, 3, 4, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                ['link', 'image'],
+                ['clean']
+            ],
+            handlers: {
+                image: imageHandler,
+            },
+        },
+    }), []);
+
     return (
         <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2">
             <Helmet>
@@ -126,19 +170,17 @@ const StoryBlogAdmin = () => {
                             />
                         </div>
                         <input
-                                type="text"
-                                {...register("storyRandom", { required: true })}
-                                placeholder="Story Random (xyz)*"
-                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                            />
-                        <div>
-                            <textarea
-                                rows="2"
-                                {...register("storyShortDescription", { required: true })}
-                                placeholder="Story Short Description..."
-                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                            ></textarea>
-                        </div>
+                            type="text"
+                            {...register("storyRandom", { required: true })}
+                            placeholder="Story Random (xyz)*"
+                            className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                        />
+                        <textarea
+                            rows="2"
+                            {...register("storyShortDescription", { required: true })}
+                            placeholder="Story Short Description..."
+                            className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                        ></textarea>
                         <div className="grid grid-cols-2 gap-6 items-center">
                             <input
                                 type="file"
@@ -155,28 +197,28 @@ const StoryBlogAdmin = () => {
                         </div>
                         <div>
                             <ReactQuill
+                                ref={quillRef}
                                 theme="snow"
                                 value={longDescription}
                                 onChange={handleLongDescriptionChange}
+                                modules={modules}
                                 placeholder="Write your full story with formatting, links, images, etc..."
                                 className="bg-white"
                             />
                         </div>
-                        <div>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase flex items-center justify-center gap-3"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        Adding Story <FaSpinner className="animate-spin" />
-                                    </>
-                                ) : (
-                                    "Add Story"
-                                )}
-                            </button>
-                        </div>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase flex items-center justify-center gap-3"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    Adding Story <FaSpinner className="animate-spin" />
+                                </>
+                            ) : (
+                                "Add Story"
+                            )}
+                        </button>
                     </form>
                 </div>
             </div>

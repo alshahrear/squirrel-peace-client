@@ -11,7 +11,7 @@ const NewsletterFaqs = () => {
 
 
     useEffect(() => {
-        fetch("http://localhost:5000/newsletterFaq")
+        fetch("https://squirrel-peace-server.vercel.app/newsletterFaq")
             .then((res) => res.json())
             .then((data) => setFaqs(data));
     }, []);
@@ -33,7 +33,7 @@ const NewsletterFaqs = () => {
         const faqAnswer = form.faqAnswer.value;
         const newFaq = { faqQuestion, faqAnswer };
 
-        fetch("http://localhost:5000/newsletterFaq", {
+        fetch("https://squirrel-peace-server.vercel.app/newsletterFaq", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(newFaq),

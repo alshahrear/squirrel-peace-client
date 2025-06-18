@@ -19,7 +19,7 @@ const SocialContact = () => {
   const [isAdmin] = useAdmin();
 
   return (
-    <div className="bg-[#262626]">
+    <div className="bg-[#262626] hidden md:block">
       <div className="flex justify-between max-w-screen-xl mx-auto py-2 px-3">
         <div className="flex items-center gap-8 text-white font-medium text-[16px]">
           <p className="flex items-center gap-3">

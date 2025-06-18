@@ -16,7 +16,7 @@ const StoryDetails = () => {
     useEffect(() => {
         window.scrollTo(0, 0);
         setLoading(true);
-        fetch(`http://localhost:5000/story/${id}`)
+        fetch(`https://squirrel-peace-server.vercel.app/story/${id}`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {
@@ -37,7 +37,7 @@ const StoryDetails = () => {
     }, [id]);
 
     useEffect(() => {
-        fetch("http://localhost:5000/story")
+        fetch("https://squirrel-peace-server.vercel.app/story")
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {

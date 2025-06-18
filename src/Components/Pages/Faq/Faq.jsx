@@ -14,13 +14,13 @@ const Faq = () => {
   const [loading, setLoading] = useState(false); // ✅ Loading state added
 
   useEffect(() => {
-    fetch("http://localhost:5000/faqsAdd")
+    fetch("https://squirrel-peace-server.vercel.app/faqsAdd")
       .then((res) => res.json())
       .then((data) => setFaqsAdd(data));
   }, []);
 
   useEffect(() => {
-    fetch("http://localhost:5000/faqs")
+    fetch("https://squirrel-peace-server.vercel.app/faqs")
       .then((res) => res.json())
       .then((data) => setFaqs(data))
       .catch((error) => console.error("Error loading FAQs:", error));
@@ -43,7 +43,7 @@ const Faq = () => {
     const faqAnswer = form.faqAnswer.value;
     const addFaqList = { faqQuestion, faqAnswer };
 
-    fetch("http://localhost:5000/faqsAdd", {
+    fetch("https://squirrel-peace-server.vercel.app/faqsAdd", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(addFaqList),
@@ -78,7 +78,7 @@ const Faq = () => {
 
     const addFaqQus = { name, email, question };
 
-    fetch("http://localhost:5000/faqs", {
+    fetch("https://squirrel-peace-server.vercel.app/faqs", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(addFaqQus),

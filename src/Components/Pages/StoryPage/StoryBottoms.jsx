@@ -23,7 +23,7 @@ const StoryBottoms = ({ storyId, storyTitle, storyCategory, storyImage }) => {
             storyImage: storyImage,
         };
 
-        fetch("http://localhost:5000/comment/story", {
+        fetch("https://squirrel-peace-server.vercel.app/comment/story", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newComment),

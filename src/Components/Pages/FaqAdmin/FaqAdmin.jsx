@@ -10,7 +10,7 @@ const FaqAdmin = () => {
     const { user } = useAuth();
 
     useEffect(() => {
-        fetch("http://localhost:5000/faqs")
+        fetch("https://squirrel-peace-server.vercel.app/faqs")
             .then((res) => res.json())
             .then((data) => setFaqs(data))
             .catch((error) => console.error("Error loading FAQs:", error));
@@ -95,7 +95,7 @@ const FaqQus = ({ faq, index, setFaqs, faqs }) => {
             confirmButtonText: "Yes, delete it!",
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`http://localhost:5000/faqs/${_id}`, {
+                fetch(`https://squirrel-peace-server.vercel.app/faqs/${_id}`, {
                     method: "DELETE",
                 })
                     .then((res) => res.json())
