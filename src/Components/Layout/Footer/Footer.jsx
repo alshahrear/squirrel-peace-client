@@ -95,13 +95,13 @@ const Footer = () => {
                     </div>
                     <div className="flex items-center gap-10">
                         <p className="link-hover text-[16px] hover:text-[#2acb35]">
-                            <NavLink to="/termCondition">
-                                Terms of Condition
+                            <NavLink to="/privacyPolicy">
+                                Privacy policy
                             </NavLink>
                         </p>
                         <p className="link-hover text-[16px] hover:text-[#2acb35]">
-                            <NavLink to="/privacyPolicy">
-                                Privacy policy
+                            <NavLink to="/termCondition">
+                                Terms of Condition
                             </NavLink>
                         </p>
                     </div>
