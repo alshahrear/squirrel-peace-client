@@ -12,7 +12,7 @@ const DraftDetails = () => {
     useEffect(() => {
         window.scrollTo(0, 0);
         setLoading(true);
-        fetch(`https://squirrel-peace-server.vercel.app/draft/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/draft/${id}`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {
@@ -33,7 +33,7 @@ const DraftDetails = () => {
     }, [id]);
 
     useEffect(() => {
-        fetch("https://squirrel-peace-server.vercel.app/draft")
+        fetch("https://squirrel-peace-server.onrender.com/draft")
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {

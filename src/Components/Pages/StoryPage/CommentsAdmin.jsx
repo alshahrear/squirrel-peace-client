@@ -20,7 +20,11 @@ const CommentsAdmin = () => {
     });
 
     return (
-        <div className="my-10 max-w-screen-xl mx-auto">
+        <div className="my-10 max-w-screen-xl mx-auto px-2 sm:px-4">
+            <Helmet>
+                <title>CommentAdmin - Storial Peace</title>
+            </Helmet>
+
             <div className="text-center space-y-3 mb-8">
                 <h1 className="text-3xl font-bold">
                     Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Comments Administration Panel
@@ -35,7 +39,7 @@ const CommentsAdmin = () => {
             </div>
 
             <div className="overflow-x-auto shadow-md rounded-lg">
-                <table className="table-auto w-full text-left border-collapse">
+                <table className="table-auto w-full text-left border-collapse comments-table">
                     <thead>
                         <tr className="bg-[#2acb35] text-white text-xl">
                             <th className="py-3 px-4">#</th>
@@ -64,6 +68,52 @@ const CommentsAdmin = () => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Responsive CSS */}
+            <style>{`
+                @media (max-width: 1024px) {
+                    .comments-table thead {
+                        display: none;
+                    }
+                    .comments-table tbody tr {
+                        display: block;
+                        margin-bottom: 1rem;
+                        border: 1px solid #ccc;
+                        border-radius: 0.5rem;
+                        padding: 1rem;
+                        background: white;
+                        box-shadow: 0 0 5px rgb(0 0 0 / 0.1);
+                    }
+                    .comments-table tbody tr td {
+                        display: block;
+                        padding: 0.5rem 0;
+                        text-align: left !important;
+                        font-size: 1rem;
+                        border: none !important;
+                        position: relative;
+                        padding-left: 130px;
+                        word-break: break-word;
+                    }
+                    .comments-table tbody tr td::before {
+                        content: attr(data-label);
+                        position: absolute;
+                        left: 1rem;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        font-weight: 600;
+                        color: #2acb35;
+                        white-space: nowrap;
+                    }
+                    .comments-table tbody tr td.text-center {
+                        padding-left: 0;
+                    }
+                    /* Center buttons */
+                    .comments-table tbody tr td.text-center button {
+                        margin: 0 auto;
+                        display: block;
+                    }
+                }
+            `}</style>
         </div>
     );
 };
@@ -119,25 +169,32 @@ const CommentRow = ({ comment, index, refetch }) => {
     return (
         <>
             <tr className="odd:bg-white even:bg-gray-100 transition-all duration-200">
-                <Helmet>
-                    <title>CommentAdmin - Storial Peace</title>
-                </Helmet>
-                <td className="py-4 px-4 font-semibold text-gray-700">{index + 1}</td>
-                <td className="py-4 px-4 text-lg font-bold text-gray-800">{name}</td>
-                <td className="py-4 px-4 text-lg text-gray-700">{email}</td>
-                <td className="py-4 px-4 text-lg text-gray-700 font-medium">{type}</td>
-                <td className="py-4 px-4 text-center">
+                <td className="py-4 px-4 font-semibold text-gray-700" data-label="#">
+                    {index + 1}
+                </td>
+                <td className="py-4 px-4 text-lg font-bold text-gray-800" data-label="Name">
+                    {name}
+                </td>
+                <td className="py-4 px-4 text-lg text-gray-700" data-label="Email">
+                    {email}
+                </td>
+                <td className="py-4 px-4 text-lg text-gray-700 font-medium" data-label="Type">
+                    {type}
+                </td>
+                <td className="py-4 px-4 text-center" data-label="Comment">
                     <button
                         className="btn bg-[#2acb35] hover:bg-[#25b22f] text-white p-2 rounded-full"
                         onClick={() => setShowModal(true)}
+                        title="View Comment"
                     >
                         <TbMessageCheck className="text-2xl" />
                     </button>
                 </td>
-                <td className="py-4 px-4 text-center">
+                <td className="py-4 px-4 text-center" data-label="Delete">
                     <button
                         onClick={handleDeleteComment}
                         className="btn bg-[#e53935] hover:bg-[#d32f2f] text-white p-2 rounded-full"
+                        title="Delete Comment"
                     >
                         <LuMessageCircleX className="text-2xl" />
                     </button>
@@ -146,15 +203,15 @@ const CommentRow = ({ comment, index, refetch }) => {
 
             {showModal && (
                 <dialog open className="modal">
-                    <div className="modal-box max-w-2xl">
-                        <form method="dialog">
-                            <button
-                                className="btn btn-sm btn-circle btn-ghost absolute text-lg right-2 top-2"
-                                onClick={() => setShowModal(false)}
-                            >
-                                ✕
-                            </button>
-                        </form>
+                    <div className="modal-box max-w-2xl relative">
+                        <button
+                            className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 text-lg"
+                            onClick={() => setShowModal(false)}
+                            aria-label="Close modal"
+                        >
+                            ✕
+                        </button>
+
                         <h2 className="mb-4 text-2xl text-center font-bold">
                             <span className="text-[#2acb35]">{name}</span>'s Comment Details
                         </h2>
@@ -191,7 +248,7 @@ const CommentRow = ({ comment, index, refetch }) => {
                             <div className="my-4 w-full max-h-64 overflow-hidden rounded-lg border">
                                 <img
                                     src={image}
-                                    alt="Blog"
+                                    alt="Blog or Story"
                                     className="w-full h-48 object-cover"
                                 />
                                 {id && (

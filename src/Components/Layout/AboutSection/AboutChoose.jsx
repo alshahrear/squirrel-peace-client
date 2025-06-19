@@ -35,18 +35,23 @@ const features = [
 
 const AboutChoose = () => {
     return (
-        <div className="py-16 bg-white text-center">
-            <p className="text-[#2acb35] text-2xl font-semibold italic mb-2">Our Qualification</p>
-            <h2 className="text-3xl md:text-2xl font-bold mb-10">WHY PEOPLE CHOOSING US</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="py-16 bg-white text-center px-4 sm:px-6 md:px-8">
+            <p className="text-[#2acb35] text-2xl sm:text-2xl font-semibold italic mb-2">Our Qualification</p>
+            <h2 className="text-2xl sm:text-3xl md:text-2xl font-bold mb-10">WHY PEOPLE CHOOSING US</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                 {features.map((feature, index) => (
-                    <div key={index} className="border border-dashed border-gray-300 rounded-lg p-6 text-left shadow hover:shadow-lg transition hover:scale-105 hover:border-[#2acb35]">
-                        <h3 className="inline-block font-semibold text-lg mb-2 border-b-1 border-dashed border-b-[#2acb35] pb-2">
+                    <div
+                        key={index}
+                        className="border border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-left shadow hover:shadow-lg transition hover:scale-105 hover:border-[#2acb35]"
+                    >
+                        <h3 className="inline-block font-semibold text-base sm:text-lg mb-2 border-b border-dashed border-[#2acb35] pb-2">
                             {feature.title}
                         </h3>
-                        <div className="flex items-center gap-5">
-                            <p className="">{feature.icon}</p>
-                            <p className="text-gray-600 text-sm hover:font-medium text-start">{feature.description}</p>
+                        <div className="flex flex-col items-start gap-3 sm:gap-5">
+                            <p>{feature.icon}</p>
+                            <p className="text-gray-600 text-left hover:font-medium">
+                                {feature.description}
+                            </p>
                         </div>
                     </div>
                 ))}

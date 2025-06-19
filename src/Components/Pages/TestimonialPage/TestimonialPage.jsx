@@ -18,7 +18,7 @@ const TestimonialPage = () => {
 
     useEffect(() => {
         setLoading(true);
-        fetch('https://squirrel-peace-server.vercel.app/reviews')
+        fetch('https://squirrel-peace-server.onrender.com/reviews')
             .then(res => res.json())
             .then(data => {
                 setTestimonials(data);

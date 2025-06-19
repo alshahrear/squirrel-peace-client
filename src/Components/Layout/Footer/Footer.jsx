@@ -9,8 +9,14 @@ import { MdOutlineMarkEmailRead } from "react-icons/md";
 import { NavLink } from "react-router-dom";
 import { HiOutlineMailOpen } from "react-icons/hi";
 import { FaPaperPlane } from "react-icons/fa6";
+import useAuth from "../useAuth";
+import useAdmin from "../../../hooks/useAdmin";
 
 const Footer = () => {
+
+  const {user} = useAuth();
+  const [isAdmin] = useAdmin();
+
   return (
     <div className="bg-[#222426]">
       <footer className="footer flex flex-col md:flex-row max-w-screen-xl mx-auto text-[#878787] pt-10 pb-10 gap-10 md:gap-0 px-4 md:px-0">
@@ -119,6 +125,17 @@ const Footer = () => {
               </span>
             </NavLink>
           </p>
+          {
+            user && isAdmin && 
+            <p className="text-[16px]">
+            <NavLink to="/adminPages">
+              -{" "}
+              <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
+                Admin
+              </span>
+            </NavLink>
+          </p>
+          }
         </nav>
 
         <nav className="flex-1">

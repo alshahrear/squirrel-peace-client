@@ -15,7 +15,7 @@ const AdminPages = () => {
             const res = await axiosPublic.get("/contact");
             return res.data;
         },
-        refetchInterval: 5000, // after 5 sec auto refreshing
+        refetchInterval: 5000,
     });
     const { data: faqs = [] } = useQuery({
         queryKey: ["faqs"],
@@ -23,7 +23,7 @@ const AdminPages = () => {
             const res = await axiosPublic.get("/faqs");
             return res.data;
         },
-        refetchInterval: 5000, // after 5 sec auto refreshing
+        refetchInterval: 5000,
     });
     const { data: users = [] } = useQuery({
         queryKey: ["users"],
@@ -31,7 +31,7 @@ const AdminPages = () => {
             const res = await axiosPublic.get("/users");
             return res.data;
         },
-        refetchInterval: 5000, // after 5 sec auto refreshing
+        refetchInterval: 5000,
     });
     const { data: comment = [] } = useQuery({
         queryKey: ["comments"],
@@ -39,11 +39,11 @@ const AdminPages = () => {
             const res = await axiosPublic.get("/comment");
             return res.data;
         },
-        refetchInterval: 5000, // after 5 sec auto refreshing
+        refetchInterval: 5000,
     });
 
     return (
-        <div className="py-10 max-w-screen-xl mx-auto">
+        <div className="py-10 max-w-screen-xl mx-auto px-4">
             <Helmet>
                 <title>AdminPanel - Storial Peace </title>
             </Helmet>
@@ -56,8 +56,7 @@ const AdminPages = () => {
                 </p>
             </div>
 
-            <div className="grid grid-cols-4 text-center justify-center gap-y-10">
-                {/* Contact Admin with badge */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 text-center justify-center gap-y-10 gap-x-4">
                 <NavLink to="/contactAdmin">
                     <div className="indicator mt-5">
                         <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
@@ -72,7 +71,6 @@ const AdminPages = () => {
                     </div>
                 </NavLink>
 
-                {/* Other admin pages */}
                 <NavLink to="/faqAdmin">
                     <div className="indicator mt-5">
                         <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
@@ -86,6 +84,7 @@ const AdminPages = () => {
                         </button>
                     </div>
                 </NavLink>
+
                 <NavLink to="/users">
                     <div className="indicator mt-5">
                         <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
@@ -99,6 +98,7 @@ const AdminPages = () => {
                         </button>
                     </div>
                 </NavLink>
+
                 <NavLink to="/commentAdmin">
                     <div className="indicator mt-5">
                         <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
@@ -112,6 +112,7 @@ const AdminPages = () => {
                         </button>
                     </div>
                 </NavLink>
+
                 <NavLink to="/testimonialsAdmin">
                     <div className="indicator mt-5">
                         <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
@@ -122,6 +123,7 @@ const AdminPages = () => {
                         </button>
                     </div>
                 </NavLink>
+
                 <NavLink to="/storyBlogAdmin">
                     <div className="indicator mt-5">
                         <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
@@ -132,6 +134,7 @@ const AdminPages = () => {
                         </button>
                     </div>
                 </NavLink>
+
                 <NavLink to="/blogPageAdmin">
                     <div className="indicator mt-5">
                         <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
@@ -142,6 +145,7 @@ const AdminPages = () => {
                         </button>
                     </div>
                 </NavLink>
+
                 <NavLink to="/draftBlogAdmin">
                     <div className="indicator mt-5">
                         <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">

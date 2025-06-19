@@ -64,7 +64,7 @@ const TestimonialsAdmin = () => {
     };
 
     return (
-        <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2">
+        <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2 px-3 sm:px-4">
             <Helmet>
                 <title>Testimonials - Storial Peace</title>
             </Helmet>
@@ -84,12 +84,12 @@ const TestimonialsAdmin = () => {
             </NavLink>
 
             <div className="flex justify-center mt-5">
-                <div className="w-2/3">
+                <div className="w-full sm:w-2/3 px-2 sm:px-0">
                     <p className="text-2xl font-semibold mb-3">
                         Please add your <span className="text-[#2acb35]">testimonial</span> here
                     </p>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <input
                                 type="text"
                                 {...register("name", { required: true })}
@@ -110,27 +110,28 @@ const TestimonialsAdmin = () => {
                                 <option>5</option>
                             </select>
                         </div>
-                        <div className="space-y-3">
-                            <div className='grid grid-cols-2'>
-                                <input
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                             <input
                                     type="file"
                                     {...register("profileLink", { required: true })}
-                                    className="flex justify-baseline file-input file-input-ghost"
+                                    className="file-input file-input-ghost w-full"
                                 />
-                                <input
-                                    type="text"
-                                    {...register("random", { required: true })}
-                                    placeholder="Random Text (xyz)*"
-                                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                                />
-                            </div>
-                            <textarea
-                                rows="5"
-                                {...register("review", { required: true })}
-                                placeholder="Customer Review..."
+                            <input
+                                type="text"
+                                {...register("random", { required: true })}
+                                placeholder="Random Text (xyz)*"
                                 className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                            ></textarea>
+                            />
                         </div>
+
+                        <textarea
+                            rows="5"
+                            {...register("review", { required: true })}
+                            placeholder="Customer Review..."
+                            className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                        ></textarea>
+
                         <div>
                             <button
                                 type="submit"

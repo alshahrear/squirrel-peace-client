@@ -13,7 +13,7 @@ const StoryHomes = () => {
     };
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.vercel.app/story')
+        fetch('https://squirrel-peace-server.onrender.com/story')
             .then(res => res.json())
             .then(data => {
                 const randomSix = getRandomSix(data);

@@ -61,8 +61,8 @@ const BlogAll = () => {
 
     const gridCols =
         filteredBlogs.length === 3
-            ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-            : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
+            ? "grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+            : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
 
     return (
         <div className="bg-[#f7f7f7]">
@@ -102,7 +102,7 @@ const BlogAll = () => {
                                             </span>
                                         </div>
                                         {/* Title at Bottom */}
-                                        <h3 className="text-white font-semibold text-center">
+                                        <h3 className="text-white font-semibold text-center text-sm sm:text-base md:text-lg">
                                             {blog.title}
                                         </h3>
                                     </div>

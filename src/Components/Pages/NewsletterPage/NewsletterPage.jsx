@@ -28,7 +28,7 @@ const NewsletterPage = () => {
     const [isProgressVisible, setIsProgressVisible] = useState(false);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.vercel.app/reviews')
+        fetch('https://squirrel-peace-server.onrender.com/reviews')
             .then(res => res.json())
             .then(data => {
                 setTestimonials(data);

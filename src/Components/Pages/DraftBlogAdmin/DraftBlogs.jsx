@@ -1,20 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import DraftBlog from './DraftBlog';
 import Loader from "../../../Components/Loader";
 
 const DraftBlogs = ({ stories, setStories }) => {
     const [currentPage, setCurrentPage] = useState(1);
-    const storiesPerPage = 12;
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [storiesPerPage, setStoriesPerPage] = useState(12);
+    const scrollRef = useRef(null); // for scroll to top of blog list
+
+    // Set responsive storiesPerPage
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) {
+                setStoriesPerPage(6);
+            } else {
+                setStoriesPerPage(12);
+            }
+        };
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         setLoading(true);
-        fetch('https://squirrel-peace-server.vercel.app/draft')
+        fetch('https://squirrel-peace-server.onrender.com/draft')
             .then(res => res.json())
             .then(data => {
-                const reversedData = data.slice().reverse(); // latest first
+                const reversedData = data.slice().reverse();
                 setStories(reversedData);
                 setLoading(false);
             })
@@ -62,26 +77,52 @@ const DraftBlogs = ({ stories, setStories }) => {
         return pages;
     };
 
+    // Scroll to blog list top
+    const scrollToTopOfList = () => {
+        if (scrollRef.current) {
+            window.scrollTo({
+                top: scrollRef.current.offsetTop - 20,
+                behavior: 'smooth'
+            });
+        }
+    };
+
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+        scrollToTopOfList();
+    };
+
     const handlePrevious = () => {
-        if (currentPage > 1) setCurrentPage(prev => prev - 1);
+        if (currentPage > 1) {
+            setCurrentPage(prev => prev - 1);
+            scrollToTopOfList();
+        }
     };
 
     const handleNext = () => {
-        if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
+        if (currentPage < totalPages) {
+            setCurrentPage(prev => prev + 1);
+            scrollToTopOfList();
+        }
     };
 
     return (
-        <div className="max-w-screen-xl mx-auto px-4">
-            <div className="pb-10">
-                <div className="flex justify-between items-center relative">
-                    {/* Search */}
-                    <div className="absolute left-1 flex items-center gap-2">
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 md:px-8">
+            <div className="pb-10" ref={scrollRef}>
+                {/* Title Row */}
+                <div className="flex justify-center items-center relative">
+                    <h2 className="text-2xl font-bold text-center w-full px-4 sm:px-0">
+                        Our <span className="text-[#2acb35]">Draft</span>
+                    </h2>
+
+                    {/* Desktop Search */}
+                    <div className="hidden sm:absolute sm:left-1 sm:flex sm:items-center gap-2">
                         <div className="relative">
                             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
                             <input
                                 type="text"
                                 placeholder="Search Story..."
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
+                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm w-[180px] sm:w-[220px] md:w-[280px]"
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value);
@@ -90,21 +131,34 @@ const DraftBlogs = ({ stories, setStories }) => {
                             />
                         </div>
                     </div>
-
-                    {/* Title */}
-                    <h2 className="text-2xl font-bold text-center w-full">
-                        Our <span className="text-[#2acb35]">Draft</span>
-                    </h2>
                 </div>
 
                 {/* Description */}
-                <p className="text-center mt-2">
-                    Our personal trainers can help you meet your fitness goals. They can become your <br />
+                <p className="text-center mt-2 px-4 sm:px-0 text-sm sm:text-base">
+                    Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
                     teacher, your motivator, your coach and your friend.
                 </p>
+
+                {/* Mobile Search */}
+                <div className="sm:hidden flex justify-center mt-4">
+                    <div className="relative w-full max-w-xs">
+                        <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                        <input
+                            type="text"
+                            placeholder="Search Story..."
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm w-full"
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+            {/* Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 md:gap-10">
                 {
                     loading ? (
                         <div className="col-span-full flex justify-center items-center h-40">
@@ -130,7 +184,7 @@ const DraftBlogs = ({ stories, setStories }) => {
 
             {/* Pagination */}
             {filteredStories.length > 0 && (
-                <div className="flex justify-center mt-10 space-x-2 items-center">
+                <div className="flex justify-center mt-10 space-x-2 items-center flex-wrap gap-2 px-2">
                     <button
                         onClick={handlePrevious}
                         disabled={currentPage === 1}
@@ -142,20 +196,18 @@ const DraftBlogs = ({ stories, setStories }) => {
                         Previous
                     </button>
 
-                    {
-                        getPageNumbers().map(number => (
-                            <button
-                                key={number}
-                                onClick={() => setCurrentPage(number)}
-                                className={`px-4 py-2 border rounded ${currentPage === number
-                                    ? 'bg-[#2acb35] text-white'
-                                    : 'bg-white text-[#2acb35] border-[#2acb35] hover:bg-[#2acb35] hover:text-white'
-                                    }`}
-                            >
-                                {number}
-                            </button>
-                        ))
-                    }
+                    {getPageNumbers().map(number => (
+                        <button
+                            key={number}
+                            onClick={() => handlePageChange(number)}
+                            className={`px-4 py-2 border rounded ${currentPage === number
+                                ? 'bg-[#2acb35] text-white'
+                                : 'bg-white text-[#2acb35] border-[#2acb35] hover:bg-[#2acb35] hover:text-white'
+                                }`}
+                        >
+                            {number}
+                        </button>
+                    ))}
 
                     <button
                         onClick={handleNext}

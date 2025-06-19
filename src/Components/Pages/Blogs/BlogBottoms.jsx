@@ -23,7 +23,7 @@ const BlogBottoms = ({ blogId, blogTitle, blogCategory, blogImage }) => {
             blogImage: blogImage,
         };
 
-        fetch("https://squirrel-peace-server.vercel.app/comment/blog", {
+        fetch("https://squirrel-peace-server.onrender.com/comment/blog", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newComment),

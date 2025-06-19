@@ -17,7 +17,7 @@ const LifeBlogs = () => {
 
     useEffect(() => {
         setLoading(true);
-        fetch('https://squirrel-peace-server.vercel.app/blog')
+        fetch('https://squirrel-peace-server.onrender.com/blog')
             .then(res => res.json())
             .then(data => {
                 setBlogs(data);

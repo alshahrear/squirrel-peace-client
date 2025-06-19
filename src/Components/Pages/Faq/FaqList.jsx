@@ -9,7 +9,6 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
 
-  // Edit Modal এর জন্য state
   const [editQuestion, setEditQuestion] = useState(faqQuestion);
   const [editAnswer, setEditAnswer] = useState(faqAnswer);
 
@@ -18,15 +17,14 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
     setEditAnswer(faqAnswer);
   }, [faqQuestion, faqAnswer]);
 
-  // Modal open/close
   const openModal = () => {
     document.getElementById(`edit_modal_${_id}`).showModal();
   };
+
   const closeModal = () => {
     document.getElementById(`edit_modal_${_id}`).close();
   };
 
-  // Delete handler
   const handleDelete = () => {
     Swal.fire({
       title: "Are you sure to delete it?",
@@ -38,7 +36,9 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`https://squirrel-peace-server.vercel.app/faqsAdd/${_id}`, { method: "DELETE" })
+        fetch(`https://squirrel-peace-server.onrender.com/faqsAdd/${_id}`, {
+          method: "DELETE",
+        })
           .then((res) => res.json())
           .then((data) => {
             if (data.deletedCount > 0) {
@@ -59,7 +59,6 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
     });
   };
 
-  // Edit form submit handler (update FAQ)
   const handleEditSubmit = (e) => {
     e.preventDefault();
 
@@ -68,8 +67,8 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
       faqAnswer: editAnswer,
     };
 
-    fetch(`https://squirrel-peace-server.vercel.app/faqsAdd/${_id}`, {
-      method: "PATCH",  // PATCH is better for partial update
+    fetch(`https://squirrel-peace-server.onrender.com/faqsAdd/${_id}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedFaq),
     })
@@ -84,7 +83,6 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
             timer: 2000,
           });
           closeModal();
-          // Parent component কে update callback দিয়ে state update করব
           onUpdate(_id, updatedFaq);
         } else {
           Swal.fire("Info", "No changes detected or update failed.", "info");
@@ -103,30 +101,30 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
           {faqQuestion}
         </div>
         <div className="collapse-content text-gray-700 peer-checked:bg-[#f7f7f7] peer-checked:py-3">
-          <p>{faqAnswer}</p>
-          {
-            user && isAdmin &&
-            <div className="mt-3 flex gap-3">
+          <p className="whitespace-pre-line">{faqAnswer}</p>
+
+          {user && isAdmin && (
+            <div className="mt-3 flex flex-col sm:flex-row gap-3 sm:items-center">
               <button
                 onClick={openModal}
-                className="btn px-5 py-1 text-white bg-[#2acb35] rounded hover:bg-[#2acb35dc] hover:scale-105"
+                className="btn w-full sm:w-auto px-5 py-2 text-white bg-[#2acb35] rounded hover:bg-[#2acb35dc] hover:scale-105 transition-all"
               >
                 Edit
               </button>
               <button
                 onClick={handleDelete}
-                className="btn px-4 py-1 text-white bg-red-600 rounded hover:bg-red-700 hover:scale-105"
+                className="btn w-full sm:w-auto px-5 py-2 text-white bg-red-600 rounded hover:bg-red-700 hover:scale-105 transition-all"
               >
                 Delete
               </button>
             </div>
-          }
+          )}
         </div>
       </div>
 
       {/* Edit Modal */}
       <dialog id={`edit_modal_${_id}`} className="modal">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-xl">
           <form method="dialog">
             <button
               type="button"
@@ -160,7 +158,7 @@ const FaqList = ({ faqAdd, onDelete, onUpdate }) => {
             </div>
             <button
               type="submit"
-              className="btn px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600"
+              className="btn w-full sm:w-auto px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600 transition-all"
             >
               Save Changes
             </button>

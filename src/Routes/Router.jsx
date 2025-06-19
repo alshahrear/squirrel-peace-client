@@ -31,7 +31,6 @@ import TermCondition from "../Components/Pages/TermCondition";
 import BlogDetails from "../Components/Pages/Blogs/BlogDetails";
 import DraftBlogAdmin from "../Components/Pages/DraftBlogAdmin/DraftBlogAdmin";
 import DraftDetails from "../Components/Pages/DraftBlogAdmin/DraftDetails";
-import ForgotPassword from "../Components/Layout/ForgotPassword";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -145,10 +144,6 @@ export const router = createBrowserRouter([
       {
         path: "/termCondition",
         element: <TermCondition></TermCondition>
-      },
-      {
-        path: "/forgotPassword",
-        element: <ForgotPassword></ForgotPassword>
       },
     ]
   },

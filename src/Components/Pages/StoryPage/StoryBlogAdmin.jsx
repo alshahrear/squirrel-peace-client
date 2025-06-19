@@ -130,7 +130,7 @@ const StoryBlogAdmin = () => {
     }), []);
 
     return (
-        <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2">
+        <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2 px-3 sm:px-4">
             <Helmet>
                 <title>StoryAdmin - Storial Peace</title>
             </Helmet>
@@ -150,12 +150,12 @@ const StoryBlogAdmin = () => {
             </NavLink>
 
             <div className="flex justify-center mt-5">
-                <div className="w-2/3">
+                <div className="w-full sm:w-2/3 px-2 sm:px-0">
                     <p className="text-2xl font-semibold mb-3">
                         Please add your <span className="text-[#2acb35]">story blog</span> here
                     </p>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <input
                                 type="text"
                                 {...register("storyTitle", { required: true })}
@@ -181,11 +181,11 @@ const StoryBlogAdmin = () => {
                             placeholder="Story Short Description..."
                             className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
                         ></textarea>
-                        <div className="grid grid-cols-2 gap-6 items-center">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
                             <input
                                 type="file"
                                 {...register("storyImage", { required: true })}
-                                className="file-input w-full file-input-ghost"
+                                className="file-input file-input-ghost w-full"
                             />
                             <input
                                 type="date"

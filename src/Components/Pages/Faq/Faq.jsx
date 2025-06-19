@@ -11,16 +11,16 @@ const Faq = () => {
   const [faqs, setFaqs] = useState([]);
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
-  const [loading, setLoading] = useState(false); // ✅ Loading state added
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("https://squirrel-peace-server.vercel.app/faqsAdd")
+    fetch("https://squirrel-peace-server.onrender.com/faqsAdd")
       .then((res) => res.json())
       .then((data) => setFaqsAdd(data));
   }, []);
 
   useEffect(() => {
-    fetch("https://squirrel-peace-server.vercel.app/faqs")
+    fetch("https://squirrel-peace-server.onrender.com/faqs")
       .then((res) => res.json())
       .then((data) => setFaqs(data))
       .catch((error) => console.error("Error loading FAQs:", error));
@@ -43,7 +43,7 @@ const Faq = () => {
     const faqAnswer = form.faqAnswer.value;
     const addFaqList = { faqQuestion, faqAnswer };
 
-    fetch("https://squirrel-peace-server.vercel.app/faqsAdd", {
+    fetch("https://squirrel-peace-server.onrender.com/faqsAdd", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(addFaqList),
@@ -58,6 +58,9 @@ const Faq = () => {
             title: "Your new FAQ has been added to the list. Thank you.",
             showConfirmButton: false,
             timer: 2000,
+            customClass: {
+              popup: "swal-responsive-text",
+            },
           });
           setFaqsAdd((prev) => [
             ...prev,
@@ -70,7 +73,7 @@ const Faq = () => {
 
   const handleFaq = (e) => {
     e.preventDefault();
-    setLoading(true); // ✅ Start loading
+    setLoading(true);
     const form = e.target;
     const name = form.name.value;
     const email = form.email.value;
@@ -78,14 +81,14 @@ const Faq = () => {
 
     const addFaqQus = { name, email, question };
 
-    fetch("https://squirrel-peace-server.vercel.app/faqs", {
+    fetch("https://squirrel-peace-server.onrender.com/faqs", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(addFaqQus),
     })
       .then((res) => res.json())
       .then((data) => {
-        setLoading(false); // ✅ Stop loading
+        setLoading(false);
         if (data.insertedId) {
           Swal.fire({
             position: "top-end",
@@ -94,12 +97,15 @@ const Faq = () => {
               "Thanks for your question! Our team will check it and reply to your email shortly.",
             showConfirmButton: false,
             timer: 2500,
+            customClass: {
+              popup: "swal-responsive-text",
+            },
           });
           form.reset();
           setFaqs([...faqs, { _id: data.insertedId, ...addFaqQus }]);
         }
       })
-      .catch(() => setLoading(false)); // ✅ Handle fetch failure
+      .catch(() => setLoading(false));
   };
 
   return (
@@ -108,13 +114,14 @@ const Faq = () => {
         <title>Faq - Storial Peace </title>
       </Helmet>
       <div className="py-10 max-w-screen-xl mx-auto px-4">
-        <div className="flex items-center justify-between flex-wrap mb-6">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            Frequently Asked Questions <span className="text-[#2acb35]">__</span>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <h1 className="text-2xl sm:text-3xl md:text-3xl font-bold flex items-center gap-2">
+            Frequently Asked Questions
+            <span className="text-[#2acb35]">__</span>
           </h1>
           {user && isAdmin && (
             <NavLink to="/faqAdmin">
-              <div className="indicator mt-5">
+              <div className="indicator mt-2 md:mt-5">
                 <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
                   {faqs.length}
                 </span>
@@ -129,11 +136,11 @@ const Faq = () => {
           )}
         </div>
 
-        <p className="text-lg font-medium my-5">
+        <p className="text-base sm:text-lg font-medium my-5">
           Discover your question from underneath or present your inquiry from the submit box.
         </p>
 
-        <div className="flex flex-wrap">
+        <div className="flex flex-col md:flex-row gap-6">
           <style>{`
             input:checked ~ .collapse-title {
               background-color: #2acb35;
@@ -146,7 +153,7 @@ const Faq = () => {
             }
           `}</style>
 
-          <div className="w-2/3 pr-0 md:pr-4">
+          <div className="w-full md:w-2/3">
             {faqsAdd.map((faqAdd) => (
               <FaqList
                 key={faqAdd._id}
@@ -158,7 +165,7 @@ const Faq = () => {
 
             {user && isAdmin && (
               <button
-                className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]"
+                className="btn mt-5 px-6 py-5 text-lg font-medium rounded-lg text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35] w-full md:w-auto"
                 onClick={() => document.getElementById("my_modal_3").showModal()}
               >
                 Add Faq
@@ -166,7 +173,7 @@ const Faq = () => {
             )}
 
             <dialog id="my_modal_3" className="modal">
-              <div className="modal-box">
+              <div className="modal-box w-11/12 max-w-2xl">
                 <form method="dialog">
                   <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
                     ✕
@@ -194,7 +201,7 @@ const Faq = () => {
                   </div>
                   <button
                     type="submit"
-                    className="btn px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600"
+                    className="btn px-6 py-2 text-white bg-[#2acb35] rounded hover:bg-green-600 w-full md:w-auto"
                   >
                     Add FAQ
                   </button>
@@ -203,8 +210,8 @@ const Faq = () => {
             </dialog>
           </div>
 
-          <div className="w-1/3">
-            <p className="text-lg text-center font-semibold">
+          <div className="w-full md:w-1/3">
+            <p className="text-base sm:text-lg text-center font-semibold mb-4">
               If you want, you can also ask your question on the{" "}
               <span className="text-[#2acb35] underline hover:font-bold hover:text-gray-600">
                 <Link to="/contact">Contact Page</Link>
@@ -214,7 +221,7 @@ const Faq = () => {
               onSubmit={handleFaq}
               className="bg-[#f5f7ec] p-6 rounded-md shadow-md"
             >
-              <h2 className="text-2xl font-bold mb-4">Submit Your Question</h2>
+              <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Submit Your Question</h2>
               <input
                 type="text"
                 name="name"
@@ -240,15 +247,32 @@ const Faq = () => {
                 type="submit"
                 className={`btn px-5 py-2 text-[16px] font-medium text-white bg-[#2acb35] rounded transition-all duration-300 hover:bg-green-600 hover:scale-105 ${
                   loading ? "opacity-60 cursor-not-allowed" : ""
-                }`}
+                } w-full md:w-auto`}
                 disabled={loading}
               >
-                {loading ? "Submitting Question..." : "Submit Question"}
+                {loading ? "Submitting..." : "Submit Question"}
               </button>
             </form>
           </div>
         </div>
       </div>
+
+      {/* Responsive Swal style */}
+      <style>{`
+        .swal-responsive-text {
+          font-size: 0.875rem; /* mobile */
+        }
+        @media (min-width: 640px) {
+          .swal-responsive-text {
+            font-size: 1rem; /* tablet */
+          }
+        }
+        @media (min-width: 768px) {
+          .swal-responsive-text {
+            font-size: 1.125rem; /* laptop */
+          }
+        }
+      `}</style>
     </div>
   );
 };

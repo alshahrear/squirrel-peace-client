@@ -77,7 +77,7 @@ const BlogPageAdmin = () => {
     };
 
     return (
-        <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2">
+        <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2 px-3 sm:px-4">
             <Helmet>
                 <title>BlogAdmin - Storial Peace</title>
             </Helmet>
@@ -88,14 +88,14 @@ const BlogPageAdmin = () => {
                 Please add a new blog to help us build trust and credibility with future clients.
             </p>
 
-            <div className="my-5">
+            <div className="my-5 flex flex-wrap gap-4 justify-center">
                 <NavLink to="/lifeStyle">
                     <button className="relative overflow-hidden px-5 py-2 text-white bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
                         <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040]">Life Style</span>
                         <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
                     </button>
                 </NavLink>
-                <NavLink to="/travel" className="mx-20">
+                <NavLink to="/travel">
                     <button className="relative overflow-hidden px-5 py-2 text-white bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
                         <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040]">Travel</span>
                         <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
@@ -110,12 +110,12 @@ const BlogPageAdmin = () => {
             </div>
 
             <div className="flex justify-center mt-5">
-                <div className="w-2/3">
+                <div className="w-full sm:w-2/3 px-2 sm:px-0">
                     <p className="text-2xl font-semibold mb-3">
                         Please add your <span className="text-[#2acb35]">blog</span> here
                     </p>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <input
                                 type="text"
                                 {...register("blogTitle", { required: true })}
@@ -133,20 +133,17 @@ const BlogPageAdmin = () => {
                                 <option>Health</option>
                             </select>
                         </div>
-                        <div>
-                            <input
-                                type="text"
-                                {...register("blogRandom", { required: true })}
-                                placeholder="Blog Random (xyz)*"
-                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-6 items-center">
+                        <input
+                            type="text"
+                            {...register("blogRandom", { required: true })}
+                            placeholder="Blog Random (xyz)*"
+                            className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
                             <input
                                 type="file"
                                 {...register("blogImage", { required: true })}
-                                className="file-input file-input-bordered w-full"
-                                accept="image/*"
+                                className="file-input file-input-ghost w-full"
                             />
                             <input
                                 type="date"
@@ -156,38 +153,32 @@ const BlogPageAdmin = () => {
                                 required
                             />
                         </div>
-                        <div>
-                            <textarea
-                                rows="2"
-                                {...register("blogShortDescription", { required: true })}
-                                placeholder="Blog Short Description..."
-                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                            ></textarea>
-                        </div>
-                        <div>
-                            <ReactQuill
-                                theme="snow"
-                                value={blogLongDescription}
-                                onChange={setBlogLongDescription}
-                                placeholder="Write your full blog with formatting, links, images, etc..."
-                                className="bg-white"
-                            />
-                        </div>
-                        <div>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase flex items-center justify-center gap-3"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        Adding Blog <FaSpinner className="animate-spin" />
-                                    </>
-                                ) : (
-                                    "Add Blog"
-                                )}
-                            </button>
-                        </div>
+                        <textarea
+                            rows="2"
+                            {...register("blogShortDescription", { required: true })}
+                            placeholder="Blog Short Description..."
+                            className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                        ></textarea>
+                        <ReactQuill
+                            theme="snow"
+                            value={blogLongDescription}
+                            onChange={setBlogLongDescription}
+                            placeholder="Write your full blog with formatting, links, images, etc..."
+                            className="bg-white"
+                        />
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase flex items-center justify-center gap-3"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    Adding Blog <FaSpinner className="animate-spin" />
+                                </>
+                            ) : (
+                                "Add Blog"
+                            )}
+                        </button>
                     </form>
                 </div>
             </div>

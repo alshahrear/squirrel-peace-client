@@ -15,7 +15,7 @@ const BlogDetails = () => {
     useEffect(() => {
         window.scrollTo(0, 0);
         setLoading(true);
-        fetch(`https://squirrel-peace-server.vercel.app/blog/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/blog/${id}`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {
@@ -36,7 +36,7 @@ const BlogDetails = () => {
     }, [id]);
 
     useEffect(() => {
-        fetch("https://squirrel-peace-server.vercel.app/blog")
+        fetch("https://squirrel-peace-server.onrender.com/blog")
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {

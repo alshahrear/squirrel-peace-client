@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import StoryBlog from './StoryBlog';
 import useAuth from '../../Layout/useAuth';
 import useAdmin from '../../../hooks/useAdmin';
@@ -9,15 +9,26 @@ import Loader from "../../../Components/Loader";
 const StoryBlogs = () => {
     const [stories, setStories] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [loading, setLoading] = useState(true);  // loader state added
-    const storiesPerPage = 12;
+    const [loading, setLoading] = useState(true);
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
     const [searchTerm, setSearchTerm] = useState('');
+    const topRef = useRef(null);
+
+    // Set per page based on screen width
+    const [storiesPerPage, setStoriesPerPage] = useState(window.innerWidth < 1024 ? 6 : 12);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setStoriesPerPage(window.innerWidth < 1024 ? 6 : 12);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         setLoading(true);
-        fetch('https://squirrel-peace-server.vercel.app/story')
+        fetch('https://squirrel-peace-server.onrender.com/story')
             .then(res => res.json())
             .then(data => {
                 setStories(data);
@@ -46,12 +57,7 @@ const StoryBlogs = () => {
         const description = story.storyShortDescription.toLowerCase();
         const category = story.storyCategory?.toLowerCase() || '';
         const term = searchTerm.toLowerCase();
-
-        return (
-            title.includes(term) ||
-            description.includes(term) ||
-            category.includes(term)
-        );
+        return title.includes(term) || description.includes(term) || category.includes(term);
     });
 
     const totalPages = Math.ceil(filteredStories.length / storiesPerPage);
@@ -73,66 +79,103 @@ const StoryBlogs = () => {
         return pages;
     };
 
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+        setTimeout(() => {
+            topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    };
+
     const handlePrevious = () => {
-        if (currentPage > 1) setCurrentPage(prev => prev - 1);
+        if (currentPage > 1) {
+            handlePageChange(currentPage - 1);
+        }
     };
 
     const handleNext = () => {
-        if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
+        if (currentPage < totalPages) {
+            handlePageChange(currentPage + 1);
+        }
     };
 
     return (
         <div className="max-w-screen-xl mx-auto px-4">
-            <div className="pb-10">
-                <div className="flex justify-between items-center relative">
-                    {/* Search */}
-                    <div className="absolute left-1 flex items-center gap-2">
-                        <div className="relative">
-                            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
-                            <input
-                                type="text"
-                                placeholder="Search Story..."
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value);
-                                    setCurrentPage(1);
-                                }}
-                            />
-                        </div>
-                    </div>
+            <div ref={topRef}></div>
 
-                    {/* Title */}
-                    <h2 className="text-2xl font-bold text-center w-full">
+            <div className="pb-10">
+                {/* Common Title */}
+                <div className="text-center mb-2">
+                    <h2 className="text-2xl lg:text-3xl font-bold">
                         Our <span className="text-[#2acb35]">Story</span>
                     </h2>
+                </div>
 
-                    {/* Add Story */}
+                {/* Description */}
+                <p className="text-center mt-3 sm:text-base px-2 sm:px-0">
+                    Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
+                    teacher, your motivator, your coach and your friend.
+                </p>
+
+                {/* Mobile Add + Search */}
+                <div className="lg:hidden mt-4 flex flex-col items-center gap-3">
                     {
                         user && isAdmin &&
-                        <NavLink to="/storyBlogAdmin" className="absolute right-4 sm:right-10">
+                        <NavLink to="/storyBlogAdmin">
+                            <button className="btn bg-[#2acb35] text-white px-4 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition text-sm">
+                                Add Story
+                            </button>
+                        </NavLink>
+                    }
+                    <div className="relative w-full max-w-xs">
+                        <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                        <input
+                            type="text"
+                            placeholder="Search Story..."
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                </div>
+
+                {/* Desktop Add + Search */}
+                <div className="hidden lg:flex justify-between items-center mt-6">
+                    <div className="relative">
+                        <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                        <input
+                            type="text"
+                            placeholder="Search Story..."
+                            className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                    {
+                        user && isAdmin &&
+                        <NavLink to="/storyBlogAdmin">
                             <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
                                 Add Story
                             </button>
                         </NavLink>
                     }
                 </div>
-
-                {/* Description */}
-                <p className="text-center mt-2">
-                    Our personal trainers can help you meet your fitness goals. They can become your <br />
-                    teacher, your motivator, your coach and your friend.
-                </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+            {/* Blog Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10">
                 {
                     loading ? (
                         <div className="col-span-full flex justify-center items-center h-40">
                             <Loader />
                         </div>
                     ) : currentStories.length === 0 && searchTerm ? (
-                        <p className="text-center text-red-400 mt-5 font-semibold text-xl col-span-full">
+                        <p className="text-center text-red-400 mt-5 font-semibold text-lg sm:text-xl col-span-full">
                             No Result Found
                         </p>
                     ) : (
@@ -151,11 +194,11 @@ const StoryBlogs = () => {
 
             {/* Pagination */}
             {filteredStories.length > 0 && (
-                <div className="flex justify-center mt-10 space-x-2 items-center">
+                <div className="flex flex-wrap justify-center mt-10 gap-2 items-center">
                     <button
                         onClick={handlePrevious}
                         disabled={currentPage === 1}
-                        className={`px-4 py-2 rounded ${currentPage === 1
+                        className={`px-4 py-2 rounded text-sm ${currentPage === 1
                             ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                             : 'bg-[#2acb35] text-white hover:bg-green-600'
                             }`}
@@ -167,8 +210,8 @@ const StoryBlogs = () => {
                         getPageNumbers().map(number => (
                             <button
                                 key={number}
-                                onClick={() => setCurrentPage(number)}
-                                className={`px-4 py-2 border rounded ${currentPage === number
+                                onClick={() => handlePageChange(number)}
+                                className={`px-4 py-2 text-sm border rounded ${currentPage === number
                                     ? 'bg-[#2acb35] text-white'
                                     : 'bg-white text-[#2acb35] border-[#2acb35] hover:bg-[#2acb35] hover:text-white'
                                     }`}
@@ -181,7 +224,7 @@ const StoryBlogs = () => {
                     <button
                         onClick={handleNext}
                         disabled={currentPage === totalPages}
-                        className={`px-6 py-2 rounded ${currentPage === totalPages
+                        className={`px-4 py-2 rounded text-sm ${currentPage === totalPages
                             ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                             : 'bg-[#2acb35] text-white hover:bg-green-600'
                             }`}

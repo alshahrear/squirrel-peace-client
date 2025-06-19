@@ -1,4 +1,3 @@
-
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import "swiper/css";
@@ -14,7 +13,7 @@ const images = [img1, img2, img3, img4];
 const ImageBanner = () => {
     return (
         <div>
-            <div className="relative w-full h-[500px] overflow-hidden">
+            <div className="relative w-full h-[300px] sm:h-[400px] md:h-[500px] overflow-hidden">
                 {/* Background Swiper Image Slider */}
                 <Swiper
                     modules={[Autoplay]}
@@ -40,10 +39,10 @@ const ImageBanner = () => {
 
                 {/* Fixed Foreground Content */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 z-10">
-                    <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-md mb-4">
+                    <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white drop-shadow-md mb-4">
                         Discover the Art of Creativity
                     </h1>
-                    <p className="text-lg md:text-xl text-white max-w-2xl drop-shadow-sm">
+                    <p className="text-sm sm:text-base md:text-xl text-white max-w-2xl drop-shadow-sm">
                         Join us on a journey through color, imagination, and inspiration. Your creative world begins here.
                     </p>
                     <NavLink to="">
@@ -53,8 +52,6 @@ const ImageBanner = () => {
                     </NavLink>
                 </div>
             </div>
-            {/* social contact */}
-
         </div>
     );
 };

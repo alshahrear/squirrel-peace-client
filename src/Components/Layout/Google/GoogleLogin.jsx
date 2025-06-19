@@ -1,50 +1,69 @@
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+    GoogleAuthProvider,
+    signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
+} from "firebase/auth";
 import { FcGoogle } from "react-icons/fc";
 import { useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../../Firebase/firebase.config";
 import toast from "react-hot-toast";
 import useAxiosPublic from "../../../hooks/useAxiosPublic";
+import { useEffect } from "react";
 
 const GoogleLogin = () => {
     const googleProvider = new GoogleAuthProvider();
     const axiosPublic = useAxiosPublic();
-
     const location = useLocation();
     const navigate = useNavigate();
 
+    const redirectPath = location.state?.from?.pathname || "/";
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
     const handleGoogleLogin = () => {
-        signInWithPopup(auth, googleProvider)
-            .then((result) => {
-                const loggedUser = result.user;
-                console.log(loggedUser);
-
-                const userInfo = {
-                    email: loggedUser?.email,
-                    name: loggedUser?.displayName,
-                };
-
-                axiosPublic.post("/users", userInfo)
-                    .then((res) => {
-                        if (res.data.insertedId || res.data.message === "User already exists") {
-                            console.log("User stored or already exists in DB.");
-                        }
-                    })
-                    .catch((err) => {
-                        console.error("Error saving user:", err);
-                    });
-
-                const redirectPath = location.state?.from?.pathname || "/";
-                toast.success("Welcome back! You've logged in successfully.", {
-                    position: "top-right",
-                    autoClose: 3000,
+        if (isMobile) {
+            signInWithRedirect(auth, googleProvider);
+        } else {
+            signInWithPopup(auth, googleProvider)
+                .then((result) => {
+                    const user = result.user;
+                    saveUserAndRedirect(user);
+                })
+                .catch((error) => {
+                    console.error("Popup Login Failed:", error);
+                    toast.error("Google login failed. Please try again.");
                 });
+        }
+    };
+
+    const saveUserAndRedirect = (user) => {
+        const userInfo = {
+            email: user?.email,
+            name: user?.displayName,
+        };
+        axiosPublic.post("/users", userInfo)
+            .then(() => {
+                toast.success("Welcome back! You've logged in successfully.");
                 navigate(redirectPath);
             })
-            .catch((error) => {
-                console.error("Google login error:", error);
-                toast.error("Google login failed. Please try again.");
+            .catch(() => {
+                toast.error("Something went wrong saving your account.");
             });
     };
+
+    // ⬇️ Redirect result handle
+    useEffect(() => {
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result?.user) {
+                    saveUserAndRedirect(result.user);
+                }
+            })
+            .catch((error) => {
+                console.error("Redirect Login Error:", error);
+            });
+    }, []);
 
     return (
         <div className="flex justify-center">

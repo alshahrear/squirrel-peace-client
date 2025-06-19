@@ -20,8 +20,7 @@ const DraftBlogAdmin = () => {
     const today = dayjs().format("YYYY-MM-DD");
     const [storyDate, setStoryDate] = useState(today);
     const [longDescription, setLongDescription] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false); // loader
-
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [stories, setStories] = useState([]);
 
     const onSubmit = async (data) => {
@@ -83,89 +82,81 @@ const DraftBlogAdmin = () => {
     };
 
     return (
-        <div className='max-w-screen-xl mx-auto my-12'>
-            <div>
-                <div className=" text-center space-y-2">
-                    <h1 className="text-3xl font-bold">
-                        Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Draft Blog Administration Panel
-                    </h1>
-                    <p className="text-xl font-semibold">
-                        Please add a new draft blog to help us build trust and credibility with future clients.
+        <div className='max-w-screen-xl mx-auto my-12 px-3 sm:px-4'>
+            <div className="text-center space-y-2">
+                <h1 className="text-3xl font-bold">
+                    Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Draft Blog Administration Panel
+                </h1>
+                <p className="text-xl font-semibold">
+                    Please add a new draft blog to help us build trust and credibility with future clients.
+                </p>
+            </div>
+
+            <div className='mt-10'>
+                <DraftBlogs stories={stories} setStories={setStories}></DraftBlogs>
+            </div>
+
+            <div className="flex justify-center mt-10">
+                <div className="w-full sm:w-2/3 px-1 sm:px-0">
+                    <p className="text-2xl font-semibold mb-3">
+                        Please add your <span className="text-[#2acb35]">draft blog</span> here
                     </p>
-                </div>
-                <div className='mt-10'>
-                    <DraftBlogs stories={stories} setStories={setStories}></DraftBlogs>
-                </div>
-                <div className="flex justify-center mt-5">
-                    <div className="w-2/3">
-                        <p className="text-2xl font-semibold mb-3">
-                            Please add your <span className="text-[#2acb35]">draft blog</span> here
-                        </p>
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                            <div className="grid grid-cols-2 gap-6">
-                                <input
-                                    type="text"
-                                    {...register("storyTitle", { required: true })}
-                                    placeholder="Draft Title*"
-                                    className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                                />
-                                <input
-                                    type="text"
-                                    {...register("storyCategory", { required: true })}
-                                    placeholder="Draft Category*"
-                                    className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                                />
-                            </div>
-                            <div>
-                                <input
-                                    type="text"
-                                    {...register("storyRandom", { required: true })}
-                                    placeholder="Draft Random*"
-                                    className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                                />
-                            </div>
-                            <div>
-                                <textarea
-                                    rows="2"
-                                    {...register("storyShortDescription", { required: true })}
-                                    placeholder="Draft Short Description..."
-                                    className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                                ></textarea>
-                            </div>
-                            <div className="grid grid-cols-2 gap-6 items-center">
-                                <input
-                                    type="file"
-                                    {...register("storyImage", { required: true })}
-                                    className="file-input w-full file-input-ghost"
-                                />
-                                <input
-                                    type="date"
-                                    value={storyDate}
-                                    onChange={(e) => setStoryDate(e.target.value)}
-                                    className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <ReactQuill
-                                    theme="snow"
-                                    value={longDescription}
-                                    onChange={setLongDescription}
-                                    placeholder="Write your full story with formatting, links, images, etc..."
-                                    className="bg-white"
-                                />
-                            </div>
-                            <div>
-                                <button
-                                    type="submit"
-                                    className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase"
-                                    disabled={isSubmitting}
-                                >
-                                    {isSubmitting ? "Adding Draft..." : "Add Draft"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <input
+                                type="text"
+                                {...register("storyTitle", { required: true })}
+                                placeholder="Draft Title*"
+                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                            />
+                            <input
+                                type="text"
+                                {...register("storyCategory", { required: true })}
+                                placeholder="Draft Category*"
+                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                            />
+                        </div>
+                        <input
+                            type="text"
+                            {...register("storyRandom", { required: true })}
+                            placeholder="Draft Random*"
+                            className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                        />
+                        <textarea
+                            rows="2"
+                            {...register("storyShortDescription", { required: true })}
+                            placeholder="Draft Short Description..."
+                            className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                        ></textarea>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+                            <input
+                                type="file"
+                                {...register("storyImage", { required: true })}
+                                className="file-input file-input-ghost w-full"
+                            />
+                            <input
+                                type="date"
+                                value={storyDate}
+                                onChange={(e) => setStoryDate(e.target.value)}
+                                className="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
+                                required
+                            />
+                        </div>
+                        <ReactQuill
+                            theme="snow"
+                            value={longDescription}
+                            onChange={setLongDescription}
+                            placeholder="Write your full story with formatting, links, images, etc..."
+                            className="bg-white"
+                        />
+                        <button
+                            type="submit"
+                            className="btn w-full bg-[#2acb35] text-white font-semibold py-6 rounded-full hover:bg-[#59ca59] transition duration-300 uppercase"
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? "Adding Draft..." : "Add Draft"}
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
