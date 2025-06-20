@@ -113,7 +113,7 @@ const Footer = () => {
             <NavLink to="/success">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Testimonial
+                Success
               </span>
             </NavLink>
           </p>

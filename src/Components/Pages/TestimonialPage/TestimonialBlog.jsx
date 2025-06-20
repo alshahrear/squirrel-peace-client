@@ -97,15 +97,16 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
   };
 
   return (
-    <div className="p-4 h-64">
-      <div className="card bg-base-100 bg-opacity-80 shadow-xl h-full flex flex-col group hover:scale-105 hover:shadow-2xl transition duration-300 relative">
+    <div className="p-4">
+      <div className="card bg-base-100 bg-opacity-80 shadow h-full flex flex-col group hover:scale-105 hover:shadow-2xl transition duration-300 relative">
 
+        {/* Dropdown button for admin */}
         {user && isAdmin &&
           <div className="absolute top-2 right-3 z-20 dropdown dropdown-top dropdown-end">
             <div tabIndex={0} role="button" className="btn m-1 p-2 h-10 w-10 border-2 border-[#2acb35] text-[#2acb35] hover:bg-[#2acb35] hover:text-white rounded-lg">
               <RiMenu2Line className="text-lg" />
             </div>
-            <ul tabIndex={0} className="dropdown-content menu text-lg font-medium text-white bg-[#2acb35] rounded-box w-52 p-2">
+            <ul tabIndex={0} className="dropdown-content menu text-lg font-medium text-white bg-[#2acb35] rounded-box w-52 p-2 z-30">
               <button
                 className="btn bg-white font-semibold text-black hover:bg-white/70 mb-2"
                 onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
@@ -122,18 +123,26 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
           </div>
         }
 
+        {/* Card Content */}
         <div className="card-body">
-          <div className="flex items-center">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
             <img src={profileLink} alt={customerName} className="w-20 h-20 rounded-full object-cover border-4 border-white group-hover:border-[#2acb35]" />
-            <div className="ml-3">
+            <div className="mt-3 text-center sm:text-left">
               <h2 className="text-xl text-[#2acb35] font-semibold">{customerName}</h2>
-              <Rating style={{ maxWidth: 100 }} value={parseFloat(rating)} readOnly itemStyles={customStyle} />
+              <Rating
+                className="ml-[8px] md:ml-0"
+                style={{ maxWidth: 110 }}
+                value={parseFloat(rating)}
+                readOnly
+                itemStyles={customStyle}
+              />
             </div>
           </div>
-          <p className="mt-3 font-medium text-gray-700">"{review}"</p>
+          <p className="mt-3 font-medium text-gray-700 text-center sm:text-left">"{review}"</p>
         </div>
       </div>
 
+      {/* Edit Modal */}
       <dialog id={`edit_modal_${_id}`} className="modal">
         <div className="modal-box w-11/12 max-w-2xl">
           <form method="dialog">

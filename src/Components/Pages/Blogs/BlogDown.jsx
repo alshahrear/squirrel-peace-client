@@ -19,17 +19,12 @@ const BlogDown = () => {
             icon: <GiCoffeeBeans className="text-4xl mb-2" />,
             title: "Pure Grades",
             description: "The coffee is made of the green coffee beans which you will love"
-        },
-        {
-            icon: <PiCoffeeFill className="text-4xl mb-2" />,
-            title: "Proper Roasting",
-            description: "Your coffee is brewed by first roasting the green coffee beans"
         }
     ];
 
     return (
         <div className="bg-[#f5f2eb] py-10">
-            <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-center text-[#3c2a21]">
+            <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 text-center text-[#3c2a21]">
                 {features.map((feature, index) => (
                     <div key={index}>
                         <div className="flex justify-center">{feature.icon}</div>

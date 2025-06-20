@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import LifeBlog from './LifeBlog';
 import useAuth from '../../../Layout/useAuth';
@@ -9,11 +9,20 @@ import Loader from "../../../../Components/Loader";
 const LifeBlogs = () => {
     const [blogs, setBlogs] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const blogsPerPage = 12;
-    const { user } = useAuth();
+    const [blogsPerPage, setBlogsPerPage] = useState(window.innerWidth < 1024 ? 6 : 12);
     const [loading, setLoading] = useState(true);
-    const [isAdmin] = useAdmin();
     const [searchTerm, setSearchTerm] = useState('');
+    const { user } = useAuth();
+    const [isAdmin] = useAdmin();
+    const topRef = useRef(null);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setBlogsPerPage(window.innerWidth < 1024 ? 6 : 12);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         setLoading(true);
@@ -30,15 +39,11 @@ const LifeBlogs = () => {
     }, []);
 
     const handleDeleteFromUI = (id) => {
-        const updatedBlogs = blogs.filter(blog => blog._id !== id);
-        setBlogs(updatedBlogs);
+        setBlogs(prev => prev.filter(blog => blog._id !== id));
     };
 
     const handleUpdateFromUI = (id, updatedData) => {
-        const updatedBlogs = blogs.map(blog =>
-            blog._id === id ? { ...blog, ...updatedData } : blog
-        );
-        setBlogs(updatedBlogs);
+        setBlogs(prev => prev.map(blog => blog._id === id ? { ...blog, ...updatedData } : blog));
     };
 
     const filteredBlogs = blogs
@@ -52,81 +57,103 @@ const LifeBlogs = () => {
         .reverse();
 
     const totalPages = Math.ceil(filteredBlogs.length / blogsPerPage);
-    const indexOfLastBlog = currentPage * blogsPerPage;
-    const indexOfFirstBlog = indexOfLastBlog - blogsPerPage;
-    const currentBlogs = filteredBlogs.slice(indexOfFirstBlog, indexOfLastBlog);
+    const indexOfLast = currentPage * blogsPerPage;
+    const indexOfFirst = indexOfLast - blogsPerPage;
+    const currentBlogs = filteredBlogs.slice(indexOfFirst, indexOfLast);
 
     const getPageNumbers = () => {
-        let startPage = Math.max(currentPage - 2, 1);
-        let endPage = startPage + 4;
-
-        if (endPage > totalPages) {
-            endPage = totalPages;
-            startPage = Math.max(endPage - 4, 1);
-        }
-
-        const pages = [];
-        for (let i = startPage; i <= endPage; i++) {
-            pages.push(i);
-        }
-        return pages;
+        let start = Math.max(currentPage - 2, 1);
+        let end = Math.min(start + 4, totalPages);
+        start = Math.max(end - 4, 1);
+        return Array.from({ length: end - start + 1 }, (_, i) => start + i);
     };
 
-    const handlePrevious = () => {
-        if (currentPage > 1) setCurrentPage(prev => prev - 1);
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        setTimeout(() => {
+            topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     };
 
-    const handleNext = () => {
-        if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
-    };
+    const handlePrevious = () => currentPage > 1 && handlePageChange(currentPage - 1);
+    const handleNext = () => currentPage < totalPages && handlePageChange(currentPage + 1);
 
     return (
-        <div className="max-w-screen-xl mx-auto py-10 px-4">
-            <div className="pb-10">
-                <div className="flex justify-between items-center relative">
-                    {/* Search input */}
-                    <div className="absolute left-1 flex items-center gap-2">
-                        <div className="relative">
-                            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
-                            <input
-                                type="text"
-                                placeholder="Search Blog..."
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value);
-                                    setCurrentPage(1);
-                                }}
-                            />
-                        </div>
-                    </div>
+        <div className="max-w-screen-xl mx-auto px-4 py-10">
+            <div ref={topRef}></div>
 
-                    <h2 className="text-2xl font-bold text-center w-full">
-                        Life <span className="text-[#2acb35]">Style</span>
-                    </h2>
-                    {
-                        user && isAdmin &&
-                        <NavLink to="/blogPageAdmin" className="absolute right-4 sm:right-10">
-                            <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
-                                Add Blog
-                            </button>
-                        </NavLink>
-                    }
-                </div>
-                <p className="text-center mt-2">
-                    Our personal trainers can help you meet your fitness goals. They can become your <br />
-                    teacher, your motivator, your coach and your friend.
-                </p>
+            {/* Title */}
+            <div className="text-center mb-2">
+                <h2 className="text-2xl lg:text-3xl font-bold">
+                    Life <span className="text-[#2acb35]">Style</span>
+                </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+            {/* Description */}
+            <p className="text-center mt-3 sm:text-base px-2 sm:px-0">
+                Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
+                teacher, your motivator, your coach and your friend.
+            </p>
+
+            {/* Mobile Add + Search */}
+            <div className="lg:hidden mt-4 flex flex-col items-center gap-3">
+                {
+                    user && isAdmin &&
+                    <NavLink to="/blogPageAdmin">
+                        <button className="btn bg-[#2acb35] text-white px-4 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition text-sm">
+                            Add Blog
+                        </button>
+                    </NavLink>
+                }
+                <div className="relative w-full max-w-xs">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                    <input
+                        type="text"
+                        placeholder="Search Blog..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                    />
+                </div>
+            </div>
+
+            {/* Desktop Add + Search */}
+            <div className="hidden lg:flex justify-between items-center mt-6">
+                <div className="relative">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                    <input
+                        type="text"
+                        placeholder="Search Blog..."
+                        className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                    />
+                </div>
+                {
+                    user && isAdmin &&
+                    <NavLink to="/blogPageAdmin">
+                        <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
+                            Add Blog
+                        </button>
+                    </NavLink>
+                }
+            </div>
+
+            {/* Blog Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10 mt-10">
                 {
                     loading ? (
                         <div className="col-span-full flex justify-center items-center h-40">
                             <Loader />
                         </div>
                     ) : currentBlogs.length === 0 && searchTerm ? (
-                        <p className="text-center text-red-400 mt-5 font-semibold text-xl col-span-full">
+                        <p className="text-center text-red-400 mt-5 font-semibold text-lg sm:text-xl col-span-full">
                             No Result Found
                         </p>
                     ) : (
@@ -143,16 +170,15 @@ const LifeBlogs = () => {
                 }
             </div>
 
-
             {/* Pagination */}
             {filteredBlogs.length > 0 && (
-                <div className="flex justify-center mt-10 space-x-2 items-center">
+                <div className="flex flex-wrap justify-center mt-10 gap-2 items-center">
                     <button
                         onClick={handlePrevious}
                         disabled={currentPage === 1}
-                        className={`px-4 py-2 rounded ${currentPage === 1
-                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                : 'bg-[#2acb35] text-white hover:bg-green-600'
+                        className={`px-4 py-2 rounded text-sm ${currentPage === 1
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'bg-[#2acb35] text-white hover:bg-green-600'
                             }`}
                     >
                         Previous
@@ -162,10 +188,10 @@ const LifeBlogs = () => {
                         getPageNumbers().map(number => (
                             <button
                                 key={number}
-                                onClick={() => setCurrentPage(number)}
-                                className={`px-4 py-2 border rounded ${currentPage === number
-                                        ? 'bg-[#2acb35] text-white'
-                                        : 'bg-white text-[#2acb35] border-[#2acb35] hover:bg-[#2acb35] hover:text-white'
+                                onClick={() => handlePageChange(number)}
+                                className={`px-4 py-2 text-sm border rounded ${currentPage === number
+                                    ? 'bg-[#2acb35] text-white'
+                                    : 'bg-white text-[#2acb35] border-[#2acb35] hover:bg-[#2acb35] hover:text-white'
                                     }`}
                             >
                                 {number}
@@ -176,9 +202,9 @@ const LifeBlogs = () => {
                     <button
                         onClick={handleNext}
                         disabled={currentPage === totalPages}
-                        className={`px-4 py-2 rounded ${currentPage === totalPages
-                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                : 'bg-[#2acb35] text-white hover:bg-green-600'
+                        className={`px-4 py-2 rounded text-sm ${currentPage === totalPages
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'bg-[#2acb35] text-white hover:bg-green-600'
                             }`}
                     >
                         Next

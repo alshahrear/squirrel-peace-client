@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import girl1 from "../../../../assets/about4.jpg";
 import girl2 from "../../../../assets/about3.jpg";
 import girl3 from "../../../../assets/about5.jpg";
-// import NewsAndLetter from "../NewsAndLetter/NewsAndLetter";
+import girl4 from "../../../../assets/about2.jpg";
 
 const features = [
   {
@@ -29,28 +29,29 @@ const features = [
 
 const AboutHome = () => {
   const sectionRef = useRef(null);
-
   const leftRef = useRef(null);
   const [leftHeight, setLeftHeight] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const updateHeight = () => {
       if (leftRef.current) {
         setLeftHeight(leftRef.current.offsetHeight);
       }
+      setIsMobile(window.innerWidth < 768);
     };
     updateHeight();
     window.addEventListener("resize", updateHeight);
     return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
-  const gapBetweenImages = 16; // 16px for gap-4
-  const imageHeight = (leftHeight - gapBetweenImages) / 2;
+  const gap = 16;
+  const desktopImageHeight = (leftHeight - gap * 2) / 2;
+  const mobileImageHeight = leftHeight / 3;
 
   return (
     <div className="bg-[#f5f7ec] relative">
-      {/* <NewsAndLetter /> */}
-      {/* Header Section */}
+      {/* Heading & Description */}
       <div className="text-center px-4 md:px-0 py-10 max-w-3xl mx-auto">
         <h2 className="text-2xl md:text-4xl font-bold text-gray-900">
           <span className="text-[#2acb35] border-l-4 border-[#2acb35] pl-2">
@@ -73,8 +74,8 @@ const AboutHome = () => {
         ref={sectionRef}
         className="flex flex-col md:flex-row items-center justify-between px-6 md:px-16 gap-12 pb-10"
       >
-        {/* Left Side: Text Content */}
-        <div className="flex-1 space-y-6" ref={leftRef}>
+        {/* Left Side: Text */}
+        <div className="flex-1 space-y-6 w-full" ref={leftRef}>
           <div className="space-y-4">
             {features.map((feature, idx) => (
               <div
@@ -84,36 +85,27 @@ const AboutHome = () => {
                 <h4 className="font-semibold text-gray-800 group-hover:text-green-500 text-lg transition-colors duration-500">
                   {feature.title}
                 </h4>
-                <p className="text-sm text-gray-600 mt-1">{feature.description}</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  {feature.description}
+                </p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right Side: Images */}
-        <div className="flex-1 flex flex-col items-center gap-4">
-          <div className="flex gap-4 w-full justify-center">
+        {/* Right Side: Responsive Images */}
+        <div className={`flex-1 w-full grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
+          {[girl1, girl2, girl3, girl4].map((img, idx) => (
             <img
-              src={girl1}
-              alt="Left Top"
-              className="w-1/2 object-cover rounded-lg shadow-lg"
-              style={{ height: imageHeight }}
-            />
-            <img
-              src={girl2}
-              alt="Right Top"
-              className="w-1/2 object-cover rounded-lg shadow-lg"
-              style={{ height: imageHeight }}
-            />
-          </div>
-          <div className="w-full">
-            <img
-              src={girl3}
-              alt="Bottom Full"
+              key={idx}
+              src={img}
+              alt={`Image ${idx + 1}`}
               className="w-full object-cover rounded-lg shadow-lg"
-              style={{ height: imageHeight }}
+              style={{
+                height: isMobile ? mobileImageHeight : desktopImageHeight,
+              }}
             />
-          </div>
+          ))}
         </div>
       </div>
     </div>

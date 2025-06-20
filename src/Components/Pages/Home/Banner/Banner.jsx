@@ -18,7 +18,7 @@ const Banner = () => {
                 {/* Background Swiper Image Slider */}
                 <Swiper
                     modules={[Autoplay]}
-                    autoplay={{ delay: 4000, disableOnInteraction: false, reverseDirection: false }}
+                    autoplay={{ delay: 4000, disableOnInteraction: false }}
                     loop={true}
                     slidesPerView={1}
                     className="w-full h-full"
@@ -38,25 +38,25 @@ const Banner = () => {
                     ))}
                 </Swiper>
 
-                {/* Fixed Foreground Content - Left Aligned */}
-                <div className="absolute inset-y-0 left-0 flex flex-col justify-center px-12 max-w-xl text-left z-10 text-white">
-                    <div className="animate__animated animate__slideInLeft">
-                        <h1 className="text-5xl font-bold mb-4">
+                {/* Foreground Text Content */}
+                <div className="absolute inset-0 flex items-center justify-start px-4 sm:px-8 md:px-12 z-10 text-white">
+                    <div className="max-w-xl text-left animate__animated animate__slideInLeft space-y-4">
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-snug">
                             Welcome to Squirrel Peace
                         </h1>
-                        <p className="max-w-lg text-base mb-8 drop-shadow-md">
+                        <p className="text-sm sm:text-base max-w-md sm:max-w-lg drop-shadow-md">
                             Discover the soothing harmony of nature — where every tree, breeze, and birdsong whispers calm into your soul. Let your journey toward natural serenity begin here.
                         </p>
-                    </div>
-                    <div className="animate__animated animate__slideInUp animate__slow flex gap-6">
-                        <button className="bg-[#2acb35] hover:bg-transparent border border-[#2acb35] text-white px-8 py-3 rounded-xl font-semibold shadow-lg transition duration-300">
-                            Explore Now
-                        </button>
-                        <NavLink to="/contact">
-                            <button className="bg-white hover:bg-transparent border border-white text-[#2acb35] px-8 py-3 rounded-xl font-semibold shadow-lg transition duration-300">
-                                Contact Us
+                        <div className="animate__animated animate__slideInUp animate__slow flex flex-wrap gap-4 sm:gap-6 pt-2 sm:pt-4">
+                            <button className="bg-[#2acb35] hover:bg-transparent border border-[#2acb35] text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold shadow-lg transition duration-300 text-sm sm:text-base">
+                                Explore Now
                             </button>
-                        </NavLink>
+                            <NavLink to="/contact">
+                                <button className="bg-white hover:bg-transparent border border-white text-[#2acb35] px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold shadow-lg transition duration-300 text-sm sm:text-base">
+                                    Contact Us
+                                </button>
+                            </NavLink>
+                        </div>
                     </div>
                 </div>
             </div>

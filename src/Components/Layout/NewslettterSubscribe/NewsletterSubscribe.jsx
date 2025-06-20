@@ -17,9 +17,9 @@ const NewsletterSubscribe = () => {
   }, []);
 
   return (
-    <div className="flex flex-col md:flex-row h-[450px] w-full max-w-7xl mx-auto overflow-hidden shadow-lg rounded-2xl">
+    <div className="flex flex-col md:flex-row w-full max-w-7xl mx-auto overflow-hidden px-4 md:px-0 rounded-2xl">
       {/* Left Image Section */}
-      <div className="relative rounded-l-2xl w-full md:w-1/2 h-full overflow-hidden bg-black">
+      <div className="relative w-full md:w-1/2 h-[250px] md:h-[450px] overflow-hidden bg-black shadow-lg rounded-t-2xl md:rounded-t-none md:rounded-l-2xl">
         {images.map((img, index) => (
           <AnimatePresence key={index}>
             {current === index && (
@@ -29,7 +29,7 @@ const NewsletterSubscribe = () => {
                 animate={{ scale: 1, opacity: 1, rotateX: 0 }}
                 exit={{ scale: 0.9, opacity: 1, rotateX: 90 }}
                 transition={{ duration: 2 }}
-                className="absolute inset-0 w-full h-full origin-top overflow-hidden "
+                className="absolute inset-0 w-full h-full origin-top overflow-hidden"
               >
                 <img
                   src={img}
@@ -44,14 +44,14 @@ const NewsletterSubscribe = () => {
       </div>
 
       {/* Right Content Section */}
-      <div className="w-full md:w-1/2 flex flex-col justify-center items-center text-center bg-white rounded-r-2xl p-8">
-        <h2 className="text-3xl font-extrabold text-gray-800 mb-4">
+      <div className="w-full md:w-1/2 flex flex-col justify-center items-center text-center bg-white px-6 py-6 md:px-8 md:py-8 rounded-b-2xl md:rounded-b-none md:rounded-r-2xl">
+        <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 mb-3 md:mb-4 px-2 md:px-0">
           Join Our Newsletter
         </h2>
-        <p className="text-gray-600 mb-6 px-4">
+        <p className="text-gray-600 mb-5 px-4 md:px-0">
           Get inspiring stories, updates and creative ideas delivered straight to your inbox.
         </p>
-        <form className="flex flex-col gap-4 w-full max-w-md">
+        <form className="flex flex-col gap-4 w-full max-w-md px-2 md:px-0">
           <input
             type="email"
             placeholder="Enter your email"

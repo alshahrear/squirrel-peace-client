@@ -11,7 +11,6 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
 
-
     useEffect(() => {
         setEditQ(faqQuestion);
         setEditA(faqAnswer);
@@ -39,7 +38,7 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
                                 icon: "success",
                                 title: "Your faq has been deleted",
                                 showConfirmButton: false,
-                                timer: 1500
+                                timer: 1500,
                             });
                             onDelete(_id);
                         }
@@ -68,7 +67,7 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
                         icon: "success",
                         title: "Your faq has been updated successfully",
                         showConfirmButton: false,
-                        timer: 1500
+                        timer: 1500,
                     });
                     onUpdate(_id, updatedFaq);
                     document.getElementById(`edit_modal_${_id}`).close();
@@ -80,60 +79,70 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
         <>
             <div className="collapse collapse-arrow border border-gray-300 rounded-lg">
                 <input type="checkbox" className="peer" />
-                <div className="collapse-title font-medium text-lg peer-checked:bg-[#2acb35] bg-white peer-checked:text-white">
+                <div className="collapse-title font-medium text-base md:text-lg peer-checked:bg-[#2acb35] bg-white peer-checked:text-white">
                     {faqQuestion}
                 </div>
-                <div className="collapse-content peer-checked:bg-gray-100">
+                <div className="collapse-content peer-checked:bg-gray-100 text-sm md:text-base">
                     <p className="mb-4 mt-2">{faqAnswer}</p>
-                    {
-                        user && isAdmin &&
-                        <div className="flex gap-3">
+                    {user && isAdmin && (
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <button
-                                onClick={() => document.getElementById(`edit_modal_${_id}`).showModal()}
-                                className="btn bg-[#2acb35] text-white hover:bg-green-600"
+                                onClick={() =>
+                                    document.getElementById(`edit_modal_${_id}`).showModal()
+                                }
+                                className="btn bg-[#2acb35] text-white hover:bg-green-600 text-sm md:text-base"
                             >
                                 Edit
                             </button>
                             <button
                                 onClick={handleDelete}
-                                className="btn bg-red-600 text-white hover:bg-red-700"
+                                className="btn bg-red-600 text-white hover:bg-red-700 text-sm md:text-base"
                             >
                                 Delete
                             </button>
                         </div>
-                    }
+                    )}
                 </div>
             </div>
 
             {/* Edit Modal */}
             <dialog id={`edit_modal_${_id}`} className="modal">
-                <div className="modal-box">
+                <div className="modal-box w-11/12 max-w-xl">
                     <form method="dialog">
-                        <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 text-lg">✕</button>
+                        <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 text-lg">
+                            ✕
+                        </button>
                     </form>
-                    <h3 className="font-bold text-lg mb-4">Edit FAQ</h3>
+                    <h3 className="font-bold text-base md:text-lg mb-4">Edit FAQ</h3>
                     <form onSubmit={handleEditSubmit} className="space-y-4">
                         <div>
-                            <label className="block font-medium">Question</label>
+                            <label className="block font-medium text-sm md:text-base">
+                                Question
+                            </label>
                             <textarea
                                 rows="2"
                                 value={editQ}
                                 onChange={(e) => setEditQ(e.target.value)}
-                                className="w-full border p-2 rounded"
+                                className="w-full border p-2 rounded text-sm md:text-base"
                                 required
                             ></textarea>
                         </div>
                         <div>
-                            <label className="block font-medium">Answer</label>
+                            <label className="block font-medium text-sm md:text-base">
+                                Answer
+                            </label>
                             <textarea
                                 rows="4"
                                 value={editA}
                                 onChange={(e) => setEditA(e.target.value)}
-                                className="w-full border p-2 rounded"
+                                className="w-full border p-2 rounded text-sm md:text-base"
                                 required
                             ></textarea>
                         </div>
-                        <button type="submit" className="btn bg-[#2acb35] text-white hover:bg-green-600">
+                        <button
+                            type="submit"
+                            className="btn bg-[#2acb35] text-white hover:bg-green-600 text-sm md:text-base"
+                        >
                             Save
                         </button>
                     </form>

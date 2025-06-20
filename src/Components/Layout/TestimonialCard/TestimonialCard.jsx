@@ -36,7 +36,7 @@ const EnvironmentalProcess = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
+    <div className="max-w-7xl mx-auto px-4 py-10 ">
       {/* Inline keyframes and custom classes */}
       <style>
         {`
@@ -60,7 +60,8 @@ const EnvironmentalProcess = () => {
         `}
       </style>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+      {/* Process Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
         {steps.map((step, index) => (
           <ProcessCard
             key={index}

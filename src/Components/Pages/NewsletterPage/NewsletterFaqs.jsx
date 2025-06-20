@@ -9,7 +9,6 @@ const NewsletterFaqs = () => {
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
 
-
     useEffect(() => {
         fetch("https://squirrel-peace-server.onrender.com/newsletterFaq")
             .then((res) => res.json())
@@ -56,13 +55,14 @@ const NewsletterFaqs = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto px-4">
-            <div className="pb-5 flex items-center justify-between">
-                <h2 className="text-3xl font-bold">Newsletter FAQs</h2>
+        <div className="max-w-4xl mx-auto px-4 md:px-0">
+            {/* Header section */}
+            <div className="pb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <h2 className="text-2xl md:text-3xl font-bold">Newsletter FAQs</h2>
                 {
                     user && isAdmin &&
                     <button
-                        className="btn bg-[#2acb35] text-white hover:bg-green-600"
+                        className="btn bg-[#2acb35] text-white hover:bg-green-600 text-sm md:text-base"
                         onClick={() => document.getElementById("faq_modal").showModal()}
                     >
                         Add FAQ
@@ -70,6 +70,7 @@ const NewsletterFaqs = () => {
                 }
             </div>
 
+            {/* FAQ List */}
             <div className="space-y-4">
                 {faqs.map((faq) => (
                     <NewsletterFaq
@@ -81,36 +82,33 @@ const NewsletterFaqs = () => {
                 ))}
             </div>
 
-            <div className="mt-8">
-
-            </div>
-
+            {/* Modal for Add FAQ */}
             <dialog id="faq_modal" className="modal">
-                <div className="modal-box">
+                <div className="modal-box w-11/12 max-w-xl">
                     <form method="dialog">
                         <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 text-lg">✕</button>
                     </form>
-                    <h3 className="text-xl font-semibold mb-4">Add New FAQ</h3>
+                    <h3 className="text-lg md:text-xl font-semibold mb-4">Add New FAQ</h3>
                     <form onSubmit={handleAddFaq} className="space-y-4">
                         <div>
-                            <label className="block mb-1 font-medium">Question</label>
+                            <label className="block mb-1 font-medium text-sm md:text-base">Question</label>
                             <textarea
                                 name="faqQuestion"
                                 rows="2"
                                 required
-                                className="w-full p-2 border rounded"
+                                className="w-full p-2 border rounded text-sm md:text-base"
                             ></textarea>
                         </div>
                         <div>
-                            <label className="block mb-1 font-medium">Answer</label>
+                            <label className="block mb-1 font-medium text-sm md:text-base">Answer</label>
                             <textarea
                                 name="faqAnswer"
                                 rows="4"
                                 required
-                                className="w-full p-2 border rounded"
+                                className="w-full p-2 border rounded text-sm md:text-base"
                             ></textarea>
                         </div>
-                        <button type="submit" className="btn bg-[#2acb35] text-white hover:bg-green-600">
+                        <button type="submit" className="btn bg-[#2acb35] text-white hover:bg-green-600 text-sm md:text-base">
                             Submit
                         </button>
                     </form>

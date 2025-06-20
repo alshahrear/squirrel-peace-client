@@ -8,7 +8,7 @@ import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
 import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 import { Helmet } from "react-helmet";
-import Loader from "../../../Components/Loader"; 
+import Loader from "../../../Components/Loader";
 
 const TestimonialPage = () => {
     const [testimonials, setTestimonials] = useState([]);
@@ -45,18 +45,21 @@ const TestimonialPage = () => {
     return (
         <div className="bg-[#f5f7ec]">
             <Helmet>
-                <title>Success - Storial Peace </title>
+                <title>Success - Storial Peace</title>
             </Helmet>
-            <div className="max-w-screen-xl mx-auto py-10 ">
-                <div className="flex flex-col md:flex-row items-center gap-10 px-4">
-                    <div className="flex-1 space-y-5">
+
+            <div className="max-w-screen-xl mx-auto py-10 px-4">
+                {/* Responsive Order Section */}
+                <div className="flex flex-col-reverse md:flex-row items-center gap-10">
+                    {/* Text Section */}
+                    <div className="flex-1 space-y-5 text-center md:text-left">
                         <h3 className="text-2xl text-[#2acb35] font-semibold">Some Story Behind Us</h3>
                         <h2 className="text-3xl font-bold">We Have 20 Years of experience</h2>
                         <p className="text-gray-500">
                             We handpick the best coaches and health experts to give you personalized care.
                         </p>
 
-                        <div className="flex flex-col md:flex-row gap-6">
+                        <div className="flex flex-col sm:flex-row gap-6 justify-center md:justify-start">
                             <div className="space-y-2 flex-1">
                                 <p className="text-lg font-semibold">Our Mission</p>
                                 <p className="text-gray-500">Explaining how pleasure and pain are managed effectively.</p>
@@ -67,21 +70,25 @@ const TestimonialPage = () => {
                             </div>
                         </div>
 
-                        <NavLink to="/about">
-                            <button className="btn px-8 py-4 rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]">
-                                About Us
-                            </button>
-                        </NavLink>
+                        <div className="flex justify-center md:justify-start">
+                            <NavLink to="/about">
+                                <button className="btn px-8 py-4 rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35] transition duration-300">
+                                    About Us
+                                </button>
+                            </NavLink>
+                        </div>
                     </div>
 
-                    <div className="flex-1">
-                        <img className="rounded-[2rem] w-full h-80 object-cover" src={coffee} alt="Story" />
+                    {/* Image Section */}
+                    <div className="flex-1 w-full">
+                        <img className="rounded-2xl w-full h-64 sm:h-80 object-cover" src={coffee} alt="Story" />
                     </div>
                 </div>
 
+                {/* Testimonials Section */}
                 <div className="pt-12 space-y-4">
-                    <div className="flex justify-between items-center px-4">
-                        <h3 className="text-3xl font-bold text-center mx-auto">Successful Stories</h3>
+                    <div className="flex flex-col sm:flex-row justify-between items-center px-2 sm:px-4 gap-4 sm:gap-0">
+                        <h3 className="text-3xl font-bold text-center ">Successful Stories</h3>
                         {
                             user && isAdmin &&
                             <NavLink to="/testimonialsAdmin">
@@ -92,7 +99,6 @@ const TestimonialPage = () => {
                         }
                     </div>
 
-                    {/* Loading & Testimonials Grid */}
                     {
                         loading ? (
                             <div className="flex justify-center items-center h-40">
@@ -101,7 +107,7 @@ const TestimonialPage = () => {
                         ) : testimonials.length === 0 ? (
                             <p className="text-center text-gray-500 text-lg">No testimonials found.</p>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-5 ">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-5">
                                 {testimonials.map(testimonial => (
                                     <TestimonialBlog
                                         key={testimonial._id}
@@ -116,17 +122,17 @@ const TestimonialPage = () => {
                 </div>
             </div>
 
-            <div>
-                <h2 className="text-3xl font-bold text-center">Process To Safe Environment</h2>
+            {/* Bottom Sections */}
+            <div className="">
+                <h2 className="text-3xl font-bold text-center ">Process To Safe Environment</h2>
                 <TestimonialCard />
             </div>
 
-            <div>
+            <div className="mx-4">
                 <BlogAll />
             </div>
 
-            {/* NewsletterOption */}
-            <div>
+            <div className="">
                 <NewsletterOption />
             </div>
         </div>

@@ -57,7 +57,9 @@ const Newsletter = () => {
             <Toaster position="top-right" reverseOrder={false} />
 
             <div
-                className="relative h-[400px] flex flex-col items-center justify-center text-center text-white px-6"
+                className="relative h-[400px] flex flex-col items-center justify-center text-center text-white px-6
+                           sm:h-[350px] sm:px-4
+                           xs:h-[300px] xs:px-3"
                 style={{
                     backgroundImage: `url(${newsHome})`,
                     backgroundSize: "cover",
@@ -67,22 +69,36 @@ const Newsletter = () => {
             >
                 <div className="absolute inset-0 bg-black/40 rounded-md"></div>
 
-                <div className={`relative z-10 space-y-4 ${isVisible ? "animate__animated animate__zoomInUp" : "opacity-0"}`}>
-                    <h2 className="text-2xl md:text-3xl font-bold">Stay Connected with Nature! 🌿</h2>
-                    <p className="text-lg font-medium">
+                <div
+                    className={`relative z-10 space-y-4 max-w-4xl
+                                ${isVisible ? "animate__animated animate__zoomInUp" : "opacity-0"}`}
+                >
+                    <h2 className="text-2xl md:text-3xl font-bold
+                                   xs:text-xl xs:leading-snug">
+                        Stay Connected with Nature! 🌿
+                    </h2>
+                    <p className="text-lg font-medium
+                                  xs:text-base xs:leading-relaxed">
                         Subscribe to our <span className="text-[#e6e94d] font-bold">Newsletter</span> for eco-friendly tips, special offers,<br />
                         and the latest updates on new plants! 🌱
                     </p>
-                    <form onSubmit={handleNewsletter} className="flex flex-col md:flex-row items-center gap-4 justify-center">
+                    <form
+                        onSubmit={handleNewsletter}
+                        className="flex flex-col md:flex-row items-center gap-4 justify-center
+                                   xs:flex-col xs:gap-3"
+                    >
                         <input
-                            className="border border-[#b7d5ba] px-4 py-2 rounded-md text-black w-72"
+                            className="border border-[#b7d5ba] px-4 py-2 rounded-md text-black w-72
+                                       xs:w-full"
                             type="email"
                             name="email"
                             placeholder="Enter your email"
                         />
                         <button
                             type="submit"
-                            className="bg-gradient-to-r from-[#2acb35] via-green-600 to-[#2acb35] text-white font-semibold px-6 py-2 rounded-md hover:from-green-800 hover:via-green-700 hover:to-lime-600 transition-all duration-300"
+                            className="bg-gradient-to-r from-[#2acb35] via-green-600 to-[#2acb35] text-white font-semibold px-6 py-2 rounded-md
+                                       hover:from-green-800 hover:via-green-700 hover:to-lime-600 transition-all duration-300
+                                       xs:w-full"
                         >
                             Subscribe
                         </button>
