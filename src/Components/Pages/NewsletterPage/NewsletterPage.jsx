@@ -92,7 +92,7 @@ const NewsletterPage = () => {
             </Helmet>
 
             {/* Image Grid Section */}
-            <div className="bg-[#f5f8ed]">
+            <div className="bg-[#f7f7f7]">
                 <div className="py-10 rounded-2xl">
                     <div className="text-center space-y-2 mb-10 px-4">
                         <h2 className="text-3xl font-bold text-[#082c2f]">
@@ -139,7 +139,7 @@ const NewsletterPage = () => {
                             </div>
 
                             {/* Progress Bars */}
-                            <div className="bg-[#f5f7ec] rounded-xl space-y-5 sm:space-y-6 p-4" ref={progressRef}>
+                            <div className="bg-[#f7f7f7] rounded-xl space-y-5 sm:space-y-6 p-4" ref={progressRef}>
                                 {skills.map((skill, index) => (
                                     <div key={index}>
                                         <div className="flex justify-between text-[#082c2f] text-sm sm:text-lg font-semibold mb-1">
@@ -164,7 +164,7 @@ const NewsletterPage = () => {
 
             {/* Newsletter Heading */}
             <div className="rounded-2xl">
-                <div className="text-center space-y-3 pb-10 bg-[#f5f7ec] px-4">
+                <div className="text-center space-y-3 pb-10 bg-[#f7f7f7] px-4">
                     <h1 className="text-3xl sm:text-4xl font-bold text-[#082c2f]">
                         Join Our Weekly Newsletter
                     </h1>
@@ -178,7 +178,7 @@ const NewsletterPage = () => {
             </div>
 
             {/* Testimonial Section */}
-            <div className="bg-[#f5f7ec]">
+            <div className="bg-[#f7f7f7]">
                 <div className="max-w-7xl mx-auto px-4 pb-10 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
                     <div>
                         <h3 className="flex justify-center md:justify-start items-center text-2xl md:text-2xl font-semibold text-gray-800 gap-2 text-center md:text-left">

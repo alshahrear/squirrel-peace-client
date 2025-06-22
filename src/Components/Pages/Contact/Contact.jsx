@@ -74,7 +74,7 @@ const Contact = () => {
   );
 
   return (
-    <div className="bg-[#f5f7ec]">
+    <div className="bg-[#f7f7f7]">
       <Helmet>
         <title>Contact - Storial Peace</title>
       </Helmet>
@@ -85,7 +85,7 @@ const Contact = () => {
           {/* Centered Text */}
           <div className="text-center">
             <i className="text-2xl font-semibold text-[#2acb35]">Message Us</i>
-            <h2 className="text-3xl font-bold mt-2 uppercase">
+            <h2 className="text-3xl font-bold my-4 uppercase">
               We'd Love To Hear From You
             </h2>
 
@@ -106,7 +106,7 @@ const Contact = () => {
         </div>
 
         {/* Form + Info Section */}
-        <div className="max-w-6xl mx-auto border-2 border-[#f5f4f3] mb-10 p-6 md:p-10 flex flex-col lg:flex-row gap-6 lg:gap-10 rounded-2xl">
+        <div className="max-w-6xl mx-auto border border-gray-200 mb-10 p-6 md:p-10 flex flex-col lg:flex-row gap-6 lg:gap-10 rounded-2xl">
           {/* Form Section */}
           <div className="w-full lg:w-2/3 animate__animated animate__slideInLeft">
             <p className="text-xl md:text-2xl font-semibold mb-3 text-center lg:text-left">

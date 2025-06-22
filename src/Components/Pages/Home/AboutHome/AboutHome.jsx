@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import girl1 from "../../../../assets/about4.jpg";
 import girl2 from "../../../../assets/about3.jpg";
 import girl3 from "../../../../assets/about5.jpg";
-import girl4 from "../../../../assets/about2.jpg";
 
 const features = [
   {
@@ -28,30 +28,33 @@ const features = [
 ];
 
 const AboutHome = () => {
-  const sectionRef = useRef(null);
   const leftRef = useRef(null);
-  const [leftHeight, setLeftHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const updateHeight = () => {
-      if (leftRef.current) {
-        setLeftHeight(leftRef.current.offsetHeight);
-      }
+    const updateSize = () => {
       setIsMobile(window.innerWidth < 768);
+      if (leftRef.current) {
+        setContentHeight(leftRef.current.offsetHeight);
+      }
     };
-    updateHeight();
-    window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
+
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  const gap = 16;
-  const desktopImageHeight = (leftHeight - gap * 2) / 2;
-  const mobileImageHeight = leftHeight / 3;
+  const images = [
+    { src: girl1, label: "About", path: "/about" },
+    { src: girl2, label: "Success", path: "/success" },
+    { src: girl3, label: "Story", path: "/story" },
+  ];
 
   return (
-    <div className="bg-[#f5f7ec] relative">
-      {/* Heading & Description */}
+    <div className="bg-[#f7f7f7] relative">
+      {/* Heading */}
       <div className="text-center px-4 md:px-0 py-10 max-w-3xl mx-auto">
         <h2 className="text-2xl md:text-4xl font-bold text-gray-900">
           <span className="text-[#2acb35] border-l-4 border-[#2acb35] pl-2">
@@ -69,43 +72,99 @@ const AboutHome = () => {
         </p>
       </div>
 
-      {/* Main Section */}
-      <div
-        ref={sectionRef}
-        className="flex flex-col md:flex-row items-center justify-between px-6 md:px-16 gap-12 pb-10"
-      >
-        {/* Left Side: Text */}
+      {/* Main Content */}
+      <div className="flex flex-col md:flex-row items-start justify-between px-6 md:px-16 gap-12 pb-10">
+        {/* Left - Features */}
         <div className="flex-1 space-y-6 w-full" ref={leftRef}>
-          <div className="space-y-4">
-            {features.map((feature, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-lg shadow p-5 transform transition-all duration-500 hover:scale-105 group"
-              >
-                <h4 className="font-semibold text-gray-800 group-hover:text-green-500 text-lg transition-colors duration-500">
-                  {feature.title}
-                </h4>
-                <p className="text-sm text-gray-600 mt-1">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
+          {features.map((feature, idx) => (
+            <div
+              key={idx}
+              className="bg-white rounded-lg shadow p-5 transform transition-all duration-500 hover:scale-105 group"
+            >
+              <h4 className="font-semibold text-gray-800 group-hover:text-green-500 text-lg transition-colors duration-500">
+                {feature.title}
+              </h4>
+              <p className="text-sm text-gray-600 mt-1">{feature.description}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Right Side: Responsive Images */}
-        <div className={`flex-1 w-full grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
-          {[girl1, girl2, girl3, girl4].map((img, idx) => (
-            <img
-              key={idx}
-              src={img}
-              alt={`Image ${idx + 1}`}
-              className="w-full object-cover rounded-lg shadow-lg"
-              style={{
-                height: isMobile ? mobileImageHeight : desktopImageHeight,
-              }}
-            />
-          ))}
+        {/* Right - Images */}
+        <div className="flex-1 w-full space-y-4">
+          {/* Mobile Layout */}
+          {isMobile ? (
+            images.map((img, idx) => (
+              <div
+                key={idx}
+                onClick={() => navigate(img.path)}
+                className="relative overflow-hidden rounded-lg shadow-md group cursor-pointer"
+              >
+                <img
+                  src={img.src}
+                  alt={img.label}
+                  className="w-full h-56 object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/40 flex justify-center items-center transition duration-300">
+                  <button
+                    className="text-white px-5 py-2 border border-white rounded-full text-sm md:text-base transition-all duration-300
+                    group-hover:border-[#2acb35] group-hover:scale-105 hover:bg-white hover:text-[#2acb35]"
+                  >
+                    {img.label}
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <>
+              {/* Desktop Layout */}
+              {/* First Image */}
+              <div
+                onClick={() => navigate(images[0].path)}
+                className="relative overflow-hidden rounded-lg shadow-md group cursor-pointer"
+                style={{ height: `${contentHeight / 2 - 8}px` }}
+              >
+                <img
+                  src={images[0].src}
+                  alt={images[0].label}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/40 flex justify-center items-center transition duration-300">
+                  <button
+                    className="text-white px-5 py-2 border border-white rounded-full text-base transition-all duration-300
+                    group-hover:border-[#2acb35] group-hover:scale-105 hover:bg-white hover:text-[#2acb35]"
+                  >
+                    {images[0].label}
+                  </button>
+                </div>
+              </div>
+
+              {/* Second row with 2 images side by side */}
+              <div className="flex gap-4">
+                {images.slice(1).map((img, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => navigate(img.path)}
+                    className="flex-1 relative overflow-hidden rounded-lg shadow-md group cursor-pointer"
+                    style={{ height: `${contentHeight / 2 - 8}px` }}
+                  >
+                    <img
+                      src={img.src}
+                      alt={img.label}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex justify-center items-center transition duration-300">
+                      <button
+                        className="text-white px-5 py-2 border border-white rounded-full text-base transition-all duration-300
+                        group-hover:border-[#2acb35] group-hover:scale-105 hover:bg-white hover:text-[#2acb35]"
+                      >
+                        {img.label}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

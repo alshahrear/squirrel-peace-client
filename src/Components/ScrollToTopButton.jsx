@@ -33,7 +33,7 @@ const ScrollToTopButton = () => {
         aria-label="Scroll to top"
       >
         <div className="p-1 border-2 border-green-500 bg-white rounded hover:scale-110">
-            <IoIosArrowDropupCircle className="w-8 h-8 text-green-600 " />
+            <IoIosArrowDropupCircle className="w-6 h-6 text-green-600 " />
         </div>
       </button>
     )

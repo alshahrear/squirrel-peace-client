@@ -109,7 +109,7 @@ const Faq = () => {
   };
 
   return (
-    <div className="bg-[#f5f7ec]">
+    <div className="bg-[#f7f7f7]">
       <Helmet>
         <title>Faq - Storial Peace </title>
       </Helmet>
@@ -219,7 +219,7 @@ const Faq = () => {
             </p>
             <form
               onSubmit={handleFaq}
-              className="bg-[#f5f7ec] p-6 rounded-md shadow-md"
+              className="bg-[#f7f7f7] p-6 rounded-md shadow-md"
             >
               <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Submit Your Question</h2>
               <input

@@ -29,7 +29,7 @@ const Testimonials = () => {
   }, []);
 
   return (
-    <div className="bg-[#f5f8ed] pb-20 relative">
+    <div className="bg-[#f7f7f7] pb-20 relative">
       {/* Desktop ViewAll button */}
       <div className="hidden sm:flex justify-end text-end pt-5 pr-10">
         <NavLink to="/success" className="relative group inline-block">

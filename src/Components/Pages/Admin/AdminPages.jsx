@@ -2,7 +2,6 @@ import { NavLink } from "react-router-dom";
 import useAuth from "../../Layout/useAuth";
 import useAxiosPublic from "../../../hooks/useAxiosPublic";
 import { useQuery } from "@tanstack/react-query";
-import Loader from "../../../Components/Loader";
 import { Helmet } from "react-helmet";
 
 const AdminPages = () => {

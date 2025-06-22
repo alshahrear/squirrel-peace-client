@@ -4,6 +4,7 @@ import Footer from "./Footer/Footer";
 import SocialContact from "../SocialContact/SocialContact";
 import ScrollToTop from "./ScrollToTop";
 import ScrollToTopButton from "../ScrollToTopButton";
+import NewsletterFloatingPopup from "./NewsletterFloatingPopup";
 
 const Main = () => {
     return (
@@ -14,6 +15,7 @@ const Main = () => {
             <Navbar></Navbar>
             <Outlet></Outlet>
             <Footer></Footer>
+            <NewsletterFloatingPopup />
         </div>
     );
 };

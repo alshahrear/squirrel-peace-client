@@ -1,7 +1,6 @@
 import { FaCoffee } from "react-icons/fa";
 import { MdHighQuality } from "react-icons/md";
 import { GiCoffeeBeans } from "react-icons/gi";
-import { PiCoffeeFill } from "react-icons/pi";
 
 const StoryDown = () => {
     const features = [
@@ -20,16 +19,11 @@ const StoryDown = () => {
             title: "Pure Grades",
             description: "The coffee is made of the green coffee beans which you will love"
         },
-        {
-            icon: <PiCoffeeFill className="text-3xl sm:text-4xl mb-2" />,
-            title: "Proper Roasting",
-            description: "Your coffee is brewed by first roasting the green coffee beans"
-        }
     ];
 
     return (
         <div className="bg-[#f5f2eb] py-8 sm:py-10">
-            <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-center text-[#3c2a21]">
+            <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 text-center text-[#3c2a21]">
                 {features.map((feature, index) => (
                     <div key={index} className="px-2 sm:px-4">
                         <div className="flex justify-center">{feature.icon}</div>

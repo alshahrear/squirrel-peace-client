@@ -43,7 +43,7 @@ const TestimonialPage = () => {
     };
 
     return (
-        <div className="bg-[#f5f7ec]">
+        <div className="bg-[#f7f7f7]">
             <Helmet>
                 <title>Success - Storial Peace</title>
             </Helmet>

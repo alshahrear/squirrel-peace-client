@@ -49,7 +49,7 @@ const Banner = () => {
                         </p>
                         <div className="animate__animated animate__slideInUp animate__slow flex flex-wrap gap-4 sm:gap-6 pt-2 sm:pt-4">
                             <button className="bg-[#2acb35] hover:bg-transparent border border-[#2acb35] text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold shadow-lg transition duration-300 text-sm sm:text-base">
-                                Explore Now
+                                About Us
                             </button>
                             <NavLink to="/contact">
                                 <button className="bg-white hover:bg-transparent border border-white text-[#2acb35] px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold shadow-lg transition duration-300 text-sm sm:text-base">
