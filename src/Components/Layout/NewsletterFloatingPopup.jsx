@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FiMail } from "react-icons/fi";
 import Swal from "sweetalert2";
+import "animate.css";
 
 const NewsletterFloatingPopup = () => {
   const [showForm, setShowForm] = useState(false);
@@ -36,7 +37,7 @@ const NewsletterFloatingPopup = () => {
       {/* 🟢 Full Screen Overlay Popup */}
       {showForm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg border border-[#2acb35] p-6 w-80 md:w-96 shadow-xl text-center relative animate-fade-in">
+          <div className="bg-white rounded-lg border border-[#2acb35] p-6 w-80 md:w-96 shadow-xl text-center relative animate__animated animate__zoomIn">
             <button
               className="absolute top-2 right-3 text-gray-500 font-semibold text-xl"
               onClick={() => setShowForm(false)}
@@ -45,7 +46,7 @@ const NewsletterFloatingPopup = () => {
             </button>
 
             <h3 className="text-lg md:text-xl text-gray-800 font-semibold mb-4">
-              Subscribe our newsletter <br /> {" "}
+              Subscribe our newsletter <br />
               <span className="text-[#2acb35]">for 100% free</span>
             </h3>
 
