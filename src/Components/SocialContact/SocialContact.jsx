@@ -50,7 +50,7 @@ const SocialContact = () => {
           </NavLink>
           <NavLink to="/faq" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">
             <FcFaq className="text-[#2acb35] text-xl" />
-            Faq
+            FAQ
           </NavLink>
           
           {

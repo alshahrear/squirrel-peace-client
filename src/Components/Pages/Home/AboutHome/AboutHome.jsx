@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import girl1 from "../../../../assets/about4.jpg";
 import girl2 from "../../../../assets/about3.jpg";
 import girl3 from "../../../../assets/about5.jpg";
+import { motion } from "framer-motion";
 
 const features = [
   {
@@ -27,6 +28,27 @@ const features = [
   },
 ];
 
+const containerVariants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.2,
+    },
+  },
+};
+
+const featureVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.6,
+      ease: "easeOut",
+    },
+  },
+};
+
 const AboutHome = () => {
   const leftRef = useRef(null);
   const [contentHeight, setContentHeight] = useState(0);
@@ -49,7 +71,7 @@ const AboutHome = () => {
   const images = [
     { src: girl1, label: "About", path: "/about" },
     { src: girl2, label: "Success", path: "/success" },
-    { src: girl3, label: "Story", path: "/story" },
+    { src: girl3, label: "Newsletter", path: "/newsletter" },
   ];
 
   return (
@@ -75,19 +97,27 @@ const AboutHome = () => {
       {/* Main Content */}
       <div className="flex flex-col md:flex-row items-start justify-between px-6 md:px-16 gap-12 pb-10">
         {/* Left - Features */}
-        <div className="flex-1 space-y-6 w-full" ref={leftRef}>
+        <motion.div
+          className="flex-1 space-y-6 w-full"
+          ref={leftRef}
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.3 }}
+        >
           {features.map((feature, idx) => (
-            <div
+            <motion.div
               key={idx}
-              className="bg-white rounded-lg shadow p-5 transform transition-all duration-500 hover:scale-105 group"
+              variants={featureVariants}
+              className="bg-white rounded-lg shadow p-5 transform transition-all duration-500 hover:scale-105 group cursor-default"
             >
               <h4 className="font-semibold text-gray-800 group-hover:text-green-500 text-lg transition-colors duration-500">
                 {feature.title}
               </h4>
               <p className="text-sm text-gray-600 mt-1">{feature.description}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Right - Images */}
         <div className="flex-1 w-full space-y-4">

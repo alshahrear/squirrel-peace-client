@@ -4,7 +4,7 @@ import NewsletterPoint from "./NewsletterPoint";
 
 const NewsletterWhy = () => {
   return (
-    <div className="pb-10 bg-[#f7f7f7]">
+    <div className="py-10 bg-[#f7f7f7]">
       {/* Heading Section */}
       <div className="text-center space-y-2 px-4 md:px-0">
         <h3 className="text-3xl font-bold">Why Choose Us</h3>

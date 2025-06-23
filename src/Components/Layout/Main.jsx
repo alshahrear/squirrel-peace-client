@@ -5,17 +5,25 @@ import SocialContact from "../SocialContact/SocialContact";
 import ScrollToTop from "./ScrollToTop";
 import ScrollToTopButton from "../ScrollToTopButton";
 import NewsletterFloatingPopup from "./NewsletterFloatingPopup";
+import { Toaster } from "react-hot-toast";
 
 const Main = () => {
     return (
         <div>
-            <ScrollToTop></ScrollToTop>
-            <ScrollToTopButton />      
+            <ScrollToTop />
+            <ScrollToTopButton />
             <SocialContact />
-            <Navbar></Navbar>
-            <Outlet></Outlet>
-            <Footer></Footer>
+            <Navbar />
+            <Outlet />
+            <Footer />
             <NewsletterFloatingPopup />
+            
+            <Toaster 
+                position="top-right"
+                toastOptions={{
+                    style: { fontSize: '16px', zIndex: 999999 },
+                }}
+            />
         </div>
     );
 };

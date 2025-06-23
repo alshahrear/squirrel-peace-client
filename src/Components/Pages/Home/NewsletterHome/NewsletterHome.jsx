@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import newsHome from "../../../../assets/story2.jpg";
+import newsHome from "../../../../assets/story4.jpg";
 import { toast, Toaster } from "react-hot-toast";
 import "animate.css";
 import Marquee from "react-fast-marquee";
@@ -65,6 +65,7 @@ const Newsletter = () => {
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     backgroundRepeat: "no-repeat",
+                    backgroundAttachment: "fixed", // ✅ Fixed background
                 }}
             >
                 <div className="absolute inset-0 bg-black/40 rounded-md"></div>

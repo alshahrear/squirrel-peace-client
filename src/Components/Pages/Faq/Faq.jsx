@@ -5,6 +5,8 @@ import FaqList from "./FaqList";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
 import { Helmet } from "react-helmet";
+import faqBanner from "../../../assets/blogcat2.jpg";
+import { motion } from "framer-motion";  // <-- এখানে যোগ হলো
 
 const Faq = () => {
   const [faqsAdd, setFaqsAdd] = useState([]);
@@ -108,11 +110,37 @@ const Faq = () => {
       .catch(() => setLoading(false));
   };
 
+  // animation variants for FAQ items
+  const faqVariants = {
+    hidden: { opacity: 0, y: 50 },
+    visible: (i) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: i * 0.15,
+        duration: 0.5,
+        ease: "easeOut",
+      },
+    }),
+  };
+
   return (
     <div className="bg-[#f7f7f7]">
       <Helmet>
         <title>Faq - Storial Peace </title>
       </Helmet>
+
+      {/* Banner Section */}
+      <div
+        className="h-[280px] sm:h-[300px] md:h-[350px] lg:h-[400px] w-full bg-cover bg-center relative flex items-center justify-center"
+        style={{ backgroundImage: `url(${faqBanner})` }}
+      >
+        <div className="absolute inset-0 bg-black/50"></div>
+        <h1 className="relative z-10 text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center">
+          Frequently Asked Questions
+        </h1>
+      </div>
+
       <div className="py-10 max-w-screen-xl mx-auto px-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <h1 className="text-2xl sm:text-3xl md:text-3xl font-bold flex items-center gap-2">
@@ -153,14 +181,22 @@ const Faq = () => {
             }
           `}</style>
 
-          <div className="w-full md:w-2/3">
-            {faqsAdd.map((faqAdd) => (
-              <FaqList
+          <div className="w-full md:w-2/3 space-y-4">
+            {faqsAdd.map((faqAdd, i) => (
+              <motion.div
                 key={faqAdd._id}
-                faqAdd={faqAdd}
-                onDelete={handleDeleteFaqFromUI}
-                onUpdate={handleUpdateFaqFromUI}
-              />
+                custom={i}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.2 }}
+                variants={faqVariants}
+              >
+                <FaqList
+                  faqAdd={faqAdd}
+                  onDelete={handleDeleteFaqFromUI}
+                  onUpdate={handleUpdateFaqFromUI}
+                />
+              </motion.div>
             ))}
 
             {user && isAdmin && (
@@ -211,12 +247,6 @@ const Faq = () => {
           </div>
 
           <div className="w-full md:w-1/3">
-            <p className="text-base sm:text-lg text-center font-semibold mb-4">
-              If you want, you can also ask your question on the{" "}
-              <span className="text-[#2acb35] underline hover:font-bold hover:text-gray-600">
-                <Link to="/contact">Contact Page</Link>
-              </span>
-            </p>
             <form
               onSubmit={handleFaq}
               className="bg-[#f7f7f7] p-6 rounded-md shadow-md"
@@ -253,23 +283,29 @@ const Faq = () => {
                 {loading ? "Submitting..." : "Submit Question"}
               </button>
             </form>
+            <p className="text-base sm:text-lg text-center font-semibold mt-4">
+              If you want, you can also ask your question on the{" "}
+              <span className="text-[#2acb35] underline hover:font-bold hover:text-gray-600">
+                <Link to="/contact">Contact Page</Link>
+              </span>
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Responsive Swal style */}
+      {/* Swal Custom Font Sizes */}
       <style>{`
         .swal-responsive-text {
-          font-size: 0.875rem; /* mobile */
+          font-size: 0.875rem;
         }
         @media (min-width: 640px) {
           .swal-responsive-text {
-            font-size: 1rem; /* tablet */
+            font-size: 1rem;
           }
         }
         @media (min-width: 768px) {
           .swal-responsive-text {
-            font-size: 1.125rem; /* laptop */
+            font-size: 1.125rem;
           }
         }
       `}</style>

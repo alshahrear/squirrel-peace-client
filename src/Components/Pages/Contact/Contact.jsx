@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
 import { NavLink } from "react-router-dom";
+import contactBanner from "../../../assets/blogcat2.jpg"; 
 
 const Contact = () => {
   const axiosPublic = useAxiosPublic();
@@ -56,7 +57,6 @@ const Contact = () => {
     }
   };
 
-  // বাটন কম্পোনেন্ট আলাদা করা হলো DRY এর জন্য
   const ContactAdminButton = () => (
     <NavLink to="/contactAdmin">
       <div className="indicator">
@@ -79,17 +79,26 @@ const Contact = () => {
         <title>Contact - Storial Peace</title>
       </Helmet>
 
+      {/* ✅ Banner Section */}
+      <div
+        className="h-[280px] sm:h-[300px] md:h-[350px] lg:h-[400px] w-full bg-cover bg-center relative flex items-center justify-center"
+        style={{ backgroundImage: `url(${contactBanner})` }}
+      >
+        <div className="absolute inset-0 bg-black/50"></div>
+        <h1 className="relative z-10 text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center">
+          Contact Us
+        </h1>
+      </div>
+
       <div className="py-10 max-w-screen-xl mx-auto px-4">
         {/* Title & Button Section */}
         <div className="relative">
-          {/* Centered Text */}
           <div className="text-center">
             <i className="text-2xl font-semibold text-[#2acb35]">Message Us</i>
-            <h2 className="text-3xl font-bold my-4 uppercase">
+            <h2 className="text-2xl font-bold my-4 uppercase">
               We'd Love To Hear From You
             </h2>
 
-            {/* Mobile & Tablet এ এই বাটন টাইটেলের নিচে দেখানো হবে */}
             {user && isAdmin && (
               <div className="mt-4 md:hidden flex justify-center">
                 <ContactAdminButton />
@@ -97,7 +106,6 @@ const Contact = () => {
             )}
           </div>
 
-          {/* Desktop এ ডানদিকে absolute অবস্থানে বাটন */}
           {user && isAdmin && (
             <div className="hidden md:block md:absolute md:right-0 md:top-0 md:mt-2">
               <ContactAdminButton />
@@ -107,7 +115,7 @@ const Contact = () => {
 
         {/* Form + Info Section */}
         <div className="max-w-6xl mx-auto border border-gray-200 mb-10 p-6 md:p-10 flex flex-col lg:flex-row gap-6 lg:gap-10 rounded-2xl">
-          {/* Form Section */}
+          {/* Form */}
           <div className="w-full lg:w-2/3 animate__animated animate__slideInLeft">
             <p className="text-xl md:text-2xl font-semibold mb-3 text-center lg:text-left">
               Leave your <em className="text-[#2acb35]">message</em> here
@@ -155,7 +163,7 @@ const Contact = () => {
             </form>
           </div>
 
-          {/* Info Section */}
+          {/* Info */}
           <div className="w-full lg:w-1/3 space-y-4 border border-gray-300 rounded-2xl p-5 animate__animated animate__slideInUp animate__slow">
             <p className="flex items-center text-sm md:text-[16px] font-medium gap-2">
               <IoLocationOutline className="text-2xl md:text-3xl text-[#2acb35]" />

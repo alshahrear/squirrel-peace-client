@@ -3,6 +3,8 @@ import Swal from "sweetalert2";
 import NewsletterFaq from "./NewsletterFaq";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
+import { motion } from "framer-motion";
+import { useInView } from "react-intersection-observer";
 
 const NewsletterFaqs = () => {
     const [faqs, setFaqs] = useState([]);
@@ -54,6 +56,22 @@ const NewsletterFaqs = () => {
             });
     };
 
+    // Animation Variants
+    const containerVariants = {
+        visible: {
+            transition: {
+                staggerChildren: 0.2
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 40 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+    };
+
+    const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
+
     return (
         <div className="max-w-4xl mx-auto px-4 md:px-0">
             {/* Header section */}
@@ -70,17 +88,24 @@ const NewsletterFaqs = () => {
                 }
             </div>
 
-            {/* FAQ List */}
-            <div className="space-y-4">
+            {/* FAQ List with scroll animation */}
+            <motion.div
+                ref={ref}
+                className="space-y-4"
+                variants={containerVariants}
+                initial="hidden"
+                animate={inView ? "visible" : "hidden"}
+            >
                 {faqs.map((faq) => (
-                    <NewsletterFaq
-                        key={faq._id}
-                        faq={faq}
-                        onDelete={handleDeleteFaqFromUI}
-                        onUpdate={handleUpdateFaqFromUI}
-                    />
+                    <motion.div key={faq._id} variants={itemVariants}>
+                        <NewsletterFaq
+                            faq={faq}
+                            onDelete={handleDeleteFaqFromUI}
+                            onUpdate={handleUpdateFaqFromUI}
+                        />
+                    </motion.div>
                 ))}
-            </div>
+            </motion.div>
 
             {/* Modal for Add FAQ */}
             <dialog id="faq_modal" className="modal">

@@ -38,7 +38,7 @@ const NewsletterFloatingPopup = () => {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg border border-[#2acb35] p-6 w-80 md:w-96 shadow-xl text-center relative animate-fade-in">
             <button
-              className="absolute top-2 right-3 text-gray-500 font-medium text-xl"
+              className="absolute top-2 right-3 text-gray-500 font-semibold text-xl"
               onClick={() => setShowForm(false)}
             >
               ✕
