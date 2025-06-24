@@ -14,7 +14,7 @@ const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
 const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
-  const { _id, storyTitle, storyRandom, storyShortDescription, storyCategory, storyImage } = storyBlog;
+  const { _id, storyTitle, storyRandom, storyShortDescription, storyCategory, storyImage, storyDate } = storyBlog;
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -194,15 +194,34 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
         ref={ref}
         className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
       >
-        <div
-          className={`absolute top-3 z-20 ${(user && isAdmin) ? "left-3" : "right-3"
-            }`}
-        >
-          <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
-            {highlightText(storyCategory, searchTerm)}
-          </div>
-        </div>
+        {/* Top Left or Right Labels */}
+        {
+          user && isAdmin ? (
+            // Admin: only show category at top-left
+            <div className="absolute top-3 left-3 z-20">
+              <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
+                {highlightText(storyCategory, searchTerm)}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Non-admin: Show storyDate at top-left */}
+              <div className="absolute top-3 left-3 z-20">
+                <span className="text-white text-sm px-4 py-2 rounded-full backdrop-blur-sm">
+                  {storyDate}
+                </span>
+              </div>
+              {/* Non-admin: Show category at top-right */}
+              <div className="absolute top-3 right-3 z-20">
+                <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
+                  {highlightText(storyCategory, searchTerm)}
+                </div>
+              </div>
+            </>
+          )
+        }
 
+        {/* Title & description */}
         <div className="flex-grow flex flex-col justify-center">
           <h2 className="text-xl font-bold mb-2 drop-shadow-sm text-left">
             {highlightText(storyTitle, searchTerm)}
@@ -212,6 +231,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
           </p>
         </div>
 
+        {/* See More Button */}
         <div>
           <button
             className="w-full py-1 border border-white text-white rounded-md transition-all duration-300 hover:scale-105 hover:font-semibold hover:border-[#2acb35]"
@@ -220,6 +240,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
           </button>
         </div>
       </div>
+
 
       <dialog id={`edit_modal_${_id}`} className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-box w-11/12 max-w-2xl">

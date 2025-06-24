@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const StoryHome = ({ storyHome }) => {
-    const { _id, storyTitle, storyCategory, storyImage, storyShortDescription } = storyHome;
+    const { _id, storyTitle, storyDate, storyCategory, storyImage, storyShortDescription } = storyHome;
 
     const [hovered, setHovered] = useState(false);
     const { ref, inView } = useInView({
@@ -33,12 +33,17 @@ const StoryHome = ({ storyHome }) => {
                 ref={ref}
                 className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
             >
-                {/* Top right category */}
+                {/* Top left - Story Date */}
+                <div className="absolute top-3 left-3 text-white text-sm px-4 py-2 rounded-full z-20">
+                    {storyDate}
+                </div>
+
+                {/* Top right - Category */}
                 <div className="absolute top-4 right-4 text-white text-xs px-4 py-2 border border-white rounded-full z-20">
                     {storyCategory}
                 </div>
 
-                {/* Centered content with left alignment */}
+                {/* Centered content */}
                 <div className="flex-1 flex flex-col justify-center text-left">
                     <h2 className="text-xl font-bold mb-2 drop-shadow-sm">{storyTitle}</h2>
                     <p className="text-sm group-hover:font-medium mb-4 leading-relaxed drop-shadow-sm transition-all duration-300">
@@ -46,7 +51,7 @@ const StoryHome = ({ storyHome }) => {
                     </p>
                 </div>
 
-                {/* See More Button at bottom */}
+                {/* See More Button */}
                 <div className="w-full">
                     <button
                         className="w-full px-4 mt-3 py-2 text-white border border-white rounded-md transition-all duration-300 group-hover:scale-110 group-hover:font-semibold group-hover:border-[#2acb35] bg-transparent"

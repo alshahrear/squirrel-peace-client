@@ -141,9 +141,17 @@ const BlogDetails = () => {
                     alt={item.blogTitle}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                   />
-                  {/* Category badge - top-right */}
+
+                  {/* Top-left: blogDate */}
+                  <div className="absolute top-3 left-3 z-20">
+                    <div className="text-white text-sm px-4 py-1 rounded-full backdrop-blur-sm">
+                      {item.blogDate}
+                    </div>
+                  </div>
+
+                  {/* Top-right: blogCategory */}
                   <div className="absolute top-3 right-3 z-20">
-                    <div className="text-white text-xs px-4 py-1 border border-white rounded-full">
+                    <div className="text-white text-xs px-4 py-1 border border-white rounded-full backdrop-blur-sm">
                       {item.blogCategory}
                     </div>
                   </div>
@@ -165,6 +173,7 @@ const BlogDetails = () => {
                     </div>
                   </div>
                 </Link>
+
               ))}
             </div>
           </div>

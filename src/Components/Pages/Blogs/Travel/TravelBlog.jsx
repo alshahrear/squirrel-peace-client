@@ -14,7 +14,7 @@ const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
 const TravelBlog = ({ travelBlog, onDelete, onUpdate, searchTerm }) => {
-  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage } = travelBlog;
+  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage, blogDate } = travelBlog;
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -193,17 +193,34 @@ const TravelBlog = ({ travelBlog, onDelete, onUpdate, searchTerm }) => {
         ref={ref}
         className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
       >
-        <div
-          className={`absolute top-3 z-20 ${(user && isAdmin) ? "left-3" : "right-3"
-            }`}
-        >
-          <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
-            {blogCategory}
+        {user && isAdmin ? (
+          // Admin হলে category top-left এ
+          <div className="absolute top-3 left-3 z-20">
+            <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
+              {blogCategory}
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Admin না হলে date top-left এ */}
+            <div className="absolute top-3 left-3 z-20">
+              <div className="text-white text-sm px-4 py-2 rounded-full backdrop-blur-sm">
+                {blogDate}
+              </div>
+            </div>
+
+            {/* Admin না হলে category top-right এ */}
+            <div className="absolute top-3 right-3 z-20">
+              <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
+                {blogCategory}
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="flex-grow flex flex-col justify-center">
-          <h2 className="text-xl font-bold mb-2 drop-shadow-sm text-left">{highlightText(blogTitle, searchTerm)}
+          <h2 className="text-xl font-bold mb-2 drop-shadow-sm text-left">
+            {highlightText(blogTitle, searchTerm)}
           </h2>
           <p className="text-sm group-hover:font-medium mb-6 leading-relaxed drop-shadow-sm transition-all duration-300 text-left">
             {highlightText(blogShortDescription, searchTerm)}
@@ -218,6 +235,7 @@ const TravelBlog = ({ travelBlog, onDelete, onUpdate, searchTerm }) => {
           </button>
         </div>
       </div>
+
 
       <dialog id={`edit_modal_${_id}`} className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-box w-11/12 max-w-2xl">

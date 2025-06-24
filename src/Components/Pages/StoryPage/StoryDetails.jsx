@@ -5,6 +5,7 @@ import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 import Loader from "../../../Components/Loader";
 import { Helmet } from "react-helmet";
 import DOMPurify from "dompurify";
+import { AiFillEdit } from "react-icons/ai";
 
 const StoryDetails = () => {
     const { id } = useParams();
@@ -75,9 +76,20 @@ const StoryDetails = () => {
                 </div>
             </div>
 
-            <em className="flex justify-end pt-3 max-w-screen-xl mx-auto text-base sm:text-lg font-semibold pr-5">
-                Publish Date: {story.storyDate}
-            </em>
+            <div className="max-w-screen-xl mx-auto px-4 sm:px-6 pt-3 text-base sm:text-lg">
+                <div className="flex justify-between items-center flex-row-reverse sm:flex-row">
+                    {/* Publish Date - Right in mobile, right in desktop */}
+                    <span className="font-semibold text-right sm:text-left">
+                        Publish Date: {story?.storyDate}
+                    </span>
+
+                    {/* Edit Button - Left in mobile, right in desktop */}
+                    <button className="btn bg-[#2acb35] text-white flex items-center gap-2 py-2 px-4 rounded-md">
+                        Edit <AiFillEdit className="text-lg" />
+                    </button>
+                </div>
+            </div>
+
 
             {/* Main Content */}
             <div className="max-w-screen-xl mx-auto px-4 py-5">
@@ -118,8 +130,17 @@ const StoryDetails = () => {
                                         alt={item.storyTitle}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                     />
+
+                                    {/* Top-left: storyDate */}
+                                    <div className="absolute top-3 left-3 z-20">
+                                        <div className="text-white text-sm px-4 py-1 rounded-full backdrop-blur-sm">
+                                            {item.storyDate}
+                                        </div>
+                                    </div>
+
+                                    {/* Top-right: storyCategory */}
                                     <div className="absolute top-3 right-3 z-20">
-                                        <div className="text-white text-xs px-4 py-1 border border-white rounded-full">
+                                        <div className="text-white text-xs px-4 py-1 border border-white rounded-full backdrop-blur-sm">
                                             {item.storyCategory}
                                         </div>
                                     </div>

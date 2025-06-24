@@ -150,6 +150,7 @@ const Register = () => {
                             <div className="relative">
                                 <input
                                     name="password"
+                                    autoComplete="new-password"
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => {
