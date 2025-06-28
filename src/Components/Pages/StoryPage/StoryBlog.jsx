@@ -192,7 +192,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
 
       <div
         ref={ref}
-        className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
+        className={`absolute inset-0 flex flex-col justify-between item-center text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
       >
         {/* Top Left or Right Labels */}
         {
@@ -206,7 +206,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
           ) : (
             <>
               {/* Non-admin: Show storyDate at top-left */}
-              <div className="absolute top-3 left-3 z-20">
+              <div className="absolute top-4 left-3 z-20">
                 <span className="text-white text-sm px-4 py-2 rounded-full backdrop-blur-sm">
                   {storyDate}
                 </span>

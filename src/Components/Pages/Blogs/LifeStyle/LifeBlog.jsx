@@ -26,8 +26,8 @@ const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
     blogTitle,
     blogCategory,
     blogRandom,
+    blogShortDescription,
     blogImage,
-    blogShortDescription
   });
 
   const { ref, inView } = useInView({
@@ -71,43 +71,74 @@ const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
   const handleBlogUpdate = async (e) => {
     e.preventDefault();
 
-    let updatedData = { ...formData };
+    // ফর্ম থেকে আপডেট ডেটা তৈরি
+    const updatedData = {
+      blogTitle: formData.blogTitle,
+      blogCategory: formData.blogCategory,
+      blogRandom: formData.blogRandom,
+      blogShortDescription: formData.blogShortDescription, // নাম মেলানো হয়েছে
+      blogImage: formData.blogImage,
+    };
 
+    // নতুন ছবি নির্বাচিত হলে ইমেজ হোস্টে আপলোড করে URL পেতে হবে
     if (newImageFile) {
       const imageData = new FormData();
       imageData.append('image', newImageFile);
 
-      const res = await fetch(image_hosting_api, {
-        method: 'POST',
-        body: imageData,
-      });
-
-      const imageResponse = await res.json();
-      if (imageResponse.success) {
-        updatedData.blogImage = imageResponse.data.display_url;
+      try {
+        const res = await fetch(image_hosting_api, {
+          method: 'POST',
+          body: imageData,
+        });
+        const imageResponse = await res.json();
+        if (imageResponse.success) {
+          updatedData.blogImage = imageResponse.data.display_url;
+        } else {
+          throw new Error('Image upload failed');
+        }
+      } catch (err) {
+        console.error('Image upload error:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Image Upload Failed',
+          text: 'Could not upload the new image. Please try again.',
+        });
+        return;
       }
     }
 
-    fetch(`https://squirrel-peace-server.onrender.com/blog/${_id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedData)
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.modifiedCount > 0) {
-          Swal.fire({
-            position: "top-end",
-            icon: "success",
-            title: "Your blog card has been updated",
-            showConfirmButton: false,
-            timer: 1500
-          });
-          onUpdate(_id, updatedData);
-          document.getElementById(`edit_modal_${_id}`).close();
-        }
+    // সার্ভারে PATCH রিকোয়েস্ট
+    try {
+      const res = await fetch(`https://squirrel-peace-server.onrender.com/blog/${_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
       });
+      const data = await res.json();
+
+      if (data.modifiedCount > 0) {
+        Swal.fire({
+          position: 'top-end',
+          icon: 'success',
+          title: 'Your blog card has been updated',
+          showConfirmButton: false,
+          timer: 1500
+        });
+        onUpdate(_id, updatedData);
+        document.getElementById(`edit_modal_${_id}`).close();
+      } else {
+        throw new Error('No document was modified');
+      }
+    } catch (err) {
+      console.error('Update error:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: 'Could not update the blog. Please try again.',
+      });
+    }
   };
+
 
   const handleCopy = () => {
     navigator.clipboard.writeText(_id);
@@ -189,7 +220,7 @@ const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
         </div>
       }
 
-       <div
+      <div
         ref={ref}
         className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
       >

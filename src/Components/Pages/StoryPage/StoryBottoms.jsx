@@ -1,7 +1,7 @@
 import Swal from "sweetalert2";
 import { useState } from "react";
 
-const StoryBottoms = ({ storyId, storyTitle, storyCategory, storyImage }) => {
+const StoryBottoms = ({ _id: storyId, storyTitle, storyCategory, storyImage }) => {
     const [isSubmitting, setIsSubmitting] = useState(false); // loading state
 
     const handleComment = (e) => {

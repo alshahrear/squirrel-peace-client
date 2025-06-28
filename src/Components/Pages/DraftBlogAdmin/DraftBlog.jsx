@@ -55,7 +55,7 @@ const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
               Swal.fire({
                 position: "top-end",
                 icon: "success",
-                title: "Your story card has been deleted",
+                title: "Your draft card has been deleted",
                 showConfirmButton: false,
                 timer: 1500
               });
@@ -75,14 +75,19 @@ const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
       const imageData = new FormData();
       imageData.append('image', newImageFile);
 
-      const res = await fetch(image_hosting_api, {
-        method: 'POST',
-        body: imageData,
-      });
+      try {
+        const res = await fetch(image_hosting_api, {
+          method: 'POST',
+          body: imageData,
+        });
 
-      const imageResponse = await res.json();
-      if (imageResponse.success) {
-        updatedData.storyImage = imageResponse.data.display_url;
+        const imageResponse = await res.json();
+        if (imageResponse.success) {
+          updatedData.storyImage = imageResponse.data.display_url;
+        }
+      } catch (error) {
+        Swal.fire("Error", "Image upload failed", "error");
+        return;
       }
     }
 
@@ -172,8 +177,7 @@ const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
         </div>
       </Link>
 
-      {
-        user && isAdmin &&
+      {user && isAdmin &&
         <div className="absolute top-3 right-3 z-30 dropdown dropdown-end" onClick={(e) => e.stopPropagation()}>
           <div
             tabIndex={0}

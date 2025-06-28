@@ -1,8 +1,8 @@
 import Swal from "sweetalert2";
 import { useState } from "react";
 
-const BlogBottoms = ({ blogId, blogTitle, blogCategory, blogImage }) => {
-    const [isSubmitting, setIsSubmitting] = useState(false); 
+const BlogBottoms = ({ _id: blogId, blogTitle, blogCategory, blogImage }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const handleComment = (e) => {
         e.preventDefault();
         setIsSubmitting(true);
