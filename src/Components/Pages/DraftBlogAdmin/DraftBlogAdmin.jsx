@@ -96,6 +96,18 @@ const DraftBlogAdmin = () => {
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
+
+    // longDescription validation (required)
+    if (!longDescription || longDescription.trim() === "" || longDescription === "<p><br></p>") {
+      Swal.fire({
+        icon: "error",
+        title: "Long Description Required",
+        text: "Please write the full story before submitting.",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     const imageFile = new FormData();
     imageFile.append("image", data.storyImage[0]);
 
@@ -152,6 +164,7 @@ const DraftBlogAdmin = () => {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 my-10">

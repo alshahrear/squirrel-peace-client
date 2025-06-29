@@ -1,3 +1,4 @@
+// unchanged imports and setup
 import { useQuery } from '@tanstack/react-query';
 import { LuMessageCircleX } from "react-icons/lu";
 import useAuth from "../../Layout/useAuth";
@@ -85,7 +86,7 @@ const Users = () => {
     });
   };
 
-  const handleDeleteUser = (id, name, email) => {
+  const handleDeleteUser = (id, name, email, role) => {
     const proceedDelete = () => {
       axiosSecure.delete(`/users/${id}`)
         .then(() => {
@@ -119,7 +120,8 @@ const Users = () => {
       });
     };
 
-    if (email === 'shahreartamim777@gmail.com') {
+    // ✅ If user is an admin, always ask password before delete
+    if (role === 'admin') {
       renderPasswordInput((result) => {
         if (result.isConfirmed && result.value === ADMIN_PASSWORD) {
           confirmDelete();
@@ -191,7 +193,7 @@ const Users = () => {
                 </td>
                 <td className="py-3 px-2 sm:px-4 text-center" data-label="Action">
                   <button
-                    onClick={() => handleDeleteUser(user._id, user.name, user.email)}
+                    onClick={() => handleDeleteUser(user._id, user.name, user.email, user.role)}
                     className="btn bg-[#e53935] hover:bg-[#d32f2f] text-white p-2 rounded-full"
                   >
                     <LuMessageCircleX className="text-2xl" />
@@ -203,7 +205,6 @@ const Users = () => {
         </table>
       </div>
 
-      {/* Responsive CSS for mobile/tablet */}
       <style>{`
         @media (max-width: 1024px) {
           .users-table thead {
@@ -225,7 +226,7 @@ const Users = () => {
             font-size: 1rem;
             border: none !important;
             position: relative;
-            padding-left: 130px; /* space for label */
+            padding-left: 130px;
             word-break: break-word;
           }
           .users-table tbody tr td::before {
@@ -241,7 +242,6 @@ const Users = () => {
           .users-table tbody tr td.text-center {
             padding-left: 0;
           }
-          /* Center buttons */
           .users-table tbody tr td.text-center button {
             margin: 0 auto;
             display: block;

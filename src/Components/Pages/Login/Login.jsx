@@ -4,7 +4,6 @@ import { FaEye, FaEyeSlash } from "react-icons/fa6";
 import { TbPhoneCalling } from "react-icons/tb";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import GoogleLogin from "../../Layout/Google/GoogleLogin";
 import useAuth from "../../Layout/useAuth";
 import { Helmet } from "react-helmet";
 
@@ -158,10 +157,10 @@ const Login = () => {
                     </div>
                 </form>
 
-                {/* Google Login */}
+                {/* Google Login
                 <div className="mt-4">
                     <GoogleLogin />
-                </div>
+                </div> */}
 
                 {/* Toast */}
                 <ToastContainer />

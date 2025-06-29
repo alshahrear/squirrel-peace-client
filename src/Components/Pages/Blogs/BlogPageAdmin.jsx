@@ -45,6 +45,15 @@ const BlogPageAdmin = () => {
     };
 
     const onSubmit = async (data) => {
+        if (!longDescription || longDescription.trim() === '' || longDescription === '<p><br></p>') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Long Description Required',
+                text: 'Please write your full blog in the long description field.',
+            });
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -98,6 +107,7 @@ const BlogPageAdmin = () => {
             setIsSubmitting(false);
         }
     };
+
 
     const quillRef = useMemo(() => React.createRef(), []);
 
@@ -203,7 +213,16 @@ const BlogPageAdmin = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <input {...register("blogTitle", { required: true })} placeholder="Blog Title*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
 
-                            <input {...register("blogCategory", { required: true })} placeholder="Blog Category*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+                            <select
+                                {...register("blogCategory", { required: true })}
+                                defaultValue=""
+                                className="w-full p-4 border border-gray-300 rounded-md text-gray-700 focus:ring-2 focus:ring-[#2acb35]"
+                            >
+                                <option value="" disabled>Select Blog Category*</option>
+                                <option value="LifeStyle">Life Style</option>
+                                <option value="Travel">Travel</option>
+                                <option value="Health">Health</option>
+                            </select>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

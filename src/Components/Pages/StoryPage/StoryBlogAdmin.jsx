@@ -46,6 +46,15 @@ const StoryBlogAdmin = () => {
   };
 
   const onSubmit = async (data) => {
+    if (!longDescription || longDescription.trim() === '' || longDescription === '<p><br></p>') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Long Description Required',
+        text: 'Please write your full story in the long description field.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -99,6 +108,7 @@ const StoryBlogAdmin = () => {
       setIsSubmitting(false);
     }
   };
+
 
 
   const quillRef = useMemo(() => React.createRef(), []);
@@ -247,7 +257,7 @@ const StoryBlogAdmin = () => {
                   onChange={handleLongDescriptionChange}
                   modules={modules}
                   formats={formats}
-                  placeholder="Write your full story with formatting, links, images, videos, etc..."
+                  placeholder="Write your long description"
                   className="bg-white"
                 />
               </div>

@@ -4,7 +4,6 @@ import { FaEye, FaEyeSlash } from "react-icons/fa6";
 import { TbPhoneCalling } from "react-icons/tb";
 import toast from "react-hot-toast";
 import useAuth from "../../Layout/useAuth";
-import GoogleLogin from "../../Layout/Google/GoogleLogin";
 import useAxiosPublic from "../../../hooks/useAxiosPublic";
 import { Helmet } from "react-helmet";
 
@@ -191,9 +190,9 @@ const Register = () => {
                         </p>
                     </div>
                 </form>
-                <div>
+                {/* <div>
                     <GoogleLogin />
-                </div>
+                </div> */}
             </div>
         </div>
     );
