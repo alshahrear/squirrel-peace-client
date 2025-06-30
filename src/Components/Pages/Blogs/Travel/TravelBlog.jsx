@@ -270,6 +270,8 @@ const TravelBlog = ({ travelBlog, onDelete, onUpdate, searchTerm }) => {
                 <option value="Life Style">Life Style</option>
                 <option value="Travel">Travel</option>
                 <option value="Health">Health</option>
+                <option value="Education">Education</option>
+                <option value="Play">Play</option>
               </select>
             </div>
 

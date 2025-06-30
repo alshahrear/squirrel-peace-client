@@ -7,14 +7,15 @@ import Swal from 'sweetalert2';
 import { RiDeleteBin6Line, RiEdit2Fill } from 'react-icons/ri';
 import { FiCopy } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import useAuth from '../../../Layout/useAuth';
-import useAdmin from '../../../../hooks/useAdmin';
+import useAuth from '../../Layout/useAuth';
+import useAdmin from '../../../hooks/useAdmin';
+
 
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
-const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
-  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage, blogDate } = lifeBlog;
+const PlayBlog = ({ playBlog, onDelete, onUpdate, searchTerm }) => {
+  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage, blogDate } = playBlog;
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -26,8 +27,8 @@ const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
     blogTitle,
     blogCategory,
     blogRandom,
-    blogShortDescription,
     blogImage,
+    blogShortDescription
   });
 
   const { ref, inView } = useInView({
@@ -71,74 +72,43 @@ const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
   const handleBlogUpdate = async (e) => {
     e.preventDefault();
 
-    // ফর্ম থেকে আপডেট ডেটা তৈরি
-    const updatedData = {
-      blogTitle: formData.blogTitle,
-      blogCategory: formData.blogCategory,
-      blogRandom: formData.blogRandom,
-      blogShortDescription: formData.blogShortDescription, // নাম মেলানো হয়েছে
-      blogImage: formData.blogImage,
-    };
+    let updatedData = { ...formData };
 
-    // নতুন ছবি নির্বাচিত হলে ইমেজ হোস্টে আপলোড করে URL পেতে হবে
     if (newImageFile) {
       const imageData = new FormData();
       imageData.append('image', newImageFile);
 
-      try {
-        const res = await fetch(image_hosting_api, {
-          method: 'POST',
-          body: imageData,
-        });
-        const imageResponse = await res.json();
-        if (imageResponse.success) {
-          updatedData.blogImage = imageResponse.data.display_url;
-        } else {
-          throw new Error('Image upload failed');
+      const res = await fetch(image_hosting_api, {
+        method: 'POST',
+        body: imageData,
+      });
+
+      const imageResponse = await res.json();
+      if (imageResponse.success) {
+        updatedData.blogImage = imageResponse.data.display_url;
+      }
+    }
+
+    fetch(`https://squirrel-peace-server.onrender.com/blog/${_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedData)
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.modifiedCount > 0) {
+          Swal.fire({
+            position: "top-end",
+            icon: "success",
+            title: "Your blog card has been updated",
+            showConfirmButton: false,
+            timer: 1500
+          });
+          onUpdate(_id, updatedData);
+          document.getElementById(`edit_modal_${_id}`).close();
         }
-      } catch (err) {
-        console.error('Image upload error:', err);
-        Swal.fire({
-          icon: 'error',
-          title: 'Image Upload Failed',
-          text: 'Could not upload the new image. Please try again.',
-        });
-        return;
-      }
-    }
-
-    // সার্ভারে PATCH রিকোয়েস্ট
-    try {
-      const res = await fetch(`https://squirrel-peace-server.onrender.com/blog/${_id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData),
       });
-      const data = await res.json();
-
-      if (data.modifiedCount > 0) {
-        Swal.fire({
-          position: 'top-end',
-          icon: 'success',
-          title: 'Your blog card has been updated',
-          showConfirmButton: false,
-          timer: 1500
-        });
-        onUpdate(_id, updatedData);
-        document.getElementById(`edit_modal_${_id}`).close();
-      } else {
-        throw new Error('No document was modified');
-      }
-    } catch (err) {
-      console.error('Update error:', err);
-      Swal.fire({
-        icon: 'error',
-        title: 'Update Failed',
-        text: 'Could not update the blog. Please try again.',
-      });
-    }
   };
-
 
   const handleCopy = () => {
     navigator.clipboard.writeText(_id);
@@ -267,6 +237,7 @@ const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
         </div>
       </div>
 
+
       <dialog id={`edit_modal_${_id}`} className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-box w-11/12 max-w-2xl">
           <form method="dialog">
@@ -312,7 +283,6 @@ const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
                 accept="image/*"
                 onChange={e => setNewImageFile(e.target.files[0])}
               />
-
               <input
                 type="text"
                 name="blogRandom"
@@ -344,4 +314,4 @@ const LifeBlog = ({ lifeBlog, onDelete, onUpdate, searchTerm }) => {
   );
 };
 
-export default LifeBlog;
+export default PlayBlog;

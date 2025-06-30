@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import life1 from "../../../assets/life1.jpg";
 import travel1 from "../../../assets/travel1.jpg";
 import health1 from "../../../assets/health1.jpg";
+import education1 from "../../../assets/about4.jpg";
+import play1 from "../../../assets/about2.jpg";
 import story from "../../../assets/story2.jpg";
 import Loader from "../../../Components/Loader"; // ⬅️ Make sure path is correct
 
@@ -30,6 +32,20 @@ const blogs = [
     },
     {
         id: 4,
+        category: "Education",
+        title: "Best Golf Courses In Ireland | Top Irish Golf Courses | Our Top Picks",
+        image: education1,
+        route: "/education",
+    },
+    {
+        id: 5,
+        category: "Play",
+        title: "Best Golf Courses In Ireland | Top Irish Golf Courses | Our Top Picks",
+        image: play1,
+        route: "/play",
+    },
+    {
+        id: 6,
         category: "Story",
         title: "Best Golf Courses In Ireland | Top Irish Golf Courses | Our Top Picks",
         image: story,
@@ -52,7 +68,7 @@ const BlogAll = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    const pageRoutes = ["/lifeStyle", "/travel", "/health", "/story"];
+    const pageRoutes = ["/lifeStyle", "/travel", "/health", "/education","/play", "/story"];
     const currentPath = location.pathname;
 
     const filteredBlogs = pageRoutes.includes(currentPath)
@@ -62,7 +78,7 @@ const BlogAll = () => {
     const gridCols =
         filteredBlogs.length === 3
             ? "grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-            : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+            : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3";
 
     return (
         <div className="bg-[#f7f7f7]">

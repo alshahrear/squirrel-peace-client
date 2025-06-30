@@ -31,6 +31,8 @@ import TermCondition from "../Components/Pages/TermCondition";
 import BlogDetails from "../Components/Pages/Blogs/BlogDetails";
 import DraftBlogAdmin from "../Components/Pages/DraftBlogAdmin/DraftBlogAdmin";
 import DraftDetails from "../Components/Pages/DraftBlogAdmin/DraftDetails";
+import PlayPage from "../Components/Pages/PlayPage/PlayPage";
+import EducationPage from "../Components/Pages/EducationPage/EducationPage";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -60,6 +62,14 @@ export const router = createBrowserRouter([
       {
         path: "/travel",
         element: <TravelPages></TravelPages>
+      },
+      {
+        path: "/play",
+        element: <PlayPage></PlayPage>
+      },
+      {
+        path: "/education",
+        element: <EducationPage></EducationPage>
       },
       {
         path: "/blog/:id",

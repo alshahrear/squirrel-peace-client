@@ -16,7 +16,7 @@ const Navbar = () => {
     try {
       await logOut();
       toast.success("Logged out successfully!");
-      navigate("/"); // ✅ Always go to home after logout
+      navigate("/");
     } catch {
       toast.error("Logout failed. Please try again.");
     }
@@ -26,6 +26,8 @@ const Navbar = () => {
     location.pathname.startsWith("/lifeStyle") ||
     location.pathname.startsWith("/travel") ||
     location.pathname.startsWith("/health") ||
+    location.pathname.startsWith("/education") ||
+    location.pathname.startsWith("/play") ||
     location.pathname.startsWith("/blog");
 
   const navLinkStyle = ({ isActive }) =>
@@ -71,7 +73,6 @@ const Navbar = () => {
   return (
     <div className="bg-[#f7f7f7] relative z-50 shadow-xs">
       <div className="navbar max-w-screen-xl mx-auto px-4 justify-between lg:justify-normal">
-        {/* Mobile View */}
         <div className="flex justify-between w-full lg:hidden items-center py-3">
           <h2 className="text-2xl font-semibold">Squirrel Peace</h2>
           <button
@@ -82,7 +83,6 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* Desktop */}
         <div className="navbar-start hidden lg:flex">
           <h2 className="text-2xl font-semibold ml-3">Squirrel Peace</h2>
         </div>
@@ -99,6 +99,8 @@ const Navbar = () => {
                 <li><NavLink to="/lifeStyle" className={dropdownLinkStyle}>Life Style</NavLink></li>
                 <li><NavLink to="/travel" className={dropdownLinkStyle}>Travel</NavLink></li>
                 <li><NavLink to="/health" className={dropdownLinkStyle}>Health</NavLink></li>
+                <li><NavLink to="/education" className={dropdownLinkStyle}>Education</NavLink></li>
+                <li><NavLink to="/play" className={dropdownLinkStyle}>Play</NavLink></li>
               </ul>
             </li>
             <li><NavLink to="/story" className={navLinkStyle}>Story</NavLink></li>
@@ -107,7 +109,6 @@ const Navbar = () => {
           </ul>
         </div>
 
-        {/* Logout/Login - Desktop */}
         <div className="navbar-end hidden lg:flex">
           {user ? (
             <button
@@ -126,7 +127,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* MOBILE DRAWER */}
       <div className={`fixed top-0 left-0 h-full w-64 bg-white z-[100] transform transition-transform duration-300 ease-in-out shadow ${drawerOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-4">
           <div className="flex justify-between items-center mb-4">
@@ -149,6 +149,8 @@ const Navbar = () => {
                         <li><NavLink to="/lifeStyle" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Life Style</NavLink></li>
                         <li><NavLink to="/travel" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Travel</NavLink></li>
                         <li><NavLink to="/health" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Health</NavLink></li>
+                        <li><NavLink to="/education" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Education</NavLink></li>
+                        <li><NavLink to="/play" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Play</NavLink></li>
                       </ul>
                     </details>
                   </li>
@@ -164,7 +166,6 @@ const Navbar = () => {
               );
             })}
 
-            {/* Login/Logout - Mobile */}
             <li className={`mt-4 transition-all duration-300 transform ${
               animatedItems.includes(mobileNavItems.length) ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
             }`}>

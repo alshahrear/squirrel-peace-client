@@ -200,6 +200,22 @@ const BlogPageAdmin = () => {
                         <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
                     </button>
                 </NavLink>
+                <NavLink to="/play">
+                    <button className="relative overflow-hidden px-5 py-2 text-white bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
+                        <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040]">
+                            Play
+                        </span>
+                        <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
+                    </button>
+                </NavLink>
+                <NavLink to="/education">
+                    <button className="relative overflow-hidden px-5 py-2 text-white bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
+                        <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040]">
+                            Education
+                        </span>
+                        <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
+                    </button>
+                </NavLink>
             </div>
 
             <div className="flex justify-center mt-5">
@@ -222,6 +238,8 @@ const BlogPageAdmin = () => {
                                 <option value="LifeStyle">Life Style</option>
                                 <option value="Travel">Travel</option>
                                 <option value="Health">Health</option>
+                                <option value="Education">Education</option>
+                                <option value="Play">Play</option>
                             </select>
                         </div>
 

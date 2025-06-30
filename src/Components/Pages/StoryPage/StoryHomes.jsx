@@ -32,7 +32,7 @@ const StoryHomes = () => {
                 {/* Header */}
                 <div className="relative flex justify-center items-center">
                     <h2 className="text-2xl font-bold text-center w-full">
-                        Our <span className="text-[#2acb35]">Story Home</span>
+                        Our <span className="text-[#2acb35]">Story Blog</span>
                     </h2>
 
                     {/* View All Button - Laptop only */}

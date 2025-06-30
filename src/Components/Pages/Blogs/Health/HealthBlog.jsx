@@ -189,7 +189,7 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate, searchTerm }) => {
         </div>
       }
 
-       <div
+      <div
         ref={ref}
         className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
       >
@@ -269,6 +269,8 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate, searchTerm }) => {
                 <option value="Life Style">Life Style</option>
                 <option value="Travel">Travel</option>
                 <option value="Health">Health</option>
+                <option value="Education">Education</option>
+                <option value="Play">Play</option>
               </select>
             </div>
 
