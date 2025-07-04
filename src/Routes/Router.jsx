@@ -18,10 +18,7 @@ import AboutPage from "../Components/Pages/About/AboutPage";
 import StoryPages from "../Components/Pages/StoryPage/StoryPages";
 import StoryBlogAdmin from "../Components/Pages/StoryPage/StoryBlogAdmin";
 import StoryBlogs from "../Components/Pages/StoryPage/StoryBlogs";
-import LifeStylePages from "../Components/Pages/Blogs/LifeStyle/LifeStylePages";
 import BlogPageAdmin from "../Components/Pages/Blogs/BlogPageAdmin";
-import HealthPages from "../Components/Pages/Blogs/Health/HealthPages";
-import TravelPages from "../Components/Pages/Blogs/Travel/TravelPages";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
 import AdminRoute from "../Components/Layout/Privet/AdminRoute";
 import StoryDetails from "../Components/Pages/StoryPage/StoryDetails";
@@ -31,8 +28,9 @@ import TermCondition from "../Components/Pages/TermCondition";
 import BlogDetails from "../Components/Pages/Blogs/BlogDetails";
 import DraftBlogAdmin from "../Components/Pages/DraftBlogAdmin/DraftBlogAdmin";
 import DraftDetails from "../Components/Pages/DraftBlogAdmin/DraftDetails";
-import PlayPage from "../Components/Pages/PlayPage/PlayPage";
-import EducationPage from "../Components/Pages/EducationPage/EducationPage";
+import AdventureDiary from "../Components/Pages/Blogs/LifeStyle/AdventureDiary";
+import DailyNotes from "../Components/Pages/Blogs/Travel/DailyNotes";
+import SmartResource from "../Components/Pages/EducationPage/SmartResource";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -52,24 +50,16 @@ export const router = createBrowserRouter([
         element: <AboutPage></AboutPage>
       },
       {
-        path: "/lifeStyle",
-        element: <LifeStylePages></LifeStylePages>
+        path: "/adventureDiary",
+        element: <AdventureDiary></AdventureDiary>
       },
       {
-        path: "/health",
-        element: <HealthPages></HealthPages>
+        path: "/dailyNotes",
+        element: <DailyNotes></DailyNotes>
       },
       {
-        path: "/travel",
-        element: <TravelPages></TravelPages>
-      },
-      {
-        path: "/play",
-        element: <PlayPage></PlayPage>
-      },
-      {
-        path: "/education",
-        element: <EducationPage></EducationPage>
+        path: "/smartResource",
+        element: <SmartResource></SmartResource>
       },
       {
         path: "/blog/:id",

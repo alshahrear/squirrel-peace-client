@@ -2,13 +2,13 @@ import { Helmet } from "react-helmet";
 import travel1 from "../../../../assets/travel1.jpg";
 import BlogAll from "../../../Layout/BlogSuggest.jsx/BlogAll";
 import BlogDown from "../BlogDown";
-import TravelBlogs from "./TravelBlogs";
+import DailyBlogs from "./DailyBlogs";
 
-const TravelPages = () => {
+const DailyNotes = () => {
     return (
         <div>
             <Helmet>
-                <title>Travel - Storial Peace</title>
+                <title>Daily Notes - Storial Peace</title>
             </Helmet>
 
             <div
@@ -18,7 +18,7 @@ const TravelPages = () => {
                 {/* Transparent Dark Box Like Image */}
                 <div className="bg-black/60 text-white text-center p-4 md:p-8 lg:p-10 w-11/12 sm:w-4/5 md:w-3/5 rounded-2xl md:rounded-3xl">
                     <h2 className="text-2xl md:text-3xl font-semibold mb-3 md:mb-4 tracking-wide">
-                        Travel
+                        Daily Notes
                     </h2>
                     <p className="text-sm sm:text-base md:text-base text-gray-200 leading-relaxed">
                         Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer
@@ -34,7 +34,7 @@ const TravelPages = () => {
             </div>
 
             <div className="py-6 md:py-10">
-                <TravelBlogs />
+                <DailyBlogs></DailyBlogs>
             </div>
 
             <div>
@@ -44,4 +44,4 @@ const TravelPages = () => {
     );
 };
 
-export default TravelPages;
+export default DailyNotes;

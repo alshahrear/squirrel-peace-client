@@ -2,13 +2,13 @@ import { Helmet } from "react-helmet";
 import life1 from "../../../../assets/life1.jpg";
 import BlogAll from "../../../Layout/BlogSuggest.jsx/BlogAll";
 import BlogDown from "../BlogDown";
-import LifeBlogs from "./LifeBlogs";
+import AdventureBlogs from "./AdventureBlogs";
 
-const LifeStylePages = () => {
+const AdventureDiary = () => {
     return (
         <div>
             <Helmet>
-                <title>Life - Storial Peace</title>
+                <title>Adventure Diary - Storial Peace</title>
             </Helmet>
 
             {/* Hero Section */}
@@ -17,7 +17,7 @@ const LifeStylePages = () => {
                 style={{ backgroundImage: `url(${life1})` }}
             >
                 <div className="bg-black/60 text-white text-center p-6 sm:p-10 w-[90%] sm:w-3/5 rounded-3xl">
-                    <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 tracking-wide">Life Style</h2>
+                    <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 tracking-wide">Adventure Diary</h2>
                     <p className="text-sm sm:text-base text-gray-200 leading-relaxed">
                         Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer
                         took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries,
@@ -26,12 +26,12 @@ const LifeStylePages = () => {
                 </div>
             </div>
 
-            {/* Life Blogs Section */}
+            {/* Adventure Blogs Section */}
             <BlogDown />
-            <LifeBlogs />
+            <AdventureBlogs></AdventureBlogs>
             <BlogAll />
         </div>
     );
 };
 
-export default LifeStylePages;
+export default AdventureDiary;

@@ -19,19 +19,17 @@ const BlogHomeLatests = () => {
       .then(data => {
         const isMobile = window.innerWidth < 640;
 
-        const travel = getRandomFromCategory(data, "Travel", isMobile ? 2 : 3);
-        const lifestyle = getRandomFromCategory(data, "Life Style", isMobile ? 2 : 3);
-        const health = getRandomFromCategory(data, "Health", isMobile ? 2 : 3);
-        const education = getRandomFromCategory(data, "Education", isMobile ? 2 : 3);
-        const play = getRandomFromCategory(data, "Play", isMobile ? 2 : 3);
+        const adventureDiary = getRandomFromCategory(data, 'Adventure Diary', isMobile ? 3 : 3);
+        const dailyNotes = getRandomFromCategory(data, 'Daily Notes', isMobile ? 3 : 3);
+        const smartResource = getRandomFromCategory(data, 'Smart Resource', isMobile ? 3 : 3);
 
-        const allBlogs = [...travel, ...lifestyle, ...health, ...education, ...play];
+        const selectedBlogs = [...adventureDiary, ...dailyNotes, ...smartResource];
 
-        setBlogs(allBlogs);
+        setBlogs(selectedBlogs);
         setLoading(false);
       })
       .catch(error => {
-        console.error("Error loading blogs:", error);
+        console.error('Error loading blogs:', error);
         setLoading(false);
       });
   }, []);
@@ -41,9 +39,9 @@ const BlogHomeLatests = () => {
   };
 
   const handleUpdateFromUI = (id, updatedData) => {
-    setBlogs(prev => prev.map(blog =>
-      blog._id === id ? { ...blog, ...updatedData } : blog
-    ));
+    setBlogs(prev =>
+      prev.map(blog => (blog._id === id ? { ...blog, ...updatedData } : blog))
+    );
   };
 
   return (
@@ -54,6 +52,7 @@ const BlogHomeLatests = () => {
             Our <span className="text-[#2acb35]">Latest Blog</span>
           </h2>
 
+          {/* Desktop Dropdown */}
           <div className="dropdown dropdown-hover hidden sm:block absolute right-4 sm:right-10 z-20">
             <div
               tabIndex={0}
@@ -66,11 +65,9 @@ const BlogHomeLatests = () => {
               tabIndex={0}
               className="dropdown-content menu bg-base-100 font-semibold rounded-box shadow -mt-1 w-40"
             >
-              <li><NavLink to="/lifeStyle" className="hover:text-[#2acb35]">Life Style</NavLink></li>
-              <li><NavLink to="/travel" className="hover:text-[#2acb35]">Travel</NavLink></li>
-              <li><NavLink to="/health" className="hover:text-[#2acb35]">Health</NavLink></li>
-              <li><NavLink to="/education" className="hover:text-[#2acb35]">Education</NavLink></li>
-              <li><NavLink to="/play" className="hover:text-[#2acb35]">Play</NavLink></li>
+              <li><NavLink to="/adventureDiary" className="hover:text-[#2acb35]">Adventure Diary</NavLink></li>
+              <li><NavLink to="/dailyNotes" className="hover:text-[#2acb35]">Daily Notes</NavLink></li>
+              <li><NavLink to="/smartResource" className="hover:text-[#2acb35]">Smart Resource</NavLink></li>
             </ul>
           </div>
         </div>
@@ -81,51 +78,45 @@ const BlogHomeLatests = () => {
         </p>
       </div>
 
-      {
-        loading ? (
-          <div className="flex justify-center items-center h-40">
-            <Loader />
+      {loading ? (
+        <div className="flex justify-center items-center h-40">
+          <Loader />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 gap-10">
+            {blogs.map(blog => (
+              <BlogHomeLatest
+                key={blog._id}
+                latestBlog={blog}
+                onDelete={handleDeleteFromUI}
+                onUpdate={handleUpdateFromUI}
+              />
+            ))}
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 gap-10">
-              {
-                blogs.map(blog => (
-                  <BlogHomeLatest
-                    key={blog._id}
-                    latestBlog={blog}
-                    onDelete={handleDeleteFromUI}
-                    onUpdate={handleUpdateFromUI}
-                  />
-                ))
-              }
-            </div>
 
-            {/* Mobile View Dropdown */}
-            <div className="block sm:hidden mt-8 flex justify-start relative z-10">
-              <div className="dropdown dropdown-hover">
-                <div
-                  tabIndex={0}
-                  role="button"
-                  className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition"
-                >
-                  View All
-                </div>
-                <ul
-                  tabIndex={0}
-                  className="dropdown-content menu bg-base-100 font-semibold rounded-box shadow mt-1 ml-1 w-42 text-lg"
-                >
-                  <li><NavLink to="/lifeStyle" className="hover:text-[#2acb35]">Life Style</NavLink></li>
-                  <li><NavLink to="/travel" className="hover:text-[#2acb35]">Travel</NavLink></li>
-                  <li><NavLink to="/health" className="hover:text-[#2acb35]">Health</NavLink></li>
-                  <li><NavLink to="/education" className="hover:text-[#2acb35]">Education</NavLink></li>
-                  <li><NavLink to="/play" className="hover:text-[#2acb35]">Play</NavLink></li>
-                </ul>
+          {/* Mobile Dropdown */}
+          <div className="block sm:hidden mt-8 flex justify-start relative z-10">
+            <div className="dropdown dropdown-hover">
+              <div
+                tabIndex={0}
+                role="button"
+                className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition"
+              >
+                View All
               </div>
+              <ul
+                tabIndex={0}
+                className="dropdown-content menu bg-base-100 font-medium rounded-box shadow mt-1 ml-1 w-48 text-lg"
+              >
+                <li><NavLink to="/adventureDiary" className="hover:text-[#2acb35]">Adventure Diary</NavLink></li>
+                <li><NavLink to="/dailyNotes" className="hover:text-[#2acb35]">Daily Notes</NavLink></li>
+                <li><NavLink to="/smartResource" className="hover:text-[#2acb35]">Smart Resource</NavLink></li>
+              </ul>
             </div>
-          </>
-        )
-      }
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -1,12 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
-import Loader from '../../Loader';
-import PlayBlog from './PlayBlog';
-import useAuth from '../../Layout/useAuth';
-import useAdmin from '../../../hooks/useAdmin';
+import useAuth from '../../../Layout/useAuth';
+import useAdmin from '../../../../hooks/useAdmin';
+import Loader from '../../../Loader';
+import DailyBlog from './DailyBlog';
 
-const PlayBlogs = () => {
+const DailyBlogs = () => {
     const [blogs, setBlogs] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [blogsPerPage, setBlogsPerPage] = useState(window.innerWidth < 1024 ? 6 : 12);
@@ -47,7 +47,7 @@ const PlayBlogs = () => {
     };
 
     const filteredBlogs = blogs
-        .filter(blog => blog.blogCategory === "Play")
+        .filter(blog => blog.blogCategory === "Daily Notes")
         .filter(blog => {
             const title = blog.blogTitle?.toLowerCase() || '';
             const description = blog.blogShortDescription?.toLowerCase() || '';
@@ -85,7 +85,7 @@ const PlayBlogs = () => {
             {/* Title */}
             <div className="text-center mb-2">
                 <h2 className="text-2xl lg:text-3xl font-bold">
-                    <span className="text-[#2acb35]">Play</span> Blog
+                    <span className="text-[#2acb35]">Daily</span> Notes
                 </h2>
             </div>
 
@@ -158,9 +158,9 @@ const PlayBlogs = () => {
                         </p>
                     ) : (
                         currentBlogs.map(blog => (
-                            <PlayBlog
+                            <DailyBlog
                                 key={blog._id}
-                                playBlog={blog}
+                                dailyBlog={blog}
                                 onDelete={handleDeleteFromUI}
                                 onUpdate={handleUpdateFromUI}
                                 searchTerm={searchTerm}
@@ -215,4 +215,4 @@ const PlayBlogs = () => {
     );
 };
 
-export default PlayBlogs;
+export default DailyBlogs;

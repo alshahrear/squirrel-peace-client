@@ -23,11 +23,9 @@ const Navbar = () => {
   };
 
   const isBlogActive =
-    location.pathname.startsWith("/lifeStyle") ||
-    location.pathname.startsWith("/travel") ||
-    location.pathname.startsWith("/health") ||
-    location.pathname.startsWith("/education") ||
-    location.pathname.startsWith("/play") ||
+    location.pathname.startsWith("/adventureDiary") ||
+    location.pathname.startsWith("/dailyNotes") ||
+    location.pathname.startsWith("/smartResource") ||
     location.pathname.startsWith("/blog");
 
   const navLinkStyle = ({ isActive }) =>
@@ -96,11 +94,9 @@ const Navbar = () => {
                 Blog
               </div>
               <ul className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-52 bg-white rounded-md shadow-lg z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <li><NavLink to="/lifeStyle" className={dropdownLinkStyle}>Life Style</NavLink></li>
-                <li><NavLink to="/travel" className={dropdownLinkStyle}>Travel</NavLink></li>
-                <li><NavLink to="/health" className={dropdownLinkStyle}>Health</NavLink></li>
-                <li><NavLink to="/education" className={dropdownLinkStyle}>Education</NavLink></li>
-                <li><NavLink to="/play" className={dropdownLinkStyle}>Play</NavLink></li>
+                <li><NavLink to="/adventureDiary" className={dropdownLinkStyle}>Adventure Diary</NavLink></li>
+                <li><NavLink to="/dailyNotes" className={dropdownLinkStyle}>Daily Notes</NavLink></li>
+                <li><NavLink to="/smartResource" className={dropdownLinkStyle}>Smart Resource</NavLink></li>
               </ul>
             </li>
             <li><NavLink to="/story" className={navLinkStyle}>Story</NavLink></li>
@@ -146,11 +142,9 @@ const Navbar = () => {
                     <details>
                       <summary className={`text-lg font-semibold ${isBlogActive ? "text-[#2acb35]" : "text-black"}`}>Blog</summary>
                       <ul className="ml-4 space-y-1 mt-2">
-                        <li><NavLink to="/lifeStyle" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Life Style</NavLink></li>
-                        <li><NavLink to="/travel" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Travel</NavLink></li>
-                        <li><NavLink to="/health" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Health</NavLink></li>
-                        <li><NavLink to="/education" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Education</NavLink></li>
-                        <li><NavLink to="/play" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Play</NavLink></li>
+                        <li><NavLink to="/adventureDiary" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Adventure Diary</NavLink></li>
+                        <li><NavLink to="/dailyNotes" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Daily Notes</NavLink></li>
+                        <li><NavLink to="/smartResource" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Smart Resource</NavLink></li>
                       </ul>
                     </details>
                   </li>

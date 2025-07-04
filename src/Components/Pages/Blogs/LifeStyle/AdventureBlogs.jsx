@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
-import LifeBlog from './LifeBlog';
 import { NavLink } from 'react-router-dom';
 import useAuth from '../../../Layout/useAuth';
 import useAdmin from '../../../../hooks/useAdmin';
-import Loader from '../../../../Components/Loader';
+import Loader from '../../../Loader';
+import AdventureBlog from './AdventureBlog';
 
-const LifeBlogs = () => {
+const AdventureBlogs = () => {
   const [blogs, setBlogs] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [blogsPerPage, setBlogsPerPage] = useState(window.innerWidth < 1024 ? 6 : 12);
@@ -51,7 +51,7 @@ const LifeBlogs = () => {
   };
 
   const filteredBlogs = blogs
-    .filter(blog => blog.blogCategory === "Life Style")
+    .filter(blog => blog.blogCategory === "Adventure Diary")
     .filter(blog => {
       const title = blog.blogTitle?.toLowerCase() || '';
       const description = blog.blogShortDescription?.toLowerCase() || '';
@@ -88,7 +88,7 @@ const LifeBlogs = () => {
 
       <div className="text-center mb-2">
         <h2 className="text-2xl lg:text-3xl font-bold">
-          Life <span className="text-[#2acb35]">Style</span>
+          Adventure <span className="text-[#2acb35]">Diary</span>
         </h2>
       </div>
 
@@ -153,10 +153,10 @@ const LifeBlogs = () => {
             No Result Found
           </p>
         ) : (
-          currentBlogs.map(lifeBlog => (
-            <LifeBlog
-              key={lifeBlog._id}
-              lifeBlog={lifeBlog}
+          currentBlogs.map(adventureBlog => (
+            <AdventureBlog
+              key={adventureBlog._id}
+              adventureBlog={adventureBlog}
               onDelete={handleDeleteFromUI}
               onUpdate={handleUpdateFromUI}
               searchTerm={searchTerm}
@@ -207,4 +207,4 @@ const LifeBlogs = () => {
   );
 };
 
-export default LifeBlogs;
+export default AdventureBlogs;

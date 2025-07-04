@@ -3,49 +3,33 @@ import { useState, useEffect } from "react";
 import life1 from "../../../assets/life1.jpg";
 import travel1 from "../../../assets/travel1.jpg";
 import health1 from "../../../assets/health1.jpg";
-import education1 from "../../../assets/about4.jpg";
-import play1 from "../../../assets/about2.jpg";
 import story from "../../../assets/story2.jpg";
-import Loader from "../../../Components/Loader"; // ⬅️ Make sure path is correct
+import Loader from "../../../Components/Loader"; 
 
 const blogs = [
     {
         id: 1,
-        category: "Life Style",
+        category: "Adventure Diary",
         title: "Best Waterfalls In Ireland | 7 Best Waterfalls To Visit In Ireland",
         image: life1,
-        route: "/lifeStyle",
+        route: "/adventureDiary",
     },
     {
         id: 2,
-        category: "Travel",
+        category: "Daily Notes",
         title: "Best Pizza In Dublin | We Tried Everything So You Don’t Have To",
         image: travel1,
-        route: "/travel",
+        route: "/dailyNotes",
     },
     {
         id: 3,
-        category: "Health",
+        category: "Smart Resource",
         title: "Best Golf Courses In Ireland | Top Irish Golf Courses | Our Top Picks",
         image: health1,
-        route: "/health",
+        route: "/smartResource",
     },
     {
         id: 4,
-        category: "Education",
-        title: "Best Golf Courses In Ireland | Top Irish Golf Courses | Our Top Picks",
-        image: education1,
-        route: "/education",
-    },
-    {
-        id: 5,
-        category: "Play",
-        title: "Best Golf Courses In Ireland | Top Irish Golf Courses | Our Top Picks",
-        image: play1,
-        route: "/play",
-    },
-    {
-        id: 6,
         category: "Story",
         title: "Best Golf Courses In Ireland | Top Irish Golf Courses | Our Top Picks",
         image: story,
@@ -68,7 +52,7 @@ const BlogAll = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    const pageRoutes = ["/lifeStyle", "/travel", "/health", "/education","/play", "/story"];
+    const pageRoutes = ["/adventureDiary", "/dailyNotes", "/smartResource", "/story"];
     const currentPath = location.pathname;
 
     const filteredBlogs = pageRoutes.includes(currentPath)
@@ -78,7 +62,7 @@ const BlogAll = () => {
     const gridCols =
         filteredBlogs.length === 3
             ? "grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-            : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3";
+            : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
 
     return (
         <div className="bg-[#f7f7f7]">

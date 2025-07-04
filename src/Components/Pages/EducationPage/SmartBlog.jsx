@@ -7,14 +7,16 @@ import Swal from 'sweetalert2';
 import { RiDeleteBin6Line, RiEdit2Fill } from 'react-icons/ri';
 import { FiCopy } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import useAuth from '../../../Layout/useAuth';
-import useAdmin from '../../../../hooks/useAdmin';
+import useAuth from '../../Layout/useAuth';
+import useAdmin from '../../../hooks/useAdmin';
+
+
 
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
-const HealthBlog = ({ healthBlog, onDelete, onUpdate, searchTerm }) => {
-  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage, blogDate } = healthBlog;
+const SmartBlog = ({ smartBlog, onDelete, onUpdate, searchTerm }) => {
+  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage, blogDate } = smartBlog;
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -236,6 +238,7 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate, searchTerm }) => {
         </div>
       </div>
 
+
       <dialog id={`edit_modal_${_id}`} className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-box w-11/12 max-w-2xl">
           <form method="dialog">
@@ -266,11 +269,9 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate, searchTerm }) => {
                 className="w-full p-3 border rounded-md"
               >
                 <option value="" disabled>Choose Blog Category</option>
-                <option value="Life Style">Life Style</option>
-                <option value="Travel">Travel</option>
-                <option value="Health">Health</option>
-                <option value="Education">Education</option>
-                <option value="Play">Play</option>
+                <option value="Adventure Diary">Adventure Diary</option>
+                <option value="Daily Notes">Daily Notes</option>
+                <option value="Smart Resource">Smart Resource</option>
               </select>
             </div>
 
@@ -281,7 +282,6 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate, searchTerm }) => {
                 accept="image/*"
                 onChange={e => setNewImageFile(e.target.files[0])}
               />
-
               <input
                 type="text"
                 name="blogRandom"
@@ -313,4 +313,4 @@ const HealthBlog = ({ healthBlog, onDelete, onUpdate, searchTerm }) => {
   );
 };
 
-export default HealthBlog;
+export default SmartBlog;

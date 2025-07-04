@@ -2,11 +2,11 @@ import { NavLink } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import Loader from '../../Loader';
-import EducationBlog from './EducationBlog';
 import useAuth from '../../Layout/useAuth';
 import useAdmin from '../../../hooks/useAdmin';
+import SmartBlog from './SmartBlog';
 
-const EducationBlogs = () => {
+const SmartBlogs = () => {
     const [blogs, setBlogs] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [blogsPerPage, setBlogsPerPage] = useState(window.innerWidth < 1024 ? 6 : 12);
@@ -47,7 +47,7 @@ const EducationBlogs = () => {
     };
 
     const filteredBlogs = blogs
-        .filter(blog => blog.blogCategory === "Education")
+        .filter(blog => blog.blogCategory === "Smart Resource")
         .filter(blog => {
             const title = blog.blogTitle?.toLowerCase() || '';
             const description = blog.blogShortDescription?.toLowerCase() || '';
@@ -85,7 +85,7 @@ const EducationBlogs = () => {
             {/* Title */}
             <div className="text-center mb-2">
                 <h2 className="text-2xl lg:text-3xl font-bold">
-                    <span className="text-[#2acb35]">Education</span> Blog
+                    <span className="text-[#2acb35]">Smart Resource</span> Blog
                 </h2>
             </div>
 
@@ -158,9 +158,9 @@ const EducationBlogs = () => {
                         </p>
                     ) : (
                         currentBlogs.map(blog => (
-                            <EducationBlog
+                            <SmartBlog
                                 key={blog._id}
-                               educationBlog={blog}
+                                smartBlog={blog}
                                 onDelete={handleDeleteFromUI}
                                 onUpdate={handleUpdateFromUI}
                                 searchTerm={searchTerm}
@@ -215,4 +215,4 @@ const EducationBlogs = () => {
     );
 };
 
-export default EducationBlogs;
+export default SmartBlogs;
