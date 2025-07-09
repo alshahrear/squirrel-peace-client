@@ -37,8 +37,15 @@ const BlogHomeLatest = ({ latestBlog }) => {
 
                 {/* Centered content */}
                 <div className="flex-1 flex flex-col justify-center text-left">
-                    <h2 className="text-xl font-bold mb-2 drop-shadow-sm">{blogTitle}</h2>
-                    <p className="text-sm group-hover:font-medium mb-4 leading-relaxed drop-shadow-sm transition-all duration-300">
+                    <h2 className="text-xl font-bold mt-3 mb-2 drop-shadow-sm">{blogTitle}</h2>
+                    <p
+                        className="text-sm group-hover:font-medium leading-relaxed drop-shadow-sm transition-all duration-300 text-left overflow-hidden text-ellipsis"
+                        style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 4,
+                            WebkitBoxOrient: 'vertical',
+                        }}
+                    >
                         {blogShortDescription}
                     </p>
                 </div>

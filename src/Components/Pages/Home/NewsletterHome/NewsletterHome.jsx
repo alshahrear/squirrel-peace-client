@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import newsHome from "../../../../assets/story4.jpg";
-import { toast, Toaster } from "react-hot-toast";
-import "animate.css";
 import Marquee from "react-fast-marquee";
 
 const Newsletter = () => {
@@ -29,20 +27,6 @@ const Newsletter = () => {
         };
     }, []);
 
-    const handleNewsletter = (e) => {
-        e.preventDefault();
-        const form = e.target;
-        const email = form.email.value;
-
-        if (!email) {
-            toast.error("Please enter a valid email! 📩");
-            return;
-        }
-
-        toast.success("Thank you for subscribing to our newsletter! 🎉");
-        form.reset();
-    };
-
     return (
         <div ref={sectionRef}>
             <Marquee
@@ -54,8 +38,6 @@ const Newsletter = () => {
                 delivered straight to your inbox! 💌 Subscribe now and grow with us! 🌿
             </Marquee>
 
-            <Toaster position="top-right" reverseOrder={false} />
-
             <div
                 className="relative h-[400px] flex flex-col items-center justify-center text-center text-white px-6
                            sm:h-[350px] sm:px-4
@@ -65,7 +47,7 @@ const Newsletter = () => {
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     backgroundRepeat: "no-repeat",
-                    backgroundAttachment: "fixed", // ✅ Fixed background
+                    backgroundAttachment: "fixed",
                 }}
             >
                 <div className="absolute inset-0 bg-black/40 rounded-md"></div>
@@ -83,27 +65,20 @@ const Newsletter = () => {
                         Subscribe to our <span className="text-[#e6e94d] font-bold">Newsletter</span> for eco-friendly tips, special offers,<br />
                         and the latest updates on new plants! 🌱
                     </p>
-                    <form
-                        onSubmit={handleNewsletter}
-                        className="flex flex-col md:flex-row items-center gap-4 justify-center
-                                   xs:flex-col xs:gap-3"
+
+                    <a
+                        href="https://emerald-diary.beehiiv.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
                     >
-                        <input
-                            className="border border-[#b7d5ba] px-4 py-2 rounded-md text-black w-72
-                                       xs:w-full"
-                            type="email"
-                            name="email"
-                            placeholder="Enter your email"
-                        />
                         <button
-                            type="submit"
                             className="bg-gradient-to-r from-[#2acb35] via-green-600 to-[#2acb35] text-white font-semibold px-6 py-2 rounded-md
                                        hover:from-green-800 hover:via-green-700 hover:to-lime-600 transition-all duration-300
                                        xs:w-full"
                         >
                             Subscribe
                         </button>
-                    </form>
+                    </a>
                 </div>
             </div>
         </div>

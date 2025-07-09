@@ -159,12 +159,19 @@ const DraftBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
           </div>
 
           <div className="flex-grow flex flex-col justify-center">
-            <h2 className="text-xl font-bold mb-2 drop-shadow-sm text-left">
+            <h2 className="text-xl font-bold mt-3 mb-2 drop-shadow-sm text-left">
               {highlightText(storyTitle, searchTerm)}
             </h2>
-            <p className="text-sm group-hover:font-medium mb-6 leading-relaxed drop-shadow-sm transition-all duration-300 text-left">
-              {highlightText(storyShortDescription, searchTerm)}
-            </p>
+            <p
+            className="text-sm group-hover:font-medium leading-relaxed drop-shadow-sm transition-all duration-300 text-left overflow-hidden text-ellipsis"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 4,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
+            {highlightText(storyShortDescription, searchTerm)}
+          </p>
           </div>
 
           <div>

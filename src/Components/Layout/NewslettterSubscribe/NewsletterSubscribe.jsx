@@ -49,21 +49,21 @@ const NewsletterSubscribe = () => {
           Join Our Newsletter
         </h2>
         <p className="text-gray-600 mb-5 px-4 md:px-0">
-          Get inspiring stories, updates and creative ideas delivered straight to your inbox.
+          Once a week, Squirrel Peace sends thoughtful, helpful content about freelancing, focus, and finding balance in your creative work.
         </p>
-        <form className="flex flex-col gap-4 w-full max-w-md px-2 md:px-0">
-          <input
-            type="email"
-            placeholder="Enter your email"
-            className="border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#2acb35]"
-          />
+        <a
+          href="https://emerald-diary.beehiiv.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full max-w-md px-2 md:px-0"
+        >
           <button
-            type="submit"
-            className="bg-[#2acb35] hover:bg-[#26b030] transition duration-300 text-white font-semibold py-3 rounded-lg"
+            type="button"
+            className="w-full bg-[#2acb35] hover:bg-[#26b030] transition duration-300 text-white font-semibold py-3 rounded-lg"
           >
             Subscribe Now
           </button>
-        </form>
+        </a>
       </div>
     </div>
   );

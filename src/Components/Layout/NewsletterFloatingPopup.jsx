@@ -1,23 +1,20 @@
 import { useEffect, useState } from "react";
 import { FiMail } from "react-icons/fi";
-import Swal from "sweetalert2";
 import "animate.css";
 import { useLocation } from "react-router-dom";
 
 const NewsletterFloatingPopup = () => {
   const [showForm, setShowForm] = useState(false);
-  const [email, setEmail] = useState("");
-
   const location = useLocation();
 
   // ✅ Cookie helper functions
   const setCookie = (name, value, days) => {
-    const expires = new Date(Date.now() + days * 86400000).toUTCString(); // 1 দিন = 86400000 ms
+    const expires = new Date(Date.now() + days * 86400000).toUTCString();
     document.cookie = `${name}=${value}; expires=${expires}; path=/`;
   };
 
   const getCookie = (name) => {
-    return document.cookie.split('; ').find(row => row.startsWith(name + '='))?.split('=')[1];
+    return document.cookie.split("; ").find((row) => row.startsWith(name + "="))?.split("=")[1];
   };
 
   // ✅ Newsletter পেজে গেলে এবং cookie না থাকলে popup দেখানো
@@ -27,26 +24,9 @@ const NewsletterFloatingPopup = () => {
     }
   }, [location.pathname]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!email) return;
-
-    Swal.fire({
-      icon: "success",
-      title: "Subscribed!",
-      text: "Thank you for subscribing to our newsletter.",
-      timer: 2000,
-      showConfirmButton: false,
-    });
-
-    setEmail("");
-    setShowForm(false);
-    setCookie("hideNewsletter", "true", 1); // ✅ ১ দিনের জন্য cookie সেট
-  };
-
   const handleClose = () => {
     setShowForm(false);
-    setCookie("hideNewsletter", "true", 1); // ✅ ✕ ক্লিক করলে cookie সেট
+    setCookie("hideNewsletter", "true", 1);
   };
 
   return (
@@ -76,22 +56,17 @@ const NewsletterFloatingPopup = () => {
               <span className="text-[#2acb35]">for 100% free</span>
             </h3>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="email"
-                required
-                placeholder="Enter your email"
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#2acb35] text-sm"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+            <a
+              href="https://emerald-diary.beehiiv.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <button
-                type="submit"
                 className="w-full bg-[#2acb35] text-white py-2 rounded text-sm font-semibold transition-transform duration-300 hover:scale-105"
               >
                 Subscribe
               </button>
-            </form>
+            </a>
           </div>
         </div>
       )}

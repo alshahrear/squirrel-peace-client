@@ -219,10 +219,17 @@ const DailyBlog = ({ dailyBlog, onDelete, onUpdate, searchTerm }) => {
         )}
 
         <div className="flex-grow flex flex-col justify-center">
-          <h2 className="text-xl font-bold mt-3 mb-3 drop-shadow-sm text-left">
+          <h2 className="text-xl font-bold mt-3 mb-2 drop-shadow-sm text-left">
             {highlightText(blogTitle, searchTerm)}
           </h2>
-          <p className="text-sm group-hover:font-medium mb-5 leading-relaxed drop-shadow-sm transition-all duration-300 text-left">
+          <p
+            className="text-sm group-hover:font-medium leading-relaxed drop-shadow-sm transition-all duration-300 text-left overflow-hidden text-ellipsis"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 4,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
             {highlightText(blogShortDescription, searchTerm)}
           </p>
         </div>

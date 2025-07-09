@@ -14,7 +14,7 @@ import useAdmin from "../../../hooks/useAdmin";
 
 const Footer = () => {
 
-  const {user} = useAuth();
+  const { user } = useAuth();
   const [isAdmin] = useAdmin();
 
   return (
@@ -56,26 +56,26 @@ const Footer = () => {
             </NavLink>
           </p>
           <p className="text-[16px]">
-            <NavLink to="/lifeStyle">
+            <NavLink to="/adventureDiary">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Life Style Blog
+                Adventure Diary
               </span>
             </NavLink>
           </p>
           <p className="text-[16px]">
-            <NavLink to="/travel">
+            <NavLink to="/dailyNotes">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Travel Blog
+                Daily Notes
               </span>
             </NavLink>
           </p>
           <p className="text-[16px]">
-            <NavLink to="/health">
+            <NavLink to="/smartResource">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Health Blog
+                Smart Resource
               </span>
             </NavLink>
           </p>
@@ -126,15 +126,15 @@ const Footer = () => {
             </NavLink>
           </p>
           {
-            user && isAdmin && 
+            user && isAdmin &&
             <p className="text-[16px]">
-            <NavLink to="/adminPages">
-              -{" "}
-              <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Admin
-              </span>
-            </NavLink>
-          </p>
+              <NavLink to="/adminPages">
+                -{" "}
+                <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
+                  Admin
+                </span>
+              </NavLink>
+            </p>
           }
         </nav>
 
@@ -148,16 +148,16 @@ const Footer = () => {
               <span className="text-xl text-[#2acb35]">
                 <HiOutlineMailOpen />
               </span>
-              <input
-                className="border-0 bg-transparent focus:outline-none text-black ml-2 flex-grow"
-                type="email"
-                placeholder="Enter Your Email*"
-                required
-              />
             </label>
-            <button className="btn text-white text-lg font-medium rounded-r-full pr-5 border-0 bg-[#2acb35] hover:bg-[#3d3d3d] flex items-center gap-2">
-              Join <FaPaperPlane />
-            </button>
+            <a
+              href="https://emerald-diary.beehiiv.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <button className="btn text-white text-lg font-medium rounded-r-full pr-5 border-0 bg-[#2acb35] hover:bg-[#3d3d3d] flex items-center gap-2">
+                Subscribe <FaPaperPlane />
+              </button>
+            </a>
           </div>
         </nav>
       </footer>
