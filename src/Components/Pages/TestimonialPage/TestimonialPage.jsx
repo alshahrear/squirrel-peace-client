@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import coffee from "../../../assets/Testimonialshome.jpg";
+import success from "../../../assets/success1.jpg";
 import TestimonialBlog from "./TestimonialBlog";
 import { NavLink } from "react-router-dom";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
@@ -50,13 +50,13 @@ const TestimonialPage = () => {
             </Helmet>
 
             {/* ✅ Mobile-only Banner */}
-            <div className="block md:hidden w-full h-[220px] sm:h-[260px] relative">
+            <div className="block md:hidden w-full h-[350px] sm:h-[320px] relative">
                 <img
-                    src={coffee}
+                    src={success}
                     alt="Testimonial Banner"
                     className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                     <h1 className="text-white text-2xl sm:text-3xl font-bold">Successful Stories</h1>
                 </div>
             </div>
@@ -92,7 +92,7 @@ const TestimonialPage = () => {
                     <div className="flex-1 w-full">
                         <img
                             className="rounded-2xl w-full h-80 object-cover"
-                            src={coffee}
+                            src={success}
                             alt="Story"
                         />
                     </div>

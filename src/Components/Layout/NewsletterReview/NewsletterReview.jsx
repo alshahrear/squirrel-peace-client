@@ -16,10 +16,10 @@ const NewsletterReview = ({ testimonial }) => {
                     />
                 </div>
                 <div className="border-b border-green-200 text-center pb-3">
-                    <h4 className="text-lg font-semibold text-gray-900">{customerName || "Anonymous"}</h4>
+                    <h4 className="text-lg font-semibold ">{customerName || "Anonymous"}</h4>
                     <p className="text-[#2acb35]">Subscriber of Newsletter</p>
                 </div>
-                <p className="italic text-gray-700 pt-5">{review || "No review available"}</p>
+                <p className="italic pt-5">{review || "No review available"}</p>
             </div>
         </div>
     );

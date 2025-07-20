@@ -155,6 +155,18 @@ const AdminPages = () => {
                         </button>
                     </div>
                 </NavLink>
+                <a
+                    href="https://docs.google.com/spreadsheets/d/1EVARoR00WD2E3I0oL85AQbtYvto4HGJPBfVs-axupBQ/edit?usp=sharing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
+                        <span className="relative z-10 group-hover:text-[#404040] hover:scale-105">
+                            Business Money Receipt
+                        </span>
+                        <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
+                    </button>
+                </a>
             </div>
         </div>
     );

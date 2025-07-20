@@ -48,6 +48,14 @@ const Footer = () => {
             Quick Links
           </h4>
           <p className="text-[16px]">
+            <NavLink to="/">
+              -{" "}
+              <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
+                Home
+              </span>
+            </NavLink>
+          </p>
+          <p className="text-[16px]">
             <NavLink to="/about">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
@@ -80,10 +88,10 @@ const Footer = () => {
             </NavLink>
           </p>
           <p className="text-[16px]">
-            <NavLink to="/newsletter">
+            <NavLink to="/story">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Newsletter
+                Story
               </span>
             </NavLink>
           </p>
@@ -94,10 +102,10 @@ const Footer = () => {
             Quick Links
           </h4>
           <p className="text-[16px]">
-            <NavLink to="/story">
+            <NavLink to="/newsletter">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Story
+                Newsletter
               </span>
             </NavLink>
           </p>
@@ -167,7 +175,7 @@ const Footer = () => {
           <div>
             <p>
               © {new Date().getFullYear()} All Rights Reserved, Powered by{" "}
-              <span className="text-[#29bf33]">Squirrel Peace</span>.
+              <span className="text-[#2acb35]">Squirrel Peace</span>.
             </p>
           </div>
           <div className="flex flex-col md:flex-row items-center gap-4 md:gap-10">

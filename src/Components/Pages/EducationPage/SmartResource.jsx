@@ -13,7 +13,7 @@ const SmartResource = () => {
             </Helmet>
 
             <div
-                className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"
+                className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] bg-cover bg-center flex items-center justify-center"
                 style={{ backgroundImage: `url(${travel1})` }}
             >
                 {/* Transparent Dark Box Like Image */}

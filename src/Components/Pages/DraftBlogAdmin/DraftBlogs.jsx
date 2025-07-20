@@ -134,11 +134,10 @@ const DraftBlogs = ({ stories, setStories }) => {
                 </div>
 
                 {/* Description */}
-                <p className="text-center mt-2 px-4 sm:px-0 text-sm sm:text-base">
+                <p className="text-center mt-2 px-4 sm:px-0 ">
                     Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
                     teacher, your motivator, your coach and your friend.
                 </p>
-
                 {/* Mobile Search */}
                 <div className="sm:hidden flex justify-center mt-4">
                     <div className="relative w-full max-w-xs">

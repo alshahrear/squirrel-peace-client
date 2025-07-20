@@ -1,9 +1,14 @@
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-import newscover from "../../../assets/newscover.jpg";
-import newsletter from "../../../assets/newsletter.jpg";
-import testimonial from "../../../assets/Testimonialshome.jpg";
+// import newscover from "../../../assets/newscover.jpg";
+// import newsletter from "../../../assets/newsletter.jpg";
+// import testimonial from "../../../assets/Testimonialshome.jpg";
+// import testimonial from "../../../assets/Testimonialshome.jpg";
+import newsletter1 from "../../../assets/newsletter1.jpg";
+import newsletter2 from "../../../assets/newsletter2.jpg";
+import newsletter3 from "../../../assets/newsletter3.jpg";
+import newsletter4 from "../../../assets/newsletter4.jpg";
 import { FaRegHandshake } from "react-icons/fa";
 import { useEffect, useRef, useState } from "react";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
@@ -74,7 +79,7 @@ const NewsletterPage = () => {
     return () => clearInterval(interval);
   }, [isProgressVisible]);
 
-  const bannerImages = [newscover, newsletter, testimonial, newscover];
+  const bannerImages = [newsletter1, newsletter2, newsletter3, newsletter4];
 
   const mobileSliderSettings = {
     dots: false,
@@ -109,11 +114,11 @@ const NewsletterPage = () => {
               <img
                 src={img}
                 alt={`Mobile Banner ${idx}`}
-                className="w-full h-64 object-cover"
+                className="w-full h-[350px] object-cover"
               />
-              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white text-center px-4">
+              <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-white text-center px-4">
                 <h2 className="text-2xl font-bold">1000+ People Join With Us</h2>
-                <p className="text-sm mt-1">Please Subscribe</p>
+                <p className="mt-1">Please Subscribe</p>
               </div>
             </div>
           ))}
@@ -125,17 +130,17 @@ const NewsletterPage = () => {
         <h2 className="text-2xl font-bold text-[#082c2f]">
           Getting A Greener Future Safe Environment
         </h2>
-        <p className="text-gray-600 text-base mt-2">
+        <p className="text-gray-600 mt-2">
           Competently cultivate worldwide e-tailers through principle-centered value professionally engineer high-payoff deliverables.
         </p>
-        <p className="text-gray-600 text-base mt-2">
+        <p className="text-gray-600 mt-2">
           Rapidiously network cost effective vortals and create exceptional eco-experiences with our mission.
         </p>
 
         <div className="mt-6 space-y-5">
           {skills.map((skill, index) => (
             <div key={index}>
-              <div className="flex justify-between text-[#082c2f] text-base font-semibold">
+              <div className="flex justify-between text-[#082c2f] font-semibold">
                 <span>{skill.name}</span>
                 <span>{progress[index]}%</span>
               </div>
@@ -211,7 +216,7 @@ const NewsletterPage = () => {
           <h1 className="text-3xl sm:text-4xl font-bold text-[#082c2f]">
             Join Our Weekly Newsletter
           </h1>
-          <p className="text-lg text-gray-700 font-medium max-w-3xl mx-auto">
+          <p className="max-w-3xl mx-auto">
             Once a week, Squirrel Peace sends thoughtful, helpful content about freelancing, focus, and finding balance in your creative work.
           </p>
         </div>
@@ -228,17 +233,17 @@ const NewsletterPage = () => {
               <FaRegHandshake className="text-2xl text-[#2acb35]" />
               Our Testimonials
             </h3>
-            <h2 className="text-3xl font-bold text-gray-900 mt-2">
+            <h2 className="text-3xl font-semibold mt-2">
               They Were <span className="text-[#2acb35]">Happy</span> With Our Service
             </h2>
-            <p className="text-gray-600 mt-4 text-base">
+            <p className=" mt-4 ">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore.
             </p>
-            <p className="text-gray-600 mt-2 text-base">
+            <p className=" mt-2 ">
               Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
             </p>
             <NavLink to="/success">
-              <button className="mt-6 bg-[#2acb35] hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-full">
+              <button className="mt-6 bg-[#2acb35] hover:bg-[#5EC7A7] text-white font-semibold px-6 py-2 rounded-full">
                 View More
               </button>
             </NavLink>

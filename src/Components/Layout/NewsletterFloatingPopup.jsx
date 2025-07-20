@@ -34,7 +34,7 @@ const NewsletterFloatingPopup = () => {
       {/* 🔘 Floating Mail Button - সব পেজে দেখা যাবে */}
       <button
         onClick={() => setShowForm(true)}
-        className="fixed bottom-10 left-4 z-50 bg-[#2acb35] hover:bg-[#219c2a] text-white w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-transform duration-300 hover:scale-110"
+        className="fixed bottom-10 left-4 z-50 bg-[#2acb35] hover:bg-[#75DCAA] text-white w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-transform duration-300 hover:scale-110"
         title="Subscribe Newsletter"
       >
         <FiMail className="text-xl" />

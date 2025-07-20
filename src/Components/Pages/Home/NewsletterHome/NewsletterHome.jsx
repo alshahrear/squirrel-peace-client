@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import newsHome from "../../../../assets/story4.jpg";
+import newsHome from "../../../../assets/newsletter2.jpg";
 import Marquee from "react-fast-marquee";
 
 const Newsletter = () => {
@@ -50,7 +50,7 @@ const Newsletter = () => {
                     backgroundAttachment: "fixed",
                 }}
             >
-                <div className="absolute inset-0 bg-black/40 rounded-md"></div>
+                <div className="absolute inset-0 bg-black/20 rounded-md"></div>
 
                 <div
                     className={`relative z-10 space-y-4 max-w-4xl

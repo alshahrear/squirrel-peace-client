@@ -164,11 +164,64 @@ const StoryDetails = () => {
   return (
     <div key={id}>
       <Helmet>
-        <title>{story?.storyTitle} - Storial Peace</title>
+        <title>{story?.storyTitle ? `${story.storyTitle} - Storial Peace` : 'Storial Peace'}</title>
+
+        <meta
+          name="description"
+          content={
+            story?.storyShortDescription
+              ? story.storyShortDescription.slice(0, 150)
+              : 'Discover inspiring travel stories on Storial Peace.'
+          }
+        />
+
+        {/* Open Graph for Facebook, LinkedIn, WhatsApp */}
+        <meta property="og:title" content={story?.storyTitle ? `${story.storyTitle} - Storial Peace` : 'Storial Peace'} />
+        <meta
+          property="og:description"
+          content={
+            story?.storyShortDescription
+              ? story.storyShortDescription.slice(0, 150)
+              : 'Discover inspiring travel stories on Storial Peace.'
+          }
+        />
+        <meta property="og:type" content="article" />
+        <meta
+          property="og:url"
+          content={story?._id ? `https://squirrel-peace-71169.web.app/story/${story._id}` : 'https://squirrel-peace-71169.web.app'}
+        />
+        <meta
+          property="og:image"
+          content={
+            story?.storyImage
+              ? story.storyImage
+              : 'https://your-default-image-url.com/default-image.jpg'
+          }
+        />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={story?.storyTitle ? `${story.storyTitle} - Storial Peace` : 'Storial Peace'} />
+        <meta
+          name="twitter:description"
+          content={
+            story?.storyShortDescription
+              ? story.storyShortDescription.slice(0, 150)
+              : 'Discover inspiring travel stories on Storial Peace.'
+          }
+        />
+        <meta
+          name="twitter:image"
+          content={
+            story?.storyImage
+              ? story.storyImage
+              : 'https://your-default-image-url.com/default-image.jpg'
+          }
+        />
       </Helmet>
 
       <div
-        className="relative w-full h-[350px] md:h-[450px] bg-cover bg-center flex items-center justify-center"
+        className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] bg-cover bg-center flex items-center justify-center"
         style={{ backgroundImage: `url(${story.storyImage})` }}
       >
         <div className="bg-black/60 text-white text-center p-6 w-11/12 sm:w-3/4 md:w-2/3 rounded-2xl">

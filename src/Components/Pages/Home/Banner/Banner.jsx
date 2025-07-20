@@ -14,7 +14,7 @@ const images = [banner1, banner2, banner3, banner4];
 const Banner = () => {
     return (
         <div>
-            <div className="relative w-full h-[350px] sm:h-[400px] md:h-[450px] lg:h-[500px] overflow-hidden">
+            <div className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] overflow-hidden">
                 {/* Background Swiper Image Slider */}
                 <Swiper
                     modules={[Autoplay]}
@@ -32,7 +32,7 @@ const Banner = () => {
                                     className="w-full h-full object-cover"
                                 />
                                 {/* Overlay */}
-                                <div className="absolute inset-0 bg-black/40"></div>
+                                <div className="absolute inset-0 bg-black/20"></div>
                             </div>
                         </SwiperSlide>
                     ))}
@@ -48,9 +48,11 @@ const Banner = () => {
                             Discover the soothing harmony of nature — where every tree, breeze, and birdsong whispers calm into your soul. Let your journey toward natural serenity begin here.
                         </p>
                         <div className="animate__animated animate__slideInUp animate__slow flex flex-wrap gap-4 sm:gap-6 pt-2 sm:pt-4">
-                            <button className="bg-[#2acb35] hover:bg-transparent border border-[#2acb35] text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold shadow-lg transition duration-300 text-sm sm:text-base">
-                                About Us
-                            </button>
+                            <NavLink to="/about">
+                                <button className="bg-[#2acb35] hover:bg-transparent border border-[#2acb35] text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold shadow-lg transition duration-300 text-sm sm:text-base">
+                                    About Us
+                                </button>
+                            </NavLink>
                             <NavLink to="/contact">
                                 <button className="bg-white hover:bg-transparent border border-white text-[#2acb35] px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-semibold shadow-lg transition duration-300 text-sm sm:text-base">
                                     Contact Us

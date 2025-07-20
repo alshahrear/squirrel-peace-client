@@ -1,7 +1,6 @@
 // StoryDetails.jsx
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState, useMemo, useRef } from "react";
-import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 import Loader from "../../../Components/Loader";
 import { Helmet } from "react-helmet";
 import DOMPurify from "dompurify";
@@ -167,7 +166,7 @@ const DraftDetails = () => {
       </Helmet>
 
       <div
-        className="relative w-full h-[350px] md:h-[450px] bg-cover bg-center flex items-center justify-center"
+        className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] bg-cover bg-center flex items-center justify-center"
         style={{ backgroundImage: `url(${story.storyImage})` }}
       >
         <div className="bg-black/60 text-white text-center p-6 w-11/12 sm:w-3/4 md:w-2/3 rounded-2xl">
@@ -233,9 +232,6 @@ const DraftDetails = () => {
           </div>
 
           <div className="lg:border-l border-t border-gray-300 md:rounded-tl-xl pt-5 lg:pt-0 pl-0 lg:pl-5">
-            <h3 className="text-2xl font-bold text-center pt-2 mb-4">
-              Other Stories
-            </h3>
             <div className="grid grid-cols-1 gap-4 lg:flex lg:flex-col">
               {(window.innerWidth >= 1024 ? otherStories.slice(0, 10) : otherStories.slice(0, 5)).map((item) => (
                 <Link
@@ -292,8 +288,6 @@ const DraftDetails = () => {
           </div>
         </div>
       </div>
-
-      <BlogAll />
 
       {/* Edit Modal */}
       {showModal && (

@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet";
-import termBanner from "../../assets/blogcat2.jpg"; 
+import termsCondition from "../../assets/termsCondition.jpg"; 
 
 const TermCondition = () => {
   return (
@@ -10,10 +10,10 @@ const TermCondition = () => {
 
       {/* ✅ Banner Section */}
       <div
-        className="h-[280px] sm:h-[300px] md:h-[350px] lg:h-[400px] w-full bg-cover bg-center relative flex items-center justify-center"
-        style={{ backgroundImage: `url(${termBanner})` }}
+        className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] w-full bg-cover bg-center relative flex items-center justify-center"
+        style={{ backgroundImage: `url(${termsCondition})` }}
       >
-        <div className="absolute inset-0 bg-black/50"></div>
+        <div className="absolute inset-0 bg-black/20"></div>
         <h1 className="relative z-10 text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center">
           Terms and Conditions
         </h1>

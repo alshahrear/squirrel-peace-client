@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
 import { NavLink } from "react-router-dom";
-import contactBanner from "../../../assets/blogcat2.jpg"; 
+import contact from "../../../assets/contact.jpg"; 
 
 const Contact = () => {
   const axiosPublic = useAxiosPublic();
@@ -81,10 +81,10 @@ const Contact = () => {
 
       {/* ✅ Banner Section */}
       <div
-        className="h-[280px] sm:h-[300px] md:h-[350px] lg:h-[400px] w-full bg-cover bg-center relative flex items-center justify-center"
-        style={{ backgroundImage: `url(${contactBanner})` }}
+        className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] w-full bg-cover bg-center relative flex items-center justify-center"
+        style={{ backgroundImage: `url(${contact})` }}
       >
-        <div className="absolute inset-0 bg-black/50"></div>
+        <div className="absolute inset-0 bg-black/20"></div>
         <h1 className="relative z-10 text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center">
           Contact Us
         </h1>
@@ -156,7 +156,7 @@ const Contact = () => {
               <button
                 type="submit"
                 disabled={isSending}
-                className="btn w-full bg-[#2acb35] text-white font-semibold py-5 rounded-full hover:bg-[#59ca59] transition duration-300 hover:scale-105"
+                className="btn w-full bg-[#2acb35]  font-semibold py-5 rounded-full hover:bg-[#4FC76F] transition duration-300 hover:scale-105"
               >
                 {isSending ? "SENDING MESSAGE..." : "SEND MESSAGE"}
               </button>

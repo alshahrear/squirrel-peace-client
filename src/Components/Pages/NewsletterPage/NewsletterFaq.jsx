@@ -79,10 +79,10 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
         <>
             <div className="collapse collapse-arrow border border-gray-300 rounded-lg">
                 <input type="checkbox" className="peer" />
-                <div className="collapse-title font-medium text-base md:text-lg peer-checked:bg-[#2acb35] bg-white peer-checked:text-white">
+                <div className="collapse-title font-medium text-lg peer-checked:bg-[#2acb35] bg-white peer-checked:text-white">
                     {faqQuestion}
                 </div>
-                <div className="collapse-content peer-checked:bg-gray-100 text-sm md:text-base">
+                <div className="collapse-content peer-checked:bg-gray-100 text-base">
                     <p className="mb-4 mt-2">{faqAnswer}</p>
                     {user && isAdmin && (
                         <div className="flex flex-col sm:flex-row gap-3">

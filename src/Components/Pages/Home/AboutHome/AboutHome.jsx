@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import girl1 from "../../../../assets/about4.jpg";
-import girl2 from "../../../../assets/about3.jpg";
-import girl3 from "../../../../assets/about5.jpg";
+import success from "../../../../assets/success1.jpg";
+import newsletter from "../../../../assets/newsletter2.jpg";
 import { motion } from "framer-motion";
 
 const features = [
@@ -70,8 +70,8 @@ const AboutHome = () => {
 
   const images = [
     { src: girl1, label: "About", path: "/about" },
-    { src: girl2, label: "Success", path: "/success" },
-    { src: girl3, label: "Newsletter", path: "/newsletter" },
+    { src: success, label: "Success", path: "/success" },
+    { src: newsletter, label: "Newsletter", path: "/newsletter" },
   ];
 
   return (
@@ -134,7 +134,7 @@ const AboutHome = () => {
                   alt={img.label}
                   className="w-full h-56 object-cover transition-transform duration-500 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-black/40 flex justify-center items-center transition duration-300">
+                <div className="absolute inset-0 bg-black/20 flex justify-center items-center transition duration-300">
                   <button
                     className="text-white px-5 py-2 border border-white rounded-full text-sm md:text-base transition-all duration-300
                     group-hover:border-[#2acb35] group-hover:scale-105 hover:bg-white hover:text-[#2acb35]"

@@ -21,7 +21,7 @@ const SocialContact = () => {
   return (
     <div className="bg-[#262626] hidden md:block">
       <div className="flex justify-between max-w-screen-xl mx-auto py-2 px-3">
-        <div className="flex items-center gap-8 text-white font-medium text-[16px]">
+        <div className="flex items-center gap-6 text-white text-base">
           <p className="flex items-center gap-3">
             Have any need
             <PiSealQuestionFill className="text-[#2acb35] text-xl" />

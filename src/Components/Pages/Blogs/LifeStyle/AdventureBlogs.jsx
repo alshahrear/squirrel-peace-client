@@ -92,7 +92,7 @@ const AdventureBlogs = () => {
         </h2>
       </div>
 
-      <p className="text-center mt-3 sm:text-base px-2 sm:px-0">
+      <p className="text-center mt-3 text-base md:text-xl px-2 sm:px-0">
         Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
         teacher, your motivator, your coach and your friend.
       </p>

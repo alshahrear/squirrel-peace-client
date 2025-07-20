@@ -13,7 +13,7 @@ const AdventureDiary = () => {
 
             {/* Hero Section */}
             <div
-                className="relative w-full h-[450px] bg-cover bg-center flex items-center justify-center"
+                className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] bg-cover bg-center flex items-center justify-center"
                 style={{ backgroundImage: `url(${life1})` }}
             >
                 <div className="bg-black/60 text-white text-center p-6 sm:p-10 w-[90%] sm:w-3/5 rounded-3xl">

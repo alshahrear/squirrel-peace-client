@@ -5,7 +5,7 @@ import FaqList from "./FaqList";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
 import { Helmet } from "react-helmet";
-import faqBanner from "../../../assets/blogcat2.jpg";
+import faq from "../../../assets/faq.jpg";
 import { motion } from "framer-motion";  // <-- এখানে যোগ হলো
 
 const Faq = () => {
@@ -132,11 +132,11 @@ const Faq = () => {
 
       {/* Banner Section */}
       <div
-        className="h-[280px] sm:h-[300px] md:h-[350px] lg:h-[400px] w-full bg-cover bg-center relative flex items-center justify-center"
-        style={{ backgroundImage: `url(${faqBanner})` }}
+        className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] w-full bg-cover bg-center relative flex items-center justify-center"
+        style={{ backgroundImage: `url(${faq})` }}
       >
-        <div className="absolute inset-0 bg-black/50"></div>
-        <h1 className="relative z-10 text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <h1 className="relative z-10 text-3xl md:text-3xl lg:text-4xl font-bold text-white text-center">
           Frequently Asked Questions
         </h1>
       </div>

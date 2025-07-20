@@ -159,16 +159,69 @@ const BlogDetails = () => {
   return (
     <div key={id}>
       <Helmet>
-        <title>{blog?.blogTitle} - Storial Peace</title>
+        <title>{blog?.blogTitle ? `${blog.blogTitle} - Storial Peace` : 'Storial Peace'}</title>
+
+        <meta
+          name="description"
+          content={
+            blog?.blogShortDescription
+              ? blog.blogShortDescription.slice(0, 150)
+              : 'Explore amazing travel stories on Storial Peace.'
+          }
+        />
+
+        {/* Open Graph */}
+        <meta property="og:title" content={blog?.blogTitle ? `${blog.blogTitle} - Storial Peace` : 'Storial Peace'} />
+        <meta
+          property="og:description"
+          content={
+            blog?.blogShortDescription
+              ? blog.blogShortDescription.slice(0, 150)
+              : 'Explore amazing travel stories on Storial Peace.'
+          }
+        />
+        <meta property="og:type" content="article" />
+        <meta
+          property="og:url"
+          content={blog?._id ? `https://squirrel-peace-71169.web.app/blog/${blog._id}` : 'https://squirrel-peace-71169.web.app'}
+        />
+        <meta
+          property="og:image"
+          content={
+            blog?.blogImage
+              ? blog.blogImage
+              : 'https://your-default-image-url.com/default-image.jpg'
+          }
+        />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={blog?.blogTitle ? `${blog.blogTitle} - Storial Peace` : 'Storial Peace'} />
+        <meta
+          name="twitter:description"
+          content={
+            blog?.blogShortDescription
+              ? blog.blogShortDescription.slice(0, 150)
+              : 'Explore amazing travel stories on Storial Peace.'
+          }
+        />
+        <meta
+          name="twitter:image"
+          content={
+            blog?.blogImage
+              ? blog.blogImage
+              : 'https://your-default-image-url.com/default-image.jpg'
+          }
+        />
       </Helmet>
 
       <div
-        className="relative w-full h-[350px] md:h-[450px] bg-cover bg-center flex items-center justify-center"
+        className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] bg-cover bg-center flex items-center justify-center"
         style={{ backgroundImage: `url(${blog.blogImage})` }}
       >
         <div className="bg-black/60 text-white text-center p-6 w-11/12 sm:w-3/4 md:w-2/3 rounded-2xl">
-          <h2 className="text-xl sm:text-3xl font-semibold">{blog.blogTitle}</h2>
-          <p className="text-sm mt-3 md:text-base">{blog.blogShortDescription}</p>
+          <h2 className="text-xl sm:text-3xl font-medium">{blog.blogTitle}</h2>
+          <p className="text-sm mt-3 font-medium md:text-lg">{blog.blogShortDescription}</p>
         </div>
       </div>
 
@@ -183,8 +236,8 @@ const BlogDetails = () => {
               Edit <AiFillEdit />
             </button>
           )}
-          <div className="flex justify-between text-gray-700 font-medium">
-            <span>{blog?.blogTime || 1} min read</span>
+          <div className="flex justify-between font-medium">
+            <span>{blog?.blogTime || 3} min read</span>
             <span>Publish Date: {blog?.blogDate}</span>
           </div>
         </div>

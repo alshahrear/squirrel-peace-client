@@ -1,64 +1,123 @@
+/* -----------------------------------------------
+   🌐 Base Imports: Tailwind, DaisyUI, Google Fonts
+-------------------------------------------------- */
 @import "tailwindcss";
 @plugin "daisyui";
 
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
+/* -----------------------------------------------
+   🌟 Base Global Styles
+-------------------------------------------------- */
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 400;
+  font-size: 17px;
+  line-height: 1.7;
+  letter-spacing: 0.3px;
+  color: #1b1d1f;
+  background-color: #fff;
+  margin: 0;
+  padding: 0;
 }
 
+/* -----------------------------------------------
+   ✨ Rich Content Styling (for ReactQuill / Blog)
+-------------------------------------------------- */
 .rich-content h1 {
   font-size: 2rem;
-  font-weight: bold;
+  font-weight: 700;
+  letter-spacing: 0.3px;
   margin: 1rem 0;
 }
+
 .rich-content h2 {
   font-size: 1.75rem;
-  font-weight: bold;
+  font-weight: 700;
+  letter-spacing: 0.3px;
   margin: 1rem 0;
 }
+
 .rich-content h3 {
   font-size: 1.5rem;
-  font-weight: bold;
+  font-weight: 700;
+  letter-spacing: 0.3px;
   margin: 1rem 0;
 }
+
 .rich-content p {
+  font-size: 18px;
   margin: 0.75rem 0;
   line-height: 1.75;
+  letter-spacing: 0.3px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
 }
+
+/* 👇 Mobile view: screen width 640px or less */
+@media (max-width: 640px) {
+  .rich-content p {
+    font-size: 17px;
+    letter-spacing: 0.3px;
+  }
+}
+
 .rich-content ul,
 .rich-content ol {
   margin-left: 1.5rem;
   padding-left: 1rem;
+  letter-spacing: 0.3px;
+  list-style-position: outside;
 }
+
+.rich-content li {
+  font-size: 20px;
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.3px;
+}
+
+/* 📱 Mobile: screen width 640px or less */
+@media (max-width: 640px) {
+  .rich-content li {
+    font-size: 16px;
+  }
+}
+
 .rich-content img {
   max-width: 100%;
   height: auto;
   margin: 1rem 0;
-  border-radius: 8px;
+  border-radius: 10px;
+  display: block;
 }
 
-/* ✅ Added this section */
 .rich-content .ql-size-small {
   font-size: 0.75rem;
 }
+
 .rich-content .ql-size-large {
   font-size: 1.5rem;
 }
+
 .rich-content .ql-size-huge {
   font-size: 2.5rem;
 }
 
-/* Link styling inside rich-content (ReactQuill output) */
 .rich-content a {
-  color: #1d4ed8; /* Tailwind blue-700 */
+  color: #1d4ed8;
   text-decoration: none;
   transition: color 0.3s, text-decoration 0.3s;
 }
 
 .rich-content a:hover {
-  color: #1e40af; /* Tailwind blue-800 */
+  color: #1e40af;
   text-decoration: underline;
 }
 
+.rich-content blockquote {
+  border-left: 4px solid #ddd;
+  padding-left: 1rem;
+  color: #555;
+  font-style: italic;
+  margin: 1rem 0;
+}
