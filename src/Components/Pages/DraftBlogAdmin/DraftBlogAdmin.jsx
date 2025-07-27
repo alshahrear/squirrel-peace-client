@@ -188,7 +188,7 @@ const DraftBlogAdmin = () => {
       {/* 🔴 ব্যানার প্রিভিউ */}
       {/* ব্যানার */}
       <div
-        className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] w-full bg-cover bg-center relative flex items-center justify-center"
+        className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] w-full bg-cover bg-center relative flex items-center justify-center"
         style={{ backgroundImage: `url(${contactBanner})` }}
       >
         <div className="absolute inset-0 bg-black/20"></div>
@@ -213,9 +213,8 @@ const DraftBlogAdmin = () => {
             <i className="text-[#2acb35]">{user.displayName}</i> to the Draft
             Blog Panel
           </h1>
-          <p className="">
-            Please add a new draft blog to help us build trust and credibility
-            with future clients.
+          <p className="max-w-5xl mx-auto">
+            This is where you can upload and review blog drafts before they are finally approved for publishing. Carefully check all content, formatting, and details to ensure quality and accuracy. Only after final approval, the blogs will be moved from here to the main blog or story sections. Your thorough review helps maintain the high standard of our website.
           </p>
         </div>
 
@@ -337,10 +336,10 @@ const DraftBlogAdmin = () => {
             >
               {isSubmitting ? (
                 <>
-                  Adding Story <FaSpinner className="animate-spin" />
+                  Adding Draft <FaSpinner className="animate-spin" />
                 </>
               ) : (
-                "Add Story"
+                "Add Draft"
               )}
             </button>
           </form>

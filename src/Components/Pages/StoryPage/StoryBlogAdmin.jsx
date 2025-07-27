@@ -171,8 +171,8 @@ const StoryBlogAdmin = () => {
       <h1 className="text-3xl font-bold">
         Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Story Blog Administration Panel
       </h1>
-      <p className="text-xl font-semibold">
-        Please add a new story blog to help us build trust and credibility with future clients.
+      <p className="max-w-5xl mx-auto mb-5">
+        Here you can upload and manage story blogs to be published on our website. Please ensure that each story is carefully written, properly formatted, and thoroughly reviewed before uploading. Your attention to detail helps maintain the quality and credibility of our story blog section.
       </p>
 
       <NavLink to="/story">

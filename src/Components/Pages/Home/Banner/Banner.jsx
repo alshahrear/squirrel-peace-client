@@ -4,17 +4,18 @@ import "swiper/css";
 import 'animate.css';
 import { NavLink } from "react-router-dom";
 
-import banner1 from "../../../../assets/about2.jpg";
-import banner2 from "../../../../assets/about3.jpg";
-import banner3 from "../../../../assets/about5.jpg";
-import banner4 from "../../../../assets/about6.jpg";
+import banner1 from "../../../../assets/home2.jpg";
+import banner2 from "../../../../assets/home3.jpg";
+import banner3 from "../../../../assets/home4.jpg";
+import banner4 from "../../../../assets/home5.jpg";
+import banner5 from "../../../../assets/home1.jpg";
 
-const images = [banner1, banner2, banner3, banner4];
+const images = [banner1, banner2, banner3, banner4, banner5];
 
 const Banner = () => {
     return (
         <div>
-            <div className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] overflow-hidden">
+            <div className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] overflow-hidden">
                 {/* Background Swiper Image Slider */}
                 <Swiper
                     modules={[Autoplay]}

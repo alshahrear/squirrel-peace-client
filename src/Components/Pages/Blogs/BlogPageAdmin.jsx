@@ -169,8 +169,8 @@ const BlogPageAdmin = () => {
             <h1 className="text-3xl font-bold">
                 Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Blog Page Administration Panel
             </h1>
-            <p className="text-xl font-semibold">
-                Please add a new blog to help us build trust and credibility with future clients.
+            <p className="max-w-5xl mx-auto mb-5">
+                This is your space to upload and manage regular blog posts on the website. Make sure all blogs are clear, well-structured, and reviewed carefully before publishing. Proper management of blogs ensures our readers get valuable and trustworthy content.
             </p>
 
             <div className='flex flex-wrap justify-center gap-10'>

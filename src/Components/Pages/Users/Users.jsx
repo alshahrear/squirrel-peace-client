@@ -147,8 +147,8 @@ const Users = () => {
         <h1 className="text-2xl sm:text-3xl font-bold">
           Welcome <i className="text-[#2acb35]">{user?.displayName || "Admin"}</i> To The Users Administration Panel
         </h1>
-        <p className="text-base sm:text-lg text-gray-700 font-medium">
-          Here is the list of all users who have registered on the website.
+        <p className="max-w-5xl mx-auto">
+          Here you can view all registered users on our website, including those with admin roles. From this panel, you can manage user records and delete users as needed. Please note that deleting a user here only removes them from this list—it does not delete their data from the entire website. Handle user management carefully to maintain platform integrity.
         </p>
       </div>
 

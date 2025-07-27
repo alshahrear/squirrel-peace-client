@@ -49,7 +49,7 @@ const BlogHomeLatests = () => {
       <div className="pb-10">
         <div className="relative flex justify-center items-center">
           <h2 className="text-2xl font-bold text-center w-full">
-            Our <span className="text-[#2acb35]">Latest Blog</span>
+            Our <span className="text-[#2acb35]">Latest</span> Blog
           </h2>
 
           {/* Desktop Dropdown */}
@@ -72,9 +72,8 @@ const BlogHomeLatests = () => {
           </div>
         </div>
 
-        <p className="text-center mt-2">
-          Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
-          teacher, your motivator, your coach and your friend.
+        <p className="max-w-5xl mx-auto text-center mt-3">
+          Explore our latest blogs and get inspired. Each post brings fresh experiences, ideas, and discoveries to enrich your life. Whether you dream of exploring new places or simply want to find joy in everyday moments, here you'll find stories and tips to motivate you to live better every day.
         </p>
       </div>
 

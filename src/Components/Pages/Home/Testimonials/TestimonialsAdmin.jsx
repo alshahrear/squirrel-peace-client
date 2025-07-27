@@ -71,8 +71,8 @@ const TestimonialsAdmin = () => {
             <h1 className="text-3xl font-bold">
                 Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Testimonial Administration Panel
             </h1>
-            <p className="text-xl font-semibold">
-                Please add a new testimonial to help us build trust and credibility with future clients.
+            <p className="max-w-5xl mx-auto">
+                Here you can add and upload success stories and testimonials from our clients or users to be displayed on the website. Please ensure all testimonials are genuine and well-formatted before publishing. Your careful management helps build trust and credibility for our platform.
             </p>
             <NavLink to="/success">
                 <button className="relative overflow-hidden px-5 py-2 text-white bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">

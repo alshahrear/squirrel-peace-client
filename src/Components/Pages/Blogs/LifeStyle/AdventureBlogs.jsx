@@ -83,21 +83,16 @@ const AdventureBlogs = () => {
   const handleNext = () => currentPage < totalPages && handlePageChange(currentPage + 1);
 
   return (
-    <div className="max-w-screen-xl mx-auto px-4 py-10">
+    <div className="max-w-screen-xl mx-auto px-4 py-5">
       <div ref={topRef}></div>
 
       <div className="text-center mb-2">
-        <h2 className="text-2xl lg:text-3xl font-bold">
-          Adventure <span className="text-[#2acb35]">Diary</span>
+        <h2 className="text-2xl lg:text-3xl font-semibold">
+          <span className='text-[#2acb35]'>__</span>Explore our <span className='text-[#2acb35]'>inspiring</span> blog<span className='text-[#2acb35]'>__</span>
         </h2>
       </div>
 
-      <p className="text-center mt-3 text-base md:text-xl px-2 sm:px-0">
-        Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
-        teacher, your motivator, your coach and your friend.
-      </p>
-
-      <div className="lg:hidden mt-4 flex flex-col items-center gap-3">
+      <div className="lg:hidden flex flex-col items-center gap-3">
         {user && isAdmin && (
           <NavLink to="/blogPageAdmin">
             <button className="btn bg-[#2acb35] text-white px-4 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition text-sm">
@@ -105,7 +100,7 @@ const AdventureBlogs = () => {
             </button>
           </NavLink>
         )}
-        <div className="relative w-full max-w-xs">
+        <div className="relative w-full max-w-xs ">
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
           <input
             type="text"

@@ -10,7 +10,7 @@ const TermCondition = () => {
 
       {/* ✅ Banner Section */}
       <div
-        className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] w-full bg-cover bg-center relative flex items-center justify-center"
+        className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] w-full bg-cover bg-center relative flex items-center justify-center"
         style={{ backgroundImage: `url(${termsCondition})` }}
       >
         <div className="absolute inset-0 bg-black/20"></div>

@@ -216,10 +216,10 @@ const BlogDetails = () => {
       </Helmet>
 
       <div
-        className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] bg-cover bg-center flex items-center justify-center"
+        className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] bg-cover bg-center flex items-center justify-center"
         style={{ backgroundImage: `url(${blog.blogImage})` }}
       >
-        <div className="bg-black/60 text-white text-center p-6 w-11/12 sm:w-3/4 md:w-2/3 rounded-2xl">
+        <div className="bg-black/30 text-white text-center p-6 w-11/12 sm:w-3/4 md:w-2/3 rounded-2xl">
           <h2 className="text-xl sm:text-3xl font-medium">{blog.blogTitle}</h2>
           <p className="text-sm mt-3 font-medium md:text-lg">{blog.blogShortDescription}</p>
         </div>

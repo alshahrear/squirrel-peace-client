@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import about0 from "../../../assets/blogcat2.jpg";
+import about0 from "../../../assets/about.jpg";
 import ImageBanner from "../../Layout/ImageBanner/ImageBanner";
 import AboutChoose from "../../Layout/AboutSection/AboutChoose";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
@@ -24,7 +24,7 @@ const AboutPage = () => {
                 {/* Use grid for responsive layout */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                     <div className="">
-                        <img className="w-full rounded-lg" src={about0} alt="" />
+                        <img className="w-full h-[] rounded-lg" src={about0} alt="" />
                     </div>
                     <div className="">
                         <h3 className="text-xl font-semibold">

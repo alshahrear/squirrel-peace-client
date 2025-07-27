@@ -105,17 +105,10 @@ const StoryBlogs = () => {
             <div className="pb-10">
                 {/* Common Title */}
                 <div className="text-center mb-2">
-                    <h2 className="text-2xl lg:text-3xl font-bold">
-                        Our <span className="text-[#2acb35]">Story</span>
-                    </h2>
-                </div>
-
-                {/* Description */}
-                <p className="text-center mt-3 sm:text-base px-2 sm:px-0">
-                    Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
-                    teacher, your motivator, your coach and your friend.
-                </p>
-
+                <h2 className="text-2xl lg:text-3xl font-semibold">
+                    <span className='text-[#2acb35]'>__</span>Explore our <span className='text-[#2acb35]'>inspiring</span> story<span className='text-[#2acb35]'>__</span>
+                </h2>
+            </div>
                 {/* Mobile Add + Search */}
                 <div className="lg:hidden mt-4 flex flex-col items-center gap-3">
                     {

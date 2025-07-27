@@ -39,10 +39,10 @@ const FaqAdmin = () => {
           Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the FAQ
           Administration Panel
         </h1>
-        <p className="text-base sm:text-lg text-gray-700 font-medium">
-          This is a list of users who couldn't find their question in our FAQ
-          section and decided to submit their own. <br />
-          Here are their submitted questions.
+        <p className="max-w-5xl mx-auto">
+          Here you can view all the questions submitted by visitors who didn't find their answers on the FAQ page.
+          Review these queries carefully and consider adding them to the FAQ to help future visitors.
+          Your prompt attention ensures our FAQ stays relevant and helpful.
         </p>
         <NavLink to="/faq">
           <button className="relative overflow-hidden px-4 sm:px-6 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">

@@ -84,8 +84,8 @@ const AdminPages = () => {
                 <h1 className="text-3xl font-bold">
                     Welcome <span className="text-[#2acb35]">{user.displayName}</span> to the Main Administration Panel
                 </h1>
-                <p>
-                    Lorem ipsum, dolor sit amet consectetur adipisicing elit. Quasi suscipit iure nostrum at, tempora delectus quos exercitationem ea fugit illo voluptate
+                <p className="max-w-5xl mx-auto">
+                    You are now at the control center of the dashboard. From here, you can easily manage all essential content, user activity, and website updates. Please handle everything responsibly to ensure our platform remains at its best.
                 </p>
             </div>
 

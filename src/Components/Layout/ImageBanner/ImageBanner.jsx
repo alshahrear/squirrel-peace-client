@@ -2,18 +2,19 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import "swiper/css";
 
-import img1 from "../../../assets/about1.jpg";
-import img2 from "../../../assets/about2.jpg";
-import img3 from "../../../assets/about3.jpg";
-import img4 from "../../../assets/about4.jpg";
+import img1 from "../../../assets/home2.jpg";
+import img2 from "../../../assets/home3.jpg";
+import img3 from "../../../assets/home4.jpg";
+import img4 from "../../../assets/home5.jpg";
+import img5 from "../../../assets/home1.jpg";
 import { NavLink } from "react-router-dom";
 
-const images = [img1, img2, img3, img4];
+const images = [img1, img2, img3, img4, img5];
 
 const ImageBanner = () => {
     return (
         <div>
-            <div className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] overflow-hidden">
+            <div className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] overflow-hidden">
                 {/* Background Swiper Image Slider */}
                 <Swiper
                     modules={[Autoplay]}

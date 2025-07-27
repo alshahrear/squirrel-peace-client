@@ -79,24 +79,17 @@ const DailyBlogs = () => {
     const handleNext = () => currentPage < totalPages && handlePageChange(currentPage + 1);
 
     return (
-        <div className="max-w-screen-xl mx-auto px-4 pb-10">
+        <div className="max-w-screen-xl mx-auto px-4 pb-5">
             <div ref={topRef}></div>
 
-            {/* Title */}
             <div className="text-center mb-2">
-                <h2 className="text-2xl lg:text-3xl font-bold">
-                    <span className="text-[#2acb35]">Daily</span> Notes
+                <h2 className="text-2xl lg:text-3xl font-semibold">
+                    <span className='text-[#2acb35]'>__</span>Explore our <span className='text-[#2acb35]'>inspiring</span> blog<span className='text-[#2acb35]'>__</span>
                 </h2>
             </div>
 
-            {/* Description */}
-            <p className="text-center mt-3 sm:text-base px-2 sm:px-0">
-                Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
-                teacher, your motivator, your coach and your friend.
-            </p>
-
             {/* Mobile Add + Search */}
-            <div className="lg:hidden mt-4 flex flex-col items-center gap-3">
+            <div className="lg:hidden flex flex-col items-center gap-3">
                 {
                     user && isAdmin &&
                     <NavLink to="/blogPageAdmin">

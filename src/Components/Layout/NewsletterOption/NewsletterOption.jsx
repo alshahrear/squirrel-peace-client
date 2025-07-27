@@ -12,7 +12,7 @@ const NewsletterOption = () => {
       <Marquee
         speed={50}
         gradient={false}
-        className="py-2 text-sm sm:text-base font-medium bg-[#6DD9A0] text-white"
+        className="py-2 text-sm sm:text-base font-medium bg-[#66d489] text-white"
       >
         🌱 Stay in the Loop! Get Squirrel Peace tips, exclusive offers & plant updates
         delivered straight to your inbox! 💌 Subscribe now and grow with us! 🌿

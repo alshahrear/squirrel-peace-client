@@ -27,12 +27,12 @@ const StoryHomes = () => {
     }, []);
 
     return (
-        <div className="max-w-screen-xl mx-auto py-10 px-4">
+        <div className="max-w-screen-xl mx-auto pb-10 px-4">
             <div className="pb-5">
                 {/* Header */}
                 <div className="relative flex justify-center items-center">
                     <h2 className="text-2xl font-bold text-center w-full">
-                        Our <span className="text-[#2acb35]">Story Blog</span>
+                        Our <span className="text-[#2acb35]">Story</span> Blog
                     </h2>
 
                     {/* View All Button - Laptop only */}
@@ -46,9 +46,8 @@ const StoryHomes = () => {
                 </div>
 
                 {/* Subtitle */}
-                <p className="text-center mt-2">
-                    Our personal trainers can help you meet your fitness goals. They can become your <br className="hidden sm:block" />
-                    teacher, your motivator, your coach and your friend.
+                <p className="max-w-5xl mx-auto text-center mt-3">
+                    These aren't just stories — they're reflections of life, filled with emotions, insights, and inspiration. As you read, you'll laugh, feel, and maybe even pause to reflect on your own journey. Every story is a little spark to help you grow, think deeper, and see life from a new angle.
                 </p>
             </div>
 

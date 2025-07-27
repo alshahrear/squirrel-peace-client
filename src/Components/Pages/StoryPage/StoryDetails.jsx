@@ -221,7 +221,7 @@ const StoryDetails = () => {
       </Helmet>
 
       <div
-        className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[450px] bg-cover bg-center flex items-center justify-center"
+        className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] bg-cover bg-center flex items-center justify-center"
         style={{ backgroundImage: `url(${story.storyImage})` }}
       >
         <div className="bg-black/60 text-white text-center p-6 w-11/12 sm:w-3/4 md:w-2/3 rounded-2xl">
@@ -358,7 +358,7 @@ const StoryDetails = () => {
 
       {/* Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4">
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center px-4">
           <div className="bg-white w-full max-w-3xl rounded-xl shadow-xl p-4 md:p-6 relative max-h-[90vh] flex flex-col">
             <button
               onClick={() => setShowModal(false)}

@@ -49,83 +49,77 @@ const TestimonialPage = () => {
                 <title>Success - Storial Peace</title>
             </Helmet>
 
-            {/* ✅ Mobile-only Banner */}
-            <div className="block md:hidden w-full h-[350px] sm:h-[320px] relative">
+            {/* ✅ One Responsive Banner for All Devices */}
+            <div className="w-full h-[320px] md:h-[400px] lg:h-[480px] relative">
                 <img
                     src={success}
                     alt="Testimonial Banner"
                     className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                    <h1 className="text-white text-2xl sm:text-3xl font-bold">Successful Stories</h1>
+                    <h1 className="text-white text-3xl sm:text-3xl md:text-4xl font-bold">Our Success</h1>
                 </div>
             </div>
 
             <div className="max-w-screen-xl mx-auto py-10 px-4">
-                {/* ✅ Desktop Layout */}
-                <div className="hidden md:flex flex-row items-center gap-10">
+                {/* ✅ Desktop: Mission & Vision beside text */}
+                <div className="hidden md:flex flex-row items-start gap-10">
                     <div className="flex-1 space-y-5 text-left">
-                        <h3 className="text-2xl text-[#2acb35] font-semibold">Some Story Behind Us</h3>
-                        <h2 className="text-3xl font-bold">We Have 20 Years of experience</h2>
-                        <p className="text-gray-500">
-                            Lorem ipsum dolor sit amet consectetur adipisicing elit. Rerum alias minima beatae dicta ea magni perspiciatis numquam quis nulla atque fugit repellendus in enim, eum quasi, quam distinctio, similique sapiente deleniti non eius sequi. Quia quis adipisci cumque fugit accusamus!
+                        <h3 className="text-3xl font-semibold "><span className="text-[#2acb35]">Together</span>, We Made Life Better</h3>
+                        <p>
+                            Every moment spent on our website is a step toward a happier, more fulfilling life. From practical tips to emotional support, we're helping people overcome stress, discover their potential, and embrace joy in everyday living.
                         </p>
-
-                        <div className="flex flex-row gap-6">
-                            <div className="space-y-2 flex-1">
-                                <p className="text-lg font-semibold">Our Mission</p>
-                                <p className="text-gray-500">Explaining how pleasure and pain are managed effectively. ow pleasure and pain</p>
-                            </div>
-                            <div className="space-y-2 flex-1">
-                                <p className="text-lg font-semibold">Our Vision</p>
-                                <p className="text-gray-500">To deliver consistent and joyful experience to all users. ow pleasure and pain</p>
-                            </div>
-                        </div>
-
-                        <NavLink to="/about">
-                            <button className="btn px-8 py-4 rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35] transition duration-300">
-                                About Us
-                            </button>
-                        </NavLink>
+                        <p>
+                            Those who walk with us don't just find knowledge — they find peace, purpose, motivation, and lasting transformation. With the guidance and inspiration we provide, many have applied these learnings in their real lives — and today, they are living happier, more meaningful lives.
+                        </p>
+                        <p>
+                            We're proud to be a part of so many success stories. And for us, this is just the beginning of many more lives touched, healed, and transformed.
+                        </p>
                     </div>
 
-                    <div className="flex-1 w-full">
-                        <img
-                            className="rounded-2xl w-full h-80 object-cover"
-                            src={success}
-                            alt="Story"
-                        />
+                    <div className="flex-1 space-y-8">
+                        <div className="space-y-2">
+                            <p className="text-xl font-semibold text-[#2acb35]">Our Mission</p>
+                            <p>
+                                To inspire, guide, and support individuals toward a more joyful, peaceful, and purpose-driven life. Through practical advice, emotional motivation, and positive content, we aim to help people overcome challenges, learn new things, and build a happier life — one moment at a time.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <p className="text-xl font-semibold text-[#2acb35]">Our Vision</p>
+                            <p>
+                                To create a global community where people feel inspired, emotionally supported, and empowered to lead fulfilling lives. We envision a world where learning, mental well-being, and happiness are accessible to everyone — and where our platform becomes a trusted friend in every person's life journey.
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                {/* ✅ Mobile Text */}
-                <div className="block md:hidden text-center space-y-6">
-                    <h3 className="text-2xl text-[#2acb35] font-semibold">Some Story Behind Us</h3>
-                    <h2 className="text-3xl font-bold">We Have 20 Years of experience</h2>
-                    <p className="text-gray-500 max-w-2xl mx-auto">
-                        We handpick the best coaches and health experts to give you personalized care.
+                {/* ✅ Mobile View */}
+                <div className="block md:hidden space-y-5">
+                    <h3 className="text-2xl text-center font-semibold"><span className="text-[#2acb35]">Together</span>, We Made Life Better</h3>
+                    <p>
+                        Every moment spent on our website is a step toward a happier, more fulfilling life. From practical tips to emotional support, we're helping people overcome stress, discover their potential, and embrace joy in everyday living.
+                    </p>
+                    <p>
+                        Those who walk with us don't just find knowledge — they find peace, purpose, motivation, and lasting transformation. With the guidance and inspiration we provide, many have applied these learnings in their real lives — and today, they are living happier, more meaningful lives.
+                    </p>
+                    <p>
+                        We're proud to be a part of so many success stories. And for us, this is just the beginning of many more lives touched, healed, and transformed.
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                        <div className="space-y-2 max-w-xs">
-                            <p className="text-lg font-semibold">Our Mission</p>
-                            <p className="text-gray-500">
-                                Explaining how pleasure and pain are managed effectively.
+                        <div className="space-y-2">
+                            <p className="text-2xl text-center font-semibold text-[#2acb35]">Our Mission</p>
+                            <p>
+                                To inspire, guide, and support individuals toward a more joyful, peaceful, and purpose-driven life. Through practical advice, emotional motivation, and positive content, we aim to help people overcome challenges, learn new things, and build a happier life — one moment at a time.
                             </p>
                         </div>
-                        <div className="space-y-2 max-w-xs">
-                            <p className="text-lg font-semibold">Our Vision</p>
-                            <p className="text-gray-500">
-                                To deliver consistent and joyful experience to all users.
+                        <div className="space-y-2">
+                            <p className="text-2xl text-center font-semibold text-[#2acb35]">Our Vision</p>
+                            <p>
+                                To create a global community where people feel inspired, emotionally supported, and empowered to lead fulfilling lives. We envision a world where learning, mental well-being, and happiness are accessible to everyone — and where our platform becomes a trusted friend in every person's life journey.
                             </p>
                         </div>
                     </div>
-
-                    <NavLink to="/about">
-                        <button className="btn mt-4 px-8 py-4 rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35] transition duration-300">
-                            About Us
-                        </button>
-                    </NavLink>
                 </div>
 
                 {/* Testimonials */}
@@ -174,11 +168,11 @@ const TestimonialPage = () => {
 
             {/* Bottom Sections */}
             <div>
-                <h2 className="text-3xl font-bold text-center">Process To Safe Environment</h2>
+                <h2 className=" text-2xl lg:text-3xl font-bold text-center">Stay <span className="text-[#2acb35]">Connected</span>, Stay <span className="text-[#2acb35]">Inspired</span></h2>
                 <TestimonialCard />
             </div>
 
-            <div className="mx-4">
+            <div className="mx-4" id="blogAll">
                 <BlogAll />
             </div>
 

@@ -1,6 +1,6 @@
 import Swal from "sweetalert2";
 import { useState } from "react";
-import story4 from "../../../assets/story4.jpg";
+import story4 from "../../../assets/newsletterBlog.jpg";
 
 const BlogBottoms = ({ _id: blogId, blogTitle, blogCategory, blogImage }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);

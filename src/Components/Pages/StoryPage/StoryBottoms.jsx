@@ -1,6 +1,6 @@
 import Swal from "sweetalert2";
 import { useState } from "react";
-import story4 from "../../../assets/story4.jpg"
+import story4 from "../../../assets/newsletterBlog.jpg"
 
 const StoryBottoms = ({ _id: storyId, storyTitle, storyCategory, storyImage }) => {
     const [isSubmitting, setIsSubmitting] = useState(false); // loading state

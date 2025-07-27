@@ -29,8 +29,8 @@ const CommentsAdmin = () => {
         <h1 className="text-3xl font-bold">
           Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Comments Administration Panel
         </h1>
-        <p className="text-lg text-gray-700 font-medium">
-          Here are the comments submitted by users!
+        <p className="max-w-5xl mx-auto">
+          Here you can view all comments submitted by users on different blogs. You can see which blog each comment belongs to and review the content carefully. From this panel, you can also contact the commenters directly if needed. Please manage the comments responsibly to maintain a positive and engaging community.
         </p>
       </div>
 
