@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import life1 from "../../../assets/adventureDiary.jpg";
 import travel1 from "../../../assets/dailyNotes.jpg";
 import health1 from "../../../assets/smartResource.jpg";
-import story from "../../../assets/story2.jpg";
+import story from "../../../assets/story.jpg";
 import Loader from "../../../Components/Loader";
 
 const blogs = [

@@ -1,10 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
-import newscover from "../../../assets/newscover.jpg";
-import newsletter from "../../../assets/newsletter.jpg";
-import testimonial from "../../../assets/Testimonialshome.jpg";
+import newscover from "../../../assets/newsletter2.jpg";
 
-const images = [newscover, newsletter, testimonial];
+const images = [newscover];
 
 const NewsletterSubscribe = () => {
   const [current, setCurrent] = useState(0);
@@ -45,11 +43,11 @@ const NewsletterSubscribe = () => {
 
       {/* Right Content Section */}
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center text-center bg-white px-6 py-6 md:px-8 md:py-8 rounded-b-2xl md:rounded-b-none md:rounded-r-2xl">
-        <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 mb-3 md:mb-4 px-2 md:px-0">
-          Join Our Newsletter
+        <h2 className=" text-2xl lg:text-3xl font-semibold text-gray-800 mb-3 md:mb-4 px-2 md:px-0">
+          Please join our newsletter <br /> It's <span className="text-[#2acb35]">100%</span> free
         </h2>
-        <p className="text-gray-600 mb-5 px-4 md:px-0">
-          Once a week, Squirrel Peace sends thoughtful, helpful content about freelancing, focus, and finding balance in your creative work.
+        <p className="mb-5">
+         We believe everyone deserves a happy and joyful life. Through our daily newsletter, we bring you inspiring and positive content that can brighten your day and help you live better. Join us and let's make your life happier together!
         </p>
         <a
           href="https://emerald-diary.beehiiv.com/"

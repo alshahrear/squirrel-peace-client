@@ -24,7 +24,7 @@ const Testimonial = ({ testimonial }) => {
             <img
               src={profileLink}
               alt={customerName}
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-white group-hover:border-[#2acb35] transition-all duration-300"
+              className="w-28 h-28 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-white group-hover:border-[#2acb35] transition-all duration-300"
             />
             <div className="mt-3 sm:mt-0 text-center sm:text-left">
               <h2 className="text-lg sm:text-xl text-[#2acb35] font-semibold">
@@ -41,7 +41,7 @@ const Testimonial = ({ testimonial }) => {
             </div>
           </div>
 
-          <div className="pt-4 text-center sm:text-left flex-grow">
+          <div className="py-3 text-center sm:text-left flex-grow">
             <p className="text-sm sm:text-[16px] font-medium text-gray-700 leading-relaxed">
               "{review}"
             </p>

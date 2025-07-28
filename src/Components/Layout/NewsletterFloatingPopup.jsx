@@ -45,26 +45,28 @@ const NewsletterFloatingPopup = () => {
       {showForm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
           <div
-            className="relative rounded-lg border border-[#2acb35] p-6 w-full max-w-[350px] h-[420px] md:max-w-[450px] md:h-[450px] shadow-xl text-center animate__animated animate__zoomIn flex flex-col justify-center items-center bg-cover bg-center "
+            className="relative rounded-lg border border-[#2acb35] p-6 w-full max-w-[350px] h-[420px] md:max-w-[450px] md:h-[450px] shadow-xl text-center animate__animated animate__zoomIn flex flex-col justify-center items-center bg-cover bg-center"
             style={{
               backgroundImage: `url(${Newsletter})`,
             }}
           >
+            {/* 🔲 Dark Overlay */}
+            <div className="absolute inset-0 bg-black/30 rounded-lg z-0"></div>
+
             {/* ✖️ Close Button */}
             <button
-              className="absolute top-2 right-3 text-white font-bold text-2xl"
+              className="absolute top-2 right-3 text-white font-bold text-2xl z-10"
               onClick={handleClose}
             >
               ✕
             </button>
 
             {/* 🔲 Content on top of image */}
-            <div className="relative z-10 mt-6">
-              <h3 className="text-lg md:text-xl text-white font-bold mb-4 drop-shadow-md">
-                Subscribe our newsletter <br />
-                <span className="text-[#B6F5C0]">for 100% free</span>
+            <div className="relative z-10 mt-6 text-white">
+              <h3 className="text-xl md:text-2xl font-semibold drop-shadow-md">
+               1000+ People Have Joined Us 😊
               </h3>
-
+              <p className="text-xl font-medium my-3">Please subscribe our newsletter <br /> for <span className="font-semibold">100%</span> free</p>
               <a
                 href="https://emerald-diary.beehiiv.com/"
                 target="_blank"

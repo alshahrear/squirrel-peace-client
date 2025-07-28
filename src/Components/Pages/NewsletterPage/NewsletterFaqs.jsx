@@ -75,8 +75,8 @@ const NewsletterFaqs = () => {
     return (
         <div className="max-w-4xl mx-auto px-4 md:px-0">
             {/* Header section */}
-            <div className="pb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <h2 className="text-2xl md:text-3xl font-bold">Newsletter FAQs</h2>
+            <div className="pb-5 flex flex-col sm:flex-row items-center sm:items-center justify-between gap-4 text-center">
+                <h2 className="text-2xl text-center font-semibold">Newsletter <span className="text-[#2acb35]">FAQ's</span></h2>
                 {
                     user && isAdmin &&
                     <button

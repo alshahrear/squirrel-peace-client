@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import newsHome from "../../../../assets/newsletterHome3.jpg";
+import newsHome from "../../../../assets/newsletter3.jpg";
 import Marquee from "react-fast-marquee";
 
 const Newsletter = () => {
@@ -34,14 +34,13 @@ const Newsletter = () => {
                 gradient={false}
                 className="bg-[#2acb35] text-white py-4 text-lg font-medium"
             >
-                🌱 Stay in the Loop! Get Squirrel Peace tips, exclusive offers & plant updates
-                delivered straight to your inbox! 💌 Subscribe now and grow with us! 🌿
+                📧 Subscribe now to receive weekly emails filled with inspiring stories, peaceful thoughts, and practical tips to help you live a happier, calmer life. 📬
             </Marquee>
 
             <div
                 className="relative h-[400px] flex flex-col items-center justify-center text-center text-white px-6
                            sm:h-[350px] sm:px-4
-                           xs:h-[300px] xs:px-3"
+                           xs:h-[350px] xs:px-3"
                 style={{
                     backgroundImage: `url(${newsHome})`,
                     backgroundSize: "cover",
@@ -56,16 +55,13 @@ const Newsletter = () => {
                     className={`relative z-10 space-y-4 max-w-4xl
                                 ${isVisible ? "animate__animated animate__zoomInUp" : "opacity-0"}`}
                 >
-                    <h2 className="text-2xl md:text-3xl font-bold
-                                   xs:text-xl xs:leading-snug">
-                        Stay Connected with Nature! 🌿
+                    <h2 className="text-2xl md:text-3xl font-semibold
+                                   ">
+                       Please join our newsletter - It's 100% free
                     </h2>
-                    <p className="text-lg font-medium
-                                  xs:text-base xs:leading-relaxed">
-                        Subscribe to our <span className="text-[#e6e94d] font-bold">Newsletter</span> for eco-friendly tips, special offers,<br />
-                        and the latest updates on new plants! 🌱
+                    <p className="leading-relaxed">
+                        We believe everyone deserves a happy and joyful life. Through our daily newsletter, we bring you inspiring and positive content that can brighten your day and help you live better. Join us and let's make your life happier together!
                     </p>
-
                     <a
                         href="https://emerald-diary.beehiiv.com/"
                         target="_blank"

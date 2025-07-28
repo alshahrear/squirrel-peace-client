@@ -1,4 +1,4 @@
-import story1 from "../../../assets/story2.jpg";
+import story1 from "../../../assets/story.jpg";
 import StoryBlogs from "./StoryBlogs";
 import { Helmet } from "react-helmet";
 import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
@@ -16,7 +16,7 @@ const StoryPages = () => {
                 style={{ backgroundImage: `url(${story1})` }}
             >
                 {/* Dark overlay */}
-                <div className="absolute inset-0 bg-black/10 "></div>
+                <div className="absolute inset-0 bg-black/20 "></div>
                 
                 <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Story</h1>
             </div>

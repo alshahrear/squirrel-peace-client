@@ -12,10 +12,9 @@ const NewsletterOption = () => {
       <Marquee
         speed={50}
         gradient={false}
-        className="py-2 text-sm sm:text-base font-medium bg-[#66d489] text-white"
+        className="py-2 font-medium bg-[#60D07E] text-white"
       >
-        🌱 Stay in the Loop! Get Squirrel Peace tips, exclusive offers & plant updates
-        delivered straight to your inbox! 💌 Subscribe now and grow with us! 🌿
+        📧 Subscribe now to receive weekly emails filled with inspiring stories, peaceful thoughts, and practical tips to help you live a happier, calmer life. 📬
       </Marquee>
 
       <div className="bg-[#2acb35]">
@@ -37,12 +36,11 @@ const NewsletterOption = () => {
         `}
         </style>
 
-        <div className="flex flex-col lg:flex-row items-center justify-between max-w-screen-xl mx-auto py-3 px-4 sm:px-8 gap-6 sm:gap-8 relative">
+        <div className="flex flex-col lg:flex-row items-center justify-between mx-auto py-3 px-4 sm:px-8 gap-6 sm:gap-8 relative">
 
           {/* Left Text */}
-          <h2 className="text-2xl sm:text-2xl lg:text-3xl font-extrabold text-white text-center lg:text-left z-10 leading-snug">
-            Join our newsletter to <br className="hidden lg:block" />{" "}
-            <span className="flex justify-center ">improve your life</span>
+          <h2 className="text-2xl font-extrabold text-white text-center z-10 leading-snug max-w-4xl mx-auto">
+            Join our newsletter to make your life a little better, one email at a time and it's 100% free to subscribe!
           </h2>
           {/* Animated Arrow for Laptop only */}
           <div className="hidden lg:flex flex-col items-center relative">

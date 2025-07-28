@@ -17,8 +17,8 @@ const NewsletterPoint = () => {
 
   return (
     <div className="px-4 md:px-0">
-      <p className="pb-7 text-xl md:text-2xl font-bold text-center">
-        Most played songs this week
+      <p className="pb-7 text-2xl font-semibold text-center">
+        Why You Should <span className="text-[#2acb35]">Subscribe</span> to Our Newsletter
       </p>
 
       {/* Animated list wrapper */}

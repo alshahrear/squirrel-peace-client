@@ -12,14 +12,14 @@ const NewsletterReview = ({ testimonial }) => {
                     <img
                         src={profileLink || check}
                         alt="Reviewer"
-                        className="w-24 h-24 rounded-full object-cover border-4 border-white group-hover:border-[#2acb35] transform group-hover:scale-105 transition-all duration-300"
+                        className="w-28 h-28 lg:w-24 lg:h-24 rounded-full object-cover border-4 border-white group-hover:border-[#2acb35] transform group-hover:scale-105 transition-all duration-300"
                     />
                 </div>
                 <div className="border-b border-green-200 text-center pb-3">
                     <h4 className="text-lg font-semibold ">{customerName || "Anonymous"}</h4>
                     <p className="text-[#2acb35]">Subscriber of Newsletter</p>
                 </div>
-                <p className="italic pt-5">{review || "No review available"}</p>
+                <p className="italic pt-5 text-center">{review || "No review available"}</p>
             </div>
         </div>
     );
