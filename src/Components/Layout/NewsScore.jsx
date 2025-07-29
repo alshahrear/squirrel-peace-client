@@ -2,10 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 
 const data = [
-    { percentage: 87, title: 'Prayer Facility', color: '#EF4444' },      // red-500
-    { percentage: 95, title: 'Experienced Coach', color: '#22C55E' },    // green-500
-    { percentage: 90, title: 'Senior Player', color: '#F59E0B' },        // yellow-500
-    { percentage: 80, title: 'Training Ground', color: '#3B82F6' },      // blue-500
+    { percentage: 92, title: 'Improved Life Quality', color: '#3F51B5' },      
+    { percentage: 95, title: 'Inner Peace & Mental Calm', color: '#009688' },   
+    { percentage: 93, title: 'Knowledge & Awareness Growth', color: '#FFC107' }, 
+    { percentage: 80, title: 'Took Positive Initiatives in Life', color: '#FF5722' }, 
 ];
 
 const CircularProgress = ({ percentage, color }) => {
@@ -70,47 +70,39 @@ const CircularProgress = ({ percentage, color }) => {
 const NewsScore = () => {
     return (
         <div className='max-w-screen-xl mx-auto px-4'>
-            <div className="pb-12 text-center">
-                <div className="border-y border-dashed border-gray-300 pb-10">
-                    {/* Desktop Success Story button */}
+            <div className="pb-10 text-center">
+                {/* Desktop Success Story button */}
                     <div className="hidden sm:flex justify-end ">
                         <NavLink to="/success">
-                            <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition mt-5">
+                            <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition ">
                                 Success Story
                             </button>
                         </NavLink>
                     </div>
-
+                <div className="pb-10">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-bold mb-3 mt-3 md:mt-0">
-                            Professional Hockeys Club
+                        <h2 className="text-2xl md:text-3xl font-semibold ">
+                            The Impact We Have Made
                         </h2>
-                        <p className="text-gray-600 max-w-xl mx-auto ">
-                            Dit amet consectetur. Condimentum dignissim adipiscing aliquam turpis placerat dolor.
-                            Purus urna in sit nullam proin.
-                        </p>
-                    </div>
-
-                    {/* Mobile Success Story button */}
-                    <div className="sm:hidden mt-4 flex justify-center">
-                        <NavLink to="/success">
-                            <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
-                                Success Story
-                            </button>
-                        </NavLink>
                     </div>
                 </div>
 
-                <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 justify-center">
+                <div className=" grid grid-cols-2 md:grid-cols-4 gap-10 justify-center">
                     {data.map((item, idx) => (
                         <div key={idx} className="flex flex-col items-center">
                             <CircularProgress percentage={item.percentage} color={item.color} />
                             <h3 className="mt-4 text-lg font-semibold">{item.title}</h3>
-                            <p className="text-gray-500 text-sm mt-1 text-center sm:px-4">
-                                Amet consectetur. Condimentum dignissim adipiscing.
-                            </p>
                         </div>
                     ))}
+                </div>
+
+                {/* Mobile Success Story button */}
+                <div className="sm:hidden mt-10 flex justify-center">
+                    <NavLink to="/success" className="w-full">
+                        <button className="btn w-full bg-[#2acb35] text-white rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
+                            Success Story
+                        </button>
+                    </NavLink>
                 </div>
             </div>
         </div>

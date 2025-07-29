@@ -45,22 +45,41 @@ const AdminPages = () => {
     });
 
     const accounts = [
-        { name: "Tamim", number: "7017520546866" },
-        { name: "Shishir", number: "7017342178860" },
-        { name: "Romio", number: "2907520730480" },
+        {
+            name: "Tamim",
+            accounts: [
+                { label: "City", number: "2304461313001" },
+                { label: "DBBL", number: "7017520546866" },
+                { label: "BKASH", number: "01877908888" },
+            ],
+        },
+        {
+            name: "Shishir",
+            accounts: [
+                { label: "UCB", number: "2083201000005042" },
+                { label: "DBBL", number: "7017342178860" },
+                { label: "BKASH", number: "01936404039" },
+            ],
+        },
+        {
+            name: "Romio",
+            accounts: [
+                { label: "DBBL", number: "2907520730480" },
+                { label: "BKASH ", number: "01540658473" },
+            ],
+        },
     ];
 
-    const [copiedName, setCopiedName] = useState("");
+    const [copiedNumber, setCopiedNumber] = useState("");
 
-    const handleCopy = (name, number) => {
+    const handleCopy = (number) => {
         try {
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(number);
             } else {
-                // Fallback for insecure contexts or older browsers
                 const textArea = document.createElement("textarea");
                 textArea.value = number;
-                textArea.style.position = "fixed";  // avoid scrolling to bottom
+                textArea.style.position = "fixed";
                 textArea.style.left = "-9999px";
                 document.body.appendChild(textArea);
                 textArea.focus();
@@ -68,8 +87,8 @@ const AdminPages = () => {
                 document.execCommand('copy');
                 document.body.removeChild(textArea);
             }
-            setCopiedName(name);
-            setTimeout(() => setCopiedName(""), 2000);
+            setCopiedNumber(number);
+            setTimeout(() => setCopiedNumber(""), 2000);
         } catch (err) {
             console.error("Copy Failed:", err);
         }
@@ -203,42 +222,43 @@ const AdminPages = () => {
                         <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
                     </button>
                 </a>
-
             </div>
 
             {/* Bank Details Section */}
             <div className="mt-10">
-                <h2 className="text-2xl font-bold text-center mb-5">DBBL Bank Details</h2>
+                <h2 className="text-2xl font-bold text-center mb-5">Bank Details (AC)</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 max-w-7xl mx-auto px-2">
                     {accounts.map((acc) => (
                         <div
-                            key={acc.number}
-                            className={`p-5 border rounded shadow flex flex-col gap-3 transition-colors duration-300
-                                ${copiedName === acc.name ? "bg-green-100 border-green-400" : "bg-white border-gray-300"}
-                            `}
+                            key={acc.name}
+                            className="p-5 border rounded shadow bg-white border-gray-300"
                         >
-                            <p className="font-semibold text-center text-xl">{acc.name}</p>
-                            <p className="text-gray-600 text-center select-all">{acc.number}</p>
-                            <div className="flex justify-center">
-                                <button
-                                    onClick={() => handleCopy(acc.name, acc.number)}
-                                    onTouchStart={() => handleCopy(acc.name, acc.number)}
-                                    className="flex w-full items-center justify-center gap-2 text-sm py-1 px-3 rounded border border-[#2acb35] text-[#2acb35] hover:bg-[#2acb35] hover:text-white transition-all duration-300 select-none"
-                                    type="button"
-                                >
-                                    {copiedName === acc.name ? (
-                                        <>
-                                            <AiOutlineCheckCircle className="text-base" />
-                                            Copied
-                                        </>
-                                    ) : (
-                                        <>
-                                            <FiCopy className="text-base" />
-                                            Copy
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                            <p className="font-semibold text-center text-xl mb-3">{acc.name}</p>
+                            {acc.accounts.map(({ label, number }) => (
+                                <div key={number} className={`mb-3 p-3 rounded border ${copiedNumber === number ? 'bg-green-100 border-green-400' : 'border-gray-300'}`}>
+                                    <div className="flex justify-between items-center gap-2">
+                                        <span className="text-gray-700 font-medium">{label}</span>
+                                        <span className="text-gray-600 select-all text-sm">{number}</span>
+                                        <button
+                                            onClick={() => handleCopy(number)}
+                                            onTouchStart={() => handleCopy(number)}
+                                            className="flex items-center gap-1 px-2 py-1 border border-[#2acb35] text-[#2acb35] hover:bg-[#2acb35] hover:text-white rounded text-xs transition-all"
+                                        >
+                                            {copiedNumber === number ? (
+                                                <>
+                                                    <AiOutlineCheckCircle className="text-sm" />
+                                                    Copied
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FiCopy className="text-sm" />
+                                                    Copy
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ))}
                 </div>

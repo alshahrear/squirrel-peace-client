@@ -32,7 +32,7 @@ const ImageBanner = () => {
                                     className="w-full h-full object-cover"
                                 />
                                 {/* Light Dark Overlay */}
-                                <div className="absolute inset-0 bg-black/20"></div>
+                                <div className="absolute inset-0 bg-black/30"></div>
                             </div>
                         </SwiperSlide>
                     ))}
@@ -40,17 +40,9 @@ const ImageBanner = () => {
 
                 {/* Fixed Foreground Content */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 z-10">
-                    <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white drop-shadow-md mb-4">
-                        Discover the Art of Creativity
-                    </h1>
-                    <p className="text-sm sm:text-base md:text-xl text-white max-w-2xl drop-shadow-sm">
-                        Join us on a journey through color, imagination, and inspiration. Your creative world begins here.
-                    </p>
-                    <NavLink to="">
-                        <button className="bg-[#2acb35] hover:bg-transparent hover:border-1 text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition duration-300 mt-5">
-                            See Story
-                        </button>
-                    </NavLink>
+                    <h2 className="text-2xl md:text-4xl font-semibold text-white drop-shadow-md">
+                        Discover who we are & Why you should stay with us
+                    </h2>
                 </div>
             </div>
         </div>

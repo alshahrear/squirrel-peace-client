@@ -191,7 +191,7 @@ const DraftBlogAdmin = () => {
         className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] w-full bg-cover bg-center relative flex items-center justify-center"
         style={{ backgroundImage: `url(${contactBanner})` }}
       >
-        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0 bg-black/30"></div>
       </div>
 
       {/* রেসপনসিভ ইনপুট ফিল্ড */}

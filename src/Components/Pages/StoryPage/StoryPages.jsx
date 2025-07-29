@@ -16,7 +16,7 @@ const StoryPages = () => {
                 style={{ backgroundImage: `url(${story1})` }}
             >
                 {/* Dark overlay */}
-                <div className="absolute inset-0 bg-black/20 "></div>
+                <div className="absolute inset-0 bg-black/30 "></div>
                 
                 <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Story</h1>
             </div>

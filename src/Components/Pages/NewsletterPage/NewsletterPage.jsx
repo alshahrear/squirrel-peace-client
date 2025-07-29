@@ -15,10 +15,10 @@ import NewsletterWhy from "./NewsletterWhy";
 import { Helmet } from "react-helmet";
 
 const skills = [
-  { name: "Reader Satisfaction", percentage: 97 },
-  { name: "Ocean Cleaning", percentage: 80 },
-  { name: "Tree Plantation", percentage: 85 },
-  { name: "Plastic Reduction", percentage: 75 },
+  { name: "Reader Satisfaction", percentage: 96 },
+  { name: "Mental Peace & Clarity", percentage: 94 },
+  { name: "Life Improvement Tips", percentage: 95 },
+  { name: "Knowledge Expansion", percentage: 93 },
 ];
 
 const NewsletterPage = () => {
@@ -111,7 +111,7 @@ const NewsletterPage = () => {
                 alt={`Mobile Banner ${idx}`}
                 className="w-full h-[350px] object-cover"
               />
-              <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-white text-center px-4">
+              <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center text-white text-center px-4">
                 <h2 className="text-3xl font-bold"><span className="text-[#2acb35]">1000+</span> People Have Joined Us 😊</h2>
                 <p className="mt-1 text-lg font-medium">Please subscribe our newsletter — <br /> It's 100% free!</p>
               </div>

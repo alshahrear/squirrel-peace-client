@@ -135,9 +135,9 @@ const Faq = () => {
         className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] w-full bg-cover bg-center relative flex items-center justify-center"
         style={{ backgroundImage: `url(${faq})` }}
       >
-        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0 bg-black/30"></div>
         <h1 className="relative z-10 text-3xl md:text-3xl lg:text-4xl font-bold text-white text-center">
-          Frequently Asked Questions
+          FAQ
         </h1>
       </div>
 
@@ -164,8 +164,11 @@ const Faq = () => {
           )}
         </div>
 
-        <p className="text-base sm:text-lg font-medium my-5">
-          Discover your question from underneath or present your inquiry from the submit box.
+        <p className="text-xl font-medium">
+          Got <span className="text-[#2acb35]">questions</span>? We've got answers.
+        </p>
+        <p className="my-3 max-w-4xl">
+          Explore our most frequently asked questions to better understand how we work, what we offer, and how we can help you. If you still need help, feel free to contact us directly.
         </p>
 
         <div className="flex flex-col md:flex-row gap-6">
@@ -275,17 +278,16 @@ const Faq = () => {
               ></textarea>
               <button
                 type="submit"
-                className={`btn px-5 py-2 text-[16px] font-medium text-white bg-[#2acb35] rounded transition-all duration-300 hover:bg-green-600 hover:scale-105 ${
-                  loading ? "opacity-60 cursor-not-allowed" : ""
-                } w-full md:w-auto`}
+                className={`btn px-5 py-2 text-[16px] font-medium text-white bg-[#2acb35] rounded transition-all duration-300 hover:bg-green-600 hover:scale-105 ${loading ? "opacity-60 cursor-not-allowed" : ""
+                  } w-full md:w-auto`}
                 disabled={loading}
               >
                 {loading ? "Submitting..." : "Submit Question"}
               </button>
             </form>
-            <p className="text-base sm:text-lg text-center font-semibold mt-4">
-              If you want, you can also ask your question on the{" "}
-              <span className="text-[#2acb35] underline hover:font-bold hover:text-gray-600">
+            <p className="text-center font-medium mt-4">
+              Didn't find what you're looking for? You can easily ask us directly on the{" "}
+              <span className="text-[#2acb35] underline hover:font-semibold hover:text-gray-700">
                 <Link to="/contact">Contact Page</Link>
               </span>
             </p>

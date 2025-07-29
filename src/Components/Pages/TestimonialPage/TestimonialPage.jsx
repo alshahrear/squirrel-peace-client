@@ -56,7 +56,7 @@ const TestimonialPage = () => {
                     alt="Testimonial Banner"
                     className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                     <h1 className="text-white text-3xl sm:text-3xl md:text-4xl font-bold">Our Success</h1>
                 </div>
             </div>
