@@ -100,20 +100,31 @@ const Register = () => {
     return (
         <div className="pt-12 pb-20 max-w-screen-xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center relative gap-10 md:gap-0">
             <Helmet>
-                <title>Register - Storial Peace</title>
+                <title>Register - Squirrel Peace</title>
             </Helmet>
 
             {/* Left Section */}
-            <div className="w-full md:w-1/3 space-y-5 px-4 sm:px-6 md:px-0">
-                <h2 className="text-4xl font-bold leading-12">
-                    Premium <span className="text-[#2acb35]">Gardening and Lawn Care</span> Solutions
+            <div className="max-w-xl space-y-5 text-center md:text-left px-4 sm:px-6 md:px-0">
+                <h2 className="text-4xl font-semibold">
+                    <span className="text-[#2acb35]">Join Us</span> Today
                 </h2>
-                <p className="text-lg font-medium">
-                    Welcome to Our Best Reliable Gardening and Lawn Services! Register now to get expert care for your plants!
+                <p className="text-lg ">
+                    Create your free account today and unlock a world of personalized features just for you. Join our community to stay updated, manage your preferences, and enjoy seamless access to all our services. Getting started is quick and easy — let's begin your journey with us!
                 </p>
+                <p className="text-lg">
+                   Already have an account?{" "}
+                    <Link
+                        to="/login"
+                        className="text-[#2acb35] underline hover:text-[#1a9d29]"
+                    >
+                        Log in here
+                    </Link>{" "}
+                    to continue your journey with us.
+                </p>
+
                 <Link to="/contact">
                     <button className="btn px-6 py-5 text-lg font-medium rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35]">
-                        <TbPhoneCalling className="text-lg" /> Call Us
+                        <TbPhoneCalling className="text-lg" /> Contact Us
                     </button>
                 </Link>
             </div>
@@ -121,7 +132,7 @@ const Register = () => {
             <div className="w-full md:w-3/7">
                 <form onSubmit={handleRegister}>
                     <div className="p-8 border-2 border-gray-300 rounded-lg shadow-lg">
-                        <h2 className="text-3xl text-center font-extrabold mb-6 text-[#2acb35]">
+                        <h2 className="text-3xl text-center font-bold mb-6 text-[#2acb35]">
                             Register Now
                         </h2>
                         <div className="mb-4">

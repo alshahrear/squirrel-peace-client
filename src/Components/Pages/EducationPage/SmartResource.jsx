@@ -9,7 +9,7 @@ const SmartResource = () => {
     return (
         <div>
             <Helmet>
-                <title>Smart Resource - Storial Peace</title>
+                <title>Smart Resource - Squirrel Peace</title>
             </Helmet>
 
             <div

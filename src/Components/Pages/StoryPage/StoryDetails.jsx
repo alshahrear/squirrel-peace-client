@@ -164,25 +164,25 @@ const StoryDetails = () => {
   return (
     <div key={id}>
       <Helmet>
-        <title>{story?.storyTitle ? `${story.storyTitle} - Storial Peace` : 'Storial Peace'}</title>
+        <title>{story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'}</title>
 
         <meta
           name="description"
           content={
             story?.storyShortDescription
               ? story.storyShortDescription.slice(0, 150)
-              : 'Discover inspiring travel stories on Storial Peace.'
+              : 'Discover inspiring travel stories on Squirrel Peace.'
           }
         />
 
         {/* Open Graph for Facebook, LinkedIn, WhatsApp */}
-        <meta property="og:title" content={story?.storyTitle ? `${story.storyTitle} - Storial Peace` : 'Storial Peace'} />
+        <meta property="og:title" content={story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'} />
         <meta
           property="og:description"
           content={
             story?.storyShortDescription
               ? story.storyShortDescription.slice(0, 150)
-              : 'Discover inspiring travel stories on Storial Peace.'
+              : 'Discover inspiring travel stories on Squirrel Peace.'
           }
         />
         <meta property="og:type" content="article" />
@@ -201,13 +201,13 @@ const StoryDetails = () => {
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={story?.storyTitle ? `${story.storyTitle} - Storial Peace` : 'Storial Peace'} />
+        <meta name="twitter:title" content={story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'} />
         <meta
           name="twitter:description"
           content={
             story?.storyShortDescription
               ? story.storyShortDescription.slice(0, 150)
-              : 'Discover inspiring travel stories on Storial Peace.'
+              : 'Discover inspiring travel stories on Squirrel Peace.'
           }
         />
         <meta

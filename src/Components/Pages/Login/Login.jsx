@@ -62,14 +62,26 @@ const Login = () => {
     return (
         <div className="pt-12 pb-20 max-w-screen-xl mx-auto flex flex-col md:flex-row justify-between items-center relative px-4 md:px-0 gap-10 md:gap-0">
             <Helmet>
-                <title>Login - Storial Peace</title>
+                <title>Login - Squirrel Peace</title>
             </Helmet>
 
             {/* Left Section */}
-            <div className="w-full md:w-3/8 space-y-5 text-center md:text-left">
-                <h2 className="text-4xl font-bold leading-12">
-                    Our Best Reliable <span className="text-[#2acb35]">Gardening and Lawn</span> Services
+            <div className="max-w-xl space-y-4 text-center md:text-left">
+                <h2 className="text-3xl font-semibold ">
+                    <span className="text-[#2acb35]">Welcome</span> back!
                 </h2>
+                <p className="text-lg">Log in to unlock a personalized experience made just for you. Explore exclusive features, manage your activity with ease, and stay connected with everything you love.Your journey with us continues — and it only gets better from here.
+                </p>
+                <p className="text-lg">
+                    Don't have an account yet?{" "}
+                    <Link
+                        to="/register"
+                        className="text-[#2acb35] underline hover:text-[#1a9d29]"
+                    >
+                        Create one
+                    </Link>{" "}
+                    now to enjoy all the features and stay connected.
+                </p>
                 <Link to="/contact">
                     <button className="btn px-6 py-5 text-lg font-medium rounded-full text-white bg-[#2acb35] hover:bg-white hover:text-[#2acb35] border-2 border-[#2acb35] mx-auto md:mx-0 flex items-center justify-center gap-2">
                         <TbPhoneCalling className="text-xl" /> Contact Us
@@ -81,7 +93,7 @@ const Login = () => {
             <div className="w-full md:w-3/7">
                 <form onSubmit={handleLogin}>
                     <div className="p-8 border-2 border-gray-300 rounded-lg shadow-lg relative bg-white">
-                        <h2 className="text-3xl text-center font-extrabold mb-6 text-[#2acb35]">
+                        <h2 className="text-3xl text-center font-bold mb-6 text-[#2acb35]">
                             Login Now
                         </h2>
 

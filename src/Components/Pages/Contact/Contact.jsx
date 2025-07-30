@@ -76,7 +76,7 @@ const Contact = () => {
   return (
     <div className="bg-[#f7f7f7]">
       <Helmet>
-        <title>Contact - Storial Peace</title>
+        <title>Contact - Squirrel Peace</title>
       </Helmet>
 
       {/* ✅ Banner Section */}
@@ -85,7 +85,7 @@ const Contact = () => {
         style={{ backgroundImage: `url(${contact})` }} 
       >
         <div className="absolute inset-0 bg-black/30"></div>
-        <h1 className="relative z-10 text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center">
+        <h1 className="relative z-10 text-3xl md:text-4xl lg:text-4xl font-bold text-white text-center">
           Contact Us
         </h1>
       </div>
@@ -94,10 +94,10 @@ const Contact = () => {
         {/* Title & Button Section */}
         <div className="relative">
           <div className="text-center">
-            <i className="text-2xl font-semibold text-[#2acb35]">Message Us</i>
-            <h2 className="text-2xl font-bold my-4 uppercase">
-              We'd Love To Hear From You
-            </h2>
+            <i className="text-3xl font-semibold text-[#2acb35]">Let's Talk</i>
+            <p className="max-w-5xl text-lg mx-auto my-4 ">
+              Have a question, need support, interested in collaboration or sponsorship? We're here to listen and respond with care. Just drop us a message — we'd love to hear from you.
+            </p>
 
             {user && isAdmin && (
               <div className="mt-4 md:hidden flex justify-center">
@@ -117,8 +117,8 @@ const Contact = () => {
         <div className="max-w-6xl mx-auto border border-gray-200 mb-10 p-6 md:p-10 flex flex-col lg:flex-row gap-6 lg:gap-10 rounded-2xl">
           {/* Form */}
           <div className="w-full lg:w-2/3 animate__animated animate__slideInLeft">
-            <p className="text-xl md:text-2xl font-semibold mb-3 text-center lg:text-left">
-              Leave your <em className="text-[#2acb35]">message</em> here
+            <p className="text-xl md:text-2xl font-semibold mb-4 text-center lg:text-left">
+              Share your thoughts with us <span className="text-[#2acb35]">_</span>
             </p>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -178,16 +178,16 @@ const Contact = () => {
               <span>Email: alshahrear1@gmail.com</span>
             </p>
             <div className="bg-[#2acb35] p-4 md:p-5 rounded-2xl">
-              <p className="text-center text-white text-xl md:text-2xl font-bold">
-                Stay With Us On Social
+              <p className="text-center text-white text-xl font-semibold">
+                Join Our Social Journey
               </p>
-              <p className="flex justify-center items-center text-base md:text-lg text-white font-semibold uppercase py-4">
+              <p className="flex justify-center items-center text-white font-semibold py-4">
                 Follow Us{" "}
-                <span className="text-2xl font-bold">
+                <span className="text-2xl font-semibold">
                   <PiArrowBendRightDownFill />
                 </span>
               </p>
-              <div className="flex flex-wrap justify-center items-center gap-3">
+              <div className="flex flex-wrap justify-center items-center gap-2">
                 <SocialButton Icon={GrFacebookOption} title="Facebook" />
                 <SocialButton Icon={RxInstagramLogo} title="Instagram" />
                 <SocialButton Icon={RiTwitterXLine} title="Twitter" />

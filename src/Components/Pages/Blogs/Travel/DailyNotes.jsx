@@ -8,7 +8,7 @@ const DailyNotes = () => {
     return (
         <div>
             <Helmet>
-                <title>Daily Notes - Storial Peace</title>
+                <title>Daily Notes - Squirrel Peace</title>
             </Helmet>
 
             <div

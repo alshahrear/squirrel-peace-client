@@ -22,7 +22,7 @@ const CommentsAdmin = () => {
   return (
     <div className="my-10 max-w-screen-xl mx-auto px-2 sm:px-4">
       <Helmet>
-        <title>CommentAdmin - Storial Peace</title>
+        <title>CommentAdmin - Squirrel Peace</title>
       </Helmet>
 
       <div className="text-center space-y-3 mb-8">

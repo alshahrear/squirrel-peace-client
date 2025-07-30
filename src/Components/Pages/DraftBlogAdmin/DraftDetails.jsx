@@ -162,7 +162,7 @@ const DraftDetails = () => {
   return (
     <div key={id}>
       <Helmet>
-        <title>{story?.storyTitle} - Storial Peace</title>
+        <title>{story?.storyTitle} - Squirrel Peace</title>
       </Helmet>
 
       <div

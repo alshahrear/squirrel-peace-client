@@ -97,7 +97,7 @@ const AdminPages = () => {
     return (
         <div className="py-10 max-w-screen-xl mx-auto px-4">
             <Helmet>
-                <title>AdminPanel - Storial Peace</title>
+                <title>AdminPanel - Squirrel Peace</title>
             </Helmet>
             <div className="text-center space-y-3 mb-10">
                 <h1 className="text-3xl font-bold">

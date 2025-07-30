@@ -20,10 +20,9 @@ const NewsletterWhy = () => {
 
       {/* Note Section */}
       <div className="mt-5 max-w-screen-xl mx-auto px-4 md:px-0">
-        <p className="text-lg md:text-xl font-semibold">
-          <span className="text-[#2acb35] font-bold">Note:</span> If you need
-          more information, please visit our {" "}
-          <Link className="hover:text-[#2acb35] underline mr-1" to="/faq">
+        <p className="text-lg font-medium">
+          <span className="text-[#2acb35]">Note:</span> Looking for more info? Explore our {" "}
+          <Link className="hover:text-[#2acb35] font-semibold underline mr-1" to="/faq">
             FAQ
           </Link>
           page.

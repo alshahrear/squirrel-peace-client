@@ -8,7 +8,7 @@ const StoryPages = () => {
     return (
         <div>
             <Helmet>
-                <title>Story - Storial Peace</title>
+                <title>Story - Squirrel Peace</title>
             </Helmet>
 
             <div

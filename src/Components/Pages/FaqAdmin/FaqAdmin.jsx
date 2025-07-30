@@ -32,7 +32,7 @@ const FaqAdmin = () => {
   return (
     <div className="my-12 max-w-screen-xl mx-auto px-2 sm:px-4">
       <Helmet>
-        <title>FaqAdmin - Storial Peace</title>
+        <title>FaqAdmin - Squirrel Peace</title>
       </Helmet>
       <div className="text-center space-y-3 mb-8 px-2">
         <h1 className="text-2xl sm:text-3xl font-bold">

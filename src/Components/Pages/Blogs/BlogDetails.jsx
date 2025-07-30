@@ -159,25 +159,25 @@ const BlogDetails = () => {
   return (
     <div key={id}>
       <Helmet>
-        <title>{blog?.blogTitle ? `${blog.blogTitle} - Storial Peace` : 'Storial Peace'}</title>
+        <title>{blog?.blogTitle ? `${blog.blogTitle} - Squirrel Peace` : 'Squirrel Peace'}</title>
 
         <meta
           name="description"
           content={
             blog?.blogShortDescription
               ? blog.blogShortDescription.slice(0, 150)
-              : 'Explore amazing travel stories on Storial Peace.'
+              : 'Explore amazing travel stories on Squirrel Peace.'
           }
         />
 
         {/* Open Graph */}
-        <meta property="og:title" content={blog?.blogTitle ? `${blog.blogTitle} - Storial Peace` : 'Storial Peace'} />
+        <meta property="og:title" content={blog?.blogTitle ? `${blog.blogTitle} - Squirrel Peace` : 'Squirrel Peace'} />
         <meta
           property="og:description"
           content={
             blog?.blogShortDescription
               ? blog.blogShortDescription.slice(0, 150)
-              : 'Explore amazing travel stories on Storial Peace.'
+              : 'Explore amazing travel stories on Squirrel Peace.'
           }
         />
         <meta property="og:type" content="article" />
@@ -196,13 +196,13 @@ const BlogDetails = () => {
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={blog?.blogTitle ? `${blog.blogTitle} - Storial Peace` : 'Storial Peace'} />
+        <meta name="twitter:title" content={blog?.blogTitle ? `${blog.blogTitle} - Squirrel Peace` : 'Squirrel Peace'} />
         <meta
           name="twitter:description"
           content={
             blog?.blogShortDescription
               ? blog.blogShortDescription.slice(0, 150)
-              : 'Explore amazing travel stories on Storial Peace.'
+              : 'Explore amazing travel stories on Squirrel Peace.'
           }
         />
         <meta

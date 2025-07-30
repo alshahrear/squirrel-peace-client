@@ -6,16 +6,29 @@ import { TfiPinterest } from "react-icons/tfi";
 import { IoLocationOutline } from "react-icons/io5";
 import { PiPhoneCallLight } from "react-icons/pi";
 import { MdOutlineMarkEmailRead } from "react-icons/md";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { HiOutlineMailOpen } from "react-icons/hi";
 import { FaPaperPlane } from "react-icons/fa6";
 import useAuth from "../useAuth";
 import useAdmin from "../../../hooks/useAdmin";
+import toast from "react-hot-toast";
 
 const Footer = () => {
 
-  const { user } = useAuth();
+  const { user, logOut } = useAuth();
   const [isAdmin] = useAdmin();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    try {
+      await logOut();
+      toast.success("Logged out successfully!");
+      navigate("/");
+    } catch {
+      toast.error("Logout failed. Please try again.");
+    }
+  };
 
   return (
     <div className="bg-[#222426]">
@@ -24,10 +37,8 @@ const Footer = () => {
           <h4 className="text-2xl font-semibold text-white border-b-4 border-b-[#2acb35] pb-2">
             Get in Touch
           </h4>
-          <p className="w-full md:w-1/2 text-[16px] font-medium">
-            <span className="text-[#2acb35] text-lg">Squirrel Peace</span> brings 3 years of interior
-            designs experience right to your home or office. Our design professionals are to help you
-            determine.
+          <p className="max-w-sm text-base">
+            <span className="text-[#2acb35] text-lg">Squirrel Peace</span>  is your trusted companion for inspiration, creativity, and connection. Stay in touch with us through phone, email, or social media to get the latest updates and support whenever you need. We're always here to help you thrive.
           </p>
           <p className="flex items-center text-[16px] font-medium gap-2">
             <IoLocationOutline className="text-2xl text-[#2acb35]" />
@@ -45,7 +56,7 @@ const Footer = () => {
 
         <nav className="flex-1 space-y-2">
           <h4 className="text-2xl font-semibold text-white border-b-4 border-b-[#2acb35] pb-2">
-            Quick Links
+            Quick Links (1)
           </h4>
           <p className="text-[16px]">
             <NavLink to="/">
@@ -99,7 +110,7 @@ const Footer = () => {
 
         <nav className="flex-1 space-y-2">
           <h4 className="text-2xl font-semibold text-white border-b-4 border-b-[#2acb35] pb-2">
-            Quick Links
+            Quick Links (2)
           </h4>
           <p className="text-[16px]">
             <NavLink to="/newsletter">
@@ -134,6 +145,27 @@ const Footer = () => {
             </NavLink>
           </p>
           {
+            user ? (
+              <p className="text-[16px]">
+                <button
+                  onClick={handleSignOut}
+                  className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]"
+                >
+                  - Log Out
+                </button>
+              </p>
+            ) : (
+              <p className="text-[16px]">
+                <NavLink to="/login">
+                  -{" "}
+                  <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
+                    Login
+                  </span>
+                </NavLink>
+              </p>
+            )
+          }
+          {
             user && isAdmin &&
             <p className="text-[16px]">
               <NavLink to="/adminPages">
@@ -150,7 +182,7 @@ const Footer = () => {
           <h4 className="text-2xl font-semibold text-white border-b-4 border-b-[#2acb35] pb-2">
             <span className="text-[#2acb35] text-3xl font-bold">N</span>ewsletter
           </h4>
-          <p className="text-lg font-semibold">Subscribe Our Newsletter</p>
+          <p className="text-lg font-semibold">Subscribe Our Newsletter - It's 100% free</p>
           <div className="join flex mt-3 max-w-full md:max-w-md">
             <label className="input bg-[#27282a] focus-within:bg-white text-w transition-colors duration-300 flex items-center rounded-l-full px-4">
               <span className="text-xl text-[#2acb35]">

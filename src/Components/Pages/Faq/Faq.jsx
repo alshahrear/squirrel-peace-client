@@ -127,7 +127,7 @@ const Faq = () => {
   return (
     <div className="bg-[#f7f7f7]">
       <Helmet>
-        <title>Faq - Storial Peace </title>
+        <title>Faq - Squirrel Peace </title>
       </Helmet>
 
       {/* Banner Section */}
@@ -254,7 +254,7 @@ const Faq = () => {
               onSubmit={handleFaq}
               className="bg-[#f7f7f7] p-6 rounded-md shadow-md"
             >
-              <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Submit Your Question</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-center">Submit Your Question</h2>
               <input
                 type="text"
                 name="name"
@@ -285,12 +285,6 @@ const Faq = () => {
                 {loading ? "Submitting..." : "Submit Question"}
               </button>
             </form>
-            <p className="text-center font-medium mt-4">
-              Didn't find what you're looking for? You can easily ask us directly on the{" "}
-              <span className="text-[#2acb35] underline hover:font-semibold hover:text-gray-700">
-                <Link to="/contact">Contact Page</Link>
-              </span>
-            </p>
           </div>
         </div>
       </div>

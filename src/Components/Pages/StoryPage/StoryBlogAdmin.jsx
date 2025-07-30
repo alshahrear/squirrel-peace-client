@@ -165,7 +165,7 @@ const StoryBlogAdmin = () => {
   return (
     <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2 px-3 sm:px-4">
       <Helmet>
-        <title>StoryAdmin - Storial Peace</title>
+        <title>StoryAdmin - Squirrel Peace</title>
       </Helmet>
 
       <h1 className="text-3xl font-bold">

@@ -66,7 +66,7 @@ const TestimonialsAdmin = () => {
     return (
         <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2 px-3 sm:px-4">
             <Helmet>
-                <title>Testimonials - Storial Peace</title>
+                <title>Testimonials - Squirrel Peace</title>
             </Helmet>
             <h1 className="text-3xl font-bold">
                 Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Testimonial Administration Panel

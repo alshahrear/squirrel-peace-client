@@ -90,7 +90,7 @@ const NewsletterPage = () => {
   return (
     <div>
       <Helmet>
-        <title>Newsletter - Storial Peace</title>
+        <title>Newsletter - Squirrel Peace</title>
       </Helmet>
 
       {/* 🖥️ Heading (Desktop Only) */}

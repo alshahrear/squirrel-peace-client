@@ -11,7 +11,7 @@ const AboutPage = () => {
     return (
         <div className="">
             <Helmet>
-                <title>About - Storial Peace </title>
+                <title>About - Squirrel Peace </title>
             </Helmet>
             <div>
                 <ImageBanner></ImageBanner>

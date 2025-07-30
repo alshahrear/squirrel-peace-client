@@ -5,7 +5,7 @@ const TermCondition = () => {
   return (
     <div className="bg-[#f7f7f7]">
       <Helmet>
-        <title>Terms of Condition - Storial Peace</title>
+        <title>Terms of Condition - Squirrel Peace</title>
       </Helmet>
 
       {/* ✅ Banner Section */}
@@ -23,7 +23,7 @@ const TermCondition = () => {
         <h1 className="text-3xl font-bold mb-6">Terms and Conditions</h1>
 
         <p className="mb-4">
-          These Terms and Conditions ("Terms") govern your use of <strong>Storial Peace</strong> located at <strong>https://storialpeace.com</strong>. By accessing or using our website, you agree to comply with and be bound by these Terms.
+          These Terms and Conditions ("Terms") govern your use of <strong>Squirrel Peace</strong> located at <strong>https://storialpeace.com</strong>. By accessing or using our website, you agree to comply with and be bound by these Terms.
         </p>
 
         <h2 className="text-xl font-semibold mt-6 mb-2">1. Acceptance of Terms</h2>
@@ -33,7 +33,7 @@ const TermCondition = () => {
 
         <h2 className="text-xl font-semibold mt-6 mb-2">2. Intellectual Property</h2>
         <p className="mb-4">
-          All content on this website — including text, graphics, logos, and images — is the property of <strong>Storial Peace</strong> unless otherwise stated. You may not copy, reproduce, or distribute any content without written permission.
+          All content on this website — including text, graphics, logos, and images — is the property of <strong>Squirrel Peace</strong> unless otherwise stated. You may not copy, reproduce, or distribute any content without written permission.
         </p>
 
         <h2 className="text-xl font-semibold mt-6 mb-2">3. User Responsibilities</h2>

@@ -5,7 +5,7 @@ const PrivacyPolicy = () => {
   return (
     <div className="bg-[#f7f7f7]">
       <Helmet>
-        <title>Privacy Policy - Storial Peace</title>
+        <title>Privacy Policy - Squirrel Peace</title>
       </Helmet>
 
       {/* ✅ Banner Section */}
@@ -22,7 +22,7 @@ const PrivacyPolicy = () => {
       <div className="max-w-4xl mx-auto px-4 py-10 text-gray-800">
         <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
         <p className="mb-4">
-          This Privacy Policy describes how <strong>Storial Peace</strong> ("we", "our", or "us") collects, uses, and protects the personal information of users visiting <strong>https://storialpeace.com</strong>. By accessing our website, you agree to the terms of this policy.
+          This Privacy Policy describes how <strong>Squirrel Peace</strong> ("we", "our", or "us") collects, uses, and protects the personal information of users visiting <strong>https://storialpeace.com</strong>. By accessing our website, you agree to the terms of this policy.
         </p>
 
         <h2 className="text-xl font-semibold mt-6 mb-2">1. Information We Collect</h2>

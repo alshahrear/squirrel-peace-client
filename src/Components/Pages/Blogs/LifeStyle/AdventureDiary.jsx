@@ -8,7 +8,7 @@ const AdventureDiary = () => {
     return (
         <div>
             <Helmet>
-                <title>Adventure Diary - Storial Peace</title>
+                <title>Adventure Diary - Squirrel Peace</title>
             </Helmet>
 
             {/* Hero Section */}

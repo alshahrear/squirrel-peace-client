@@ -140,7 +140,7 @@ const Users = () => {
   return (
     <div className="my-10 max-w-screen-xl mx-auto px-2 sm:px-4">
       <Helmet>
-        <title>Users - Storial Peace</title>
+        <title>Users - Squirrel Peace</title>
       </Helmet>
 
       <div className="text-center space-y-3 mb-8">

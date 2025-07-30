@@ -46,7 +46,7 @@ const TestimonialPage = () => {
     return (
         <div className="bg-[#f7f7f7]">
             <Helmet>
-                <title>Success - Storial Peace</title>
+                <title>Success - Squirrel Peace</title>
             </Helmet>
 
             {/* ✅ One Responsive Banner for All Devices */}
