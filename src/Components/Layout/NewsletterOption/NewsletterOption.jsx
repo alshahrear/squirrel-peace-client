@@ -54,7 +54,7 @@ const NewsletterOption = () => {
 
           {/* Subscribe Button Only */}
           <a
-            href="https://emerald-diary.beehiiv.com/"
+            href=""
             target="_blank"
             rel="noopener noreferrer"
             className="z-10"

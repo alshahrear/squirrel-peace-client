@@ -83,7 +83,7 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
                     {faqQuestion}
                 </div>
                 <div className="collapse-content peer-checked:bg-gray-100 text-base">
-                    <p className="mb-4 mt-2">{faqAnswer}</p>
+                    <p className="mb-4 text-lg mt-2">{faqAnswer}</p>
                     {user && isAdmin && (
                         <div className="flex flex-col sm:flex-row gap-3">
                             <button

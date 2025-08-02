@@ -190,7 +190,7 @@ const Footer = () => {
               </span>
             </label>
             <a
-              href="https://emerald-diary.beehiiv.com/"
+              href=""
               target="_blank"
               rel="noopener noreferrer"
             >

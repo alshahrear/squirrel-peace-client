@@ -15,7 +15,7 @@ const images = [banner1, banner2, banner3, banner4, banner5];
 const Banner = () => {
     return (
         <div>
-            <div className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] overflow-hidden">
+            <div className="relative w-full h-[380px] sm:h-[330px] md:h-[380px] lg:h-[480px] overflow-hidden">
                 {/* Background Swiper Image Slider */}
                 <Swiper
                     modules={[Autoplay]}
@@ -45,8 +45,8 @@ const Banner = () => {
                         <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-snug">
                             Welcome to Squirrel Peace
                         </h1>
-                        <p className="text-sm sm:text-base max-w-md sm:max-w-lg drop-shadow-md">
-                            Discover the soothing harmony of nature — where every tree, breeze, and birdsong whispers calm into your soul. Let your journey toward natural serenity begin here.
+                        <p className="text-base max-w-md sm:max-w-lg drop-shadow-md">
+                            At Squirrel Peace, we guide you on the path to happiness and life's true growth. Our content inspires you to embrace joy and move towards a beautiful life. Walk with us to unlock your fullest potential and live meaningfully.
                         </p>
                         <div className="animate__animated animate__slideInUp animate__slow flex flex-wrap gap-4 sm:gap-6 pt-2 sm:pt-4">
                             <NavLink to="/about">

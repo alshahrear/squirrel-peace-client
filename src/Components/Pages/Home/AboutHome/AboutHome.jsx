@@ -7,24 +7,24 @@ import { motion } from "framer-motion";
 
 const features = [
   {
-    title: "Desktop & Mobile Version",
+    title: "Inspiring Blogs for a Happier Life",
     description:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised.",
+      "We write blogs that inspire, educate, and bring joy—helping you discover new perspectives and live a richer, happier life every day.",
   },
   {
-    title: "Drag & Drop Builder",
+    title: "The newsletter that makes you smile",
     description:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised.",
+      "We send newsletters that inspire happiness, share useful tips, and motivate you to lead a healthier, more joyful life every day.",
   },
   {
-    title: "Awesome Modern Design",
+    title: "Personalized support for your better life",
     description:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised.",
+      "People reach out to us directly, sharing their life struggles. We help each one personally to transform their life into a better, happier journey.",
   },
   {
-    title: "Super Easy to Edit",
+    title: "Explore, Connect, and Elevate Your Life",
     description:
-      "There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised.",
+      "Explore the world and uplift your life. Connect with us to grow and take your journey to a better level every day.",
   },
 ];
 
@@ -78,19 +78,11 @@ const AboutHome = () => {
     <div className="bg-[#f7f7f7] relative">
       {/* Heading */}
       <div className="text-center px-4 md:px-0 py-10 max-w-3xl mx-auto">
-        <h2 className="text-2xl md:text-4xl font-bold text-gray-900">
-          <span className="text-[#2acb35] border-l-4 border-[#2acb35] pl-2">
-            Features
-          </span>{" "}
-          you will <br />
-          <span className="border-r-4 border-[#2acb35] pr-2">
-            love <span className="text-[#2acb35]">&</span> enjoy
-          </span>
-        </h2>
+        <h2 className="text-2xl md:text-3xl font-semibold">
+          Meet the Journey
+        </h2>  
         <p className="text-gray-600 mt-4">
-          There are many variations of passages of Lorem Ipsum available, but
-          the majority have suffered alteration in some form, by injected
-          humour, or randomised words which don't look even
+          Every story has a beginning — ours is rooted in a dream to spread peace, joy, and growth. Join us as we walk the path of purpose and share content that uplifts lives.
         </p>
       </div>
 
@@ -114,7 +106,7 @@ const AboutHome = () => {
               <h4 className="font-semibold text-gray-800 group-hover:text-green-500 text-lg transition-colors duration-500">
                 {feature.title}
               </h4>
-              <p className="text-sm text-gray-600 mt-1">{feature.description}</p>
+              <p className="text-base text-gray-600 mt-1">{feature.description}</p>
             </motion.div>
           ))}
         </motion.div>

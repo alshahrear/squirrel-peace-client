@@ -4,9 +4,14 @@ import { useInView } from "react-intersection-observer";
 
 const NewsletterPoint = () => {
   const points = [
-    "Lorem ipsum dolor sit amet consectetur adipisicing elit. Modi veritatis itaque",
-    "Lorem ipsum dolor sit amet consecte adipisicing elit. Modi veritatis itaque",
-    "Lorem ipsum dolor sit amet consectetur adipisicing elit. Modi veritatis itaque",
+    "Brings daily inspiration and happiness",
+    "100% free with no hidden costs",
+    "Tips to improve your lifestyle and mindset",
+    "Perfect for a quick mood boost anytime",
+    "A friendly voice that reminds you—you are not alone",
+    "Many readers say our emails made them smile on hard days",
+    "Easy to subscribe, easy to unsubscribe", 
+    "Sends you joy, comfort, and hope—like a true friend", 
   ];
 
   // Scroll detection wrapper
