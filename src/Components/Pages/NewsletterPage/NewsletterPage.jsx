@@ -28,7 +28,7 @@ const NewsletterPage = () => {
   const [isProgressVisible, setIsProgressVisible] = useState(false);
 
   useEffect(() => {
-    fetch("https://squirrel-peace-server.onrender.com/reviews")
+    fetch("https://squirrelpeace.com/api//reviews")
       .then((res) => res.json())
       .then((data) => setTestimonials(data))
       .catch((error) =>
@@ -96,7 +96,7 @@ const NewsletterPage = () => {
       {/* 🖥️ Heading (Desktop Only) */}
       <div className="hidden lg:block text-center bg-[#f7f7f7] pt-6 px-4">
         <h2 className="text-3xl font-bold text-[#082c2f]">
-          <span className="text-[#2acb35]">1000+</span> People Have Joined Us 😊
+          <span className="text-[#2acb35]">The 1000+</span> People Have Joined Us
         </h2>
         <p className="text-gray-700 text-xl mt-2">Please subscribe our newsletter — It's 100% free!</p>
       </div>

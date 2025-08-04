@@ -24,7 +24,7 @@ const StoryBottoms = ({ _id: storyId, storyTitle, storyCategory, storyImage }) =
             storyImage: storyImage,
         };
 
-        fetch("https://squirrel-peace-server.onrender.com/comment/story", {
+        fetch("https://squirrelpeace.com/api//comment/story", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newComment),

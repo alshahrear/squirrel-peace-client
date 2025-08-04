@@ -30,7 +30,7 @@ const Register = () => {
 
         createUser(email, registerPassword)
             .then(result => {
-                console.log(result.user);
+                // console.log(result.user);
 
                 const userInfo = {
                     name: name,
@@ -40,7 +40,7 @@ const Register = () => {
                 axiosPublic.post('/users', userInfo)
                     .then(res => {
                         if (res.data.insertedId) {
-                            console.log('user added to database');
+                            // console.log('user added to database');
                             form.reset();
                             setPassword("");
                             toast.success("Congratulation, Registration Successful!", {

@@ -38,7 +38,7 @@ const SocialContact = () => {
               className=" underline hover:text-[#2acb35] transition"
               onClick={(e) => {
                 // এই ফাংশন শুধু নিশ্চিত করবে event ঠিক কাজ করছে
-                console.log("Email link clicked");
+                // console.log("Email link clicked");
               }}
             >
               alshahrear1@gmail.com

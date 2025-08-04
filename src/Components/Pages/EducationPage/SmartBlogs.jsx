@@ -26,7 +26,7 @@ const SmartBlogs = () => {
 
     useEffect(() => {
         setLoading(true);
-        fetch('https://squirrel-peace-server.onrender.com/blog')
+        fetch('https://squirrelpeace.com/api//blog')
             .then(res => res.json())
             .then(data => {
                 setBlogs(data);

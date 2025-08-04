@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import useAuth from "./useAuth";
 
 const axiosSecure = axios.create({
-    baseURL: 'https://squirrel-peace-server.onrender.com'
+    baseURL: 'https://squirrelpeace.com/api/'
 })
 const useAxiosSecure = () => {
     const navigate = useNavigate();

@@ -16,13 +16,13 @@ const Faq = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("https://squirrel-peace-server.onrender.com/faqsAdd")
+    fetch("https://squirrelpeace.com/api//faqsAdd")
       .then((res) => res.json())
       .then((data) => setFaqsAdd(data));
   }, []);
 
   useEffect(() => {
-    fetch("https://squirrel-peace-server.onrender.com/faqs")
+    fetch("https://squirrelpeace.com/api//faqs")
       .then((res) => res.json())
       .then((data) => setFaqs(data))
       .catch((error) => console.error("Error loading FAQs:", error));
@@ -45,7 +45,7 @@ const Faq = () => {
     const faqAnswer = form.faqAnswer.value;
     const addFaqList = { faqQuestion, faqAnswer };
 
-    fetch("https://squirrel-peace-server.onrender.com/faqsAdd", {
+    fetch("https://squirrelpeace.com/api//faqsAdd", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(addFaqList),
@@ -83,7 +83,7 @@ const Faq = () => {
 
     const addFaqQus = { name, email, question };
 
-    fetch("https://squirrel-peace-server.onrender.com/faqs", {
+    fetch("https://squirrelpeace.com/api//faqs", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(addFaqQus),

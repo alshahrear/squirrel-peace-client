@@ -10,7 +10,7 @@ const useAdmin = () => {
     queryKey: [user?.email, "isAdmin"],
     enabled: !!user?.email && !loading,  // user.email থাকলে এবং auth লোডিং শেষ হলে চালাবে
     queryFn: async () => {
-      console.log("asking or checking is admin", user);
+      // console.log("asking or checking is admin", user);
       const res = await axiosSecure.get(`/users/admin/${user.email}`);
       return res.data?.admin;
     },
