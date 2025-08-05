@@ -175,7 +175,7 @@ const Contact = () => {
             </p>
             <p className="flex items-center text-sm md:text-[16px] font-medium gap-2 mb-6">
               <MdOutlineMarkEmailRead className="text-xl md:text-2xl text-[#2acb35]" />
-              <span>Email: alshahrear1@gmail.com</span>
+              <span>Email: hello@squirrelpeace.com</span>
             </p>
             <div className="bg-[#2acb35] p-4 md:p-5 rounded-2xl">
               <p className="text-center text-white text-xl font-semibold">

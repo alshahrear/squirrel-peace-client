@@ -34,14 +34,14 @@ const SocialContact = () => {
             <MdEmail className="text-[#2acb35] text-xl" />
             Email:{" "}
             <a
-              href="mailto:alshahrear1@gmail.com"
+              href="mailto:hello@squirrelpeace.com"
               className=" underline hover:text-[#2acb35] transition"
               onClick={(e) => {
                 // এই ফাংশন শুধু নিশ্চিত করবে event ঠিক কাজ করছে
                 // console.log("Email link clicked");
               }}
             >
-              alshahrear1@gmail.com
+              hello@squirrelpeace.com
             </a>
           </p>
           <NavLink to="/success" className="flex items-center gap-3 link-hover hover:text-[#2acb35]">

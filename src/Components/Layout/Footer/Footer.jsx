@@ -50,7 +50,7 @@ const Footer = () => {
           </p>
           <p className="flex items-center text-[16px] font-medium gap-2">
             <MdOutlineMarkEmailRead className="text-2xl text-[#2acb35]" />
-            <span>Email: alshahrear1@gmail.com</span>
+            <span>Email: hello@squirrelpeace.com</span>
           </p>
         </nav>
 
