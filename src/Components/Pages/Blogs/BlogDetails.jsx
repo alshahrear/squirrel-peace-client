@@ -35,7 +35,7 @@ const BlogDetails = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    fetch(`https://squirrelpeace.com/api//blog/${id}`)
+    fetch(`https://squirrel-peace-server.onrender.com/blog/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setBlog(data);
@@ -52,7 +52,7 @@ const BlogDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    fetch("https://squirrelpeace.com/api//blog")
+    fetch("https://squirrel-peace-server.onrender.com/blog")
       .then((res) => res.json())
       .then((data) => {
         const filtered = data.filter((item) => item._id !== id);
@@ -76,7 +76,7 @@ const BlogDetails = () => {
     };
 
     try {
-      const res = await fetch(`https://squirrelpeace.com/api//blogDetails/${id}`, {
+      const res = await fetch(`https://squirrel-peace-server.onrender.com/blogDetails/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedBlog),

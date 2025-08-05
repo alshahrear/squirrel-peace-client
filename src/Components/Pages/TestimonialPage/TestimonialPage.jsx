@@ -19,7 +19,7 @@ const TestimonialPage = () => {
 
     useEffect(() => {
         setLoading(true);
-        fetch("https://squirrelpeace.com/api//reviews")
+        fetch("https://squirrel-peace-server.onrender.com/reviews")
             .then((res) => res.json())
             .then((data) => {
                 setTestimonials(data);

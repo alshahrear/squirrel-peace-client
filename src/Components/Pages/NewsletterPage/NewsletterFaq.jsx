@@ -27,7 +27,7 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
             confirmButtonText: "Yes, delete it!",
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`https://squirrelpeace.com/api//newsletterFaq/${_id}`, {
+                fetch(`https://squirrel-peace-server.onrender.com/newsletterFaq/${_id}`, {
                     method: "DELETE",
                 })
                     .then((res) => res.json())
@@ -54,7 +54,7 @@ const NewsletterFaq = ({ faq, onDelete, onUpdate }) => {
             faqAnswer: editA,
         };
 
-        fetch(`https://squirrelpeace.com/api//newsletterFaq/${_id}`, {
+        fetch(`https://squirrel-peace-server.onrender.com/newsletterFaq/${_id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedFaq),

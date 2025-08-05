@@ -35,7 +35,7 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
       confirmButtonText: "Yes, delete it!"
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`https://squirrelpeace.com/api//reviews/${id}`, {
+        fetch(`https://squirrel-peace-server.onrender.com/reviews/${id}`, {
           method: 'DELETE',
         })
           .then(res => res.json())
@@ -75,7 +75,7 @@ const TestimonialBlog = ({ testimonialBlog, onDelete, onUpdate }) => {
       }
     }
 
-    fetch(`https://squirrelpeace.com/api//reviews/${_id}`, {
+    fetch(`https://squirrel-peace-server.onrender.com/reviews/${_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedData)

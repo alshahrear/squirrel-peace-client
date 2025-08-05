@@ -14,7 +14,7 @@ const BlogHomeLatests = () => {
   };
 
   useEffect(() => {
-    fetch('https://squirrelpeace.com/api//blog')
+    fetch('https://squirrel-peace-server.onrender.com/blog')
       .then(res => res.json())
       .then(data => {
         const isMobile = window.innerWidth < 640;

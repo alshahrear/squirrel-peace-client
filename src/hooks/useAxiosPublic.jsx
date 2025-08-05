@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosPublic = axios.create({
-  baseURL: 'https://squirrelpeace.com/api/'
+  baseURL: 'https://squirrel-peace-server.onrender.com'
 });
 
 const useAxiosPublic = () => {

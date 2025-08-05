@@ -48,7 +48,7 @@ const AdventureBlog = ({ adventureBlog, onDelete, onUpdate, searchTerm }) => {
       confirmButtonText: "Yes, delete it!"
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`https://squirrelpeace.com/api//blog/${id}`, {
+        fetch(`https://squirrel-peace-server.onrender.com/blog/${id}`, {
           method: 'DELETE',
         })
           .then(res => res.json())
@@ -109,7 +109,7 @@ const AdventureBlog = ({ adventureBlog, onDelete, onUpdate, searchTerm }) => {
 
     // সার্ভারে PATCH রিকোয়েস্ট
     try {
-      const res = await fetch(`https://squirrelpeace.com/api//blog/${_id}`, {
+      const res = await fetch(`https://squirrel-peace-server.onrender.com/blog/${_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData),

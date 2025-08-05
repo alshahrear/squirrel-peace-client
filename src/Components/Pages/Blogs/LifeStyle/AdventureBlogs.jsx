@@ -18,7 +18,7 @@ const AdventureBlogs = () => {
 
   const fetchBlogs = () => {
     setLoading(true);
-    fetch('https://squirrelpeace.com/api//blog')
+    fetch('https://squirrel-peace-server.onrender.com/blog')
       .then(res => res.json())
       .then(data => {
         setBlogs(data);

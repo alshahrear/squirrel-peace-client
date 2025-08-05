@@ -16,7 +16,7 @@ const Testimonials = () => {
   const nextRef = useRef(null);
 
   useEffect(() => {
-    fetch("https://squirrelpeace.com/api//reviews")
+    fetch("https://squirrel-peace-server.onrender.com/reviews")
       .then((res) => res.json())
       .then((data) => {
         setTestimonials(data);

@@ -26,7 +26,7 @@ const DraftBlogs = ({ stories, setStories }) => {
 
     useEffect(() => {
         setLoading(true);
-        fetch('https://squirrelpeace.com/api//draft')
+        fetch('https://squirrel-peace-server.onrender.com/draft')
             .then(res => res.json())
             .then(data => {
                 const reversedData = data.slice().reverse();

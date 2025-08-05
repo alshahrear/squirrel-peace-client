@@ -28,7 +28,7 @@ const StoryBlogs = () => {
 
     useEffect(() => {
         setLoading(true);
-        fetch('https://squirrelpeace.com/api//story')
+        fetch('https://squirrel-peace-server.onrender.com/story')
             .then(res => res.json())
             .then(data => {
                 setStories(data);

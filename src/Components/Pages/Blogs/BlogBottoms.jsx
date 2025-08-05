@@ -24,7 +24,7 @@ const BlogBottoms = ({ _id: blogId, blogTitle, blogCategory, blogImage }) => {
             blogImage: blogImage,
         };
 
-        fetch("https://squirrelpeace.com/api//comment/blog", {
+        fetch("https://squirrel-peace-server.onrender.com/comment/blog", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newComment),
