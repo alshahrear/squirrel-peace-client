@@ -63,7 +63,7 @@ const Newsletter = () => {
                         We believe everyone deserves a happy and joyful life. Through our daily newsletter, we bring you inspiring and positive content that can brighten your day and help you live better. Join us and let's make your life happier together!
                     </p>
                     <a
-                        href=""
+                        href="https://squirrelpeace.beehiiv.com/"
                         target="_blank"
                         rel="noopener noreferrer"
                     >

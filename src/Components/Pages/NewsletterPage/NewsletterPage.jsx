@@ -123,13 +123,20 @@ const NewsletterPage = () => {
       {/* 📱 Mobile: Greener Future + Progress Bar */}
       <div className="block lg:hidden px-4 mt-6" ref={progressRef}>
         <h2 className="text-2xl font-semibold text-[#082c2f] text-center">
-          Let Each <span className="text-[#2acb35] underline">Newsletter</span> Bring a Smile to Your Day
+          Let Each Newsletter Bring a Smile to Your Day
         </h2>
         <p className="mt-2">
           Our daily newsletter is more than just emails. It's a quiet moment of joy, a warm voice in the noise, and a reminder that life is still full of beauty, meaning, and hope.
           Every morning, we send you something special — heartwarming stories, inspiring thoughts, life-enriching ideas, and joyful surprises. It's a space where you can pause, breathe, smile, and feel connected to something bigger.
         </p>
-        <p className="mt-2">Over 1000+ kind souls have already joined this journey of light and happiness. Now it's your turn - <span className="underline text-[#2acb35] text-lg">Subscribe now</span>.
+        <p className="mt-2 ">Over 1000+ kind souls have already joined this journey of light and happiness. Now it's your turn - <a
+                href="https://squirrelpeace.beehiiv.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-[#2acb35] text-lg font-semibold"
+              >
+                Subscribe now
+              </a>
         </p>
 
         <div className="mt-6 space-y-5">
@@ -171,13 +178,20 @@ const NewsletterPage = () => {
             {/* Content */}
             <div className="space-y-2 flex flex-col justify-center" ref={progressRef}>
               <h2 className="text-2xl font-semibold text-[#082c2f]">
-                Let Each <span className="text-[#2acb35] underline">Newsletter</span> Bring a Smile to Your Day
+                Let Each Newsletter Bring a Smile to Your Day
               </h2>
               <p className="text-lg">
                 Our daily newsletter is more than just emails. It's a quiet moment of joy, a warm voice in the noise, and a reminder that life is still full of beauty, meaning, and hope.
                 Every morning, we send you something special — heartwarming stories, inspiring thoughts, life-enriching ideas, and joyful surprises. It's a space where you can pause, breathe, smile, and feel connected to something bigger.
               </p>
-              <p className="mt-2 text-lg">Over 1000+ kind souls have already joined this journey of light and happiness. Now it's your turn - <span className="underline text-[#2acb35]">Subscribe now</span>.
+              <p className="mt-2 text-lg">Over 1000+ kind souls have already joined this journey of light and happiness. Now it's your turn - <a
+                href="https://squirrelpeace.beehiiv.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-[#2acb35] font-semibold"
+              >
+                Subscribe now
+              </a>
               </p>
 
               {/* Progress Bars */}
@@ -224,7 +238,7 @@ const NewsletterPage = () => {
               Our subscribers love the positive impact our newsletter brings to their daily lives. Read their honest reviews and see how we help make every day brighter and more meaningful. Join them and feel the difference!
             </p>
             <p className="mt-2 ">
-             We truly care about our subscribers and their well-being. That's why we carefully curate every newsletter to bring you valuable, uplifting content that supports your happiness and growth. Your satisfaction is our greatest reward.
+              We truly care about our subscribers and their well-being. That's why we carefully curate every newsletter to bring you valuable, uplifting content that supports your happiness and growth. Your satisfaction is our greatest reward.
             </p>
             <NavLink to="/success">
               <button className="mt-5 bg-[#2acb35] hover:bg-[#5EC7A7] text-white font-semibold px-6 py-1 rounded-full">
