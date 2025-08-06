@@ -2,10 +2,11 @@ import { BiLogoLinkedin } from "react-icons/bi";
 import { GrFacebookOption } from "react-icons/gr";
 import { IoLocationOutline } from "react-icons/io5";
 import { MdOutlineMarkEmailRead } from "react-icons/md";
-import { PiPhoneCallLight, PiArrowBendRightDownFill } from "react-icons/pi";
+import { PiArrowBendRightDownFill } from "react-icons/pi";
 import { RiTwitterXLine } from "react-icons/ri";
 import { RxInstagramLogo } from "react-icons/rx";
 import { TfiPinterest } from "react-icons/tfi";
+import { FaWhatsapp } from "react-icons/fa6";
 import { Helmet } from "react-helmet";
 import Swal from "sweetalert2";
 import { useForm } from "react-hook-form";
@@ -15,6 +16,14 @@ import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
 import { NavLink } from "react-router-dom";
 import contact from "../../../assets/contact.jpg"; 
+
+const socialLinks = {
+  Facebook: "https://www.facebook.com/squirrelpeace",
+  Instagram: "https://www.instagram.com/squirrelpeace/",
+  Twitter: "https://x.com/squirrelpeace",
+  Linkedin: "https://www.linkedin.com/in/squirrel-peace-146019379/",
+  Pinterest: "https://www.pinterest.com/squirrelpeace1/",
+};
 
 const Contact = () => {
   const axiosPublic = useAxiosPublic();
@@ -167,11 +176,11 @@ const Contact = () => {
           <div className="w-full lg:w-1/3 space-y-4 border border-gray-300 rounded-2xl p-5 animate__animated animate__slideInUp animate__slow">
             <p className="flex items-center text-sm md:text-[16px] font-medium gap-2">
               <IoLocationOutline className="text-2xl md:text-3xl text-[#2acb35]" />
-              <span>Address: Road 3, Uttara Dhaka, Bangladesh</span>
+              <span>Address: House 21, Road 3, Sector-12, Uttara, Dhaka, Bangladesh</span>
             </p>
             <p className="flex items-center text-sm md:text-[16px] font-medium gap-2 border-y border-y-[#2acb35] py-4">
-              <PiPhoneCallLight className="text-xl md:text-2xl text-[#2acb35]" />
-              <span>Phone: +880 1612002913</span>
+              <FaWhatsapp className="text-xl md:text-2xl text-[#2acb35]" />
+              <span>WhatsApp: +880 1805213197</span>
             </p>
             <p className="flex items-center text-sm md:text-[16px] font-medium gap-2 mb-6">
               <MdOutlineMarkEmailRead className="text-xl md:text-2xl text-[#2acb35]" />
@@ -205,6 +214,7 @@ const Contact = () => {
 const SocialButton = ({ Icon, title }) => (
   <button
     title={title}
+    onClick={() => window.open(socialLinks[title], "_blank")}
     className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:text-[#2acb35] hover:bg-white hover:border-[#2acb35] transition transform hover:scale-115"
   >
     <Icon />

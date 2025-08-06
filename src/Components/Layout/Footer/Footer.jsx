@@ -4,7 +4,7 @@ import { RiTwitterXLine } from "react-icons/ri";
 import { BiLogoLinkedin } from "react-icons/bi";
 import { TfiPinterest } from "react-icons/tfi";
 import { IoLocationOutline } from "react-icons/io5";
-import { PiPhoneCallLight } from "react-icons/pi";
+import { FaWhatsapp } from "react-icons/fa6";
 import { MdOutlineMarkEmailRead } from "react-icons/md";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { HiOutlineMailOpen } from "react-icons/hi";
@@ -42,11 +42,11 @@ const Footer = () => {
           </p>
           <p className="flex items-center text-[16px] font-medium gap-2">
             <IoLocationOutline className="text-2xl text-[#2acb35]" />
-            <span>Address: Road 3, Uttara Dhaka, Bangladesh</span>
+            <span>Address: House 21, Road 3, Sector-12, Uttara, Dhaka, Bangladesh</span>
           </p>
           <p className="flex items-center text-[16px] font-medium gap-2">
-            <PiPhoneCallLight className="text-2xl text-[#2acb35]" />
-            <span>Phone: +880 1612002913</span>
+            <FaWhatsapp className="text-2xl text-[#2acb35]" />
+            <span>WhatsApp: +880 1805213197</span>
           </p>
           <p className="flex items-center text-[16px] font-medium gap-2">
             <MdOutlineMarkEmailRead className="text-2xl text-[#2acb35]" />
@@ -221,30 +221,35 @@ const Footer = () => {
           <div className="flex items-center space-x-5">
             <button
               title="Facebook"
+              onClick={() => window.open('https://www.facebook.com/squirrelpeace', '_blank')}
               className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:bg-[#2acb35] transition transform hover:scale-115"
             >
               <GrFacebookOption />
             </button>
             <button
               title="Instagram"
+              onClick={() => window.open('https://www.instagram.com/squirrelpeace/', '_blank')}
               className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:bg-[#2acb35] transition transform hover:scale-115"
             >
               <RxInstagramLogo />
             </button>
             <button
               title="Twitter"
+              onClick={() => window.open('https://x.com/squirrelpeace', '_blank')}
               className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:bg-[#2acb35] transition transform hover:scale-115"
             >
               <RiTwitterXLine />
             </button>
             <button
               title="Linkedin"
+              onClick={() => window.open('https://www.linkedin.com/in/squirrel-peace-146019379/', '_blank')}
               className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:bg-[#2acb35] transition transform hover:scale-115"
             >
               <BiLogoLinkedin />
             </button>
             <button
               title="Pinterest"
+              onClick={() => window.open('https://www.pinterest.com/squirrelpeace1/', '_blank')}
               className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:bg-[#2acb35] transition transform hover:scale-115"
             >
               <TfiPinterest />
