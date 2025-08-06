@@ -222,6 +222,19 @@ const AdminPages = () => {
                         <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
                     </button>
                 </a>
+                <a
+                    href="https://docs.google.com/spreadsheets/d/13v0vx89cQG-HOvWSNLqaj4SZEtMfUY0yKcjxfvsg-_M/edit?usp=sharing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-5"
+                >
+                    <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
+                        <span className="relative z-10 group-hover:text-[#404040] hover:scale-105">
+                            Newsletter Subscriber List
+                        </span>
+                        <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
+                    </button>
+                </a>
             </div>
 
             {/* Bank Details Section */}
