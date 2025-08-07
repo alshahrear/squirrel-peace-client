@@ -103,7 +103,7 @@ const Contact = () => {
         {/* Title & Button Section */}
         <div className="relative">
           <div className="text-center">
-            <i className="text-3xl font-semibold text-[#2acb35]">Let's Talk</i>
+            <i className="text-3xl font-semibold text-[#2acb35]">Let's Talk With Us</i>
             <p className="max-w-5xl text-lg mx-auto my-4 ">
               Have a question, need support, interested in collaboration or sponsorship? We're here to listen and respond with care. Just drop us a message — we'd love to hear from you.
             </p>
