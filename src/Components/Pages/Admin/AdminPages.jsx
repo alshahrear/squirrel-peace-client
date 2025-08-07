@@ -61,13 +61,13 @@ const AdminPages = () => {
                 { label: "BKASH", number: "01936404039" },
             ],
         },
-        {
-            name: "Romio",
-            accounts: [
-                { label: "DBBL", number: "2907520730480" },
-                { label: "BKASH ", number: "01540658473" },
-            ],
-        },
+        // {
+        //     name: "Romio",
+        //     accounts: [
+        //         { label: "DBBL", number: "2907520730480" },
+        //         { label: "BKASH ", number: "01540658473" },
+        //     ],
+        // },
     ];
 
     const [copiedNumber, setCopiedNumber] = useState("");

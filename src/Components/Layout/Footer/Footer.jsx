@@ -5,6 +5,7 @@ import { BiLogoLinkedin } from "react-icons/bi";
 import { TfiPinterest } from "react-icons/tfi";
 import { IoLocationOutline } from "react-icons/io5";
 import { FaWhatsapp } from "react-icons/fa6";
+import { IoLogoYoutube } from "react-icons/io";
 import { MdOutlineMarkEmailRead } from "react-icons/md";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { HiOutlineMailOpen } from "react-icons/hi";
@@ -253,6 +254,13 @@ const Footer = () => {
               className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:bg-[#2acb35] transition transform hover:scale-115"
             >
               <TfiPinterest />
+            </button>
+            <button
+              title="YouTube"
+              onClick={() => window.open('https://www.youtube.com/@squirrelpeace', '_blank')}
+              className="flex justify-center items-center w-10 h-10 border-2 border-[#323232] p-2 rounded-full text-2xl text-white hover:bg-[#2acb35] transition transform hover:scale-115"
+            >
+              <IoLogoYoutube />
             </button>
           </div>
         </div>
