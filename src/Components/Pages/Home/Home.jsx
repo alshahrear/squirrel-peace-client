@@ -11,7 +11,13 @@ const Home = () => {
     return (
         <div>
             <Helmet>
-                <title>Home - Squirrel Peace </title>
+                <title>Home - Squirrel Peace</title>
+                <meta 
+                    name="description" 
+                    content="At Squirrel Peace, we guide you on the path to happiness and life's true growth. Embrace joy and move towards a beautiful life."
+                />
+                <link rel="canonical" href="https://squirrelpeace.com/" />
+                <meta name="robots" content="index, follow" />
             </Helmet>
             <Banner></Banner>
             <AboutHome></AboutHome>
