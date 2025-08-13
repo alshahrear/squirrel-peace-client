@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
 import { NavLink } from "react-router-dom";
-import contact from "../../../assets/contact.jpg"; 
+import contact from "../../../assets/contact.jpg";
 
 const socialLinks = {
   Facebook: "https://www.facebook.com/squirrelpeace",
@@ -85,13 +85,38 @@ const Contact = () => {
   return (
     <div className="bg-[#f7f7f7]">
       <Helmet>
-        <title>Contact - Squirrel Peace</title>
+        {/* Basic Meta Tags */}
+        <title>Contact - Squirrel Peace | Get in Touch with Us</title>
+        <meta
+          name="description"
+          content="Have questions, need support, or want to collaborate? Contact Squirrel Peace and connect with our team. We're here to listen and respond with care."
+        />
+        <meta
+          name="keywords"
+          content="contact, squirrel peace contact, get in touch, support, collaboration, newsletter, inquiries"
+        />
+        <link rel="canonical" href="https://squirrelpeace.com/contact" />
+        <meta name="robots" content="index, follow" />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:title" content="Contact - Squirrel Peace | Get in Touch with Us" />
+        <meta property="og:description" content="Have questions, need support, or want to collaborate? Contact Squirrel Peace and connect with our team. We're here to listen and respond with care." />
+        <meta property="og:image" content="https://squirrelpeace.com/images/contact-cover.jpg" />
+        <meta property="og:url" content="https://squirrelpeace.com/contact" />
+        <meta property="og:type" content="website" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Contact - Squirrel Peace | Get in Touch with Us" />
+        <meta name="twitter:description" content="Have questions, need support, or want to collaborate? Contact Squirrel Peace and connect with our team. We're here to listen and respond with care." />
+        <meta name="twitter:image" content="https://squirrelpeace.com/images/contact-cover.jpg" />
       </Helmet>
+
 
       {/* ✅ Banner Section */}
       <div
         className="h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] w-full bg-cover bg-center relative flex items-center justify-center"
-        style={{ backgroundImage: `url(${contact})` }} 
+        style={{ backgroundImage: `url(${contact})` }}
       >
         <div className="absolute inset-0 bg-black/30"></div>
         <h1 className="relative z-10 text-3xl md:text-4xl lg:text-4xl font-bold text-white text-center">

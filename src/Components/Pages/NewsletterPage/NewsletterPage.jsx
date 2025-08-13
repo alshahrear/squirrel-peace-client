@@ -90,8 +90,33 @@ const NewsletterPage = () => {
   return (
     <div>
       <Helmet>
-        <title>Newsletter - Squirrel Peace</title>
+        {/* Basic Meta Tags */}
+        <title>Newsletter - Squirrel Peace | Daily Positivity & Inspiration</title>
+        <meta
+          name="description"
+          content="Join 1000+ readers who receive our free daily newsletter filled with positivity, inspiring stories, and life-enriching ideas from Squirrel Peace."
+        />
+        <meta
+          name="keywords"
+          content="newsletter, daily inspiration, positive newsletter, squirrel peace newsletter, life tips, motivation, happiness"
+        />
+        <link rel="canonical" href="https://squirrelpeace.com/newsletter" />
+        <meta name="robots" content="index, follow" />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:title" content="Newsletter - Squirrel Peace | Daily Positivity & Inspiration" />
+        <meta property="og:description" content="Join 1000+ readers who receive our free daily newsletter filled with positivity, inspiring stories, and life-enriching ideas from Squirrel Peace." />
+        <meta property="og:image" content="https://squirrelpeace.com/images/newsletter-cover.jpg" />
+        <meta property="og:url" content="https://squirrelpeace.com/newsletter" />
+        <meta property="og:type" content="website" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Newsletter - Squirrel Peace | Daily Positivity & Inspiration" />
+        <meta name="twitter:description" content="Join 1000+ readers who receive our free daily newsletter filled with positivity, inspiring stories, and life-enriching ideas from Squirrel Peace." />
+        <meta name="twitter:image" content="https://squirrelpeace.com/images/newsletter-cover.jpg" />
       </Helmet>
+
 
       {/* 🖥️ Heading (Desktop Only) */}
       <div className="hidden lg:block text-center bg-[#f7f7f7] pt-6 px-4">
@@ -130,13 +155,13 @@ const NewsletterPage = () => {
           Every morning, we send you something special — heartwarming stories, inspiring thoughts, life-enriching ideas, and joyful surprises. It's a space where you can pause, breathe, smile, and feel connected to something bigger.
         </p>
         <p className="mt-2 ">Over 1000+ kind souls have already joined this journey of light and happiness. Now it's your turn - <a
-                href="https://squirrelpeace.beehiiv.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline text-[#2acb35] text-lg font-semibold"
-              >
-                Subscribe now
-              </a>
+          href="https://squirrelpeace.beehiiv.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline text-[#2acb35] text-lg font-semibold"
+        >
+          Subscribe now
+        </a>
         </p>
 
         <div className="mt-6 space-y-5">

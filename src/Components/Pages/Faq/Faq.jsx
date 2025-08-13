@@ -127,7 +127,31 @@ const Faq = () => {
   return (
     <div className="bg-[#f7f7f7]">
       <Helmet>
-        <title>Faq - Squirrel Peace </title>
+        {/* Basic Meta Tags */}
+        <title>FAQ - Squirrel Peace | Frequently Asked Questions</title>
+        <meta
+          name="description"
+          content="Explore frequently asked questions about Squirrel Peace. Find answers about our services, newsletter, collaborations, and more. Still have questions? Contact us directly."
+        />
+        <meta
+          name="keywords"
+          content="FAQ, squirrel peace faq, questions, answers, newsletter, support, collaboration"
+        />
+        <link rel="canonical" href="https://squirrelpeace.com/faq" />
+        <meta name="robots" content="index, follow" />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:title" content="FAQ - Squirrel Peace | Frequently Asked Questions" />
+        <meta property="og:description" content="Explore frequently asked questions about Squirrel Peace. Find answers about our services, newsletter, collaborations, and more. Still have questions? Contact us directly." />
+        <meta property="og:image" content="https://squirrelpeace.com/images/faq-cover.jpg" />
+        <meta property="og:url" content="https://squirrelpeace.com/faq" />
+        <meta property="og:type" content="website" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="FAQ - Squirrel Peace | Frequently Asked Questions" />
+        <meta name="twitter:description" content="Explore frequently asked questions about Squirrel Peace. Find answers about our services, newsletter, collaborations, and more. Still have questions? Contact us directly." />
+        <meta name="twitter:image" content="https://squirrelpeace.com/images/faq-cover.jpg" />
       </Helmet>
 
       {/* Banner Section */}

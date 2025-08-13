@@ -11,8 +11,33 @@ const AboutPage = () => {
     return (
         <div className="">
             <Helmet>
-                <title>About - Squirrel Peace </title>
+                {/* Basic Meta Tags */}
+                <title>About Us - Squirrel Peace | Our Story, Mission & Vision</title>
+                <meta
+                    name="description"
+                    content="Learn about Squirrel Peace - our story, mission, vision, and how we inspire joy, positivity, and community connection every day."
+                />
+                <meta
+                    name="keywords"
+                    content="about squirrel peace, our story, mission, vision, positivity, community"
+                />
+                <link rel="canonical" href="https://squirrelpeace.com/about" />
+                <meta name="robots" content="index, follow" />
+
+                {/* Open Graph / Facebook */}
+                <meta property="og:title" content="About Us - Squirrel Peace | Our Story, Mission & Vision" />
+                <meta property="og:description" content="Learn about Squirrel Peace - our story, mission, vision, and how we inspire joy, positivity, and community connection every day." />
+                <meta property="og:image" content="https://squirrelpeace.com/images/about-cover.jpg" />
+                <meta property="og:url" content="https://squirrelpeace.com/about" />
+                <meta property="og:type" content="website" />
+
+                {/* Twitter Card */}
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="About Us - Squirrel Peace | Our Story, Mission & Vision" />
+                <meta name="twitter:description" content="Learn about Squirrel Peace - our story, mission, vision, and how we inspire joy, positivity, and community connection every day." />
+                <meta name="twitter:image" content="https://squirrelpeace.com/images/about-cover.jpg" />
             </Helmet>
+
             <div>
                 <ImageBanner></ImageBanner>
             </div>
@@ -31,7 +56,7 @@ const AboutPage = () => {
                             The Story of Our Journey
                         </h3>
                         <p className="">
-                           For years, we've been on a mission to help you rediscover joy in everyday life. We understand how small problems can cast a shadow over your routine, so our team works tirelessly to share practical solutions, heartfelt encouragement, and trusted resources. By staying connected with us, you'll find the support you need to overcome challenges and embrace each day with confidence. Every article, tool, and service we create is crafted with your happiness in mind—so you can live a richer, more fulfilling life. Welcome to a community that cares about your well-being.
+                            For years, we've been on a mission to help you rediscover joy in everyday life. We understand how small problems can cast a shadow over your routine, so our team works tirelessly to share practical solutions, heartfelt encouragement, and trusted resources. By staying connected with us, you'll find the support you need to overcome challenges and embrace each day with confidence. Every article, tool, and service we create is crafted with your happiness in mind—so you can live a richer, more fulfilling life. Welcome to a community that cares about your well-being.
                         </p>
                         <h4 className="text-xl font-semibold ">Our Mission, Vision & Impact</h4>
                         <p className="">
