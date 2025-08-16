@@ -18,7 +18,7 @@ import useAdmin from "../../../hooks/useAdmin";
 Quill.register("modules/imageResize", ImageResize);
 
 const StoryDetails = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const [story, setStory] = useState(null);
   const [otherStories, setOtherStories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ const StoryDetails = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    fetch(`https://squirrel-peace-server.onrender.com/story/${id}`)
+    fetch(`https://squirrel-peace-server.onrender.com/story/slug/${slug}`)
       .then((res) => res.json())
       .then((data) => {
         setStory(data);
@@ -51,17 +51,17 @@ const StoryDetails = () => {
         setError("Failed to fetch story.");
         setLoading(false);
       });
-  }, [id]);
+  }, [slug]);
 
   useEffect(() => {
     fetch("https://squirrel-peace-server.onrender.com/story")
       .then((res) => res.json())
       .then((data) => {
-        const filtered = data.filter((item) => item._id !== id);
+        const filtered = data.filter((item) => item.storySlug !== slug);
         const shuffled = filtered.sort(() => 0.5 - Math.random());
         setOtherStories(shuffled);
       });
-  }, [id]);
+  }, [slug]);
 
   const handleUpdate = async () => {
     const cleaned = DOMPurify.sanitize(longDescription, {
@@ -78,7 +78,7 @@ const StoryDetails = () => {
     };
 
     try {
-      const res = await fetch(`https://squirrel-peace-server.onrender.com/storyDetails/${id}`, {
+      const res = await fetch(`https://squirrel-peace-server.onrender.com/storyDetails/${story._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedStory),
@@ -162,9 +162,11 @@ const StoryDetails = () => {
   if (error) return <div className="text-center py-10 text-red-500">{error}</div>;
 
   return (
-    <div key={id}>
+    <div key={slug}>
       <Helmet>
-        <title>{story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'}</title>
+        <title>
+          {story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'}
+        </title>
 
         <meta
           name="description"
@@ -175,8 +177,11 @@ const StoryDetails = () => {
           }
         />
 
-        {/* Open Graph for Facebook, LinkedIn, WhatsApp */}
-        <meta property="og:title" content={story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'} />
+        {/* Open Graph */}
+        <meta
+          property="og:title"
+          content={story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'}
+        />
         <meta
           property="og:description"
           content={
@@ -188,7 +193,11 @@ const StoryDetails = () => {
         <meta property="og:type" content="article" />
         <meta
           property="og:url"
-          content={story?._id ? `https://squirrel-peace-71169.web.app/story/${story._id}` : 'https://squirrel-peace-71169.web.app'}
+          content={
+            story?.storySlug
+              ? `https://squirrel-peace-71169.web.app/story/${story.storySlug}`
+              : 'https://squirrel-peace-71169.web.app'
+          }
         />
         <meta
           property="og:image"
@@ -201,7 +210,10 @@ const StoryDetails = () => {
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'} />
+        <meta
+          name="twitter:title"
+          content={story?.storyTitle ? `${story.storyTitle} - Squirrel Peace` : 'Squirrel Peace'}
+        />
         <meta
           name="twitter:description"
           content={
@@ -225,9 +237,7 @@ const StoryDetails = () => {
         style={{ backgroundImage: `url(${story.storyImage})` }}
       >
         <div className="bg-black/60 text-white text-center p-6 w-11/12 sm:w-3/4 md:w-2/3 rounded-2xl">
-          <h2 className="text-xl sm:text-3xl font-semibold">
-            {story.storyTitle}
-          </h2>
+          <h2 className="text-xl sm:text-3xl font-semibold">{story.storyTitle}</h2>
           <p className="text-sm mt-3 md:text-base">{story.storyShortDescription}</p>
         </div>
       </div>
@@ -279,73 +289,42 @@ const StoryDetails = () => {
         </div>
       </div>
 
-
       <div className="max-w-screen-xl mx-auto px-4 ">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 border-b border-gray-300 pb-8 mb-5">
           <div className="lg:col-span-2">
-            <div className="rich-content " dangerouslySetInnerHTML={{ __html: cleanLongDescription }} />
+            <div className="rich-content" dangerouslySetInnerHTML={{ __html: cleanLongDescription }} />
             <div className="block lg:hidden mt-6 border-t pt-5">
               <StoryBottoms {...story} />
             </div>
           </div>
 
           <div className="lg:border-l border-t border-gray-300 md:rounded-tl-xl pt-5 lg:pt-0 pl-0 lg:pl-5">
-            <h3 className="text-2xl font-bold text-center pt-2 mb-4">
-              Other Stories
-            </h3>
+            <h3 className="text-2xl font-bold text-center pt-2 mb-4">Other Stories</h3>
             <div className="grid grid-cols-1 gap-4 lg:flex lg:flex-col">
               {(window.innerWidth >= 1024 ? otherStories.slice(0, 10) : otherStories.slice(0, 5)).map((item) => (
-                <Link
-                  key={item._id}
-                  to={`/story/${item._id}`}
+                <Link key={item.storySlug} to={`/story/${item.storySlug}`}
                   className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group h-70 cursor-pointer"
                 >
-                  <img
-                    src={item.storyImage}
-                    alt="story-img"
-                    className="w-full h-full object-cover"
-                  />
-
-                  {/* Overlay */}
+                  <img src={item.storyImage} alt="story-img" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/30 backdrop-brightness-90"></div>
-
-                  {/* Overlay Content */}
                   <div className="absolute inset-0 flex flex-col justify-between text-white p-4 z-10">
-                    {/* Top Left (Date) */}
                     <div className="absolute top-3 left-3 z-20">
-                      <span className="text-white text-sm px-4 py-1 rounded-full backdrop-blur-sm">
-                        {item.storyDate}
-                      </span>
+                      <span className="text-white text-sm px-4 py-1 rounded-full backdrop-blur-sm">{item.storyDate}</span>
                     </div>
-
-                    {/* Top Right (Category) */}
                     <div className="absolute top-3 right-3 z-20">
-                      <div className="text-white text-xs px-4 py-1 border border-white rounded-full backdrop-blur-sm">
-                        {item.storyCategory}
-                      </div>
+                      <div className="text-white text-xs px-4 py-1 border border-white rounded-full backdrop-blur-sm">{item.storyCategory}</div>
                     </div>
-
-                    {/* Middle (Title + Description) */}
                     <div className="flex-grow flex flex-col justify-center">
-                      <h2 className="text-lg font-bold mb-1 drop-shadow-sm text-left">
-                        {item.storyTitle}
-                      </h2>
-                      <p className="text-sm group-hover:font-medium leading-relaxed drop-shadow-sm transition-all duration-300 text-left line-clamp-3">
-                        {item.storyShortDescription}
-                      </p>
+                      <h2 className="text-lg font-bold mb-1 drop-shadow-sm text-left">{item.storyTitle}</h2>
+                      <p className="text-sm group-hover:font-medium leading-relaxed drop-shadow-sm transition-all duration-300 text-left line-clamp-3">{item.storyShortDescription}</p>
                     </div>
-
-                    {/* Bottom (See More button) */}
                     <div>
-                      <button className="w-full py-1 border border-white text-white rounded-md transition-all duration-300 hover:scale-105 hover:font-semibold hover:border-[#2acb35]">
-                        See More
-                      </button>
+                      <button className="w-full py-1 border border-white text-white rounded-md transition-all duration-300 hover:scale-105 hover:font-semibold hover:border-[#2acb35]">See More</button>
                     </div>
                   </div>
                 </Link>
               ))}
             </div>
-
           </div>
         </div>
       </div>
@@ -360,35 +339,16 @@ const StoryDetails = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center px-4">
           <div className="bg-white w-full max-w-3xl rounded-xl shadow-xl p-4 md:p-6 relative max-h-[90vh] flex flex-col">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-3 right-4 text-xl font-bold text-gray-500 hover:text-red-500"
-            >
-              ✕
-            </button>
+            <button onClick={() => setShowModal(false)} className="absolute top-3 right-4 text-xl font-bold text-gray-500 hover:text-red-500">✕</button>
             <h2 className="text-xl md:text-2xl font-bold mb-3">Edit Story</h2>
             <div className="overflow-y-auto flex-grow space-y-4 pr-1">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <input
-                  value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                  className="border px-4 py-2 rounded-md w-full"
-                />
-                <input
-                  value={editRandom}
-                  onChange={(e) => setEditRandom(e.target.value)}
-                  className="border px-4 py-2 rounded-md w-full"
-                />
-                <select
-                  value={editTime}
-                  onChange={(e) => setEditTime(e.target.value)}
-                  className="border px-4 py-2 rounded-md w-full"
-                >
+                <input value={editDate} onChange={(e) => setEditDate(e.target.value)} className="border px-4 py-2 rounded-md w-full" />
+                <input value={editRandom} onChange={(e) => setEditRandom(e.target.value)} className="border px-4 py-2 rounded-md w-full" />
+                <select value={editTime} onChange={(e) => setEditTime(e.target.value)} className="border px-4 py-2 rounded-md w-full">
                   <option value="">Select Read Time</option>
                   {[...Array(10)].map((_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      {i + 1}
-                    </option>
+                    <option key={i + 1} value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
               </div>
@@ -418,7 +378,6 @@ const StoryDetails = () => {
                   <button className="ql-video" />
                   <button className="ql-clean" />
                 </div>
-
                 <div className="max-h-[400px] overflow-y-auto">
                   <ReactQuill
                     ref={quillRef}

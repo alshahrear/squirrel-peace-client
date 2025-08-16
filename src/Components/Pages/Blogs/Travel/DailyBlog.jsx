@@ -14,7 +14,7 @@ const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
 const DailyBlog = ({ dailyBlog, onDelete, onUpdate, searchTerm }) => {
-  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage, blogDate } = dailyBlog;
+  const { _id, blogSlug, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage, blogDate } = dailyBlog;
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -110,7 +110,7 @@ const DailyBlog = ({ dailyBlog, onDelete, onUpdate, searchTerm }) => {
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(_id);
+    navigator.clipboard.writeText(blogSlug);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -133,7 +133,7 @@ const DailyBlog = ({ dailyBlog, onDelete, onUpdate, searchTerm }) => {
   return (
     <div
       className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
-      onClick={() => navigate(`/blog/${_id}`)}
+      onClick={() => navigate(`/blog/${blogSlug}`)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >

@@ -135,7 +135,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
     <>
       <div
         className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
-        onClick={() => navigate(`/story/${_id}`)}
+        onClick={() => navigate(`/story/${storyBlog.storySlug}`)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >

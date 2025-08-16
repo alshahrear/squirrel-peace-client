@@ -3,7 +3,7 @@ import { useInView } from 'react-intersection-observer';
 import { useNavigate } from "react-router-dom";
 
 const BlogHomeLatest = ({ latestBlog }) => {
-    const { _id, blogTitle, blogDate, blogCategory, blogImage, blogShortDescription } = latestBlog;
+    const { _id, blogSlug, blogTitle, blogDate, blogCategory, blogImage, blogShortDescription } = latestBlog;
 
     const { ref, inView } = useInView({
         triggerOnce: true,
@@ -15,7 +15,7 @@ const BlogHomeLatest = ({ latestBlog }) => {
     return (
         <div
             className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
-            onClick={() => navigate(`/blog/${_id}`)}
+            onClick={() => navigate(`/blog/${blogSlug}`)}
         >
             <img src={blogImage} alt="blog-img" className="w-full h-80 object-cover" />
             <div className="absolute inset-0 bg-black/30 backdrop-brightness-90"></div>

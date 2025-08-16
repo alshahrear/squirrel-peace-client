@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const StoryHome = ({ storyHome }) => {
-    const { _id, storyTitle, storyDate, storyCategory, storyImage, storyShortDescription } = storyHome;
+    const { _id, storyTitle, storyDate, storyCategory, storyImage, storyShortDescription, storySlug } = storyHome;
+
 
     const [hovered, setHovered] = useState(false);
     const { ref, inView } = useInView({
@@ -19,7 +20,8 @@ const StoryHome = ({ storyHome }) => {
             className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            onClick={() => navigate(`/story/${_id}`)}
+            onClick={() => navigate(`/story/${storySlug}`)}
+
         >
             <img
                 src={storyImage}

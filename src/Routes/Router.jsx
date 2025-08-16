@@ -62,8 +62,8 @@ export const router = createBrowserRouter([
         element: <SmartResource></SmartResource>
       },
       {
-        path: "/blog/:id",
-        element: <BlogDetails></BlogDetails>
+        path: "/blog/:slug",
+        element: <BlogDetails />
       },
       {
         path: "/draft/:id",
@@ -78,8 +78,8 @@ export const router = createBrowserRouter([
         element: <StoryBlogs></StoryBlogs>
       },
       {
-        path: "/story/:id",
-        element: <StoryDetails></StoryDetails>
+        path: "/story/:slug",
+        element: <StoryDetails />
       },
       {
         path: "/storyBlogAdmin",
