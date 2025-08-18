@@ -228,19 +228,13 @@ const AdminPages = () => {
                     rel="noopener noreferrer"
                     className="mt-5"
                 >
-                    <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
-                        <span className="relative z-10 group-hover:text-[#404040] hover:scale-105">
-                            Newsletter Subscriber List
-                        </span>
-                        <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
-                    </button>
                 </a>
             </div>
 
             {/* Bank Details Section */}
             <div className="mt-10">
                 <h2 className="text-2xl font-bold text-center mb-5">Bank Details (AC)</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 max-w-7xl mx-auto px-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-5xl mx-auto px-2">
                     {accounts.map((acc) => (
                         <div
                             key={acc.name}
