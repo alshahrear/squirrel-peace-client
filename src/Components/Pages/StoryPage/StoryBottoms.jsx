@@ -101,7 +101,7 @@ const StoryBottoms = ({ _id: storyId, storyTitle, storyCategory, storyImage }) =
                         Once a week, Squirrel Peace sends thoughtful, helpful content about freelancing, focus, and finding balance in your creative work.
                     </p>
                     <a
-                        href=""
+                        href="https://squirrelpeace.beehiiv.com/"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full"
