@@ -19,7 +19,7 @@ const PrivacyPolicy = () => {
         </h1>
       </div>
       <div className="py-16">
-        <h2 className="text-2xl text-center font-semibold px-2">Our Privacy Policy will be available soon...</h2>
+        <h2 className="text-2xl text-center font-semibold px-2">Our Privacy Policy will be available soon.....</h2>
       </div>
     </div>
   );
