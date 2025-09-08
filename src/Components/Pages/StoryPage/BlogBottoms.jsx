@@ -1,8 +1,8 @@
 import Swal from "sweetalert2";
 import { useState } from "react";
-import story4 from "../../../assets/newsletterBlog.jpg"
+import blog4 from "../../../assets/newsletterBlog.jpg"
 
-const StoryBottoms = ({ _id: storyId, storyTitle, storyCategory, storyImage }) => {
+const BlogBottoms = ({ _id: blogId, blogTitle, blogCategory, blogImage }) => {
     const [isSubmitting, setIsSubmitting] = useState(false); // loading state
 
     const handleComment = (e) => {
@@ -18,13 +18,13 @@ const StoryBottoms = ({ _id: storyId, storyTitle, storyCategory, storyImage }) =
             name,
             email,
             comment,
-            storyId,
-            storyTitle: storyTitle,
-            storyCategory: storyCategory,
-            storyImage: storyImage,
+            blogId,
+            blogTitle: blogTitle,
+            blogCategory: blogCategory,
+            blogImage: blogImage,
         };
 
-        fetch("https://squirrel-peace-server.onrender.com/comment/story", {
+        fetch("https://squirrel-peace-server.onrender.com/comment/blog", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newComment),
@@ -114,10 +114,10 @@ const StoryBottoms = ({ _id: storyId, storyTitle, storyCategory, storyImage }) =
                         </button>
                     </a>
                 </div>
-                <img className="rounded-b-xl w-full h-60" src={story4} alt="" />
+                <img className="rounded-b-xl w-full h-60" src={blog4} alt="" />
             </div>
         </div>
     );
 };
 
-export default StoryBottoms;
+export default BlogBottoms;

@@ -3,8 +3,8 @@ import { useInView } from 'react-intersection-observer';
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const StoryHome = ({ storyHome }) => {
-    const { _id, storyTitle, storyDate, storyCategory, storyImage, storyShortDescription, storySlug } = storyHome;
+const BlogHome = ({ blogHome }) => {
+    const { _id, blogTitle, blogDate, blogCategory, blogImage, blogShortDescription, blogSlug } = blogHome;
 
 
     const [hovered, setHovered] = useState(false);
@@ -20,12 +20,12 @@ const StoryHome = ({ storyHome }) => {
             className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            onClick={() => navigate(`/story/${storySlug}`)}
+            onClick={() => navigate(`/blog/${blogSlug}`)}
 
         >
             <img
-                src={storyImage}
-                alt="story-img"
+                src={blogImage}
+                alt="blog-img"
                 className="w-full h-80 object-cover"
             />
 
@@ -35,19 +35,19 @@ const StoryHome = ({ storyHome }) => {
                 ref={ref}
                 className={`absolute inset-0 flex flex-col justify-between text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
             >
-                {/* Top left - Story Date */}
+                {/* Top left - blog Date */}
                 <div className="absolute top-3 left-3 text-white text-sm px-4 py-2 rounded-full z-20">
-                    {storyDate}
+                    {blogDate}
                 </div>
 
                 {/* Top right - Category */}
                 <div className="absolute top-4 right-4 text-white text-xs px-4 py-2 border border-white rounded-full z-20">
-                    {storyCategory}
+                    {blogCategory}
                 </div>
 
                 {/* Centered content */}
                 <div className="flex-1 flex flex-col justify-center text-left">
-                    <h2 className="text-xl font-bold mt-3 mb-2 drop-shadow-sm">{storyTitle}</h2>
+                    <h2 className="text-xl font-bold mt-3 mb-2 drop-shadow-sm">{blogTitle}</h2>
                     <p
                         className="text-sm group-hover:font-medium leading-relaxed drop-shadow-sm transition-all duration-300 text-left overflow-hidden text-ellipsis"
                         style={{
@@ -56,7 +56,7 @@ const StoryHome = ({ storyHome }) => {
                             WebkitBoxOrient: 'vertical',
                         }}
                     >
-                        {storyShortDescription}
+                        {blogShortDescription}
                     </p>
                 </div>
 
@@ -73,4 +73,4 @@ const StoryHome = ({ storyHome }) => {
     );
 };
 
-export default StoryHome;
+export default BlogHome;

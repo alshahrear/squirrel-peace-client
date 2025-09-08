@@ -1,9 +1,9 @@
 import story1 from "../../../assets/story.jpg";
-import StoryBlogs from "./StoryBlogs";
 import { Helmet } from "react-helmet";
-import StoryDown from "./StoryDown";
+import BlogDown from "./blogDown";
+import Blogs from "./Blogs";
 
-const StoryPages = () => {
+const BlogPages = () => {
     return (
         <div>
             <Helmet>
@@ -48,12 +48,12 @@ const StoryPages = () => {
 
                 <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Our Blog</h1>
             </div>
-            <StoryDown></StoryDown>
+            <BlogDown></BlogDown>
             <div className="py-5">
-                <StoryBlogs />
+                <Blogs></Blogs>
             </div>
         </div>
     );
 };
 
-export default StoryPages;
+export default BlogPages;

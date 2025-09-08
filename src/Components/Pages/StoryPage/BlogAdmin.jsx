@@ -1,4 +1,4 @@
-// StoryBlogAdmin.jsx
+// BlogAdmin.jsx
 import React, { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import Swal from 'sweetalert2';
@@ -19,13 +19,13 @@ Quill.register('modules/imageResize', ImageResize);
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
-const StoryBlogAdmin = () => {
+const BlogAdmin = () => {
   const { user } = useAuth();
   const axiosPublic = useAxiosPublic();
   const { register, handleSubmit, reset } = useForm();
   const today = dayjs().format("YYYY-MM-DD");
 
-  const [storyDate, setStoryDate] = useState(today);
+  const [blogDate, setBlogDate] = useState(today);
   const [longDescription, setLongDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -59,7 +59,7 @@ const StoryBlogAdmin = () => {
 
     try {
       const formData = new FormData();
-      formData.append('image', data.storyImage[0]);
+      formData.append('image', data.blogImage[0]);
 
       const imageRes = await axiosPublic.post(image_hosting_api, formData, {
         headers: { "Content-Type": "multipart/form-data" }
@@ -68,20 +68,20 @@ const StoryBlogAdmin = () => {
       const imageUrl = imageRes.data?.data?.display_url;
       if (!imageUrl) throw new Error("Image upload failed");
 
-      const formattedDate = dayjs(storyDate).format("D MMMM, YYYY");
+      const formattedDate = dayjs(blogDate).format("D MMMM, YYYY");
 
-      const storyData = {
-        storyTitle: data.storyTitle,
-        storyCategory: data.storyCategory,
-        storyRandom: data.storyRandom,
-        storyTime: data.storyTime,
-        storyDate: formattedDate,
-        storyImage: imageUrl,
-        storyShortDescription: data.storyShortDescription,
-        storyLongDescription: longDescription,
+      const blogData = {
+        blogTitle: data.blogTitle,
+        blogCategory: data.blogCategory,
+        blogRandom: data.blogRandom,
+        blogTime: data.blogTime,
+        blogDate: formattedDate,
+        blogImage: imageUrl,
+        blogShortDescription: data.blogShortDescription,
+        blogLongDescription: longDescription,
       };
 
-      const res = await axiosPublic.post('/story', storyData);
+      const res = await axiosPublic.post('/blog', blogData);
 
       if (res.data?.insertedId) {
         Swal.fire({
@@ -92,7 +92,7 @@ const StoryBlogAdmin = () => {
           timer: 1500
         });
         reset();
-        setStoryDate(today);
+        setBlogDate(today);
         setLongDescription('');
       } else {
         throw new Error("Failed to save blog");
@@ -193,16 +193,16 @@ const StoryBlogAdmin = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Inputs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <input {...register("storyTitle", { required: true })} placeholder="Blog Title*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+              <input {...register("blogTitle", { required: true })} placeholder="Blog Title*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
 
-              <input {...register("storyCategory", { required: true })} placeholder="Blog Category*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+              <input {...register("blogCategory", { required: true })} placeholder="Blog Category*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <input {...register("storyRandom", { required: true })} placeholder="Blog Random (xyz)*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+              <input {...register("blogRandom", { required: true })} placeholder="Blog Random (xyz)*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
 
               <select
-                {...register("storyTime", { required: true })}
+                {...register("blogTime", { required: true })}
                 defaultValue=""
                 className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]"
               >
@@ -215,11 +215,11 @@ const StoryBlogAdmin = () => {
               </select>
             </div>
 
-            <textarea rows="2" {...register("storyShortDescription", { required: true })} placeholder="Blog Short Description..." className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+            <textarea rows="2" {...register("blogShortDescription", { required: true })} placeholder="Blog Short Description..." className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-              <input type="file" {...register("storyImage", { required: true })} className="file-input file-input-ghost w-full" />
-              <input type="date" value={storyDate} onChange={(e) => setStoryDate(e.target.value)} className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" required />
+              <input type="file" {...register("blogImage", { required: true })} className="file-input file-input-ghost w-full" />
+              <input type="date" value={blogDate} onChange={(e) => setBlogDate(e.target.value)} className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" required />
             </div>
 
             {/* Editor */}
@@ -283,4 +283,4 @@ const StoryBlogAdmin = () => {
   );
 };
 
-export default StoryBlogAdmin;
+export default BlogAdmin;

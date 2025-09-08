@@ -15,17 +15,17 @@ import ContactAdmin from "../Components/Pages/Contact/ContactAdmin";
 import Users from "../Components/Pages/Users/Users";
 import NewsletterPage from "../Components/Pages/NewsletterPage/NewsletterPage";
 import AboutPage from "../Components/Pages/About/AboutPage";
-import StoryPages from "../Components/Pages/StoryPage/StoryPages";
-import StoryBlogAdmin from "../Components/Pages/StoryPage/StoryBlogAdmin";
-import StoryBlogs from "../Components/Pages/StoryPage/StoryBlogs";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
 import AdminRoute from "../Components/Layout/Privet/AdminRoute";
-import StoryDetails from "../Components/Pages/StoryPage/StoryDetails";
 import CommentsAdmin from "../Components/Pages/StoryPage/CommentsAdmin";
 import PrivacyPolicy from "../Components/Pages/PrivacyPolicy";
 import TermCondition from "../Components/Pages/TermCondition";
 import DraftBlogAdmin from "../Components/Pages/DraftBlogAdmin/DraftBlogAdmin";
 import DraftDetails from "../Components/Pages/DraftBlogAdmin/DraftDetails";
+import BlogAdmin from "../Components/Pages/StoryPage/BlogAdmin";
+import BlogPages from "../Components/Pages/StoryPage/BlogPages";
+import Blogs from "../Components/Pages/StoryPage/Blogs";
+import BlogDetails from "../Components/Pages/StoryPage/BlogDetails";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -50,19 +50,19 @@ export const router = createBrowserRouter([
       },
       {
         path: "/blog",
-        element: <StoryPages></StoryPages>
+        element: <BlogPages></BlogPages>
       },
       {
-        path: "/storyBlogs",
-        element: <StoryBlogs></StoryBlogs>
+        path: "/Blogs",
+        element: <Blogs></Blogs>
       },
       {
-        path: "/story/:slug",
-        element: <StoryDetails />
+        path: "/blog/:slug",
+        element: <BlogDetails />
       },
       {
         path: "/blogAdmin",
-        element: <AdminRoute><StoryBlogAdmin></StoryBlogAdmin></AdminRoute>
+        element: <AdminRoute><BlogAdmin></BlogAdmin></AdminRoute>
       },
       {
         path: "/draftBlogAdmin",

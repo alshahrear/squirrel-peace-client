@@ -13,8 +13,8 @@ import { useNavigate } from 'react-router-dom';
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;
 
-const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
-  const { _id, storyTitle, storyRandom, storyShortDescription, storyCategory, storyImage, storyDate } = storyBlog;
+const Blog = ({ blog, onDelete, onUpdate, searchTerm }) => {
+  const { _id, blogTitle, blogRandom, blogShortDescription, blogCategory, blogImage, blogDate, blogSlug } = blog;
 
   const { user } = useAuth();
   const [isAdmin] = useAdmin();
@@ -23,11 +23,11 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
   const [copied, setCopied] = useState(false);
   const [newImageFile, setNewImageFile] = useState(null);
   const [formData, setFormData] = useState({
-    storyTitle,
-    storyCategory,
-    storyRandom,
-    storyImage,
-    storyShortDescription
+    blogTitle,
+    blogCategory,
+    blogRandom,
+    blogImage,
+    blogShortDescription
   });
 
   const { ref, inView } = useInView({
@@ -37,7 +37,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
 
   const navigate = useNavigate();
 
-  const handleStoryDelete = (id) => {
+  const handleBlogDelete = (id) => {
     Swal.fire({
       title: "Are you sure to delete it?",
       text: "You won't be able to revert this!",
@@ -48,7 +48,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
       confirmButtonText: "Yes, delete it!"
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`https://squirrel-peace-server.onrender.com/story/${id}`, {
+        fetch(`https://squirrel-peace-server.onrender.com/blog/${id}`, {
           method: 'DELETE',
         })
           .then(res => res.json())
@@ -68,7 +68,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
     });
   };
 
-  const handleStoryUpdate = async (e) => {
+  const handleBlogUpdate = async (e) => {
     e.preventDefault();
 
     let updatedData = { ...formData };
@@ -84,11 +84,11 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
 
       const imageResponse = await res.json();
       if (imageResponse.success) {
-        updatedData.storyImage = imageResponse.data.display_url;
+        updatedData.blogImage = imageResponse.data.display_url;
       }
     }
 
-    fetch(`https://squirrel-peace-server.onrender.com/story/${_id}`, {
+    fetch(`https://squirrel-peace-server.onrender.com/blog/${_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedData)
@@ -130,25 +130,23 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
     );
   };
 
-
   return (
     <>
       <div
         className="relative rounded-2xl overflow-hidden shadow-md transform transition duration-300 hover:scale-105 group cursor-pointer"
-        onClick={() => navigate(`/story/${storyBlog.storySlug}`)}
+        onClick={() => navigate(`/blog/${blogSlug}`)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
         <img
-          src={storyImage}
-          alt="story-img"
+          src={blogImage}
+          alt="blog-img"
           className="w-full h-80 object-cover"
         />
 
         <div className="absolute inset-0 bg-black/30 backdrop-brightness-90"></div>
 
-        {
-          user && isAdmin &&
+        {user && isAdmin &&
           <div className="absolute top-3 right-3 z-30 dropdown dropdown-end" onClick={(e) => e.stopPropagation()}>
             <div
               tabIndex={0}
@@ -181,7 +179,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleStoryDelete(_id);
+                  handleBlogDelete(_id);
                 }}
                 className="btn text-sm font-semibold text-gray-700 hover:bg-red-100 hover:text-red-700 transition-all duration-200 rounded-md hover:scale-105"
               >
@@ -195,37 +193,30 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
           ref={ref}
           className={`absolute inset-0 flex flex-col justify-between item-center text-white p-6 z-10 ${inView ? "animate__animated animate__zoomInUp" : ""}`}
         >
-          {/* Top Left or Right Labels */}
-          {
-            user && isAdmin ? (
-              // Admin: only show category at top-left
-              <div className="absolute top-3 left-3 z-20">
+          {user && isAdmin ? (
+            <div className="absolute top-3 left-3 z-20">
+              <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
+                {highlightText(blogCategory, searchTerm)}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="absolute top-4 left-3 z-20">
+                <span className="text-white text-sm px-4 py-2 rounded-full backdrop-blur-sm">
+                  {blogDate}
+                </span>
+              </div>
+              <div className="absolute top-3 right-3 z-20">
                 <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
-                  {highlightText(storyCategory, searchTerm)}
+                  {highlightText(blogCategory, searchTerm)}
                 </div>
               </div>
-            ) : (
-              <>
-                {/* Non-admin: Show storyDate at top-left */}
-                <div className="absolute top-4 left-3 z-20">
-                  <span className="text-white text-sm px-4 py-2 rounded-full backdrop-blur-sm">
-                    {storyDate}
-                  </span>
-                </div>
-                {/* Non-admin: Show category at top-right */}
-                <div className="absolute top-3 right-3 z-20">
-                  <div className="text-white text-xs px-4 py-2 border border-white rounded-full backdrop-blur-sm">
-                    {highlightText(storyCategory, searchTerm)}
-                  </div>
-                </div>
-              </>
-            )
-          }
+            </>
+          )}
 
-          {/* Title & description */}
           <div className="flex-grow flex flex-col justify-center">
             <h2 className="text-xl font-bold mt-3 mb-2 drop-shadow-sm text-left">
-              {highlightText(storyTitle, searchTerm)}
+              {highlightText(blogTitle, searchTerm)}
             </h2>
             <p
               className="text-sm group-hover:font-medium leading-relaxed drop-shadow-sm transition-all duration-300 text-left overflow-hidden text-ellipsis"
@@ -235,11 +226,10 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
                 WebkitBoxOrient: 'vertical',
               }}
             >
-              {highlightText(storyShortDescription, searchTerm)}
+              {highlightText(blogShortDescription, searchTerm)}
             </p>
           </div>
 
-          {/* See More Button */}
           <div>
             <button
               className="w-full py-1 border border-white text-white rounded-md transition-all duration-300 hover:scale-105 hover:font-semibold hover:border-[#2acb35]"
@@ -248,7 +238,6 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
             </button>
           </div>
         </div>
-
 
         <dialog id={`edit_modal_${_id}`} className="modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-box w-11/12 max-w-2xl">
@@ -261,22 +250,22 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
               Edit your <span className="text-[#2acb35]">Blog</span>
             </p>
 
-            <form onSubmit={handleStoryUpdate} className="space-y-5">
+            <form onSubmit={handleBlogUpdate} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  name="storyTitle"
-                  value={formData.storyTitle}
-                  onChange={e => setFormData({ ...formData, storyTitle: e.target.value })}
+                  name="blogTitle"
+                  value={formData.blogTitle}
+                  onChange={e => setFormData({ ...formData, blogTitle: e.target.value })}
                   placeholder="Blog Title"
                   className="w-full p-3 border rounded-md"
                   required
                 />
                 <input
                   type="text"
-                  name="storyCategory"
-                  value={formData.storyCategory}
-                  onChange={e => setFormData({ ...formData, storyCategory: e.target.value })}
+                  name="blogCategory"
+                  value={formData.blogCategory}
+                  onChange={e => setFormData({ ...formData, blogCategory: e.target.value })}
                   placeholder="Blog Category"
                   className="w-full p-3 border rounded-md"
                   required
@@ -292,9 +281,9 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
                 />
                 <input
                   type="text"
-                  name="storyRandom"
-                  value={formData.storyRandom}
-                  onChange={e => setFormData({ ...formData, storyRandom: e.target.value })}
+                  name="blogRandom"
+                  value={formData.blogRandom}
+                  onChange={e => setFormData({ ...formData, blogRandom: e.target.value })}
                   placeholder="Blog Random"
                   className="w-full p-3 border rounded-md"
                   required
@@ -303,9 +292,9 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
 
               <textarea
                 rows="4"
-                name="storyShortDescription"
-                value={formData.storyShortDescription}
-                onChange={e => setFormData({ ...formData, storyShortDescription: e.target.value })}
+                name="blogShortDescription"
+                value={formData.blogShortDescription}
+                onChange={e => setFormData({ ...formData, blogShortDescription: e.target.value })}
                 placeholder="Blog Description..."
                 className="w-full p-3 border rounded-md"
                 required
@@ -322,4 +311,4 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
   );
 };
 
-export default StoryBlog;
+export default Blog;

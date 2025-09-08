@@ -1,7 +1,7 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 
-const StoryDown = () => {
+const BlogDown = () => {
     const location = useLocation();
 
     // Determine the current path
@@ -35,4 +35,4 @@ const StoryDown = () => {
     );
 };
 
-export default StoryDown;
+export default BlogDown;

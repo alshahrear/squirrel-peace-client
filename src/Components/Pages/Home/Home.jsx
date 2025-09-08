@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet";
-import StoryHomes from "../StoryPage/StoryHomes";
+import StoryHomes from "../StoryPage/BlogHomes";
 import AboutHome from "./AboutHome/AboutHome";
 import Banner from "./Banner/Banner";
 import Newsletter from "./NewsletterHome/NewsletterHome";
