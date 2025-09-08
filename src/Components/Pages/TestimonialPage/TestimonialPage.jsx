@@ -6,7 +6,6 @@ import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
 import TestimonialCard from "../../Layout/TestimonialCard/TestimonialCard";
 import useAuth from "../../Layout/useAuth";
 import useAdmin from "../../../hooks/useAdmin";
-import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 import { Helmet } from "react-helmet";
 import Loader from "../../../Components/Loader";
 import { motion } from "framer-motion";
@@ -195,11 +194,6 @@ const TestimonialPage = () => {
                 <h2 className=" text-2xl lg:text-3xl font-bold text-center">Stay <span className="text-[#2acb35]">Connected</span>, Stay <span className="text-[#2acb35]">Inspired</span></h2>
                 <TestimonialCard />
             </div>
-
-            <div className="mx-4" id="blogAll">
-                <BlogAll />
-            </div>
-
             <div>
                 <NewsletterOption />
             </div>

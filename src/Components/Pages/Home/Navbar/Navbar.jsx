@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import useAuth from "../../../Layout/useAuth";
 import { HiMenuAlt1 } from "react-icons/hi";
 import useAdmin from "../../../../hooks/useAdmin";
@@ -7,7 +7,6 @@ import toast from "react-hot-toast";
 
 const Navbar = () => {
   const { user, logOut } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isAdmin] = useAdmin();
@@ -22,21 +21,10 @@ const Navbar = () => {
     }
   };
 
-  const isBlogActive =
-    location.pathname.startsWith("/adventureDiary") ||
-    location.pathname.startsWith("/dailyNotes") ||
-    location.pathname.startsWith("/smartResource") ||
-    location.pathname.startsWith("/blog");
-
   const navLinkStyle = ({ isActive }) =>
     `text-lg font-semibold rounded ${
       isActive ? "text-[#2acb35]" : "text-black"
     } hover:bg-gray-200`;
-
-  const dropdownLinkStyle = ({ isActive }) =>
-    `hover:bg-[#2acb35] text-base font-semibold hover:text-white ${
-      isActive ? "text-[#2acb35]" : ""
-    }`;
 
   const baseDelay = 80;
   const [animatedItems, setAnimatedItems] = useState([]);
@@ -44,8 +32,7 @@ const Navbar = () => {
   const mobileNavItems = [
     { path: "/", label: "Home" },
     { path: "/about", label: "About" },
-    { type: "dropdown" },
-    { path: "/story", label: "Story" },
+    { path: "/blog", label: "Blog" },
     { path: "/newsletter", label: "Newsletter" },
     { path: "/success", label: "Success" },
     { path: "/faq", label: "FAQ" },
@@ -89,17 +76,7 @@ const Navbar = () => {
           <ul className="menu menu-horizontal px-1 space-x-16">
             <li><NavLink to="/" className={navLinkStyle}>Home</NavLink></li>
             <li><NavLink to="/about" className={navLinkStyle}>About</NavLink></li>
-            <li className="relative group">
-              <div className={`text-lg font-semibold rounded cursor-pointer ${isBlogActive ? "text-[#2acb35]" : "text-black"} hover:bg-gray-200`}>
-                Blog
-              </div>
-              <ul className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-52 bg-white rounded-md shadow-lg z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <li><NavLink to="/adventureDiary" className={dropdownLinkStyle}>Adventure Diary</NavLink></li>
-                <li><NavLink to="/dailyNotes" className={dropdownLinkStyle}>Daily Notes</NavLink></li>
-                <li><NavLink to="/smartResource" className={dropdownLinkStyle}>Smart Resource</NavLink></li>
-              </ul>
-            </li>
-            <li><NavLink to="/story" className={navLinkStyle}>Story</NavLink></li>
+            <li><NavLink to="/blog" className={navLinkStyle}>Blog</NavLink></li>
             <li><NavLink to="/newsletter" className={navLinkStyle}>Newsletter</NavLink></li>
             <li><NavLink to="/contact" className={navLinkStyle}>Contact</NavLink></li>
           </ul>
@@ -135,21 +112,6 @@ const Navbar = () => {
               const itemClasses = `transition-all duration-300 ease-in-out transform ${
                 isVisible ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
               } border-b border-gray-300 pb-2`;
-
-              if (item.type === "dropdown") {
-                return (
-                  <li key="blog" className={itemClasses}>
-                    <details>
-                      <summary className={`text-lg font-semibold ${isBlogActive ? "text-[#2acb35]" : "text-black"}`}>Blog</summary>
-                      <ul className="ml-4 space-y-1 mt-2">
-                        <li><NavLink to="/adventureDiary" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Adventure Diary</NavLink></li>
-                        <li><NavLink to="/dailyNotes" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Daily Notes</NavLink></li>
-                        <li><NavLink to="/smartResource" className={dropdownLinkStyle} onClick={() => setDrawerOpen(false)}>Smart Resource</NavLink></li>
-                      </ul>
-                    </details>
-                  </li>
-                );
-              }
 
               return (
                 <li key={item.label} className={itemClasses}>

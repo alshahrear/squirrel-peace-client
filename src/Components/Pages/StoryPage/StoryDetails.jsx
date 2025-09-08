@@ -2,7 +2,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState, useMemo, useRef } from "react";
 import StoryBottoms from "./StoryBottoms";
-import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 import Loader from "../../../Components/Loader";
 import { Helmet } from "react-helmet";
 import DOMPurify from "dompurify";
@@ -99,7 +98,7 @@ const StoryDetails = () => {
         Swal.fire("No change", "Nothing updated.", "info");
       }
     } catch {
-      Swal.fire("Error!", "Failed to update story.", "error");
+      Swal.fire("Error!", "Failed to update blog.", "error");
     }
   };
 
@@ -299,7 +298,7 @@ const StoryDetails = () => {
           </div>
 
           <div className="lg:border-l border-t border-gray-300 md:rounded-tl-xl pt-5 lg:pt-0 pl-0 lg:pl-5">
-            <h3 className="text-2xl font-bold text-center pt-2 mb-4">Other Stories</h3>
+            <h3 className="text-2xl font-bold text-center pt-2 mb-4">Other Blogs</h3>
             <div className="grid grid-cols-1 gap-4 lg:flex lg:flex-col">
               {(window.innerWidth >= 1024 ? otherStories.slice(0, 10) : otherStories.slice(0, 5)).map((item) => (
                 <Link key={item.storySlug} to={`/story/${item.storySlug}`}
@@ -333,14 +332,12 @@ const StoryDetails = () => {
         <StoryBottoms {...story} />
       </div>
 
-      <BlogAll />
-
       {/* Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center px-4">
           <div className="bg-white w-full max-w-3xl rounded-xl shadow-xl p-4 md:p-6 relative max-h-[90vh] flex flex-col">
             <button onClick={() => setShowModal(false)} className="absolute top-3 right-4 text-xl font-bold text-gray-500 hover:text-red-500">✕</button>
-            <h2 className="text-xl md:text-2xl font-bold mb-3">Edit Story</h2>
+            <h2 className="text-xl md:text-2xl font-bold mb-3">Edit Blog</h2>
             <div className="overflow-y-auto flex-grow space-y-4 pr-1">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <input value={editDate} onChange={(e) => setEditDate(e.target.value)} className="border px-4 py-2 rounded-md w-full" />

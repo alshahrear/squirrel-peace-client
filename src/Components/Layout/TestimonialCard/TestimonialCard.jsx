@@ -77,8 +77,8 @@ const EnvironmentalProcess = () => {
       title: "Explore Blogs",
       description:
         "Explore our inspiring blog posts — each one is designed to give you something meaningful, whether it's motivation, a new perspective, or simply a moment of peace. Reading regularly can truly brighten your day and mindset.",
-      link: "#blogAll",
-      scrollTarget: "blogAll",
+      link: "/blog",
+      scrollTarget: "",
     },
     {
       icon: SiMinutemailer,

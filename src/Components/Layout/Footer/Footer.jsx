@@ -76,34 +76,26 @@ const Footer = () => {
             </NavLink>
           </p>
           <p className="text-[16px]">
-            <NavLink to="/adventureDiary">
+            <NavLink to="/blog">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Adventure Diary
+                Blog
               </span>
             </NavLink>
           </p>
           <p className="text-[16px]">
-            <NavLink to="/dailyNotes">
+            <NavLink to="/newsletter">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Daily Notes
+                Newsletter
               </span>
             </NavLink>
           </p>
           <p className="text-[16px]">
-            <NavLink to="/smartResource">
+            <NavLink to="/success">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Smart Resource
-              </span>
-            </NavLink>
-          </p>
-          <p className="text-[16px]">
-            <NavLink to="/story">
-              -{" "}
-              <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Story
+                Success
               </span>
             </NavLink>
           </p>
@@ -114,26 +106,10 @@ const Footer = () => {
             Quick Links (2)
           </h4>
           <p className="text-[16px]">
-            <NavLink to="/newsletter">
-              -{" "}
-              <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Newsletter
-              </span>
-            </NavLink>
-          </p>
-          <p className="text-[16px]">
             <NavLink to="/faq">
               -{" "}
               <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
                 FAQ
-              </span>
-            </NavLink>
-          </p>
-          <p className="text-[16px]">
-            <NavLink to="/success">
-              -{" "}
-              <span className="inline-block transition-all duration-300 hover:-translate-x-1 hover:text-[#2acb35]">
-                Success
               </span>
             </NavLink>
           </p>

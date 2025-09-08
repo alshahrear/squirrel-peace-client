@@ -57,7 +57,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
               Swal.fire({
                 position: "top-end",
                 icon: "success",
-                title: "Your story card has been deleted",
+                title: "Your blog card has been deleted",
                 showConfirmButton: false,
                 timer: 1500
               });
@@ -99,7 +99,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
           Swal.fire({
             position: "top-end",
             icon: "success",
-            title: "Your story card has been updated",
+            title: "Your blog card has been updated",
             showConfirmButton: false,
             timer: 1500
           });
@@ -258,7 +258,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
               </button>
             </form>
             <p className="text-2xl font-semibold mb-5 text-center">
-              Edit your <span className="text-[#2acb35]">Story</span>
+              Edit your <span className="text-[#2acb35]">Blog</span>
             </p>
 
             <form onSubmit={handleStoryUpdate} className="space-y-5">
@@ -268,7 +268,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
                   name="storyTitle"
                   value={formData.storyTitle}
                   onChange={e => setFormData({ ...formData, storyTitle: e.target.value })}
-                  placeholder="Story Title"
+                  placeholder="Blog Title"
                   className="w-full p-3 border rounded-md"
                   required
                 />
@@ -277,7 +277,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
                   name="storyCategory"
                   value={formData.storyCategory}
                   onChange={e => setFormData({ ...formData, storyCategory: e.target.value })}
-                  placeholder="Story Category"
+                  placeholder="Blog Category"
                   className="w-full p-3 border rounded-md"
                   required
                 />
@@ -295,7 +295,7 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
                   name="storyRandom"
                   value={formData.storyRandom}
                   onChange={e => setFormData({ ...formData, storyRandom: e.target.value })}
-                  placeholder="Story Random"
+                  placeholder="Blog Random"
                   className="w-full p-3 border rounded-md"
                   required
                 />
@@ -306,13 +306,13 @@ const StoryBlog = ({ storyBlog, onDelete, onUpdate, searchTerm }) => {
                 name="storyShortDescription"
                 value={formData.storyShortDescription}
                 onChange={e => setFormData({ ...formData, storyShortDescription: e.target.value })}
-                placeholder="Story Description..."
+                placeholder="Blog Description..."
                 className="w-full p-3 border rounded-md"
                 required
               ></textarea>
 
               <button type="submit" className="btn w-full bg-[#2acb35] text-white font-semibold py-3 rounded-full hover:bg-[#59ca59] transition duration-300">
-                Update Story
+                Update Blog
               </button>
             </form>
           </div>

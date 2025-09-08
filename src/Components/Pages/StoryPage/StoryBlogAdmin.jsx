@@ -50,7 +50,7 @@ const StoryBlogAdmin = () => {
       Swal.fire({
         icon: 'error',
         title: 'Long Description Required',
-        text: 'Please write your full story in the long description field.',
+        text: 'Please write your full blog in the long description field.',
       });
       return;
     }
@@ -87,7 +87,7 @@ const StoryBlogAdmin = () => {
         Swal.fire({
           position: "top-end",
           icon: "success",
-          title: "Your story has been added",
+          title: "Your blog has been added",
           showConfirmButton: false,
           timer: 1500
         });
@@ -95,7 +95,7 @@ const StoryBlogAdmin = () => {
         setStoryDate(today);
         setLongDescription('');
       } else {
-        throw new Error("Failed to save story");
+        throw new Error("Failed to save blog");
       }
 
     } catch (error) {
@@ -165,20 +165,20 @@ const StoryBlogAdmin = () => {
   return (
     <div className="my-12 max-w-screen-xl mx-auto text-center space-y-2 px-3 sm:px-4">
       <Helmet>
-        <title>StoryAdmin - Squirrel Peace</title>
+        <title>BlogAdmin - Squirrel Peace</title>
       </Helmet>
 
       <h1 className="text-3xl font-bold">
-        Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Story Blog Administration Panel
+        Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Blog Administration Panel
       </h1>
       <p className="max-w-5xl mx-auto mb-5">
-        Here you can upload and manage story blogs to be published on our website. Please ensure that each story is carefully written, properly formatted, and thoroughly reviewed before uploading. Your attention to detail helps maintain the quality and credibility of our story blog section.
+        Here you can upload and manage blogs to be published on our website. Please ensure that each blog is carefully written, properly formatted, and thoroughly reviewed before uploading. Your attention to detail helps maintain the quality and credibility of our blog section.
       </p>
 
-      <NavLink to="/story">
+      <NavLink to="/blog">
         <button className="relative overflow-hidden px-5 py-2 text-white bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
           <span className="relative z-10 transition-colors duration-300 group-hover:text-[#404040]">
-            Go Story Page
+            Go Blog Page
           </span>
           <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
         </button>
@@ -187,26 +187,26 @@ const StoryBlogAdmin = () => {
       <div className="flex justify-center mt-5">
         <div className="w-full sm:w-2/3 px-2 sm:px-0">
           <p className="text-2xl font-semibold mb-3">
-            Please add your <span className="text-[#2acb35]">story blog</span> here
+            Please add your <span className="text-[#2acb35]">blog</span> here
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Inputs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <input {...register("storyTitle", { required: true })} placeholder="Story Title*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+              <input {...register("storyTitle", { required: true })} placeholder="Blog Title*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
 
-              <input {...register("storyCategory", { required: true })} placeholder="Story Category*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+              <input {...register("storyCategory", { required: true })} placeholder="Blog Category*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <input {...register("storyRandom", { required: true })} placeholder="Story Random (xyz)*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+              <input {...register("storyRandom", { required: true })} placeholder="Blog Random (xyz)*" className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
 
               <select
                 {...register("storyTime", { required: true })}
                 defaultValue=""
                 className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]"
               >
-                <option value="" disabled>Story Read Time*</option>
+                <option value="" disabled>Blog Read Time*</option>
                 {[...Array(10)].map((_, i) => (
                   <option key={i + 1} value={i + 1}>
                     {i + 1}
@@ -215,7 +215,7 @@ const StoryBlogAdmin = () => {
               </select>
             </div>
 
-            <textarea rows="2" {...register("storyShortDescription", { required: true })} placeholder="Story Short Description..." className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
+            <textarea rows="2" {...register("storyShortDescription", { required: true })} placeholder="Blog Short Description..." className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]" />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
               <input type="file" {...register("storyImage", { required: true })} className="file-input file-input-ghost w-full" />
@@ -270,10 +270,10 @@ const StoryBlogAdmin = () => {
             >
               {isSubmitting ? (
                 <>
-                  Adding Story <FaSpinner className="animate-spin" />
+                  Adding Blog <FaSpinner className="animate-spin" />
                 </>
               ) : (
-                "Add Story"
+                "Add Blog"
               )}
             </button>
           </form>

@@ -4,7 +4,6 @@ import ImageBanner from "../../Layout/ImageBanner/ImageBanner";
 import AboutChoose from "../../Layout/AboutSection/AboutChoose";
 import NewsletterOption from "../../Layout/NewsletterOption/NewsletterOption";
 import NewsScore from "../../Layout/NewsScore";
-import BlogAll from "../../Layout/BlogSuggest.jsx/BlogAll";
 import { Helmet } from "react-helmet";
 
 const AboutPage = () => {
@@ -72,7 +71,6 @@ const AboutPage = () => {
             </div>
             <AboutChoose></AboutChoose>
             <NewsScore></NewsScore>
-            <BlogAll></BlogAll>
             <NewsletterOption></NewsletterOption>
         </div>
     );

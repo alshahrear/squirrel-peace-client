@@ -16,11 +16,11 @@ const StoryBlogs = () => {
     const topRef = useRef(null);
 
     // Set per page based on screen width
-    const [storiesPerPage, setStoriesPerPage] = useState(window.innerWidth < 1024 ? 6 : 12);
+    const [storiesPerPage, setStoriesPerPage] = useState(window.innerWidth < 1024 ? 8 : 12);
 
     useEffect(() => {
         const handleResize = () => {
-            setStoriesPerPage(window.innerWidth < 1024 ? 6 : 12);
+            setStoriesPerPage(window.innerWidth < 1024 ? 8 : 12);
         };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
@@ -106,16 +106,16 @@ const StoryBlogs = () => {
                 {/* Common Title */}
                 <div className="text-center mb-2">
                 <h2 className="text-2xl lg:text-3xl font-semibold">
-                    <span className='text-[#2acb35]'>__</span>Explore our <span className='text-[#2acb35]'>inspiring</span> story<span className='text-[#2acb35]'>__</span>
+                    <span className='text-[#2acb35]'>__</span>Explore Our <span className='text-[#2acb35]'>Inspiring</span> Blog<span className='text-[#2acb35]'>__</span>
                 </h2>
             </div>
                 {/* Mobile Add + Search */}
                 <div className="lg:hidden mt-4 flex flex-col items-center gap-3">
                     {
                         user && isAdmin &&
-                        <NavLink to="/storyBlogAdmin">
+                        <NavLink to="/blogAdmin">
                             <button className="btn bg-[#2acb35] text-white px-4 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition text-sm">
-                                Add Story
+                                Add Blog
                             </button>
                         </NavLink>
                     }
@@ -123,7 +123,7 @@ const StoryBlogs = () => {
                         <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
                         <input
                             type="text"
-                            placeholder="Search Story..."
+                            placeholder="Search Blog..."
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
                             value={searchTerm}
                             onChange={(e) => {
@@ -140,7 +140,7 @@ const StoryBlogs = () => {
                         <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
                         <input
                             type="text"
-                            placeholder="Search Story..."
+                            placeholder="Search Blog..."
                             className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2acb35] text-sm"
                             value={searchTerm}
                             onChange={(e) => {
@@ -151,9 +151,9 @@ const StoryBlogs = () => {
                     </div>
                     {
                         user && isAdmin &&
-                        <NavLink to="/storyBlogAdmin">
+                        <NavLink to="/blogAdmin">
                             <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
-                                Add Story
+                                Add Blog
                             </button>
                         </NavLink>
                     }

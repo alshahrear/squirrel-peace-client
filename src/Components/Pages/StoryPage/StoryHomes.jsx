@@ -9,7 +9,7 @@ const StoryHomes = () => {
 
     const getRandomSix = (arr) => {
         let shuffled = arr.slice().sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, 6);
+        return shuffled.slice(0, 12);
     };
 
     useEffect(() => {
@@ -27,17 +27,17 @@ const StoryHomes = () => {
     }, []);
 
     return (
-        <div className="max-w-screen-xl mx-auto pb-10 px-4">
+        <div className="max-w-screen-xl mx-auto py-10 px-4">
             <div className="pb-5">
                 {/* Header */}
                 <div className="relative flex justify-center items-center">
                     <h2 className="text-2xl font-bold text-center w-full">
-                        Our <span className="text-[#2acb35]">Story</span> Blog
+                        Our <span className="text-[#2acb35]">Blog</span>
                     </h2>
 
                     {/* View All Button - Laptop only */}
                     <div className="hidden sm:block absolute right-4 sm:right-10">
-                        <NavLink to="/story">
+                        <NavLink to="/blog">
                             <button className="btn bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
                                 View All
                             </button>
@@ -72,7 +72,7 @@ const StoryHomes = () => {
 
                         {/* View All Button - Mobile only */}
                         <div className="block sm:hidden mt-8 text-center">
-                            <NavLink to="/story">
+                            <NavLink to="/blog">
                                 <button className="btn w-full bg-[#2acb35] text-white px-5 py-2 rounded-md hover:bg-white hover:text-[#2acb35] border border-[#2acb35] transition">
                                     View All
                                 </button>
