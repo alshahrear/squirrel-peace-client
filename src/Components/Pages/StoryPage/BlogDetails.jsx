@@ -244,8 +244,14 @@ const BlogDetails = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 border-b border-gray-300 pb-8 mb-5">
           <div className="lg:col-span-2">
             <div className="rich-content" dangerouslySetInnerHTML={{ __html: cleanLongDescription }} />
+            {/* Mobile view */}
             <div className="block lg:hidden mt-6 border-t pt-5">
-              <BlogBottoms {...blog} />
+              <BlogBottoms
+                blogSlug={blog.blogSlug}
+                blogTitle={blog.blogTitle}
+                blogCategory={blog.blogCategory}
+                blogImage={blog.blogImage}
+              />
             </div>
           </div>
 
@@ -280,9 +286,14 @@ const BlogDetails = () => {
         </div>
       </div>
 
-      {/* Desktop BlogBottoms */}
+      {/* Desktop view */}
       <div className="max-w-screen-xl mx-auto py-5 hidden lg:block">
-        <BlogBottoms {...blog} />
+        <BlogBottoms
+          blogSlug={blog.blogSlug}
+          blogTitle={blog.blogTitle}
+          blogCategory={blog.blogCategory}
+          blogImage={blog.blogImage}
+        />
       </div>
 
       {/* Edit Modal */}

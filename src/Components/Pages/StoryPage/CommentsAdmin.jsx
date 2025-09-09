@@ -1,6 +1,7 @@
+// CommentsAdmin.jsx
 import { useState } from "react";
 import Swal from "sweetalert2";
-import { LuMessageCircleX, LuCopy, LuCheck } from "react-icons/lu";
+import { LuMessageCircleX } from "react-icons/lu";
 import { TbMessageCheck } from "react-icons/tb";
 import { useQuery } from "@tanstack/react-query";
 import useAxiosSecure from "../../../hooks/useAxiosSecure";
@@ -45,7 +46,6 @@ const CommentsAdmin = () => {
               <th className="py-3 px-4">#</th>
               <th className="py-3 px-4">Name</th>
               <th className="py-3 px-4">Email</th>
-              <th className="py-3 px-4">Type</th>
               <th className="py-3 px-4 text-center">Comment</th>
               <th className="py-3 px-4 text-center">Delete</th>
             </tr>
@@ -118,9 +118,8 @@ const CommentsAdmin = () => {
 };
 
 const CommentRow = ({ comment, index, refetch }) => {
-  const { _id, name, email, comment: message } = comment;
+  const { _id, name, email, comment: message, blogSlug, blogTitle, blogCategory, blogImage } = comment;
   const [showModal, setShowModal] = useState(false);
-  const [copied, setCopied] = useState(false);
   const axiosSecure = useAxiosSecure();
   const navigate = useNavigate();
 
@@ -150,29 +149,13 @@ const CommentRow = ({ comment, index, refetch }) => {
     }
   };
 
-  const handleCopy = () => {
-    const id = comment.blogId || comment.storyId;
-    if (id) {
-      navigator.clipboard.writeText(id);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    }
-  };
-
-  const id = comment.blogId || comment.storyId;
-  const title = comment.blogTitle || comment.storyTitle;
-  const category = comment.blogCategory || comment.storyCategory;
-  const image = comment.blogImage || comment.storyImage;
-  const type = comment.blogId ? "Blog" : comment.storyId ? "Story" : "";
-
   return (
     <>
       <tr className="odd:bg-white even:bg-gray-100 transition-all duration-200">
-        <td className="py-4 px-4 font-semibold text-gray-700">{index + 1}</td>
-        <td className="py-4 px-4 text-lg font-bold text-gray-800">{name}</td>
-        <td className="py-4 px-4 text-lg text-gray-700">{email}</td>
-        <td className="py-4 px-4 text-lg text-gray-700 font-medium">{type}</td>
-        <td className="py-4 px-4 text-center">
+        <td className="py-4 px-4 font-semibold text-gray-700" data-label="#"> {index + 1} </td>
+        <td className="py-4 px-4 text-lg font-bold text-gray-800" data-label="Name"> {name} </td>
+        <td className="py-4 px-4 text-lg text-gray-700" data-label="Email"> {email} </td>
+        <td className="py-4 px-4 text-center" data-label="Comment">
           <button
             className="btn bg-[#2acb35] hover:bg-[#25b22f] text-white p-2 rounded-full"
             onClick={() => setShowModal(true)}
@@ -181,7 +164,7 @@ const CommentRow = ({ comment, index, refetch }) => {
             <TbMessageCheck className="text-2xl" />
           </button>
         </td>
-        <td className="py-4 px-4 text-center">
+        <td className="py-4 px-4 text-center" data-label="Delete">
           <button
             onClick={handleDeleteComment}
             className="btn bg-[#e53935] hover:bg-[#d32f2f] text-white p-2 rounded-full"
@@ -207,50 +190,30 @@ const CommentRow = ({ comment, index, refetch }) => {
               <span className="text-[#2acb35]">{name}</span>'s Comment Details
             </h2>
 
-            {title && (
+            {blogTitle && (
               <p className="text-lg font-medium text-gray-700 mb-2">
-                Title: <span className="font-semibold">{title}</span>
+                Title: <span className="font-semibold">{blogTitle}</span>
               </p>
             )}
-            {category && (
-              <p className="text-lg font-medium text-gray-700 mb-2">
-                Category: <span className="font-semibold">{category}</span>
+            {blogCategory && (
+              <p className="text-lg font-medium text-gray-700 mb-4">
+                Category: <span className="font-semibold">{blogCategory}</span>
               </p>
             )}
-
-            {id && (
-              <p className="text-lg flex items-center gap-2">
-                ID: <span className="font-semibold">{id}</span>
-                <button
-                  className="text-[#2acb35] hover:text-[#25b22f]"
-                  onClick={handleCopy}
-                  title="Copy ID"
-                >
-                  {copied ? <LuCheck className="text-lg" /> : <LuCopy className="text-lg" />}
-                </button>
-              </p>
-            )}
-
-            {image && (
+            {blogImage && (
               <div className="my-4 w-full max-h-64 overflow-hidden rounded-lg border relative">
                 <img
-                  src={image}
-                  alt="Blog or Story"
+                  src={blogImage}
+                  alt="Blog"
                   className="w-full h-48 object-cover"
                 />
-                {id && (
+                {blogSlug && (
                   <button
-                    onClick={() => {
-                      if (type === "Blog") {
-                        navigate(`/blog/${id}`);
-                      } else if (type === "Story") {
-                        navigate(`/story/${id}`);
-                      }
-                    }}
+                    onClick={() => navigate(`/blog/${blogSlug}`)}
                     className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/30 transition"
                   >
                     <span className="border py-1 px-4 rounded-full text-white font-semibold hover:scale-105 hover:border-[#2acb35] backdrop-blur-sm">
-                      {type === "Blog" ? "View Blog" : "View Story"}
+                      View Blog
                     </span>
                   </button>
                 )}
