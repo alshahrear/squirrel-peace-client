@@ -4,6 +4,7 @@ import useAuth from "../../../Layout/useAuth";
 import { HiMenuAlt1 } from "react-icons/hi";
 import useAdmin from "../../../../hooks/useAdmin";
 import toast from "react-hot-toast";
+import log from "../../../../assets/squirrel-peace-logo.png";
 
 const Navbar = () => {
   const { user, logOut } = useAuth();
@@ -57,9 +58,16 @@ const Navbar = () => {
 
   return (
     <div className="bg-[#f7f7f7] relative z-50 shadow-xs">
-      <div className="navbar max-w-screen-xl mx-auto px-4 justify-between lg:justify-normal">
+      <div className="navbar max-w-screen-xl mx-auto py-2 px-4 justify-between lg:justify-normal">
+        {/* Mobile Header */}
         <div className="flex justify-between w-full lg:hidden items-center py-3">
-          <h2 className="text-2xl font-semibold">Squirrel Peace</h2>
+          <NavLink to="/" aria-label="Go to Squirrel Peace Home">
+            <img
+              src={log}
+              alt="Squirrel Peace Official Logo"
+              className="h-9 w-auto"
+            />
+          </NavLink>
           <button
             onClick={() => setDrawerOpen(true)}
             className="bg-[#2acb35] w-10 h-10 flex items-center justify-center rounded-lg shadow"
@@ -68,10 +76,18 @@ const Navbar = () => {
           </button>
         </div>
 
+        {/* Desktop Left Logo */}
         <div className="navbar-start hidden lg:flex">
-          <h2 className="text-2xl font-semibold ml-3">Squirrel Peace</h2>
+          <NavLink to="/" aria-label="Go to Squirrel Peace Home">
+            <img
+              src={log}
+              alt="Squirrel Peace Official Logo"
+              className="h-9 w-auto ml-3"
+            />
+          </NavLink>
         </div>
 
+        {/* Desktop Nav */}
         <div className="navbar-center hidden lg:flex">
           <ul className="menu menu-horizontal px-1 space-x-16">
             <li><NavLink to="/" className={navLinkStyle}>Home</NavLink></li>
@@ -82,6 +98,7 @@ const Navbar = () => {
           </ul>
         </div>
 
+        {/* Desktop Right Auth Button */}
         <div className="navbar-end hidden lg:flex">
           {user ? (
             <button
@@ -100,31 +117,62 @@ const Navbar = () => {
         </div>
       </div>
 
-      <div className={`fixed top-0 left-0 h-full w-64 bg-white z-[100] transform transition-transform duration-300 ease-in-out shadow ${drawerOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      {/* Mobile Drawer */}
+      <div
+        className={`fixed top-0 left-0 h-full w-64 bg-white z-[100] transform transition-transform duration-300 ease-in-out shadow ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <div className="p-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold">Squirrel Peace</h3>
-            <button onClick={() => setDrawerOpen(false)} className="text-xl font-bold">✕</button>
+            <NavLink
+              to="/"
+              onClick={() => setDrawerOpen(false)}
+              aria-label="Go to Squirrel Peace Home"
+            >
+              <img
+                src={log}
+                alt="Squirrel Peace Official Logo"
+                className="h-8 w-auto"
+              />
+            </NavLink>
+            <button
+              onClick={() => setDrawerOpen(false)}
+              className="text-xl font-extrabold"
+            >
+              ✕
+            </button>
           </div>
           <ul className="menu space-y-1">
             {mobileNavItems.map((item, idx) => {
               const isVisible = animatedItems.includes(idx);
               const itemClasses = `transition-all duration-300 ease-in-out transform ${
-                isVisible ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
+                isVisible
+                  ? "translate-x-0 opacity-100"
+                  : "-translate-x-10 opacity-0"
               } border-b border-gray-300 pb-2`;
 
               return (
                 <li key={item.label} className={itemClasses}>
-                  <NavLink to={item.path} className={navLinkStyle} onClick={() => setDrawerOpen(false)}>
+                  <NavLink
+                    to={item.path}
+                    className={navLinkStyle}
+                    onClick={() => setDrawerOpen(false)}
+                  >
                     {item.label}
                   </NavLink>
                 </li>
               );
             })}
 
-            <li className={`mt-4 transition-all duration-300 transform ${
-              animatedItems.includes(mobileNavItems.length) ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
-            }`}>
+            {/* Auth Button in Drawer */}
+            <li
+              className={`mt-4 transition-all duration-300 transform ${
+                animatedItems.includes(mobileNavItems.length)
+                  ? "translate-x-0 opacity-100"
+                  : "-translate-x-10 opacity-0"
+              }`}
+            >
               {user ? (
                 <button
                   onClick={() => {
