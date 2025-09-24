@@ -26,6 +26,12 @@ import BlogAdmin from "../Components/Pages/StoryPage/BlogAdmin";
 import BlogPages from "../Components/Pages/StoryPage/BlogPages";
 import Blogs from "../Components/Pages/StoryPage/Blogs";
 import BlogDetails from "../Components/Pages/StoryPage/BlogDetails";
+import QuizPage from "../Components/Pages/Quiz/QuizPage";
+import QuizFaqAdmin from "../Components/Pages/Quiz/QuizFaqAdmin";
+import WinAdmin from "../Components/Pages/Quiz/WinAdmin";
+import QuizTest from "../Components/Pages/Quiz/QuizTest";
+import QuizTestAdmin from "../Components/Pages/Quiz/QuizTestAdmin";
+import ProtectedQuizRoute from "../Components/Pages/Quiz/ProtectedQuizRoute";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -71,6 +77,26 @@ export const router = createBrowserRouter([
       {
         path: "/commentAdmin",
         element: <AdminRoute><CommentsAdmin></CommentsAdmin></AdminRoute>
+      },
+      {
+        path: "/quizFaqAdmin",
+        element: <AdminRoute><QuizFaqAdmin></QuizFaqAdmin></AdminRoute>
+      },
+      {
+        path: "/winnerAdmin",
+        element: <AdminRoute><WinAdmin></WinAdmin></AdminRoute>
+      },
+      {
+        path: "/quiz",
+        element: <QuizPage/>
+      },
+      {
+        path: "/quizTest",
+        element: <ProtectedQuizRoute><QuizTest/></ProtectedQuizRoute> 
+      },
+      {
+        path: "/quizTestAdmin",
+        element: <AdminRoute><QuizTestAdmin></QuizTestAdmin></AdminRoute> 
       },
       {
         path: "/newsletter",

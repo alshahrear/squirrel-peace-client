@@ -34,6 +34,7 @@ const Navbar = () => {
     { path: "/", label: "Home" },
     { path: "/about", label: "About" },
     { path: "/blog", label: "Blog" },
+    { path: "/quiz", label: "Quiz" },
     { path: "/newsletter", label: "Newsletter" },
     { path: "/success", label: "Success" },
     { path: "/faq", label: "FAQ" },
@@ -82,7 +83,7 @@ const Navbar = () => {
             <img
               src={log}
               alt="Squirrel Peace Official Logo"
-              className="h-9 w-auto ml-3"
+              className="h-9 w-auto"
             />
           </NavLink>
         </div>
@@ -93,6 +94,7 @@ const Navbar = () => {
             <li><NavLink to="/" className={navLinkStyle}>Home</NavLink></li>
             <li><NavLink to="/about" className={navLinkStyle}>About</NavLink></li>
             <li><NavLink to="/blog" className={navLinkStyle}>Blog</NavLink></li>
+            <li><NavLink to="/quiz" className={navLinkStyle}>Quiz</NavLink></li>
             <li><NavLink to="/newsletter" className={navLinkStyle}>Newsletter</NavLink></li>
             <li><NavLink to="/contact" className={navLinkStyle}>Contact</NavLink></li>
           </ul>
