@@ -4,6 +4,7 @@ import { LuMessageCircleX } from "react-icons/lu";
 import { TbMessageCheck } from "react-icons/tb";
 import Swal from "sweetalert2";
 import useAuth from "../../Layout/useAuth";
+import { Helmet } from "react-helmet";
 
 const QuizFaqAdmin = () => {
   const [quizFaqs, setQuizFaqs] = useState([]);
@@ -30,6 +31,9 @@ const QuizFaqAdmin = () => {
 
   return (
     <div className="my-12 max-w-screen-xl mx-auto px-2 sm:px-4">
+      <Helmet>
+        <title>QuizFaq Admin - Squirrel Peace</title>
+      </Helmet>
       <div className="text-center space-y-3 mb-8 px-2">
         <h1 className="text-2xl sm:text-3xl font-bold">
           Welcome <i className="text-[#2acb35]">{user.displayName}</i> to the Quiz FAQ

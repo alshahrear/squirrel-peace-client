@@ -7,6 +7,7 @@ import useAdmin from "../../../hooks/useAdmin";
 import useAxiosPublic from "../../../hooks/useAxiosPublic";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
+import { Helmet } from "react-helmet";
 
 const API_URL = "https://squirrel-peace-server.onrender.com/quizOtp";
 const QUIZ_TEST_URL = "https://squirrel-peace-server.onrender.com/quizTest";
@@ -341,6 +342,9 @@ const QuizTest = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
+      <Helmet>
+        <title>Quiz Test - Squirrel Peace</title>
+      </Helmet>
       {/* Title + Description + Admin Button */}
       <div className="mb-8 text-center">
         <h1 className="text-2xl md:text-3xl font-semibold mb-2">
@@ -389,7 +393,7 @@ const QuizTest = () => {
           <h2 className="text-lg mt-4 text-[#2acb35] font-semibold">
             Quiz Question:
           </h2>
-          <p className="text-gray-700 mt-2 font-medium">{quizQuestion}</p>
+          <p className="text-gray-700 mt-2 font-semibold">{quizQuestion}</p>
         </div>
 
         {/* Answer Form */}

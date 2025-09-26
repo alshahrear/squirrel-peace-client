@@ -202,6 +202,9 @@ const QuizTestMessage = ({ quiz, index, refetch }) => {
 
   return (
     <>
+      <Helmet>
+        <title>QuizTest Admin - Squirrel Peace</title>
+      </Helmet>
       <tr className="odd:bg-white even:bg-gray-100 transition-all duration-200 align-middle">
         <td className="py-4 px-4 font-semibold text-gray-700 text-center" data-label="#">
           {index + 1}

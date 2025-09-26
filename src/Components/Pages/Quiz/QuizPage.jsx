@@ -6,9 +6,15 @@ import FaqQuiz from "../../Pages/Quiz/FaqQuiz";
 import AboutQuiz from "./AboutQuiz";
 import QuizBoard from "./QuizBoard";
 import WinCards from "./WinCards";
+import useAdmin from "../../../hooks/useAdmin";
+import useAuth from "../../Layout/useAuth";
+import { NavLink } from "react-router-dom";
+import { Helmet } from "react-helmet";
 
 const QuizPage = () => {
   const quizBoardRef = useRef(null);
+  const { user } = useAuth();
+  const [isAdmin] = useAdmin();
 
   // Scroll Handler
   const handleStartQuiz = () => {
@@ -19,6 +25,52 @@ const QuizPage = () => {
 
   return (
     <div className="bg-[#f7f7f7] overflow-x-hidden">
+      <Helmet>
+        {/* Basic Meta Tags */}
+        <title>Quiz - Squirrel Peace | Test Your Knowledge & Have Fun</title>
+        <meta
+          name="description"
+          content="Take fun and engaging quizzes at Squirrel Peace. Challenge your knowledge, enjoy learning, and discover new ideas with every quiz."
+        />
+        <meta
+          name="keywords"
+          content="quiz, online quiz, test knowledge, fun quiz, squirrel peace quiz, challenge mind, learning"
+        />
+        <link rel="canonical" href="https://squirrelpeace.com/quiz" />
+        <meta name="robots" content="index, follow" />
+
+        {/* Open Graph / Facebook */}
+        <meta
+          property="og:title"
+          content="Quiz - Squirrel Peace | Test Your Knowledge & Have Fun"
+        />
+        <meta
+          property="og:description"
+          content="Take fun and engaging quizzes at Squirrel Peace. Challenge your knowledge, enjoy learning, and discover new ideas with every quiz."
+        />
+        <meta
+          property="og:image"
+          content="https://squirrelpeace.com/images/quiz-cover.jpg"
+        />
+        <meta property="og:url" content="https://squirrelpeace.com/quiz" />
+        <meta property="og:type" content="website" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content="Quiz - Squirrel Peace | Test Your Knowledge & Have Fun"
+        />
+        <meta
+          name="twitter:description"
+          content="Take fun and engaging quizzes at Squirrel Peace. Challenge your knowledge, enjoy learning, and discover new ideas with every quiz."
+        />
+        <meta
+          name="twitter:image"
+          content="https://squirrelpeace.com/images/quiz-cover.jpg"
+        />
+      </Helmet>
+
       {/* Banner */}
       <div
         className="w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] relative flex items-center justify-center"
@@ -47,14 +99,26 @@ const QuizPage = () => {
       </div>
 
       {/* About Quiz */}
-      <div className="py-8 sm:py-10 max-w-screen-xl mx-auto px-3 sm:px-4">
+      <div className="py-10 max-w-screen-xl mx-auto px-3 sm:px-4">
         <AboutQuiz />
       </div>
+
+      {/* Admin Quiz Test Button */}
+      {isAdmin && (
+        <div className="text-center">
+          <NavLink
+            to="/quizTest"
+            className="inline-block bg-[#2acb35] hover:bg-[#24a52c] text-white font-semibold px-5 py-2.5 rounded-lg shadow-md transition"
+          >
+            Quiz Test
+          </NavLink>
+        </div>
+      )}
 
       {/* Quiz Board */}
       <div
         ref={quizBoardRef}
-        className="py-10 max-w-screen-xl mx-auto px-3 sm:px-4"
+        className="pb-10 pt-5 max-w-screen-xl mx-auto px-3 sm:px-4"
       >
         <QuizBoard />
       </div>
