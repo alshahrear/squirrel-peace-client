@@ -175,7 +175,7 @@ const Footer = () => {
               </span>
             </label>
             <a
-              href="https://squirrelpeace.beehiiv.com/"
+              href="https://sphealth.beehiiv.com/"
               target="_blank"
               rel="noopener noreferrer"
             >
