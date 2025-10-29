@@ -25,6 +25,7 @@ const QuizTest = () => {
   });
 
   const [quizQuestion, setQuizQuestion] = useState("Coming soon...");
+  const [quizDateText, setQuizDateText] = useState(""); // ✅ Dynamic date
   const [today, setToday] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const { user } = useAuth();
@@ -32,10 +33,16 @@ const QuizTest = () => {
   const [modalOtp, setModalOtp] = useState("");
   const [modalQus, setModalQus] = useState("");
   const [modalRequireImage, setModalRequireImage] = useState(false);
+  const [modalDateText, setModalDateText] = useState("");
+  const [modalYoutube, setModalYoutube] = useState(""); // ✅ new field
   const [isValidForSubmit, setIsValidForSubmit] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [uploading, setUploading] = useState(false);
+
+  // Video modal state
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [videoToPlay, setVideoToPlay] = useState("");
 
   const axiosPublic = useAxiosPublic();
 
@@ -50,23 +57,25 @@ const QuizTest = () => {
   });
 
   // === Quiz Questions auto refresh ===
-  const { data: questions = [] } = useQuery({
+  const { data: questions = [], refetch } = useQuery({
     queryKey: ["quizQuestions"],
     queryFn: async () => {
       const res = await fetch(API_URL);
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
-    refetchInterval: 5000, // ✅ প্রতি 5s পর update
+    refetchInterval: 10000,
   });
 
-  // set last question
+  // Set last question dynamically
   useEffect(() => {
     if (questions.length > 0) {
       const last = questions[questions.length - 1];
       setQuizQuestion(last.quizQus || "Coming soon...");
+      setQuizDateText(last.quizDateText || "");
     } else {
       setQuizQuestion("Coming soon...");
+      setQuizDateText("");
     }
   }, [questions]);
 
@@ -85,7 +94,7 @@ const QuizTest = () => {
     const day = parts[1];
     const month = parts[2];
     const year = parts[3];
-    return `${weekday}, ${day} ${month} ,${year}`;
+    return `${weekday}, ${day} ${month}, ${year}`;
   };
 
   useEffect(() => {
@@ -170,7 +179,7 @@ const QuizTest = () => {
     }
   }, [formData, questions, selectedImage]);
 
-  // Submit
+  // Submit Answer
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isValidForSubmit) return;
@@ -214,22 +223,76 @@ const QuizTest = () => {
     }
   };
 
-  // Admin modal open
+  // === Admin Modal Functions ===
   const openModal = () => {
     const last = questions.length > 0 ? questions[questions.length - 1] : null;
     if (last) {
       setModalOtp(last.quizOtp || "");
       setModalQus(last.quizQus || "");
       setModalRequireImage(last.requireImage || false);
+      setModalDateText(last.quizDateText || "");
+      setModalYoutube(last.youtubeUrl || ""); // ✅ populate youtube
     } else {
       setModalOtp("");
       setModalQus("");
       setModalRequireImage(false);
+      setModalDateText("");
+      setModalYoutube("");
     }
     setModalOpen(true);
   };
 
-  // Update quiz
+  // Helper: convert youtube url to embed url
+  const getYouTubeEmbedUrl = (url, autoplay = false) => {
+    if (!url) return "";
+    try {
+      const u = new URL(url);
+      let videoId = "";
+      if (u.hostname.includes("youtu.be")) {
+        videoId = u.pathname.slice(1);
+      } else if (u.searchParams.get("v")) {
+        videoId = u.searchParams.get("v");
+      } else {
+        // maybe '/embed/...' or other forms
+        const parts = u.pathname.split("/");
+        videoId = parts[parts.length - 1];
+      }
+      if (!videoId) return "";
+      return `https://www.youtube.com/embed/${videoId}?rel=0&enablejsapi=1${autoplay ? "&autoplay=1" : ""}`;
+    } catch (err) {
+      return "";
+    }
+  };
+
+  const handleWatchDemo = () => {
+    const last = questions.length > 0 ? questions[questions.length - 1] : null;
+    if (last && last.youtubeUrl) {
+      const embed = getYouTubeEmbedUrl(last.youtubeUrl, true);
+      if (!embed) {
+        Swal.fire({
+          toast: true,
+          icon: "error",
+          title: "Invalid YouTube URL",
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 2000,
+        });
+        return;
+      }
+      setVideoToPlay(embed);
+      setVideoModalOpen(true);
+    } else {
+      Swal.fire({
+        toast: true,
+        icon: "info",
+        title: "No demo video available",
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 2000,
+      });
+    }
+  };
+
   const handleUpdate = async () => {
     if (modalOtp.length !== 6) {
       Swal.fire({
@@ -242,7 +305,9 @@ const QuizTest = () => {
       });
       return;
     }
+
     const last = questions.length > 0 ? questions[questions.length - 1] : null;
+
     try {
       if (last) {
         await fetch(`${API_URL}/${last._id}`, {
@@ -252,15 +317,9 @@ const QuizTest = () => {
             quizOtp: modalOtp,
             quizQus: modalQus,
             requireImage: modalRequireImage,
+            quizDateText: modalDateText,
+            youtubeUrl: modalYoutube || "", // ✅ include youtubeUrl
           }),
-        });
-        Swal.fire({
-          toast: true,
-          position: "top-end",
-          icon: "success",
-          title: "Question updated successfully.",
-          showConfirmButton: false,
-          timer: 3000,
         });
       } else {
         await fetch(API_URL, {
@@ -270,17 +329,22 @@ const QuizTest = () => {
             quizOtp: modalOtp,
             quizQus: modalQus,
             requireImage: modalRequireImage,
+            quizDateText: modalDateText,
+            youtubeUrl: modalYoutube || "", // ✅ new create field
           }),
         });
-        Swal.fire({
-          toast: true,
-          position: "top-end",
-          icon: "success",
-          title: "Question added successfully.",
-          showConfirmButton: false,
-          timer: 3000,
-        });
       }
+
+      await refetch(); // ✅ Refresh UI instantly
+      setQuizDateText(modalDateText); // ✅ Instant reflect
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "Quiz updated successfully.",
+        showConfirmButton: false,
+        timer: 3000,
+      });
     } catch (err) {
       console.error("update error", err);
       Swal.fire({
@@ -294,15 +358,10 @@ const QuizTest = () => {
     }
   };
 
-  // Delete quiz
   const handleDelete = async () => {
     const last = questions.length > 0 ? questions[questions.length - 1] : null;
-    if (!last) {
-      setModalOtp("");
-      setModalQus("");
-      setQuizQuestion("Coming soon...");
-      return;
-    }
+    if (!last) return;
+
     const confirm = await Swal.fire({
       title: "Are you sure?",
       text: "This will delete the saved question and OTP.",
@@ -314,24 +373,23 @@ const QuizTest = () => {
 
     try {
       await fetch(`${API_URL}/${last._id}`, { method: "DELETE" });
-      setModalOtp("");
-      setModalQus("");
+      await refetch();
       setQuizQuestion("Coming soon...");
+      setQuizDateText("");
       Swal.fire({
         toast: true,
-        position: "top-end",
         icon: "success",
-        title: "Question removed.",
+        title: "Question deleted.",
+        position: "top-end",
         showConfirmButton: false,
         timer: 3000,
       });
     } catch (err) {
-      console.error("delete error", err);
       Swal.fire({
         toast: true,
-        position: "top-end",
         icon: "error",
         title: "Could not delete. Try again.",
+        position: "top-end",
         showConfirmButton: false,
         timer: 3000,
       });
@@ -345,7 +403,8 @@ const QuizTest = () => {
       <Helmet>
         <title>Quiz Test - Squirrel Peace</title>
       </Helmet>
-      {/* Title + Description + Admin Button */}
+
+      {/* Title + Admin */}
       <div className="mb-8 text-center">
         <h1 className="text-2xl md:text-3xl font-semibold mb-2">
           Welcome to the Quiz Test
@@ -355,178 +414,178 @@ const QuizTest = () => {
           your answers. Test your knowledge, challenge yourself, and enjoy the
           quiz.
         </p>
+        <div className="flex justify-around items-center">
 
-        {isAdmin && (
-          <NavLink to="/quizTestAdmin" className="inline-block">
-            <div className="indicator">
-              <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
-                {quizTests.length}
-              </span>
-              <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
-                <span className="relative z-10 group-hover:text-[#404040] hover:scale-105">
-                  Quiz Admin
+          {isAdmin && (
+            <button
+              onClick={openModal}
+              className="px-5 py-2 bg-[#2acb35] text-white rounded-md font-semibold hover:bg-green-700"
+            >
+              <FiEdit3 className="inline-block mr-1" /> Manage Quiz
+            </button>
+          )}
+
+          {isAdmin && (
+            <NavLink to="/quizTestAdmin" className="inline-block">
+              <div className="indicator">
+                <span className="indicator-item badge bg-red-500 text-white border-0 rounded-full">
+                  {quizTests.length}
                 </span>
-                <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
-              </button>
-            </div>
-          </NavLink>
-        )}
+                <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
+                  <span className="relative z-10 group-hover:text-[#404040] hover:scale-105">
+                    Quiz Admin
+                  </span>
+                  <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
+                </button>
+              </div>
+            </NavLink>
+          )}
+
+        </div>
       </div>
 
-      {/* Background Gray if modal open */}
-      <div className={`${modalOpen ? "bg-gray-100 p-6 rounded" : ""}`}>
-        {/* Question Box */}
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-300 relative">
-          <div className="absolute top-4 right-4 italic text-gray-600 text-base">
-            {today}
-          </div>
-          {isAdmin && (
-            <div className="absolute left-1/2 -translate-x-1/2 -top-3 bg-white px-2">
-              <button
-                onClick={openModal}
-                className="p-1 rounded-full hover:bg-gray-100"
-              >
-                <FiEdit3 className="text-blue-600 text-xl" />
-              </button>
-            </div>
-          )}
-          <h2 className="text-lg mt-4 text-[#2acb35] font-semibold">
-            Quiz Question:
-          </h2>
-          <p className="text-gray-700 mt-2 font-semibold">{quizQuestion}</p>
+      {/* Question Box */}
+      <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-300 relative">
+        <div className="absolute top-4 right-4 italic text-gray-600 text-base">
+          {today}
         </div>
+        <h2 className="text-lg mt-4 text-[#2acb35] font-semibold">
+          Quiz Question:
+        </h2>
+        <p className="text-gray-700 mt-2 font-semibold">{quizQuestion}</p>
+      </div>
 
-        {/* Answer Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-medium mb-1">Your Name</label>
-              <input
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-                disabled={isInputDisabled}
-                required
-                className={`w-full border border-gray-300 rounded-lg px-3 py-2 ${
-                  isInputDisabled ? "bg-gray-100" : "focus:ring-green-400"
-                }`}
-              />
-            </div>
-            <div>
-              <label className="block font-medium mb-1">Your Email</label>
-              <input
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter your email"
-                disabled={isInputDisabled}
-                required
-                className={`w-full border border-gray-300 rounded-lg px-3 py-2 ${
-                  isInputDisabled ? "bg-gray-100" : "focus:ring-green-400"
-                }`}
-              />
-            </div>
-            <div>
-              <label className="block font-medium mb-1">Your Facebook URL</label>
-              <input
-                name="facebook"
-                type="url"
-                value={formData.facebook}
-                onChange={handleChange}
-                placeholder="Enter your Facebook profile link"
-                disabled={isInputDisabled}
-                required
-                className={`w-full border border-gray-300 rounded-lg px-3 py-2 ${
-                  isInputDisabled ? "bg-gray-100" : "focus:ring-green-400"
-                }`}
-              />
-            </div>
-            <div>
-              <label className="block font-medium mb-1">Newsletter OTP</label>
-              <input
-                name="otp"
-                value={formData.otp}
-                onChange={handleChange}
-                placeholder="Enter 6-digit OTP"
-                disabled={isInputDisabled}
-                required
-                className={`w-full border border-gray-300 rounded-lg px-3 py-2 ${
-                  isInputDisabled ? "bg-gray-100" : "focus:ring-green-400"
-                }`}
-              />
-              {otpError && (
-                <p className="text-red-600 text-sm mt-1">{otpError}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Conditional Image Upload */}
-          {questions.length > 0 &&
-            questions[questions.length - 1]?.requireImage && (
-              <div>
-                <label className="block font-medium mb-1">
-                  Upload Image (Required)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  disabled={uploading || isInputDisabled}
-                  required
-                  className="file-input file-input-ghost border border-gray-300"
-                />
-                {selectedImage && (
-                  <div className="mt-2">
-                    <img
-                      src={selectedImage}
-                      alt="Preview"
-                      className="w-40 rounded border"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
+      {/* Answer Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block font-medium mb-1">Quiz Answer</label>
-            <textarea
-              name="answer"
-              rows="8"
-              value={formData.answer}
+            <label className="block font-medium mb-1">Your Name</label>
+            <input
+              name="name"
+              value={formData.name}
               onChange={handleChange}
-              placeholder="Write your answer here..."
+              placeholder="Enter your full name"
               disabled={isInputDisabled}
               required
-              className={`w-full border border-gray-300 rounded-lg px-3 py-2 resize-none ${
-                isInputDisabled ? "bg-gray-100" : "focus:ring-green-400"
-              }`}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
             />
           </div>
+          <div>
+            <label className="block font-medium mb-1">Your Email</label>
+            <input
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="Enter your email"
+              disabled={isInputDisabled}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block font-medium mb-1">Your Facebook URL</label>
+            <input
+              name="facebook"
+              type="url"
+              value={formData.facebook}
+              onChange={handleChange}
+              placeholder="Enter your Facebook link"
+              disabled={isInputDisabled}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block font-medium mb-1">
+              Newsletter OTP {quizDateText && `(${quizDateText})`}
+            </label>
+            <input
+              name="otp"
+              value={formData.otp}
+              onChange={handleChange}
+              placeholder="Enter 6-digit OTP"
+              disabled={isInputDisabled}
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
+            {otpError && <p className="text-red-600 text-sm mt-1">{otpError}</p>}
+          </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={!isValidForSubmit}
-            className={`w-full font-semibold py-2 rounded-lg transition ${
-              isValidForSubmit
-                ? "bg-[#2acb35] text-white hover:bg-green-700"
-                : "bg-gray-400 text-gray-200 cursor-not-allowed"
+        {/* Conditional Image */}
+        {questions.length > 0 &&
+          questions[questions.length - 1]?.requireImage && (
+            <div>
+              <div className="flex items-center gap-3 mb-5">
+                <label className="block font-medium">
+                  Upload Image (Required)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleWatchDemo}
+                  className="text-sm px-3 py-2 bg-[#2acb35] text-white rounded-md transition-colors"
+                >
+                  Watch Demo
+                </button>
+              </div>
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                disabled={uploading || isInputDisabled}
+                required
+                className="file-input file-input-ghost border border-gray-300"
+              />
+
+              {selectedImage && (
+                <div className="mt-2">
+                  <img
+                    src={selectedImage}
+                    alt="Preview"
+                    className="w-40 rounded border"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+        <div>
+          <label className="block font-medium mb-1">Quiz Answer</label>
+          <textarea
+            name="answer"
+            rows="8"
+            value={formData.answer}
+            onChange={handleChange}
+            placeholder="Write your answer here..."
+            disabled={isInputDisabled}
+            required
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 resize-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={!isValidForSubmit}
+          className={`w-full font-semibold py-2 rounded-lg transition ${isValidForSubmit
+            ? "bg-[#2acb35] text-white hover:bg-green-700"
+            : "bg-gray-400 text-gray-200 cursor-not-allowed"
             }`}
-          >
-            Submit Answer
-          </button>
-        </form>
-      </div>
+        >
+          Submit Answer
+        </button>
+      </form>
 
-      {/* Modal */}
+      {/* === Modal === */}
       {modalOpen && (
         <div className="fixed inset-0 flex items-start justify-center z-50 pt-20">
           <div className="absolute inset-0 bg-gray-200 opacity-70"></div>
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-lg relative z-10">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl shadow-lg relative z-10 max-h-[80vh] overflow-y-auto">
             <h3 className="text-xl font-semibold mb-3">
               Manage Quiz (Update / Delete)
             </h3>
+
             <div className="mb-3">
               <label className="block font-medium mb-1">6-digit OTP</label>
               <input
@@ -539,6 +598,7 @@ const QuizTest = () => {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
               />
             </div>
+
             <div className="mb-3">
               <label className="block font-medium mb-1">Quiz Question</label>
               <textarea
@@ -550,7 +610,34 @@ const QuizTest = () => {
               />
             </div>
 
-            {/* Toggle for Image Requirement */}
+            {/* ✅ Date Text Field */}
+            <div className="mb-3">
+              <label className="block font-medium mb-1">
+                Date Text (Friday, 7 December)
+              </label>
+              <input
+                value={modalDateText}
+                required
+                onChange={(e) => setModalDateText(e.target.value)}
+                placeholder="Enter date text for label"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              />
+            </div>
+
+            {/* ✅ YouTube URL Field */}
+            <div className="mb-3">
+              <label className="block font-medium mb-1">
+                YouTube Video URL (optional)
+              </label>
+              <input
+                value={modalYoutube}
+                onChange={(e) => setModalYoutube(e.target.value)}
+                placeholder="Paste YouTube URL (e.g. https://youtu.be/...)"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              />
+            </div>
+
+            {/* Toggle */}
             <div className="mb-4 flex items-center gap-3">
               <label className="font-medium">Require Image?</label>
               <input
@@ -583,6 +670,7 @@ const QuizTest = () => {
                 </button>
               </div>
             </div>
+
             <button
               onClick={() => setModalOpen(false)}
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
@@ -592,6 +680,57 @@ const QuizTest = () => {
           </div>
         </div>
       )}
+
+      {/* === Video Modal === */}
+      {videoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => {
+              setVideoModalOpen(false);
+              setVideoToPlay("");
+            }}
+          ></div>
+
+          {/* modal container */}
+          <div className="relative w-full max-w-md mx-auto h-[80vh]">
+            <div className="bg-white rounded-lg overflow-hidden flex flex-col h-full">
+
+              {/* video area */}
+              <div className="relative flex-1">
+                {videoToPlay ? (
+                  <iframe
+                    title="Demo Video"
+                    src={videoToPlay}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="p-6 text-center">Invalid video</div>
+                )}
+              </div>
+
+              {/* footer */}
+              <div className="p-3 flex justify-end">
+                <button
+                  onClick={() => {
+                    setVideoModalOpen(false);
+                    setVideoToPlay("");
+                  }}
+                  className="bg-[#2acb35] text-white px-4 py-2 rounded"
+                >
+                  Close
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+
     </div>
   );
 };
