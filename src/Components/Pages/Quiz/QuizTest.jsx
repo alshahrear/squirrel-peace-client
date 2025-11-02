@@ -8,6 +8,7 @@ import useAxiosPublic from "../../../hooks/useAxiosPublic";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
 import { Helmet } from "react-helmet";
+import { FaPlayCircle } from "react-icons/fa";
 
 const API_URL = "https://squirrel-peace-server.onrender.com/quizOtp";
 const QUIZ_TEST_URL = "https://squirrel-peace-server.onrender.com/quizTest";
@@ -516,35 +517,40 @@ const QuizTest = () => {
         {/* Conditional Image */}
         {questions.length > 0 &&
           questions[questions.length - 1]?.requireImage && (
-            <div>
-              <div className="flex items-center gap-3 mb-5">
-                <label className="block font-medium">
+            <div className="mt-4">
+              {/* Label & Button Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
+                <label className="block font-medium text-base">
                   Upload Image (Required)
                 </label>
+
                 <button
                   type="button"
                   onClick={handleWatchDemo}
-                  className="text-sm px-3 py-2 bg-[#2acb35] text-white rounded-md transition-colors"
+                  className="flex items-center gap-2 text-sm px-4 py-2 bg-[#2acb35] text-white rounded-md transition-colors hover:bg-[#24a52c] w-48"
                 >
-                  Watch Demo
+                  <FaPlayCircle className="text-base" />
+                  <span>Watch Demo Video</span>
                 </button>
               </div>
 
+              {/* Image Input */}
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageUpload}
                 disabled={uploading || isInputDisabled}
                 required
-                className="file-input file-input-ghost border border-gray-300"
+                className="file-input file-input-ghost border border-gray-300 w-full max-w-sm"
               />
 
+              {/* Image Preview */}
               {selectedImage && (
-                <div className="mt-2">
+                <div className="mt-3">
                   <img
                     src={selectedImage}
                     alt="Preview"
-                    className="w-40 rounded border"
+                    className="w-40 sm:w-48 md:w-56 rounded border"
                   />
                 </div>
               )}

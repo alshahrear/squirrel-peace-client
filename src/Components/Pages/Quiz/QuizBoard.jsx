@@ -84,7 +84,7 @@ const QuizBoard = () => {
       {/* Title */}
       <div className="text-center mt-10">
         <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Join Our Quiz</h2>
-        <p className="text-gray-600 mt-3 text-base">Join our weekly quiz exclusively for newsletter subscribers and win exciting gifts!</p>
+        <p className="text-gray-600 mt-3 text-base">Join our weekly quiz every <span className="text-lg font-semibold">Sunday, Tuesday and Thursday</span> exclusively for newsletter subscribers and win exciting gifts.</p>
       </div>
 
       {/* Next Quiz */}

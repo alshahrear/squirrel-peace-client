@@ -66,7 +66,7 @@ const AdminPages = () => {
             accounts: [
                 { label: "City", number: "2304461313001" },
                 { label: "DBBL", number: "7017520546866" },
-                { label: "BKASH", number: "01877908888" },
+                { label: "BKASH", number: "01612002913" },
             ],
         },
         {
