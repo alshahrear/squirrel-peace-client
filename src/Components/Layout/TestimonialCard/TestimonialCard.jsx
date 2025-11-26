@@ -70,7 +70,7 @@ const EnvironmentalProcess = () => {
       title: "Join Us",
       description:
         "Stay connected with us by subscribing to our newsletter. We regularly share practical life tips, uplifting thoughts, and inspiring ideas that can help you grow and feel better every day.",
-      link: "https://sphealth.beehiiv.com/",
+      link: "https://squirrelnewsletter.com/",
     },
     {
       icon: FaBookReader,
