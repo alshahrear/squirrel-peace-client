@@ -62,14 +62,14 @@ const WinCards = () => {
     );
   }
 
-  // visibleCards: mobile এ শুধু ১টা, desktop এ ২টা
+  // visibleCards
   const visibleCards =
     window.innerWidth < 640
       ? [winners[index % winners.length]]
       : [
-        winners[index % winners.length],
-        winners[(index + 1) % winners.length],
-      ];
+          winners[index % winners.length],
+          winners[(index + 1) % winners.length],
+        ];
 
   const getAvatar = (gender) => {
     if (gender === "Male") return male;
@@ -85,7 +85,7 @@ const WinCards = () => {
 
   // Delete Winner
   const handleDelete = (winner) => {
-    setIsPaused(true); // loop pause
+    setIsPaused(true);
 
     Swal.fire({
       title: `Are you sure to delete ${winner.winnerName}?`,
@@ -110,18 +110,18 @@ const WinCards = () => {
                 showConfirmButton: false,
                 timer: 1500,
               });
+
               setWinners((prev) => prev.filter((w) => w._id !== winner._id));
 
-              // index adjust
               setIndex((prev) => {
                 if (prev >= winners.length - 1) return 0;
                 return prev % Math.max(winners.length - 1, 1);
               });
             }
-            setIsPaused(false); // resume loop
+            setIsPaused(false);
           });
       } else {
-        setIsPaused(false); // cancel → resume
+        setIsPaused(false);
       }
     });
   };
@@ -150,7 +150,7 @@ const WinCards = () => {
           </button>
         )}
 
-        {/* Admin Button (Mobile under description) */}
+        {/* Admin Button (Mobile) */}
         {user && isAdmin && (
           <div className="mt-4 sm:hidden">
             <button
@@ -163,7 +163,6 @@ const WinCards = () => {
         )}
       </div>
 
-
       <div className="relative flex flex-col sm:flex-row justify-center items-center gap-6 sm:gap-10 lg:gap-16 h-auto sm:h-[500px] overflow-hidden">
         {visibleCards.map((t, i) => {
           if (!t) return null;
@@ -171,10 +170,8 @@ const WinCards = () => {
           let animationClass = "";
           if (phase === "enter") {
             if (window.innerWidth < 640) {
-              // mobile → right to center
               animationClass = "translate-x-[120%] opacity-0 animate-slideInLeft";
             } else {
-              // desktop
               animationClass =
                 i === 0
                   ? "translate-x-[-120%] opacity-0 animate-slideInLeft"
@@ -184,11 +181,9 @@ const WinCards = () => {
             animationClass = "translate-x-0 translate-y-0 opacity-100";
           } else if (phase === "exit") {
             if (window.innerWidth < 640) {
-              // mobile → left exit
               animationClass =
                 "translate-x-[-120%] opacity-0 transition-all duration-700 ease-in-out";
             } else {
-              // desktop
               animationClass =
                 "translate-y-[150%] opacity-0 transition-all duration-700 ease-in-out";
             }
@@ -238,27 +233,23 @@ const WinCards = () => {
                   </div>
                   <div className="text-gray-700 text-base space-y-2 md:space-y-0">
                     <p>
-                      <span className="font-semibold">Gift:</span> {t.winnerGift}
+                      <span className="font-semibold">Gift:</span>{" "}
+                      {t.winnerGift}
                     </p>
                     <p>
-                      <span className="font-semibold">Date:</span> {t.winnerDate}
+                      <span className="font-semibold">Date:</span>{" "}
+                      {t.winnerDate}
                     </p>
                   </div>
                 </div>
-
-                <p className="text-gray-700 mt-3 text-base leading-relaxed">
-                  <span className="text-lg font-semibold">
-                    Winner says:
-                  </span>{" "}
-                  {t.winnerReview}
-                </p>
               </div>
 
-              <div className="mt-4 pb-2">
+              {/* Image */}
+              <div className="mt-3 pb-2">
                 <img
                   src={t.giftImage}
                   alt={t.winnerGift}
-                  className="w-full h-60 sm:h-72 object-cover rounded-2xl"
+                  className="w-full h-72 sm:h-80 md:h-96 object-cover rounded-2xl"
                 />
               </div>
             </div>

@@ -41,7 +41,6 @@ const WinAdmin = () => {
         winnerName: data.winnerName,
         winnerGift: data.winnerGift,
         winnerGender: data.winnerGender,
-        winnerReview: data.winnerReview,
         winnerDate: formattedDate,
         giftImage: imageUrl,
       };
@@ -129,13 +128,6 @@ const WinAdmin = () => {
                 <option value="Others">Others</option>
               </select>
             </div>
-
-            <textarea
-              rows="2"
-              {...register("winnerReview", { required: true })}
-              placeholder="Winner Review..."
-              className="w-full p-4 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2acb35]"
-            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
               <input
