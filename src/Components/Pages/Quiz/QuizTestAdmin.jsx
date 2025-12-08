@@ -101,7 +101,7 @@ const QuizTestAdmin = () => {
           </thead>
           <tbody className="divide-y divide-gray-200">
             {quizTests.length > 0 ? (
-              quizTests.map((quiz, index) => (
+              quizTests.slice().reverse().map((quiz, index) => (
                 <QuizTestMessage
                   key={quiz._id}
                   quiz={quiz}
