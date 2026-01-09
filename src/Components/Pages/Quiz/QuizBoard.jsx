@@ -55,7 +55,7 @@ const QuizBoard = () => {
     sessionStorage.setItem("quizAccess", "true"); 
     navigate("/quizTest"); 
   };
-  const handleSubscribe = () => window.open("https://sphealth.beehiiv.com/", "_blank");
+  const handleSubscribe = () => window.open("https://squirrelnewsletter.beehiiv.com/", "_blank");
   const handleSeeTerms = () => setIsDrawerOpen(true);
   const handleCloseDrawer = () => setIsDrawerOpen(false);
 

@@ -50,7 +50,7 @@ const NewsletterSubscribe = () => {
          We believe everyone deserves a happy and joyful life. Through our daily newsletter, we bring you inspiring and positive content that can brighten your day and help you live better. Join us and let's make your life happier together!
         </p>
         <a
-          href="https://sphealth.beehiiv.com/"
+          href="https://squirrelnewsletter.beehiiv.com/"
           target="_blank"
           rel="noopener noreferrer"
           className="w-full max-w-md px-2 md:px-0"

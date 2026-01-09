@@ -175,7 +175,7 @@ const Footer = () => {
               </span>
             </label>
             <a
-              href="https://sphealth.beehiiv.com/"
+              href="https://squirrelnewsletter.beehiiv.com/"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -184,6 +184,27 @@ const Footer = () => {
               </button>
             </a>
           </div>
+          {/* ONLY THIS PART ADDED */}
+          <div className="mt-10 text-base space-y-1 border-y border-white p-2 ">
+            <p>Developed by Al Shahrear Islam</p>
+
+            <p>Email: alshahrear1@gmail.com</p>
+
+            <p>WhatsApp: +8801612002913</p>
+
+            <p
+              onClick={() =>
+                window.open(
+                  "https://www.linkedin.com/in/al-shahrear-islam-3a3121198/",
+                  "_blank"
+                )
+              }
+              className="cursor-pointer text-[#2acb35]"
+            >
+              to contact LinkedIn
+            </p>
+          </div>
+
         </nav>
       </footer>
 

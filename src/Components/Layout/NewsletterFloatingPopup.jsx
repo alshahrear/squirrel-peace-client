@@ -68,7 +68,7 @@ const NewsletterFloatingPopup = () => {
               </h3>
               <p className="text-xl font-medium my-3">Please subscribe our newsletter <br /> for <span className="font-semibold">100%</span> free</p>
               <a
-                href="https://sphealth.beehiiv.com/"
+                href="https://squirrelnewsletter.beehiiv.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full"

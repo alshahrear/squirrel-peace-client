@@ -54,7 +54,7 @@ const NewsletterOption = () => {
 
           {/* Subscribe Button Only */}
           <a
-            href="https://sphealth.beehiiv.com/"
+            href="https://squirrelnewsletter.beehiiv.com/"
             target="_blank"
             rel="noopener noreferrer"
             className="z-10"

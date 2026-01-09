@@ -155,7 +155,7 @@ const NewsletterPage = () => {
           Every morning, we send you something special — heartwarming stories, inspiring thoughts, life-enriching ideas, and joyful surprises. It's a space where you can pause, breathe, smile, and feel connected to something bigger.
         </p>
         <p className="mt-2 ">Over 1000+ kind souls have already joined this journey of light and happiness. Now it's your turn - <a
-          href="https://sphealth.beehiiv.com/"
+          href="https://squirrelnewsletter.beehiiv.com/"
           target="_blank"
           rel="noopener noreferrer"
           className="underline text-[#2acb35] text-lg font-semibold"
@@ -210,7 +210,7 @@ const NewsletterPage = () => {
                 Every morning, we send you something special — heartwarming stories, inspiring thoughts, life-enriching ideas, and joyful surprises. It's a space where you can pause, breathe, smile, and feel connected to something bigger.
               </p>
               <p className="mt-2 text-lg">Over 1000+ kind souls have already joined this journey of light and happiness. Now it's your turn - <a
-                href="https://sphealth.beehiiv.com/"
+                href="https://squirrelnewsletter.beehiiv.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline text-[#2acb35] font-semibold"
