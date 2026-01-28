@@ -69,8 +69,8 @@ const AdminPages = () => {
                 { label: "BKASH", number: "01612002913" },
             ],
         },
-        {
-            name: "Shishir",
+        { 
+            name: "Shishir Rayhan",
             accounts: [
                 { label: "UCB", number: "2083201000005042" },
                 { label: "DBBL", number: "7017342178860" },
