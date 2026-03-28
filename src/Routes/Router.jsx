@@ -32,6 +32,7 @@ import WinAdmin from "../Components/Pages/Quiz/WinAdmin";
 import QuizTest from "../Components/Pages/Quiz/QuizTest";
 import QuizTestAdmin from "../Components/Pages/Quiz/QuizTestAdmin";
 import ProtectedQuizRoute from "../Components/Pages/Quiz/ProtectedQuizRoute";
+import Receipt from "../Components/Pages/Receipt/receipt";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -146,6 +147,10 @@ export const router = createBrowserRouter([
         path: "/termCondition",
         element: <TermCondition></TermCondition>
       },
+      {
+        path: "/receipt",
+        element: <Receipt></Receipt>
+      }
     ]
   },
 ]);
