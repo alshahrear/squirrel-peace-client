@@ -1,4 +1,4 @@
-const Receipt = () => {
+const ReceiptPage = () => {
   return (
     <div className="h-[60vh] flex items-center justify-center bg-gray-50 px-4">
       <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-600 text-center">
@@ -8,4 +8,4 @@ const Receipt = () => {
   );
 };
 
-export default Receipt;
+export default ReceiptPage;
