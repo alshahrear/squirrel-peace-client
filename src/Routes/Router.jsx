@@ -153,15 +153,15 @@ export const router = createBrowserRouter([
       },
       {
         path: "/receipt",
-        element: <ReceiptPage></ReceiptPage>
+        element: <AdminRoute><ReceiptPage></ReceiptPage></AdminRoute>
       },
       {
         path: "/customer",
-        element: <Customer></Customer>
+        element: <AdminRoute><Customer></Customer></AdminRoute>
       },
       {
         path: "/customerAdmin",
-        element: <CustomerAdmin></CustomerAdmin>
+        element: <AdminRoute><CustomerAdmin></CustomerAdmin></AdminRoute>
       }
     ]
   },
