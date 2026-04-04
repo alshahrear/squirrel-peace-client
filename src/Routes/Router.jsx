@@ -33,6 +33,10 @@ import QuizTest from "../Components/Pages/Quiz/QuizTest";
 import QuizTestAdmin from "../Components/Pages/Quiz/QuizTestAdmin";
 import ProtectedQuizRoute from "../Components/Pages/Quiz/ProtectedQuizRoute";
 import ReceiptPage from "../Components/Pages/Receipt/ReceiptPage";
+import Customer from "../Components/Pages/Receipt/Customer";
+import CustomerAdmin from "../Components/Pages/Receipt/CustomerAdmin";
+import Pdf from "../Components/Pages/Receipt/Pdf";
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -150,8 +154,20 @@ export const router = createBrowserRouter([
       {
         path: "/receipt",
         element: <ReceiptPage></ReceiptPage>
+      },
+      {
+        path: "/customer",
+        element: <Customer></Customer>
+      },
+      {
+        path: "/customerAdmin",
+        element: <CustomerAdmin></CustomerAdmin>
       }
     ]
   },
+  // Pdf রুটটিকে Main এর বাইরে আলাদাভাবে রাখা হয়েছে
+  {
+    path: "/pdf",
+    element: <Pdf></Pdf>
+  }
 ]);
-
