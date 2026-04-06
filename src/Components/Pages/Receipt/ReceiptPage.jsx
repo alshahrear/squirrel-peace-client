@@ -156,9 +156,12 @@ const ReceiptPage = () => {
     setModalDragIndex(null);
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(selectedProduct.toLowerCase())
-  );
+  // Logic: Filter out products that are already in the items list
+  const filteredProducts = products.filter(p => {
+    const isAlreadyAdded = items.some(item => item.product === p.name && item.id !== editingId);
+    const matchesSearch = p.name.toLowerCase().includes(selectedProduct.toLowerCase());
+    return !isAlreadyAdded && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 px-2 sm:px-4 py-6 sm:py-10 font-sans text-slate-800">
@@ -166,7 +169,6 @@ const ReceiptPage = () => {
         <div className="bg-white shadow-2xl rounded-2xl sm:rounded-[2rem] overflow-hidden border border-emerald-100">
 
           {/* Header */}
-          {/* Header Section Snippet */}
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 sm:p-8 text-white flex flex-col sm:flex-row justify-between items-center gap-4 text-center">
 
             {/* Left Side Buttons Group */}
@@ -178,7 +180,6 @@ const ReceiptPage = () => {
                 <FiPackage /> Products
               </button>
 
-              {/* NavLink used for Customers */}
               <NavLink
                 to="/customerAdmin"
                 className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center"
@@ -224,6 +225,9 @@ const ReceiptPage = () => {
                         <FiChevronRight />
                       </div>
                     ))}
+                    {filteredProducts.length === 0 && (
+                      <div className="p-4 text-center text-slate-400 text-sm italic">No products available</div>
+                    )}
                   </div>
                 )}
                 {showSuggestions && <div className="fixed inset-0 z-40" onClick={() => setShowSuggestions(false)}></div>}
