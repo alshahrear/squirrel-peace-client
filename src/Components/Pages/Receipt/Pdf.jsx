@@ -143,7 +143,7 @@ const Pdf = () => {
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span>ডেলিভারি:</span>
+                    <span>ডেলিভারি চার্জ:</span>
                     <span className="font-bold">{toBengaliNumber(Number(data.deliveryCharge || 0).toLocaleString())} ৳</span>
                   </div>
                   <div className="pt-1 mt-1 border-t border-slate-400 flex justify-between font-black">
