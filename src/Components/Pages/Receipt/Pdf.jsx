@@ -67,46 +67,46 @@ const Pdf = () => {
           return (
             <div 
               key={data._id || index} 
-              className="bg-white p-10 mb-6 border border-black print:mb-0 print:border-none print:px-12 print:py-8 page-break-box"
+              className="bg-white p-10 mb-6 print:mb-0 print:border-none print:px-12 print:py-8 page-break-box"
               style={{ pageBreakAfter: 'always' }}
             >
               {/* Extra Small Header */}
-              <div className="flex justify-between items-center border-b-2 border-black pb-2 mb-4">
+              <div className="flex justify-between items-center border-b-1 border-black pb-2 mb-4">
                 <div className="flex gap-2 items-center">
                   <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
                   <div>
                     <h1 className="text-xl font-black text-black leading-tight">বাসায় বাজার</h1>
-                    <p className="text-[9px] text-black font-black uppercase">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
+                    <p className="text-[10px] text-black font-black uppercase mt-1">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
                   </div>
                 </div>
-                <div className="text-[10px] leading-tight text-black font-bold text-right">
+                <div className="text-[12px] leading-tight text-black font-bold text-right space-y-1">
                   <p>01886074920</p>
                   <p>bashaybazarmp@gmail.com</p>
                 </div>
               </div>
 
               {/* Billing Info: 3 Left, 3 Right */}
-              <div className="grid grid-cols-2 gap-x-14 gap-y-1 mb-4 text-[11px] border border-black p-3 rounded">
+              <div className="grid grid-cols-2 gap-x-16 gap-y-1 mb-5 text-[12px] ">
                 <div className="space-y-1">
-                  <p><span className="font-black">Name:</span> <span className="font-bold">{customer.customerName || "N/A"}</span></p>
-                  <p><span className="font-black">Phone:</span> <span className="font-bold">{customer.phone || "N/A"}</span></p>
-                  <p><span className="font-black">Address:</span> <span className="font-bold">{customer.address || "N/A"}</span></p>
+                  <p><span className="font-bold">Name:</span> <span className="font-bold">{customer.customerName || "N/A"}</span></p>
+                  <p><span className="font-bold">Phone:</span> <span className="font-bold">{customer.phone || "N/A"}</span></p>
+                  <p><span className="font-bold">Address:</span> <span className="font-bold">{customer.address || "N/A"}</span></p>
                 </div>
                 <div className="space-y-1 ">
-                  <p><span className="font-black">Date:</span> <span className="font-bold">{customer.date || "N/A"}</span></p>
-                  <p><span className="font-black">Invoice:</span> <span className="font-bold">#{customer.invoiceNumber || "N/A"}</span></p>
-                  <p><span className="font-black">Delivery:</span> <span className="font-bold">{customer.deliveryMan || "N/A"}</span></p>
+                  <p><span className="font-bold">Date:</span> <span className="font-bold">{customer.date || "N/A"}</span></p>
+                  <p><span className="font-bold">Invoice:</span> <span className="font-bold">#{customer.invoiceNumber || "N/A"}</span></p>
+                  <p><span className="font-bold">Delivery:</span> <span className="font-bold">{customer.deliveryMan || "N/A"}</span></p>
                 </div>
               </div>
 
               {/* Items Table */}
-              <table className="w-full mb-4 text-[11px] border-collapse">
+              <table className="w-full mb-4 text-[12px] border-collapse">
                 <thead>
                   <tr className="border-b-1 border-black text-black uppercase">
                     <th className="py-1 text-left font-black w-6">#</th>
                     <th className="py-1 text-left font-black">পণ্য</th>
-                    <th className="py-1 text-center font-black">পরিমাণ</th>
-                    <th className="py-1 text-right font-black">একক মূল্য</th>
+                    <th className="py-1 text-left font-black">পরিমাণ</th>
+                    <th className="py-1 text-center font-black">একক মূল্য</th>
                     {hasAnyItemDiscount && <th className="py-1 text-right font-black">ছাড়</th>}
                     <th className="py-1 text-right font-black">মোট</th>
                   </tr>
@@ -116,8 +116,8 @@ const Pdf = () => {
                     <tr key={idx} className="text-black border-none font-bold">
                       <td className="py-1.5 text-left">{toBengaliNumber(idx + 1)}</td>
                       <td className="py-1.5 text-left font-black">{item.product}</td>
-                      <td className="py-1.5 text-center">{toBengaliNumber(item.quantity)} {item.unit}</td>
-                      <td className="py-1.5 text-right">{toBengaliNumber(Number(item.unitPrice).toLocaleString())}</td>
+                      <td className="py-1.5 ">{toBengaliNumber(item.quantity)} {item.unit}</td>
+                      <td className="py-1.5 text-center">{toBengaliNumber(Number(item.unitPrice).toLocaleString())}</td>
                       {hasAnyItemDiscount && (
                         <td className="py-1.5 text-right">
                           {Number(item.discount) > 0 ? `-${toBengaliNumber(Number(item.discount))}` : "—"}
@@ -154,8 +154,8 @@ const Pdf = () => {
               </div>
 
               {/* Minimal Footer */}
-              <div className="mt-6 text-center">
-                <p className="text-[10px] text-black font-black">"বাসায় বাজার" এর সাথে থাকার জন্য ধন্যবাদ।</p>
+              <div className="mt-5 text-center">
+                <p className="text-[11px] text-black font-black">"বাসায় বাজার" এর সাথে থাকার জন্য ধন্যবাদ।</p>
               </div>
             </div>
           );
