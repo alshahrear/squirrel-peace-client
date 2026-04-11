@@ -75,12 +75,12 @@ const Pdf = () => {
                 <div className="flex gap-2 items-center">
                   <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
                   <div>
-                    <h1 className="text-xl font-black text-black leading-tight">বাসায় বাজার</h1>
+                    <h1 className="text-lg font-black text-black leading-tight">বাসায় বাজার</h1>
                     <p className="text-[10px] text-black font-black uppercase mt-1">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
                   </div>
                 </div>
                 <div className="text-[12px] leading-tight text-black font-bold text-right space-y-1">
-                  <p>01886074920</p>
+                  <p>WhatsApp: 01886074920</p>
                   <p>bashaybazarmp@gmail.com</p>
                 </div>
               </div>
