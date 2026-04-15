@@ -77,7 +77,7 @@ const Pdf = () => {
               {/* Top Section: Header to Calculation */}
               <div>
                 {/* Extra Small Header */}
-                <div className="flex justify-between items-center border-b-1 border-black pb-2 mb-4">
+                <div className="flex justify-between items-center border-b-1 border-black pb-2 mb-2">
                   <div className="flex gap-2 items-center">
                     <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
                     <div>
@@ -92,7 +92,7 @@ const Pdf = () => {
                 </div>
 
                 {/* Billing Info */}
-                <div className="grid grid-cols-2 gap-x-16 gap-y-1 mb-5 text-[12px]">
+                <div className="grid grid-cols-2 gap-x-16 gap-y-1 mb-2 text-[12px]">
                   <div className="space-y-1">
                     <p><span className="font-bold">Name:</span> <span className="font-bold">{customer.customerName || "N/A"}</span></p>
                     <p><span className="font-bold">Phone:</span> <span className="font-bold">{customer.phone || "N/A"}</span></p>
@@ -106,7 +106,7 @@ const Pdf = () => {
                 </div>
 
                 {/* Items Table */}
-                <table className="w-full mb-4 text-[12px] border-collapse">
+                <table className="w-full mb-2 text-[12px] border-collapse">
                   <thead>
                     <tr className="border-b-1 border-black text-black uppercase">
                       <th className="py-1 text-left font-black w-6">#</th>
@@ -117,19 +117,19 @@ const Pdf = () => {
                       <th className="py-1 text-right font-black">মোট</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 print:divide-none">
+                  <tbody className="">
                     {items.map((item, idx) => (
                       <tr key={idx} className="text-black border-none font-bold">
-                        <td className="py-1.5 text-left">{toBengaliNumber(idx + 1)}</td>
-                        <td className="py-1.5 text-left font-black">{item.product}</td>
-                        <td className="py-1.5 ">{toBengaliNumber(item.quantity)} {item.unit}</td>
-                        <td className="py-1.5 text-center">{toBengaliNumber(Number(item.unitPrice).toLocaleString())}</td>
+                        <td className="py-0.5 text-left">{toBengaliNumber(idx + 1)}</td>
+                        <td className="py-0.5 text-left font-black">{item.product}</td>
+                        <td className="py-0.5 ">{toBengaliNumber(item.quantity)} {item.unit}</td>
+                        <td className="py-0.5 text-center">{toBengaliNumber(Number(item.unitPrice).toLocaleString())}</td>
                         {hasAnyItemDiscount && (
-                          <td className="py-1.5 text-right">
+                          <td className="py-0.5 text-right">
                             {Number(item.discount) > 0 ? `-${toBengaliNumber(Number(item.discount))}` : "—"}
                           </td>
                         )}
-                        <td className="py-1.5 text-right font-black">{toBengaliNumber(Number(item.totalPrice).toLocaleString())} ৳</td>
+                        <td className="py-0.5 text-right font-black">{toBengaliNumber(Number(item.totalPrice).toLocaleString())} ৳</td>
                       </tr>
                     ))}
                   </tbody>
