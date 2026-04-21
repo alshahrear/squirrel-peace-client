@@ -26,6 +26,9 @@ const ReceiptPage = () => {
   const [overallDiscount, setOverallDiscount] = useState(0);
   const [deliveryCharge, setDeliveryCharge] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // New state for Quantity Checkbox
+  const [showQtyInTable, setShowQtyInTable] = useState(true);
 
   const [savedItemId, setSavedItemId] = useState(null);
   const customerRef = useRef(null);
@@ -78,7 +81,8 @@ const ReceiptPage = () => {
       id: editingId || Date.now(),
       product: selectedProduct,
       unitPrice: parseFloat(unitPrice),
-      quantity: parseFloat(quantity),
+      // Logic: If checkbox is unticked, quantity is stored as empty/null for display
+      quantity: showQtyInTable ? parseFloat(quantity) : "", 
       unit: selectedUnit,
       discount: parseFloat(itemDiscount) || 0,
       totalPrice: totalPrice,
@@ -156,7 +160,6 @@ const ReceiptPage = () => {
     setModalDragIndex(null);
   };
 
-  // Logic: Filter out products that are already in the items list
   const filteredProducts = products.filter(p => {
     const isAlreadyAdded = items.some(item => item.product === p.name && item.id !== editingId);
     const matchesSearch = p.name.toLowerCase().includes(selectedProduct.toLowerCase());
@@ -171,7 +174,6 @@ const ReceiptPage = () => {
           {/* Header */}
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 sm:p-8 text-white flex flex-col sm:flex-row justify-between items-center gap-4 text-center">
 
-            {/* Left Side Buttons Group */}
             <div className="order-2 sm:order-1 flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
                 onClick={() => { setModalType("product"); setShowModal(true); }}
@@ -189,13 +191,11 @@ const ReceiptPage = () => {
               
             </div>
 
-            {/* Center Title */}
             <div className="order-1 sm:order-2">
               <h1 className="text-xl sm:text-3xl font-black tracking-tight uppercase">Billing Receipt</h1>
               <p className="text-emerald-100 text-[10px] sm:text-xs mt-1">Bashay Bazar Inventory System</p>
             </div>
 
-            {/* Right Side Button */}
             <button
               onClick={() => { setModalType("unit"); setShowModal(true); }}
               className="order-3 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 w-full sm:w-auto justify-center"
@@ -234,7 +234,15 @@ const ReceiptPage = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-emerald-700 ml-1">Qty & Unit</label>
+                <div className="flex items-center gap-2 ml-1">
+                  <label className="text-[10px] font-bold uppercase text-emerald-700">Qty & Unit</label>
+                  <input 
+                    type="checkbox" 
+                    checked={showQtyInTable} 
+                    onChange={(e) => setShowQtyInTable(e.target.checked)}
+                    className="w-3 h-3 accent-emerald-600 cursor-pointer"
+                  />
+                </div>
                 <div className="flex ring-1 ring-emerald-200 rounded-xl overflow-hidden bg-white">
                   <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="p-2.5 w-1/2 outline-none text-center border-r border-emerald-50 font-bold text-sm" placeholder="Qty" />
                   <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)} className="p-2.5 w-1/2 outline-none bg-transparent text-[10px] font-semibold">
@@ -283,7 +291,9 @@ const ReceiptPage = () => {
                       <td className="p-3 sm:p-4 text-center text-slate-400 text-[10px]">{index + 1}</td>
                       <td className="p-3 sm:p-4 font-bold text-slate-700">{item.product}</td>
                       <td className="p-3 sm:p-4 text-center">
-                        <span className="bg-emerald-100 text-emerald-700 px-2 sm:px-3 py-1 rounded-full text-[10px] font-bold">{item.quantity} {item.unit}</span>
+                        <span className="bg-emerald-100 text-emerald-700 px-2 sm:px-3 py-1 rounded-full text-[10px] font-bold">
+                          {item.quantity} {item.unit}
+                        </span>
                       </td>
                       <td className="p-3 sm:p-4 text-center text-slate-600 font-medium">{item.unitPrice} ৳</td>
                       <td className="p-3 sm:p-4 text-center text-slate-500 font-bold">-{item.discount} ৳</td>

@@ -13,7 +13,7 @@ const Pdf = () => {
 
   // ইংরেজি সংখ্যাকে বাংলায় রূপান্তর
   const toBengaliNumber = (num) => {
-    if (num === undefined || num === null || num === "") return "০";
+    if (num === undefined || num === null || num === "") return "";
     const bengaliNumbers = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
     return num
       .toString()
@@ -122,7 +122,11 @@ const Pdf = () => {
                       <tr key={idx} className="text-black border-none font-bold">
                         <td className="py-0.5 text-left">{toBengaliNumber(idx + 1)}</td>
                         <td className="py-0.5 text-left font-black">{item.product}</td>
-                        <td className="py-0.5 ">{toBengaliNumber(item.quantity)} {item.unit}</td>
+                        <td className="py-0.5 ">
+                          {/* Logic: Only show quantity number if it's not empty or zero */}
+                          {item.quantity && Number(item.quantity) !== 0 ? toBengaliNumber(item.quantity) + " " : ""}
+                          {item.unit}
+                        </td>
                         <td className="py-0.5 text-center">{toBengaliNumber(Number(item.unitPrice).toLocaleString())}</td>
                         {hasAnyItemDiscount && (
                           <td className="py-0.5 text-right">
