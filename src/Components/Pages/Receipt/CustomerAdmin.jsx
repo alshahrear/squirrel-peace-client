@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { useNavigate, NavLink } from "react-router-dom"; // NavLink যোগ করা হয়েছে
+import { useNavigate, NavLink } from "react-router-dom";
 import { 
   FiPrinter, 
   FiTrash2, 
@@ -10,7 +10,8 @@ import {
   FiPhone, 
   FiTruck,
   FiSearch,
-  FiPlusCircle // নতুন আইকন
+  FiPlusCircle,
+  FiEdit3 // এডিট আইকন
 } from "react-icons/fi";
 
 const CustomerAdmin = () => {
@@ -125,14 +126,12 @@ const CustomerAdmin = () => {
               <p className="text-slate-500 mt-1 font-medium italic text-xs md:text-sm">বাসায় বাজার - ম্যানেজমেন্ট</p>
             </div>
             
-            {/* Mobile Only Receipt Link */}
             <NavLink to="/receipt" className="lg:hidden flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg active:scale-95">
                <FiPlusCircle /> Receipt
             </NavLink>
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-3 w-full lg:w-auto">
-            {/* Print All Button */}
             {selectedIds.length > 0 && (
               <button 
                 onClick={handlePrintSelected}
@@ -142,7 +141,6 @@ const CustomerAdmin = () => {
               </button>
             )}
 
-            {/* Search Bar */}
             <div className="relative group w-full md:w-80">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-600 transition-colors" />
               <input 
@@ -153,7 +151,6 @@ const CustomerAdmin = () => {
               />
             </div>
 
-            {/* Desktop Receipt Link */}
             <NavLink 
               to="/receipt" 
               className="hidden lg:flex items-center gap-2 bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:bg-slate-900 transition-all active:scale-95 shadow-slate-200"
@@ -251,6 +248,15 @@ const CustomerAdmin = () => {
 
                     <td className="px-8 py-5">
                       <div className="flex items-center justify-center gap-3">
+                        {/* Edit Button */}
+                        <button
+                          onClick={() => navigate("/receipt", { state: { editId: item._id } })}
+                          className="p-2.5 bg-white border border-slate-200 text-amber-500 rounded-xl hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all shadow-sm active:scale-90"
+                          title="Edit Order"
+                        >
+                          <FiEdit3 size={18} />
+                        </button>
+
                         <button
                           onClick={() => navigate("/pdf", { state: item })}
                           className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-cyan-600 hover:text-white hover:border-cyan-600 transition-all shadow-sm active:scale-90"

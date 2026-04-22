@@ -35,12 +35,12 @@ const Pdf = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 py-5 px-2 font-sans text-black print:p-0 print:bg-white">
-      
+
       {/* Navigation Buttons */}
       <div className="fixed left-0 top-1/2 -translate-y-1/2 z-50 print:hidden">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="flex items-center gap-2 bg-white text-black px-4 py-3 rounded-r-xl text-xs font-bold shadow-md border border-slate-300"
+        <button
+          onClick={() => navigate("/customerAdmin")} 
+          className="flex items-center gap-2 bg-white text-black px-4 py-3 rounded-r-xl text-xs font-bold shadow-md border border-slate-300 transition-all hover:bg-slate-50"
         >
           <FiArrowLeft size={18} />
           <span>BACK</span>
@@ -48,8 +48,8 @@ const Pdf = () => {
       </div>
 
       <div className="fixed right-0 top-1/2 -translate-y-1/2 z-50 print:hidden">
-        <button 
-          onClick={handlePrint} 
+        <button
+          onClick={handlePrint}
           className="flex items-center gap-2 bg-black text-white px-4 py-3 rounded-l-xl text-xs font-bold shadow-md hover:bg-slate-800"
         >
           <FiPrinter size={18} />
@@ -65,10 +65,10 @@ const Pdf = () => {
           const hasAnyItemDiscount = items.some(item => Number(item.discount) > 0);
 
           return (
-            <div 
-              key={data._id || index} 
+            <div
+              key={data._id || index}
               className="bg-white p-10 mb-6 print:mb-0 print:border-none print:px-12 print:py-8 page-break-box flex flex-col justify-between shadow-sm"
-              style={{ 
+              style={{
                 pageBreakAfter: 'always',
                 minHeight: '210mm', // A5 height roughly
                 width: '100%'

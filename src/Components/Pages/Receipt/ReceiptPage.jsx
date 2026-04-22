@@ -4,7 +4,7 @@ import { FiEdit3, FiTrash2, FiPlusCircle, FiChevronRight, FiPackage, FiLayers, F
 import ReceiptEdit from "./ReceiptEdit";
 import Customer from "./Customer";
 import { toast } from "react-hot-toast";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 const ReceiptPage = () => {
   const [products, setProducts] = useState([]);
@@ -27,11 +27,12 @@ const ReceiptPage = () => {
   const [deliveryCharge, setDeliveryCharge] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   
-  // New state for Quantity Checkbox
   const [showQtyInTable, setShowQtyInTable] = useState(true);
-
   const [savedItemId, setSavedItemId] = useState(null);
   const customerRef = useRef(null);
+  
+  const location = useLocation();
+  const editIdFromAdmin = location.state?.editId;
 
   const fetchProducts = async () => {
     try {
@@ -46,6 +47,32 @@ const ReceiptPage = () => {
       setUnits(res.data);
     } catch (error) { console.error("Error fetching units", error); }
   };
+
+  // এডিট করার জন্য ডাটা লোড করা (ফিক্সড)
+  useEffect(() => {
+    const loadEditData = async () => {
+      if (editIdFromAdmin) {
+        try {
+          const res = await axios.get(`https://squirrel-peace-server.onrender.com/item/${editIdFromAdmin}`);
+          const data = res.data;
+          if (data) {
+            // ডাটাবেস থেকে আসা items এবং অন্যান্য মান সেট করা
+            setItems(data.items || []);
+            setOverallDiscount(data.overallDiscount || 0);
+            setDeliveryCharge(data.deliveryCharge || 0);
+            setSavedItemId(editIdFromAdmin);
+            
+            // এডিট মোডে কাস্টমার সেকশন এবং টেবিল ডাটা যেন সরাসরি দেখায়
+            setShowCustomer(true); 
+            // toast.success("এডিট মোড চালু হয়েছে");
+          }
+        } catch (error) {
+          toast.error("ডাটা লোড করতে সমস্যা হয়েছে!");
+        }
+      }
+    };
+    loadEditData();
+  }, [editIdFromAdmin]);
 
   useEffect(() => {
     fetchProducts();
@@ -81,7 +108,6 @@ const ReceiptPage = () => {
       id: editingId || Date.now(),
       product: selectedProduct,
       unitPrice: parseFloat(unitPrice),
-      // Logic: If checkbox is unticked, quantity is stored as empty/null for display
       quantity: showQtyInTable ? parseFloat(quantity) : "", 
       unit: selectedUnit,
       discount: parseFloat(itemDiscount) || 0,
@@ -105,15 +131,23 @@ const ReceiptPage = () => {
     }
     try {
       const invoiceData = { items, subTotal, overallDiscount, deliveryCharge, grandTotal };
-      const res = await axios.post("https://squirrel-peace-server.onrender.com/item", invoiceData);
-      if (res.data.insertedId) {
-        setSavedItemId(res.data.insertedId);
-        setShowCustomer(true);
-        toast.success("আইটেম সেভ হয়েছে!");
-        setTimeout(() => {
-          customerRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
+      
+      if (editIdFromAdmin) {
+        await axios.put(`https://squirrel-peace-server.onrender.com/item/${editIdFromAdmin}`, invoiceData);
+        setSavedItemId(editIdFromAdmin);
+      } else {
+        const res = await axios.post("https://squirrel-peace-server.onrender.com/item", invoiceData);
+        if (res.data.insertedId) {
+          setSavedItemId(res.data.insertedId);
+        }
       }
+
+      setShowCustomer(true);
+      toast.success("আইটেম সেভ হয়েছে!");
+      setTimeout(() => {
+        customerRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+      
     } catch (error) {
       toast.error("সার্ভারে ডাটা পাঠাতে সমস্যা হয়েছে!");
     }
@@ -171,41 +205,25 @@ const ReceiptPage = () => {
       <div className="max-w-6xl mx-auto space-y-6 sm:space-y-10">
         <div className="bg-white shadow-2xl rounded-2xl sm:rounded-[2rem] overflow-hidden border border-emerald-100">
 
-          {/* Header */}
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 sm:p-8 text-white flex flex-col sm:flex-row justify-between items-center gap-4 text-center">
-
             <div className="order-2 sm:order-1 flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => { setModalType("product"); setShowModal(true); }}
-                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center"
-              >
+              <button onClick={() => { setModalType("product"); setShowModal(true); }} className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center">
                 <FiPackage /> Products
               </button>
-
-              <NavLink
-                to="/customerAdmin"
-                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center"
-              >
+              <NavLink to="/customerAdmin" className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center">
                 <FiUsers /> Customers
               </NavLink>
-              
             </div>
-
             <div className="order-1 sm:order-2">
               <h1 className="text-xl sm:text-3xl font-black tracking-tight uppercase">Billing Receipt</h1>
               <p className="text-emerald-100 text-[10px] sm:text-xs mt-1">Bashay Bazar Inventory System</p>
             </div>
-
-            <button
-              onClick={() => { setModalType("unit"); setShowModal(true); }}
-              className="order-3 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 w-full sm:w-auto justify-center"
-            >
+            <button onClick={() => { setModalType("unit"); setShowModal(true); }} className="order-3 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 w-full sm:w-auto justify-center">
               <FiLayers /> Units
             </button>
           </div>
 
           <div className="p-4 sm:p-8">
-            {/* Input Form */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3 mb-8 bg-emerald-50/50 p-4 sm:p-5 rounded-2xl border border-emerald-100 items-end">
               <div className="sm:col-span-2 md:col-span-2 space-y-1 relative">
                 <label className="text-[10px] font-bold uppercase text-emerald-700 ml-1">Product Name</label>
@@ -225,9 +243,6 @@ const ReceiptPage = () => {
                         <FiChevronRight />
                       </div>
                     ))}
-                    {filteredProducts.length === 0 && (
-                      <div className="p-4 text-center text-slate-400 text-sm italic">No products available</div>
-                    )}
                   </div>
                 )}
                 {showSuggestions && <div className="fixed inset-0 z-40" onClick={() => setShowSuggestions(false)}></div>}
@@ -236,12 +251,7 @@ const ReceiptPage = () => {
               <div className="space-y-1">
                 <div className="flex items-center gap-2 ml-1">
                   <label className="text-[10px] font-bold uppercase text-emerald-700">Qty & Unit</label>
-                  <input 
-                    type="checkbox" 
-                    checked={showQtyInTable} 
-                    onChange={(e) => setShowQtyInTable(e.target.checked)}
-                    className="w-3 h-3 accent-emerald-600 cursor-pointer"
-                  />
+                  <input type="checkbox" checked={showQtyInTable} onChange={(e) => setShowQtyInTable(e.target.checked)} className="w-3 h-3 accent-emerald-600 cursor-pointer" />
                 </div>
                 <div className="flex ring-1 ring-emerald-200 rounded-xl overflow-hidden bg-white">
                   <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="p-2.5 w-1/2 outline-none text-center border-r border-emerald-50 font-bold text-sm" placeholder="Qty" />
@@ -272,35 +282,34 @@ const ReceiptPage = () => {
               </button>
             </div>
 
-            {/* Responsive Table */}
             <div className="overflow-x-auto rounded-2xl border border-emerald-100 bg-white shadow-sm mb-8">
-              <table className="w-full text-left min-w-[600px] sm:min-w-[700px]">
+              <table className="w-full text-left min-w-[600px]">
                 <thead>
-                  <tr className="bg-slate-700 text-emerald-50 text-[10px] sm:text-[11px] uppercase tracking-wider">
-                    <th className="p-3 sm:p-4 text-center w-10">#</th>
-                    <th className="p-3 sm:p-4">Product</th>
-                    <th className="p-3 sm:p-4 text-center">Quantity</th>
-                    <th className="p-3 sm:p-4 text-center">Unit Price</th>
-                    <th className="p-3 sm:p-4 text-center">Discount</th>
-                    <th className="p-3 sm:p-4 text-right pr-6 sm:pr-10">Total</th>
+                  <tr className="bg-slate-700 text-emerald-50 text-[10px] uppercase tracking-wider">
+                    <th className="p-3 text-center w-10">#</th>
+                    <th className="p-3">Product</th>
+                    <th className="p-3 text-center">Quantity</th>
+                    <th className="p-3 text-center">Unit Price</th>
+                    <th className="p-3 text-center">Discount</th>
+                    <th className="p-3 text-right pr-6 sm:pr-10">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50">
                   {items.map((item, index) => (
                     <tr key={item.id} draggable onDragStart={() => handleRowDragStart(index)} onDragOver={(e) => e.preventDefault()} onDrop={() => handleRowDrop(index)} className="group cursor-move hover:bg-emerald-50/50 transition-colors text-sm">
-                      <td className="p-3 sm:p-4 text-center text-slate-400 text-[10px]">{index + 1}</td>
-                      <td className="p-3 sm:p-4 font-bold text-slate-700">{item.product}</td>
-                      <td className="p-3 sm:p-4 text-center">
-                        <span className="bg-emerald-100 text-emerald-700 px-2 sm:px-3 py-1 rounded-full text-[10px] font-bold">
+                      <td className="p-3 text-center text-slate-400 text-[10px]">{index + 1}</td>
+                      <td className="p-3 font-bold text-slate-700">{item.product}</td>
+                      <td className="p-3 text-center">
+                        <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">
                           {item.quantity} {item.unit}
                         </span>
                       </td>
-                      <td className="p-3 sm:p-4 text-center text-slate-600 font-medium">{item.unitPrice} ৳</td>
-                      <td className="p-3 sm:p-4 text-center text-slate-500 font-bold">-{item.discount} ৳</td>
-                      <td className="p-3 sm:p-4 text-right pr-6 sm:pr-10">
+                      <td className="p-3 text-center text-slate-600 font-medium">{item.unitPrice} ৳</td>
+                      <td className="p-3 text-center text-slate-500 font-bold">-{item.discount} ৳</td>
+                      <td className="p-3 text-right pr-6 sm:pr-10">
                         <div className="flex items-center justify-end gap-3">
                           <span className="font-black text-slate-900">{item.totalPrice.toLocaleString()} ৳</span>
-                          <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-0 sm:translate-x-2 group-hover:translate-x-0">
+                          <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all duration-300">
                             <button onClick={() => handleEdit(item)} className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200"><FiEdit3 size={13} /></button>
                             <button onClick={() => handleDelete(item.id)} className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"><FiTrash2 size={13} /></button>
                           </div>
@@ -312,23 +321,19 @@ const ReceiptPage = () => {
               </table>
             </div>
 
-            {/* Calculations Footer */}
             <div className="flex flex-col md:flex-row justify-between gap-6 items-start">
-              <button
-                onClick={handleConfirmAndContinue}
-                className="w-full md:w-1/3 bg-slate-800 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-900 shadow-xl order-2 md:order-1"
-              >
+              <button onClick={handleConfirmAndContinue} className="w-full md:w-1/3 bg-slate-800 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-900 shadow-xl order-2 md:order-1">
                 Confirm & Continue <FiChevronRight />
               </button>
-              <div className="w-full md:w-1/2 space-y-4 bg-white p-6 rounded-2xl sm:rounded-[2rem] border border-emerald-100 shadow-xl order-1 md:order-2">
+              <div className="w-full md:w-1/2 space-y-4 bg-white p-6 rounded-2xl border border-emerald-100 shadow-xl order-1 md:order-2">
                 <div className="flex justify-between text-slate-500 font-medium text-sm"><span>Sub-Total</span><span className="text-slate-900 font-bold">{subTotal.toFixed(2)} ৳</span></div>
                 <div className="flex justify-between items-center text-slate-500 text-sm">
                   <span className="font-medium">Overall Discount (-)</span>
-                  <input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(e.target.value)} className="w-20 sm:w-24 bg-emerald-50 text-right p-2 rounded-xl font-bold outline-none border border-emerald-100 focus:ring-2 focus:ring-emerald-200" />
+                  <input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(e.target.value)} className="w-20 sm:w-24 bg-emerald-50 text-right p-2 rounded-xl font-bold outline-none border border-emerald-100" />
                 </div>
                 <div className="flex justify-between items-center text-teal-600 text-sm">
                   <span className="font-medium">Delivery Charge (+)</span>
-                  <input type="number" value={deliveryCharge} onChange={(e) => setDeliveryCharge(e.target.value)} className="w-20 sm:w-24 bg-emerald-50 text-right p-2 rounded-xl font-bold outline-none border border-emerald-100 focus:ring-2 focus:ring-teal-200" />
+                  <input type="number" value={deliveryCharge} onChange={(e) => setDeliveryCharge(e.target.value)} className="w-20 sm:w-24 bg-emerald-50 text-right p-2 rounded-xl font-bold outline-none border border-emerald-100" />
                 </div>
                 <div className="pt-4 border-t border-emerald-100 flex justify-between items-center">
                   <span className="font-black text-emerald-600 uppercase text-[10px]">Grand Total</span>
@@ -348,6 +353,7 @@ const ReceiptPage = () => {
               overallDiscount={overallDiscount}
               deliveryCharge={deliveryCharge}
               grandTotal={grandTotal}
+              editMode={!!editIdFromAdmin}
             />
           </div>
         )}
