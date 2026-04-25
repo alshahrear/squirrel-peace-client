@@ -37,7 +37,7 @@ const BlogDetails = () => {
   const fetchBlog = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/blog/slug/${slug}`);
+      const res = await fetch(`https://squirrel-peace-server.onrender.com/blog/slug/${slug}`);
       if (!res.ok) throw new Error("Blog not found");
       const data = await res.json();
       setBlog(data);
@@ -55,7 +55,7 @@ const BlogDetails = () => {
 
   const fetchOtherBlogs = async () => {
     try {
-      const res = await fetch("http://localhost:5000/blog");
+      const res = await fetch("https://squirrel-peace-server.onrender.com/blog");
       if (!res.ok) return;
       const data = await res.json();
       const filtered = data.filter((item) => item.blogSlug !== slug);
@@ -86,7 +86,7 @@ const BlogDetails = () => {
     };
 
     try {
-      const res = await fetch(`http://localhost:5000/blogDetails/${blog._id}`, {
+      const res = await fetch(`https://squirrel-peace-server.onrender.com/blogDetails/${blog._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedBlog),

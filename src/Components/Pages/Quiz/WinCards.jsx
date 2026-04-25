@@ -25,7 +25,7 @@ const WinCards = () => {
     const fetchWinners = async () => {
       try {
         const res = await axiosPublic.get(
-          "http://localhost:5000/winner"
+          "https://squirrel-peace-server.onrender.com/winner"
         );
         setWinners(res.data || []);
       } catch (error) {
@@ -97,7 +97,7 @@ const WinCards = () => {
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`http://localhost:5000/winner/${winner._id}`, {
+        fetch(`https://squirrel-peace-server.onrender.com/winner/${winner._id}`, {
           method: "DELETE",
         })
           .then((res) => res.json())

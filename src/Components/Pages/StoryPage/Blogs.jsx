@@ -27,7 +27,7 @@ const Blogs = () => {
 
     useEffect(() => {
         setLoading(true);
-        fetch('http://localhost:5000/blog')
+        fetch('https://squirrel-peace-server.onrender.com/blog')
             .then(res => res.json())
             .then(data => {
                 setBlogs(data);

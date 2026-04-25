@@ -8,7 +8,7 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const BASE_URL = "http://localhost:5000";
+  const BASE_URL = "https://squirrel-peace-server.onrender.com";
 
   const [formData, setFormData] = useState({
     customerName: "",

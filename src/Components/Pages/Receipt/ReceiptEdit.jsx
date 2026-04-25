@@ -25,7 +25,7 @@ const ReceiptEdit = ({
   }, [modalType]);
 
   const handleSubmit = async () => {
-    const url = modalType === "product" ? "http://localhost:5000/products" : "http://localhost:5000/unit";
+    const url = modalType === "product" ? "https://squirrel-peace-server.onrender.com/products" : "https://squirrel-peace-server.onrender.com/unit";
 
     try {
       if (modalType === "product") {
@@ -70,7 +70,7 @@ const ReceiptEdit = ({
 
   const handleDelete = async (id) => {
     if (!window.confirm("আপনি কি নিশ্চিত?")) return;
-    const url = modalType === "product" ? `http://localhost:5000/products/${id}` : `http://localhost:5000/unit/${id}`;
+    const url = modalType === "product" ? `https://squirrel-peace-server.onrender.com/products/${id}` : `https://squirrel-peace-server.onrender.com/unit/${id}`;
     try {
       await axios.delete(url);
       modalType === "product" ? fetchProducts() : fetchUnits();

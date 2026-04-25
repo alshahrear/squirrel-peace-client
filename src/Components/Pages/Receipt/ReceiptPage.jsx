@@ -37,7 +37,7 @@ const ReceiptPage = () => {
   const location = useLocation();
   const editIdFromAdmin = location.state?.editId;
 
-  const BASE_URL = "http://localhost:5000";
+  const BASE_URL = "https://squirrel-peace-server.onrender.com";
 
   const fetchProducts = async () => {
     try {

@@ -40,7 +40,7 @@ const CustomerAdmin = () => {
 
   const fetchItems = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/item");
+      const res = await axios.get("https://squirrel-peace-server.onrender.com/item");
       setItems(res.data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -127,7 +127,7 @@ const CustomerAdmin = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await axios.delete(`http://localhost:5000/item/${id}`);
+          await axios.delete(`https://squirrel-peace-server.onrender.com/item/${id}`);
           Toast.fire({ icon: "success", title: "মুছে ফেলা হয়েছে" });
           fetchItems();
         } catch (error) {
