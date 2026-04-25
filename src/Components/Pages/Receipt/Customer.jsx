@@ -4,9 +4,11 @@ import axios from "axios";
 import { FiUser, FiPhone, FiMapPin, FiCalendar, FiHash, FiRefreshCw, FiArrowRight, FiTruck } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 
-const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharge, grandTotal, editMode }) => {
+const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharge, grandTotal, totalProfit, editMode }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  const BASE_URL = "http://localhost:5000";
 
   const [formData, setFormData] = useState({
     customerName: "",
@@ -40,10 +42,9 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     const loadCustomerData = async () => {
       if (editMode && savedItemId) {
         try {
-          const res = await axios.get(`https://squirrel-peace-server.onrender.com/item/${savedItemId}`);
+          const res = await axios.get(`${BASE_URL}/item/${savedItemId}`);
           const data = res.data;
           
-          // এখানে data.customer থেকে ভ্যালুগুলো নেওয়া হচ্ছে কারণ অ্যাডমিনে এভাবেই আছে
           if (data && data.customer) {
             setFormData({
               customerName: data.customer.customerName || "",
@@ -85,17 +86,29 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
 
     setLoading(true);
     try {
-      // আপনার CustomerAdmin পেজের চাহিদা অনুযায়ী 'customer' অবজেক্টের ভেতরে ডাটা পাঠানো হচ্ছে
       const finalData = {
         customer: { ...formData }, 
-        items,
-        subTotal,
-        overallDiscount,
-        deliveryCharge,
-        grandTotal
+        items: items.map(item => ({
+            id: item.id,
+            product: item.product,
+            shop: item.shop,
+            costPrice: parseFloat(item.costPrice) || 0,
+            unitPrice: parseFloat(item.unitPrice) || 0,
+            quantity: parseFloat(item.quantity) || 0,
+            unit: item.unit,
+            discount: parseFloat(item.discount) || 0,
+            totalPrice: parseFloat(item.totalPrice) || 0,
+            profit: parseFloat(item.profit) || 0,
+            showQty: item.showQty
+        })),
+        subTotal: parseFloat(subTotal),
+        overallDiscount: parseFloat(overallDiscount) || 0,
+        deliveryCharge: parseFloat(deliveryCharge) || 0,
+        grandTotal: parseFloat(grandTotal),
+        totalProfit: parseFloat(totalProfit)
       };
 
-      await axios.put(`https://squirrel-peace-server.onrender.com/item/${savedItemId}`, finalData);
+      await axios.put(`${BASE_URL}/item/${savedItemId}`, finalData);
       
       toast.success("সফলভাবে আপডেট করা হয়েছে!");
       

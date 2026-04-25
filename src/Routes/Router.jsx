@@ -36,6 +36,7 @@ import ReceiptPage from "../Components/Pages/Receipt/ReceiptPage";
 import Customer from "../Components/Pages/Receipt/Customer";
 import CustomerAdmin from "../Components/Pages/Receipt/CustomerAdmin";
 import Pdf from "../Components/Pages/Receipt/Pdf";
+import PdfCustomer from "../Components/Pages/Receipt/PdfCustomer";
 
 export const router = createBrowserRouter([
   {
@@ -169,5 +170,9 @@ export const router = createBrowserRouter([
   {
     path: "/pdf",
     element: <Pdf></Pdf>
+  },
+  {
+    path: "/pdfCustomer",
+    element: <PdfCustomer></PdfCustomer>
   }
 ]);

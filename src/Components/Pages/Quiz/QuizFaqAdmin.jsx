@@ -13,7 +13,7 @@ const QuizFaqAdmin = () => {
   const [selectedQuestion, setSelectedQuestion] = useState("");
 
   useEffect(() => {
-    fetch("https://squirrel-peace-server.onrender.com/quizFaqs")
+    fetch("http://localhost:5000/quizFaqs")
       .then((res) => res.json())
       .then((data) => setQuizFaqs(data))
       .catch((error) => console.error("Error loading FAQs:", error));
@@ -163,7 +163,7 @@ const FaqQus = ({ faq, index, quizFaqs, setQuizFaqs, openModalWithQuestion }) =>
       confirmButtonText: "Yes, delete it!",
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`https://squirrel-peace-server.onrender.com/quizFaqs/${_id}`, {
+        fetch(`http://localhost:5000/quizFaqs/${_id}`, {
           method: "DELETE",
         })
           .then((res) => res.json())

@@ -39,7 +39,7 @@ const FaqQuizList = ({ faqAdd, onDelete, onUpdate }) => {
     }).then((result) => {
       if (result.isConfirmed) {
         fetch(
-          `https://squirrel-peace-server.onrender.com/quizFaqsAdd/${_id}`,
+          `http://localhost:5000/quizFaqsAdd/${_id}`,
           {
             method: "DELETE",
           }
@@ -74,7 +74,7 @@ const FaqQuizList = ({ faqAdd, onDelete, onUpdate }) => {
       faqAnswer: editAnswer,
     };
 
-    fetch(`https://squirrel-peace-server.onrender.com/quizFaqsAdd/${_id}`, {
+    fetch(`http://localhost:5000/quizFaqsAdd/${_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedFaq),

@@ -48,7 +48,7 @@ const Blog = ({ blog, onDelete, onUpdate, searchTerm }) => {
       confirmButtonText: "Yes, delete it!"
     }).then((result) => {
       if (result.isConfirmed) {
-        fetch(`https://squirrel-peace-server.onrender.com/blog/${id}`, {
+        fetch(`http://localhost:5000/blog/${id}`, {
           method: 'DELETE',
         })
           .then(res => res.json())
@@ -88,7 +88,7 @@ const Blog = ({ blog, onDelete, onUpdate, searchTerm }) => {
       }
     }
 
-    fetch(`https://squirrel-peace-server.onrender.com/blog/${_id}`, {
+    fetch(`http://localhost:5000/blog/${_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedData)

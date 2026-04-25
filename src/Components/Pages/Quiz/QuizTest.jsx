@@ -10,8 +10,8 @@ import { NavLink } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import { FaPlayCircle } from "react-icons/fa";
 
-const API_URL = "https://squirrel-peace-server.onrender.com/quizOtp";
-const QUIZ_TEST_URL = "https://squirrel-peace-server.onrender.com/quizTest";
+const API_URL = "http://localhost:5000/quizOtp";
+const QUIZ_TEST_URL = "http://localhost:5000/quizTest";
 
 const image_hosting_key = import.meta.env.VITE_IMAGE_HOSTING_KEY;
 const image_hosting_api = `https://api.imgbb.com/1/upload?key=${image_hosting_key}`;

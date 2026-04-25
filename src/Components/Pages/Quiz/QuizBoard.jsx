@@ -7,7 +7,7 @@ import NextQuiz from "./NextQuiz";
 import { useNavigate } from "react-router-dom";
 import TermsQuiz from "./TermsQuiz";
 
-const API_BASE = "https://squirrel-peace-server.onrender.com";
+const API_BASE = "http://localhost:5000";
 
 const QuizBoard = () => {
   const axiosSecure = useAxiosSecure();

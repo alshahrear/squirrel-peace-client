@@ -35,7 +35,7 @@ const DraftDetails = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    fetch(`https://squirrel-peace-server.onrender.com/draft/${id}`)
+    fetch(`http://localhost:5000/draft/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setStory(data);
@@ -52,7 +52,7 @@ const DraftDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    fetch("https://squirrel-peace-server.onrender.com/draft")
+    fetch("http://localhost:5000/draft")
       .then((res) => res.json())
       .then((data) => {
         const filtered = data.filter((item) => item._id !== id);
@@ -76,7 +76,7 @@ const DraftDetails = () => {
     };
 
     try {
-      const res = await fetch(`https://squirrel-peace-server.onrender.com/draftDetails/${id}`, {
+      const res = await fetch(`http://localhost:5000/draftDetails/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedStory),

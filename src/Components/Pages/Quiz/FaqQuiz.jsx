@@ -15,7 +15,7 @@ const FaqQuiz = () => {
 
   // fetch all added FAQs
   const loadFaqsAdd = () => {
-    fetch("https://squirrel-peace-server.onrender.com/quizFaqsAdd")
+    fetch("http://localhost:5000/quizFaqsAdd")
       .then((res) => res.json())
       .then((data) => setFaqsAdd(data))
       .catch((error) => console.error("Error loading quizFaqsAdd:", error));
@@ -26,7 +26,7 @@ const FaqQuiz = () => {
   }, []);
 
   useEffect(() => {
-    fetch("https://squirrel-peace-server.onrender.com/quizFaqs")
+    fetch("http://localhost:5000/quizFaqs")
       .then((res) => res.json())
       .then((data) => setFaqs(data))
       .catch((error) => console.error("Error loading quizFaqs:", error));
@@ -49,7 +49,7 @@ const FaqQuiz = () => {
     const faqAnswer = form.faqAnswer.value;
     const addFaqList = { faqQuestion, faqAnswer };
 
-    fetch("https://squirrel-peace-server.onrender.com/quizFaqsAdd", {
+    fetch("http://localhost:5000/quizFaqsAdd", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(addFaqList),
@@ -88,7 +88,7 @@ const FaqQuiz = () => {
 
     const addFaqQus = { name, email, question };
 
-    fetch("https://squirrel-peace-server.onrender.com/quizFaqs", {
+    fetch("http://localhost:5000/quizFaqs", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(addFaqQus),

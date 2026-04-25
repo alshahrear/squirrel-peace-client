@@ -13,7 +13,7 @@ const BlogHomes = () => {
     };
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/blog')
+        fetch('http://localhost:5000/blog')
             .then(res => res.json())
             .then(data => {
                 const randomSix = getRandomSix(data);

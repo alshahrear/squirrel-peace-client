@@ -7,7 +7,7 @@ import useAxiosSecure from "../../../hooks/useAxiosSecure";
 import { useQuery } from "@tanstack/react-query";
 import useAdmin from "../../../hooks/useAdmin";
 
-const API_BASE = "https://squirrel-peace-server.onrender.com";
+const API_BASE = "http://localhost:5000";
 
 const TermsQuiz = ({ isDrawerOpen, closeDrawer }) => {
   const axiosSecure = useAxiosSecure();
