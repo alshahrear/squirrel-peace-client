@@ -119,7 +119,8 @@ const ReceiptEdit = ({
                     <option value="">Shop</option>
                     <option value="M">M</option>
                     <option value="N">N</option>
-                    <option value="C">O</option>
+                    <option value="H">H</option>
+                    <option value="O">O</option>
                   </select>
                 </div>
               )}

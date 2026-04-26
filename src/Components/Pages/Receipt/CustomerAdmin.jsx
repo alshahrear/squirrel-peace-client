@@ -2,12 +2,12 @@ import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { useNavigate, NavLink } from "react-router-dom";
-import { 
-  FiPrinter, 
-  FiTrash2, 
-  FiCalendar, 
-  FiHash, 
-  FiPhone, 
+import {
+  FiPrinter,
+  FiTrash2,
+  FiCalendar,
+  FiHash,
+  FiPhone,
   FiSearch,
   FiPlusCircle,
   FiEdit3,
@@ -54,7 +54,7 @@ const CustomerAdmin = () => {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const customer = item.customer || {};
-      const matchesSearch = 
+      const matchesSearch =
         customer.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.phone?.includes(searchTerm) ||
         customer.invoiceNumber?.includes(searchTerm);
@@ -62,7 +62,7 @@ const CustomerAdmin = () => {
       if (!customer.date) return matchesSearch;
       const [day, month, year] = customer.date.split("/");
       const itemDate = new Date(`${year}-${month}-${day}`);
-      
+
       let matchesDate = true;
       if (startDate) matchesDate = matchesDate && itemDate >= new Date(startDate);
       if (endDate) matchesDate = matchesDate && itemDate <= new Date(endDate);
@@ -72,8 +72,8 @@ const CustomerAdmin = () => {
   }, [items, searchTerm, startDate, endDate]);
 
   const summary = useMemo(() => {
-    const targetData = selectedIds.length > 0 
-      ? items.filter(i => selectedIds.includes(i._id)) 
+    const targetData = selectedIds.length > 0
+      ? items.filter(i => selectedIds.includes(i._id))
       : filteredItems;
 
     let totalSell = 0;
@@ -87,7 +87,7 @@ const CustomerAdmin = () => {
       inv.items?.forEach(item => {
         const cost = (Number(item.costPrice || 0) * Number(item.quantity || 1));
         totalCost += cost;
-        
+
         const shopName = item.shop?.trim() || "Other";
         if (!shopWiseData[shopName]) {
           shopWiseData[shopName] = { cost: 0, profit: 0, sell: 0 };
@@ -140,28 +140,37 @@ const CustomerAdmin = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-3 md:p-8 font-sans text-slate-900">
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header */}
+       
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-6">
-          <div>
+          <div className="flex items-center justify-between w-full lg:w-auto">
             <h2 className="text-2xl md:text-4xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
               <span className="bg-indigo-600 text-white p-2 md:p-3 rounded-2xl shadow-xl shadow-indigo-200">📋</span>
               Admin Panel
             </h2>
-            <p className="text-slate-500 mt-2 font-bold italic text-xs md:text-base">বাসায় বাজার — স্মার্ট ইনভেন্টরি ম্যানেজমেন্ট</p>
+
+            {/* মোবাইল ভিউতে বাটনটি এখানে দেখাবে (ডান পাশে) */}
+            <NavLink to="/receipt" className="lg:hidden flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl font-black shadow-lg text-sm">
+              <FiPlusCircle /> Receipt
+            </NavLink>
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-4">
+            {/* তারিখ এবং সার্চ ইনপুট আগের মতোই থাকবে */}
             <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm w-full md:w-auto">
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-xs font-bold outline-none bg-slate-50 p-2 rounded-lg text-indigo-600" />
               <span className="text-slate-400 font-bold">to</span>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-xs font-bold outline-none bg-slate-50 p-2 rounded-lg text-indigo-600" />
-              {(startDate || endDate) && <FiX onClick={() => {setStartDate(""); setEndDate("");}} className="cursor-pointer text-slate-400 hover:text-indigo-600" />}
+              {(startDate || endDate) && <FiX onClick={() => { setStartDate(""); setEndDate(""); }} className="cursor-pointer text-slate-400 hover:text-indigo-600" />}
             </div>
+
             <div className="relative w-full md:w-64">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input type="text" placeholder="খুঁজুন..." className="pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl w-full shadow-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-sm" onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
+
+            {/* ল্যাপটপ ভিউর জন্য বাটন (আগের মতো) */}
             <NavLink to="/receipt" className="hidden lg:flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
               <FiPlusCircle /> New Receipt
             </NavLink>
@@ -170,7 +179,7 @@ const CustomerAdmin = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          
+
           {/* Card 1: Cost */}
           <div className="bg-white p-6 rounded-[2.5rem] border-b-8 border-b-indigo-500 shadow-xl shadow-indigo-100/50 flex flex-col group transition-all hover:-translate-y-1">
             <div className="flex items-center justify-between mb-6">
@@ -241,10 +250,10 @@ const CustomerAdmin = () => {
         {/* Selected Counter */}
         {selectedIds.length > 0 && (
           <div className="mb-6 flex items-center justify-between bg-indigo-600 p-5 rounded-3xl shadow-xl animate-bounce-short">
-             <span className="text-white font-black text-sm md:text-base">নির্বাচিত ইনভয়েস: {selectedIds.length} টি</span>
-             <button onClick={handlePrintSelected} className="bg-white text-indigo-700 px-6 py-2 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all flex items-center gap-2">
-               <FiPrinter /> প্রিন্ট করুন
-             </button>
+            <span className="text-white font-black text-sm md:text-base">নির্বাচিত ইনভয়েস: {selectedIds.length} টি</span>
+            <button onClick={handlePrintSelected} className="bg-white text-indigo-700 px-6 py-2 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all flex items-center gap-2">
+              <FiPrinter /> প্রিন্ট করুন
+            </button>
           </div>
         )}
 
@@ -272,7 +281,7 @@ const CustomerAdmin = () => {
                   return (
                     <tr key={item._id} className={`group transition-all hover:bg-indigo-50/30 ${isSelected ? 'bg-indigo-50/60' : ''}`}>
                       <td className="px-8 py-5 text-center">
-                         <input type="checkbox" className="w-5 h-5 rounded-lg accent-indigo-600 cursor-pointer" checked={isSelected} onChange={() => handleSelectItem(item._id)} />
+                        <input type="checkbox" className="w-5 h-5 rounded-lg accent-indigo-600 cursor-pointer" checked={isSelected} onChange={() => handleSelectItem(item._id)} />
                       </td>
                       <td className="px-4 py-5">
                         <span className="text-sm font-black text-slate-300 group-hover:text-indigo-400">{String(index + 1).padStart(2, '0')}</span>
@@ -334,7 +343,7 @@ const CustomerAdmin = () => {
         </div>
 
         <div className="mt-16 text-center border-t border-slate-200 pt-10 pb-12">
-            <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.4em]">Bashay Bazar Delivery System v2.0</p>
+          <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.4em]">Bashay Bazar Delivery System v2.0</p>
         </div>
       </div>
     </div>

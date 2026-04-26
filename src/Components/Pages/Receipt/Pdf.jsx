@@ -141,11 +141,11 @@ const Pdf = () => {
                   {/* Table */}
                   <table className="w-full mb-2 text-[11px] border-collapse">
                     <thead>
-                      <tr className="border-b-1 border-black uppercase text-left">
+                      <tr className=" uppercase text-left">
                         <th className="py-1 font-black">#</th>
                         {currentMode === "admin" && <th className="py-1 font-black">শপ</th>}
 
-                        <th className="py-1 font-black ">পণ্য</th>
+                        <th className="py-1 font-black pl-3">পণ্য</th>
                         <th className="py-1 font-black text-center">পরিমাণ</th>
                         {currentMode === "admin" && <th className="py-1 font-black text-center">দরমূল্য</th>}
                         {currentMode === "admin" && <th className="py-1 text-center font-black">ক্রয়মূল্য</th>}

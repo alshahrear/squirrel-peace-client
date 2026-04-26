@@ -354,33 +354,44 @@ const ReceiptPage = () => {
                     <th className="p-3 text-center">Sell Price</th>
                     <th className="p-3 text-center">Discount</th>
                     <th className="p-3 text-center">Profit</th>
-                    <th className="p-3 text-right pr-6 sm:pr-10">Total</th>
+                    <th className="p-3 text-center ">Total</th>
+                    <th className="p-3 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50">
                   {items.map((item, index) => (
-                    <tr key={item.id} draggable onDragStart={() => handleRowDragStart(index)} onDragOver={(e) => e.preventDefault()} onDrop={() => handleRowDrop(index)} className="group cursor-move hover:bg-emerald-50/50 transition-colors text-sm">
-                      <td className="p-3 text-center text-slate-400 text-[10px]">{index + 1}</td>
-                      <td className="p-3 font-bold text-slate-700">{item.product}</td>
-                      <td className="p-3 text-center"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{item.shop}</span></td>
-                      <td className="p-3 text-center">
-                        <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">
+                    <tr key={item.id} className="group cursor-move hover:bg-emerald-50/50 transition-colors text-sm">
+                      <td className="p-3 text-center text-slate-400 text-[10px] w-12">{index + 1}</td>
+                      <td className="p-3 font-bold text-slate-700 min-w-[180px]">{item.product}</td>
+                      <td className="p-3 text-center w-24">
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase">{item.shop}</span>
+                      </td>
+                      <td className="p-3 text-center w-32">
+                        <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap">
                           {item.showQty ? `${item.quantity} ${item.unit}` : item.unit}
                         </span>
                       </td>
-                      <td className="p-3 text-center text-rose-400 font-medium">{item.costPrice} ৳</td>
-                      <td className="p-3 text-center text-emerald-600 font-bold">{item.unitPrice} ৳</td>
-                      <td className="p-3 text-center text-rose-600 font-bold">{item.discount} ৳</td>
-                      <td className={`p-3 text-center font-bold ${item.profit >= 0 ? "text-blue-500" : "text-rose-500"}`}>
+                      <td className="p-3 text-center w-28 text-rose-400 font-medium">{item.costPrice} ৳</td>
+                      <td className="p-3 text-center w-28 text-emerald-600 font-bold">{item.unitPrice} ৳</td>
+                      <td className="p-3 text-center w-24 text-rose-600 font-bold">{item.discount} ৳</td>
+                      <td className={`p-3 text-center w-24 font-bold ${item.profit >= 0 ? "text-blue-500" : "text-rose-500"}`}>
                         {item.profit} ৳
                       </td>
-                      <td className="p-3 text-right pr-6 sm:pr-10 relative">
-                        <div className="flex items-center justify-end">
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 absolute right-24 sm:right-32">
-                            <button onClick={() => handleEdit(item)} className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 shadow-sm"><FiEdit3 size={13} /></button>
-                            <button onClick={() => handleDelete(item.id)} className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 shadow-sm"><FiTrash2 size={13} /></button>
-                          </div>
-                          <span className="font-black text-slate-900 w-24 inline-block text-right">{item.totalPrice.toLocaleString()} ৳</span>
+
+                      {/* TOTAL কলাম - হেডার বরাবর রাখতে pr-12 ব্যবহার করা হয়েছে */}
+                      <td className="p-3 text-right pr-12 w-40 font-black text-slate-900 whitespace-nowrap">
+                        {item.totalPrice.toLocaleString()} ৳
+                      </td>
+
+                      {/* ACTION কলাম */}
+                      <td className="p-3 text-center w-24">
+                        <div className="flex justify-center gap-2">
+                          <button onClick={() => handleEdit(item)} className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 border border-emerald-200 shadow-sm">
+                            <FiEdit3 size={14} />
+                          </button>
+                          <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 border border-red-200 shadow-sm">
+                            <FiTrash2 size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
