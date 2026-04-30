@@ -142,7 +142,7 @@ const CustomerAdmin = () => {
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-       
+
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-6">
           <div className="flex items-center justify-between w-full lg:w-auto">
             <h2 className="text-2xl md:text-4xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
@@ -157,20 +157,65 @@ const CustomerAdmin = () => {
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-4">
-            {/* তারিখ এবং সার্চ ইনপুট আগের মতোই থাকবে */}
+            {/* তারিখ ফিল্টার সেকশন - যেকোনো জায়গায় ক্লিক করলে ক্যালেন্ডার আসবে */}
             <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm w-full md:w-auto">
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-xs font-bold outline-none bg-slate-50 p-2 rounded-lg text-indigo-600" />
-              <span className="text-slate-400 font-bold">to</span>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-xs font-bold outline-none bg-slate-50 p-2 rounded-lg text-indigo-600" />
-              {(startDate || endDate) && <FiX onClick={() => { setStartDate(""); setEndDate(""); }} className="cursor-pointer text-slate-400 hover:text-indigo-600" />}
+
+              {/* Start Date */}
+              <div
+                className="relative group cursor-pointer"
+                onClick={(e) => e.currentTarget.querySelector('input').showPicker()}
+              >
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-20 w-full"
+                />
+                <div className="flex items-center gap-2 text-xs font-bold bg-slate-50 p-2 rounded-lg text-indigo-600 min-w-[115px] border border-transparent group-hover:border-indigo-100 transition-all">
+                  <FiCalendar className="text-indigo-400" />
+                  <span>{startDate ? new Date(startDate).toLocaleDateString('en-GB').replace(/\//g, '-') : "শুরু তারিখ"}</span>
+                </div>
+              </div>
+
+              <span className="text-slate-400 font-bold text-[10px] uppercase px-1">to</span>
+
+              {/* End Date */}
+              <div
+                className="relative group cursor-pointer"
+                onClick={(e) => e.currentTarget.querySelector('input').showPicker()}
+              >
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-20 w-full"
+                />
+                <div className="flex items-center gap-2 text-xs font-bold bg-slate-50 p-2 rounded-lg text-indigo-600 min-w-[115px] border border-transparent group-hover:border-indigo-100 transition-all">
+                  <FiCalendar className="text-indigo-400" />
+                  <span>{endDate ? new Date(endDate).toLocaleDateString('en-GB').replace(/\//g, '-') : "শেষ তারিখ"}</span>
+                </div>
+              </div>
+
+              {(startDate || endDate) && (
+                <FiX
+                  onClick={(e) => { e.stopPropagation(); setStartDate(""); setEndDate(""); }}
+                  className="cursor-pointer text-slate-400 hover:text-red-500 transition-colors ml-1"
+                />
+              )}
             </div>
 
+            {/* সার্চ ইনপুট */}
             <div className="relative w-full md:w-64">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" placeholder="খুঁজুন..." className="pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl w-full shadow-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-sm" onChange={(e) => setSearchTerm(e.target.value)} />
+              <input
+                type="text"
+                placeholder="খুঁজুন..."
+                className="pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl w-full shadow-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-sm"
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
 
-            {/* ল্যাপটপ ভিউর জন্য বাটন (আগের মতো) */}
+            {/* ল্যাপটপ ভিউর জন্য বাটন */}
             <NavLink to="/receipt" className="hidden lg:flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
               <FiPlusCircle /> New Receipt
             </NavLink>
