@@ -98,6 +98,12 @@ const CustomerAdmin = () => {
       });
     });
 
+    // Calculate shop-wise percentage
+    Object.keys(shopWiseData).forEach(shop => {
+      const sData = shopWiseData[shop];
+      sData.percentage = sData.cost > 0 ? ((sData.profit / sData.cost) * 100).toFixed(1) : 0;
+    });
+
     const profitPercentage = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(2) : 0;
     return { totalSell, totalProfit, totalCost, profitPercentage, shopWiseData };
   }, [filteredItems, selectedIds, items]);
@@ -131,7 +137,7 @@ const CustomerAdmin = () => {
           Toast.fire({ icon: "success", title: "মুছে ফেলা হয়েছে" });
           fetchItems();
         } catch (error) {
-          Toast.fire({ icon: "error", title: "সমস্যা হয়েছে" });
+          Toast.fire({ icon: "error", title: "সমস্যা হয়েছে" });
         }
       }
     });
@@ -142,29 +148,20 @@ const CustomerAdmin = () => {
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-6">
           <div className="flex items-center justify-between w-full lg:w-auto">
             <h2 className="text-2xl md:text-4xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
               <span className="bg-indigo-600 text-white p-2 md:p-3 rounded-2xl shadow-xl shadow-indigo-200">📋</span>
               Admin Panel
             </h2>
-
-            {/* মোবাইল ভিউতে বাটনটি এখানে দেখাবে (ডান পাশে) */}
             <NavLink to="/receipt" className="lg:hidden flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl font-black shadow-lg text-sm">
               <FiPlusCircle /> Receipt
             </NavLink>
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-4">
-            {/* তারিখ ফিল্টার সেকশন - যেকোনো জায়গায় ক্লিক করলে ক্যালেন্ডার আসবে */}
             <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm w-full md:w-auto">
-
-              {/* Start Date */}
-              <div
-                className="relative group cursor-pointer"
-                onClick={(e) => e.currentTarget.querySelector('input').showPicker()}
-              >
+              <div className="relative group cursor-pointer" onClick={(e) => e.currentTarget.querySelector('input').showPicker()}>
                 <input
                   type="date"
                   value={startDate}
@@ -179,11 +176,7 @@ const CustomerAdmin = () => {
 
               <span className="text-slate-400 font-bold text-[10px] uppercase px-1">to</span>
 
-              {/* End Date */}
-              <div
-                className="relative group cursor-pointer"
-                onClick={(e) => e.currentTarget.querySelector('input').showPicker()}
-              >
+              <div className="relative group cursor-pointer" onClick={(e) => e.currentTarget.querySelector('input').showPicker()}>
                 <input
                   type="date"
                   value={endDate}
@@ -204,7 +197,6 @@ const CustomerAdmin = () => {
               )}
             </div>
 
-            {/* সার্চ ইনপুট */}
             <div className="relative w-full md:w-64">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -215,7 +207,6 @@ const CustomerAdmin = () => {
               />
             </div>
 
-            {/* ল্যাপটপ ভিউর জন্য বাটন */}
             <NavLink to="/receipt" className="hidden lg:flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
               <FiPlusCircle /> New Receipt
             </NavLink>
@@ -224,12 +215,11 @@ const CustomerAdmin = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-
           {/* Card 1: Cost */}
           <div className="bg-white p-6 rounded-[2.5rem] border-b-8 border-b-indigo-500 shadow-xl shadow-indigo-100/50 flex flex-col group transition-all hover:-translate-y-1">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] mb-1">মোট ক্রয়মূল্য</p>
+                <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] mb-1">মোট ক্রয়মূল্য</p>
                 <h3 className="text-3xl font-black text-slate-800 tracking-tighter">{summary.totalCost.toLocaleString()} ৳</h3>
               </div>
               <div className="bg-indigo-50 p-4 rounded-3xl text-indigo-600 group-hover:scale-110 transition-transform">
@@ -264,7 +254,10 @@ const CustomerAdmin = () => {
               {Object.entries(summary.shopWiseData).map(([shop, data]) => (
                 <div key={shop} className="flex items-center justify-between bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
                   <span className="text-xs font-black text-slate-500 uppercase">{shop}</span>
-                  <span className="text-sm font-black text-emerald-600">+{data.profit.toLocaleString()} ৳</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black">{data.percentage}%</span>
+                    <span className="text-sm font-black text-emerald-600">+{data.profit.toLocaleString()} ৳</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -274,7 +267,7 @@ const CustomerAdmin = () => {
           <div className="bg-white p-6 rounded-[2.5rem] border-b-8 border-b-cyan-500 shadow-xl shadow-cyan-100/50 flex flex-col group transition-all hover:-translate-y-1">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] mb-1">সর্বমোট বিক্রয়</p>
+                <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] mb-1">সর্বমোট বিক্রয়</p>
                 <h3 className="text-3xl font-black text-slate-800 tracking-tighter">{summary.totalSell.toLocaleString()} ৳</h3>
               </div>
               <div className="bg-cyan-50 p-4 rounded-3xl text-cyan-600 group-hover:scale-110 transition-transform">
@@ -295,7 +288,7 @@ const CustomerAdmin = () => {
         {/* Selected Counter */}
         {selectedIds.length > 0 && (
           <div className="mb-6 flex items-center justify-between bg-indigo-600 p-5 rounded-3xl shadow-xl animate-bounce-short">
-            <span className="text-white font-black text-sm md:text-base">নির্বাচিত ইনভয়েস: {selectedIds.length} টি</span>
+            <span className="text-white font-black text-sm md:text-base">নির্বাচিত ইনভয়েস: {selectedIds.length} টি</span>
             <button onClick={handlePrintSelected} className="bg-white text-indigo-700 px-6 py-2 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all flex items-center gap-2">
               <FiPrinter /> প্রিন্ট করুন
             </button>
@@ -313,7 +306,7 @@ const CustomerAdmin = () => {
                   </th>
                   <th className="px-4 py-7">SL</th>
                   <th className="px-6 py-7">কাস্টমার প্রোফাইল</th>
-                  <th className="px-6 py-7 text-center">ইনভয়েস নং</th>
+                  <th className="px-6 py-7 text-center">ইনভয়েস নং</th>
                   <th className="px-6 py-7 text-center">তারিখ</th>
                   <th className="px-6 py-7">ডেলিভারি</th>
                   <th className="px-6 py-7 text-right">মোট টাকা</th>
@@ -382,7 +375,7 @@ const CustomerAdmin = () => {
           {filteredItems.length === 0 && (
             <div className="py-32 text-center flex flex-col items-center">
               <div className="text-6xl mb-4 opacity-20">📂</div>
-              <p className="text-slate-400 font-black text-xl tracking-tight">কোনো ইনভয়েস পাওয়া যায়নি!</p>
+              <p className="text-slate-400 font-black text-xl tracking-tight">কোনো ইনভয়েস পাওয়া যায়নি!</p>
             </div>
           )}
         </div>
