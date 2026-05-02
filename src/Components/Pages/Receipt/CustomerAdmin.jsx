@@ -6,16 +6,15 @@ import {
   FiPrinter,
   FiTrash2,
   FiCalendar,
-  FiHash,
-  FiPhone,
   FiSearch,
   FiPlusCircle,
   FiEdit3,
   FiTrendingUp,
-  FiShoppingBag,
   FiBarChart2,
   FiX,
-  FiShoppingCart
+  FiShoppingCart,
+  FiPhone,
+  FiFilter
 } from "react-icons/fi";
 
 const CustomerAdmin = () => {
@@ -24,7 +23,13 @@ const CustomerAdmin = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  
+  // New State for Month Filter
+  const [isMonthFilterActive, setIsMonthFilterActive] = useState(true);
+  
   const navigate = useNavigate();
+
+  const currentMonthName = new Date().toLocaleString('en-GB', { month: 'long' });
 
   const Toast = Swal.mixin({
     toast: true,
@@ -54,22 +59,34 @@ const CustomerAdmin = () => {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const customer = item.customer || {};
+      
+      // Basic Search filter
       const matchesSearch =
         customer.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.phone?.includes(searchTerm) ||
         customer.invoiceNumber?.includes(searchTerm);
 
       if (!customer.date) return matchesSearch;
+
       const [day, month, year] = customer.date.split("/");
       const itemDate = new Date(`${year}-${month}-${day}`);
+      const today = new Date();
 
+      // Month Filter Logic
+      let matchesMonth = true;
+      if (isMonthFilterActive) {
+        matchesMonth = itemDate.getMonth() === today.getMonth() && 
+                       itemDate.getFullYear() === today.getFullYear();
+      }
+
+      // Date Range Filter Logic
       let matchesDate = true;
       if (startDate) matchesDate = matchesDate && itemDate >= new Date(startDate);
       if (endDate) matchesDate = matchesDate && itemDate <= new Date(endDate);
 
-      return matchesSearch && matchesDate;
+      return matchesSearch && matchesMonth && matchesDate;
     });
-  }, [items, searchTerm, startDate, endDate]);
+  }, [items, searchTerm, startDate, endDate, isMonthFilterActive]);
 
   const summary = useMemo(() => {
     const targetData = selectedIds.length > 0
@@ -98,7 +115,6 @@ const CustomerAdmin = () => {
       });
     });
 
-    // Calculate shop-wise percentage
     Object.keys(shopWiseData).forEach(shop => {
       const sData = shopWiseData[shop];
       sData.percentage = sData.cost > 0 ? ((sData.profit / sData.cost) * 100).toFixed(1) : 0;
@@ -160,6 +176,20 @@ const CustomerAdmin = () => {
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-4">
+            
+            {/* Month Toggle Button */}
+            <button 
+              onClick={() => setIsMonthFilterActive(!isMonthFilterActive)}
+              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all shadow-sm w-full md:w-auto justify-center ${
+                isMonthFilterActive 
+                ? "bg-indigo-600 text-white hover:bg-indigo-700" 
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <FiFilter />
+              {isMonthFilterActive ? currentMonthName : "All Data"}
+            </button>
+
             <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm w-full md:w-auto">
               <div className="relative group cursor-pointer" onClick={(e) => e.currentTarget.querySelector('input').showPicker()}>
                 <input
@@ -215,7 +245,6 @@ const CustomerAdmin = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          {/* Card 1: Cost */}
           <div className="bg-white p-6 rounded-[2.5rem] border-b-8 border-b-indigo-500 shadow-xl shadow-indigo-100/50 flex flex-col group transition-all hover:-translate-y-1">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -236,7 +265,6 @@ const CustomerAdmin = () => {
             </div>
           </div>
 
-          {/* Card 2: Profit */}
           <div className="bg-white p-6 rounded-[2.5rem] border-b-8 border-b-emerald-500 shadow-xl shadow-emerald-100/50 flex flex-col group transition-all hover:-translate-y-1">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -263,7 +291,6 @@ const CustomerAdmin = () => {
             </div>
           </div>
 
-          {/* Card 3: Sell */}
           <div className="bg-white p-6 rounded-[2.5rem] border-b-8 border-b-cyan-500 shadow-xl shadow-cyan-100/50 flex flex-col group transition-all hover:-translate-y-1">
             <div className="flex items-center justify-between mb-6">
               <div>
