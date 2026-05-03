@@ -23,10 +23,10 @@ const CustomerAdmin = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  
+
   // New State for Month Filter
   const [isMonthFilterActive, setIsMonthFilterActive] = useState(true);
-  
+
   const navigate = useNavigate();
 
   const currentMonthName = new Date().toLocaleString('en-GB', { month: 'long' });
@@ -59,7 +59,7 @@ const CustomerAdmin = () => {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const customer = item.customer || {};
-      
+
       // Basic Search filter
       const matchesSearch =
         customer.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,8 +75,8 @@ const CustomerAdmin = () => {
       // Month Filter Logic
       let matchesMonth = true;
       if (isMonthFilterActive) {
-        matchesMonth = itemDate.getMonth() === today.getMonth() && 
-                       itemDate.getFullYear() === today.getFullYear();
+        matchesMonth = itemDate.getMonth() === today.getMonth() &&
+          itemDate.getFullYear() === today.getFullYear();
       }
 
       // Date Range Filter Logic
@@ -121,7 +121,13 @@ const CustomerAdmin = () => {
     });
 
     const profitPercentage = totalSell > 0 ? ((totalProfit / totalSell) * 100).toFixed(2) : 0;
-    return { totalSell, totalProfit, totalCost, profitPercentage, shopWiseData };
+
+    // Calculate Averages based on filteredItems count
+    const itemCount = filteredItems.length || 1;
+    const avgSell = totalSell / itemCount;
+    const avgProfit = totalProfit / itemCount;
+
+    return { totalSell, totalProfit, totalCost, profitPercentage, shopWiseData, avgSell, avgProfit };
   }, [filteredItems, selectedIds, items]);
 
   const handleSelectAll = (e) => {
@@ -176,15 +182,13 @@ const CustomerAdmin = () => {
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-4">
-            
-            {/* Month Toggle Button */}
-            <button 
+
+            <button
               onClick={() => setIsMonthFilterActive(!isMonthFilterActive)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all shadow-sm w-full md:w-auto justify-center ${
-                isMonthFilterActive 
-                ? "bg-indigo-600 text-white hover:bg-indigo-700" 
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-              }`}
+              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all shadow-sm w-full md:w-auto justify-center ${isMonthFilterActive
+                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                }`}
             >
               <FiFilter />
               {isMonthFilterActive ? currentMonthName : "All Data"}
@@ -312,6 +316,39 @@ const CustomerAdmin = () => {
           </div>
         </div>
 
+        {/* Status Bar: অর্ডারের সংখ্যা এবং গড় বিক্রয়/লাভ */}
+        <div className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+          {/* বামে: অর্ডারের সংখ্যা */}
+          <div className="flex items-center gap-3 bg-indigo-50 px-6 py-3 rounded-2xl w-full md:w-auto justify-center md:justify-start">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+              <FiShoppingCart size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-indigo-400 uppercase leading-none mb-1">মোট অর্ডার</p>
+              <p className="text-xl font-black text-indigo-900 leading-none">{filteredItems.length} টি</p>
+            </div>
+          </div>
+
+          {/* ডানে: গড় বিক্রয় ও গড় লাভ */}
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="flex-1 md:flex-none bg-cyan-50 px-6 py-3 rounded-2xl text-right border border-cyan-100">
+              <p className="text-[10px] font-black text-cyan-500 uppercase leading-none mb-1">গড় বিক্রয়</p>
+              <p className="text-lg font-black text-cyan-900 leading-none">{Math.round(summary.avgSell).toLocaleString()} ৳</p>
+            </div>
+            <div className="flex-1 md:flex-none bg-emerald-50 px-6 py-3 rounded-2xl text-right border border-emerald-100">
+              <p className="text-[10px] font-black text-emerald-500 uppercase leading-none mb-1">গড় লাভ</p>
+              <div className="flex items-center justify-end gap-2">
+                <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[10px] font-black">
+                  {summary.avgSell > 0 ? ((summary.avgProfit / summary.avgSell) * 100).toFixed(1) : 0}%
+                </span>
+                <p className="text-lg font-black text-emerald-900 leading-none">
+                  {Math.round(summary.avgProfit).toLocaleString()} ৳
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Selected Counter */}
         {selectedIds.length > 0 && (
           <div className="mb-6 flex items-center justify-between bg-indigo-600 p-5 rounded-3xl shadow-xl animate-bounce-short">
@@ -405,10 +442,6 @@ const CustomerAdmin = () => {
               <p className="text-slate-400 font-black text-xl tracking-tight">কোনো ইনভয়েস পাওয়া যায়নি!</p>
             </div>
           )}
-        </div>
-
-        <div className="mt-16 text-center border-t border-slate-200 pt-10 pb-12">
-          <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.4em]">Bashay Bazar Delivery System v2.0</p>
         </div>
       </div>
     </div>
