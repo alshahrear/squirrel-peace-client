@@ -117,10 +117,10 @@ const CustomerAdmin = () => {
 
     Object.keys(shopWiseData).forEach(shop => {
       const sData = shopWiseData[shop];
-      sData.percentage = sData.cost > 0 ? ((sData.profit / sData.cost) * 100).toFixed(1) : 0;
+      sData.percentage = sData.sell > 0 ? ((sData.profit / sData.sell) * 100).toFixed(1) : 0;
     });
 
-    const profitPercentage = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(2) : 0;
+    const profitPercentage = totalSell > 0 ? ((totalProfit / totalSell) * 100).toFixed(2) : 0;
     return { totalSell, totalProfit, totalCost, profitPercentage, shopWiseData };
   }, [filteredItems, selectedIds, items]);
 

@@ -163,7 +163,10 @@ const Pdf = () => {
                           <td className="py-0.5">{toBengaliNumber(idx + 1)}</td>
                           {currentMode === "admin" && <td className="py-0.5">{item.shop || "—"}</td>}
                           <td className="py-0.5 font-black ">{item.product}</td>
-                          <td className="py-0.5 text-center">{toBengaliNumber(item.quantity || "")} {item.unit}</td>
+                          <td className="py-0.5 text-center">
+                            {item.showQty !== false ? `${toBengaliNumber(item.quantity || "")} ` : ""}
+                            {item.unit}
+                          </td>
                           {currentMode === "admin" && (
                             <td className="py-0.5 text-center">{toBengaliNumber(Number(item.costPrice || 0).toLocaleString())}</td>
                           )}

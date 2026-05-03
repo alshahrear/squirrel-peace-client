@@ -85,10 +85,11 @@ const ReceiptPage = () => {
     const cPrice = parseFloat(costPrice) || 0;
     const disc = parseFloat(itemDiscount) || 0;
 
-    const calculatedTotal = Math.round((qty * sPrice) - disc);
-    const calculatedProfit = Math.round(((sPrice - cPrice) * qty) - disc);
+    // Buy Price ০ হলে Total Price ০ হবে, না হলে স্বাভাবিক হিসাব হবে
+    const calculatedTotal = cPrice === 0 ? 0 : (qty * sPrice) - disc;
+    const calculatedProfit = ((sPrice - cPrice) * qty) - disc;
 
-    setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0);
+    setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0);setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0);
     setProfit(calculatedProfit);
   }, [quantity, unitPrice, costPrice, itemDiscount]);
 
@@ -105,7 +106,8 @@ const ReceiptPage = () => {
 
   const subTotal = items.reduce((sum, item) => sum + parseFloat(item.totalPrice || 0), 0);
   const totalProfit = items.reduce((sum, item) => sum + parseFloat(item.profit || 0), 0);
-  const grandTotal = Math.round(subTotal - (parseFloat(overallDiscount) || 0) + (parseFloat(deliveryCharge) || 0));
+  // নতুন কোড
+  const grandTotal = subTotal - (parseFloat(overallDiscount) || 0) + (parseFloat(deliveryCharge) || 0);
 
   const handleAddItem = () => {
     if (!selectedProduct || !quantity || !unitPrice) {
@@ -119,12 +121,13 @@ const ReceiptPage = () => {
       shop: shop,
       costPrice: parseFloat(costPrice) || 0,
       unitPrice: parseFloat(unitPrice) || 0,
-      // এখানে পরিবর্তন করা হয়েছে:
-      quantity: showQtyInTable ? parseFloat(quantity) : null,
+      // এখানে পরিবর্তন: quantity সব সময় সেভ হবে
+      quantity: parseFloat(quantity) || 0,
       unit: selectedUnit,
       discount: parseFloat(itemDiscount) || 0,
       totalPrice: totalPrice,
       profit: profit,
+      // টিক চিহ্ন দেওয়া আছে কি না সেটা সেভ হবে
       showQty: showQtyInTable
     };
 
@@ -139,6 +142,8 @@ const ReceiptPage = () => {
     setSelectedProduct(""); setQuantity(""); setUnitPrice(""); setCostPrice(""); setShop(""); setItemDiscount(0); setSelectedUnit("");
   };
 
+
+
   const handleConfirmAndContinue = async () => {
     if (items.length === 0) {
       toast.error("আগে আইটেম যোগ করুন!");
@@ -152,18 +157,18 @@ const ReceiptPage = () => {
           shop: item.shop,
           costPrice: item.costPrice,
           unitPrice: item.unitPrice,
-          quantity: item.quantity,
+          quantity: item.quantity, // এখন এটি ০ বা নাল হবে না
           unit: item.unit,
           discount: item.discount,
           totalPrice: item.totalPrice,
           profit: item.profit,
-          showQty: item.showQty
+          showQty: item.showQty // ডাটাবেসে ট্রু/ফলস যাবে
         })),
         subTotal,
         overallDiscount,
         deliveryCharge,
         grandTotal,
-        totalProfit: Math.round(totalProfit - (parseFloat(overallDiscount) || 0))
+        totalProfit: totalProfit - (parseFloat(overallDiscount) || 0)
       };
 
       if (editIdFromAdmin) {
@@ -187,6 +192,8 @@ const ReceiptPage = () => {
     }
   };
 
+
+
   const handleEdit = (item) => {
     setEditingId(item.id);
     setSelectedProduct(item.product);
@@ -196,9 +203,11 @@ const ReceiptPage = () => {
     setQuantity(item.quantity);
     setSelectedUnit(item.unit);
     setItemDiscount(item.discount);
-    setShowQtyInTable(item.showQty ?? true);
+    // এডিট মুডে টিক চিহ্ন সঠিক অবস্থায় সেট করা
+    setShowQtyInTable(item.showQty !== undefined ? item.showQty : true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   const handleDelete = (id) => {
     setItems(items.filter((item) => item.id !== id));
@@ -310,12 +319,12 @@ const ReceiptPage = () => {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">Buy Price</label>
-                <input type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} className="w-full ring-1 ring-emerald-200 p-2.5 rounded-xl outline-none font-semibold text-sm bg-slate-50" placeholder="0" />
+                <input type="number" step="any" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} className="w-full ring-1 ring-emerald-200 p-2.5 rounded-xl outline-none font-semibold text-sm bg-slate-50" placeholder="0" />
               </div>
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-emerald-700 ml-1">Sell Price</label>
-                <input type="number" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className="w-full ring-1 ring-emerald-200 p-2.5 rounded-xl outline-none font-semibold text-sm bg-white" placeholder="0" />
+                <input type="number" step="any" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className="w-full ring-1 ring-emerald-200 p-2.5 rounded-xl outline-none font-semibold text-sm bg-white" placeholder="0" />
               </div>
 
               <div className="space-y-1">
@@ -433,7 +442,7 @@ const ReceiptPage = () => {
               overallDiscount={overallDiscount}
               deliveryCharge={deliveryCharge}
               grandTotal={grandTotal}
-              totalProfit={Math.round(totalProfit - (parseFloat(overallDiscount) || 0))}
+              totalProfit={totalProfit - (parseFloat(overallDiscount) || 0)}
               editMode={!!editIdFromAdmin}
             />
           </div>
