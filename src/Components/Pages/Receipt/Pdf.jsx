@@ -22,6 +22,20 @@ const Pdf = () => {
     invoiceList = originalInvoiceList.map(inv => ({ ...inv, displayMode: viewMode }));
   }
 
+  // নতুন ফিল্টারিং লজিক: কাস্টমার ভিউতে ছোট হাতের শপ নামের আইটেম লুকানো
+  const finalInvoiceList = invoiceList.map(inv => {
+    if (inv.displayMode === "customer") {
+      const filteredItems = inv.items.filter(item => {
+        const shopName = item.shop || "";
+        if (shopName === "") return true;
+        // চেক: প্রথম অক্ষর বড় হাতের কি না
+        return shopName[0] === shopName[0].toUpperCase() && shopName[0] !== shopName[0].toLowerCase();
+      });
+      return { ...inv, items: filteredItems };
+    }
+    return inv;
+  });
+
   const toBengaliNumber = (num) => {
     if (num === undefined || num === null || num === "") return "";
     const bengaliNumbers = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
@@ -78,7 +92,7 @@ const Pdf = () => {
       {/* Main Printable Area - Scrollable on Mobile */}
       <div className="w-full overflow-x-auto md:overflow-visible flex flex-col items-center">
         <div id="printable-area" className="min-w-[600px] md:min-w-0 md:max-w-[148mm] mx-auto print:m-0">
-          {invoiceList.map((data, index) => {
+          {finalInvoiceList.map((data, index) => {
             const currentMode = data.displayMode;
             const customer = data.customer || {};
             const items = data.items || [];
@@ -89,9 +103,15 @@ const Pdf = () => {
             const shopSummaries = items.reduce((acc, item) => {
               const shopName = item.shop || "N/A";
               const itemCost = Number(item.costPrice || 0) * Number(item.quantity || 1);
-              if (!acc[shopName]) acc[shopName] = { cost: 0 };
-              acc[shopName].cost += itemCost;
-              grandTotalCost += itemCost;
+              
+              // ছোট হাতের শপ চেনার উপায়
+              const isSmallShop = shopName !== "N/A" && shopName[0] === shopName[0].toLowerCase() && shopName[0] !== shopName[0].toUpperCase();
+
+              if (!isSmallShop) {
+                if (!acc[shopName]) acc[shopName] = { cost: 0 };
+                acc[shopName].cost += itemCost;
+                grandTotalCost += itemCost;
+              }
               return acc;
             }, {});
 
@@ -102,7 +122,7 @@ const Pdf = () => {
                 style={{
                   width: '148mm',
                   height: '210mm',
-                  padding: '12mm', // কাগজের চারপাশের ফাঁকা জায়গা
+                  padding: '12mm', 
                   boxSizing: 'border-box',
                   pageBreakAfter: 'always'
                 }}
@@ -119,7 +139,7 @@ const Pdf = () => {
                       </div>
                     </div>
                     <div className="text-[12px] leading-tight font-bold text-right space-y-1">
-                      <p>WhatsApp: 01886074920</p>
+                      <p>WhatsApp: 01570226243</p>
                       <p>bashaybazarmp@gmail.com</p>
                     </div>
                   </div>
@@ -295,7 +315,7 @@ const Pdf = () => {
 
       <style>{`
   @media screen {
-    /* স্ক্রিনে দেখার সময় যেন আসল কাগজের মতো লাগে */
+    /* স্ক্রিনে দেখার সময় যেন আসল কাগজের মতো লাগে */
     body { background-color: #e2e8f0 !important; }
   }
 
@@ -311,7 +331,7 @@ const Pdf = () => {
     }
     .print\\:hidden { display: none !important; }
     
-    /* প্রিন্ট হওয়ার সময় ডিভটি যেন পুরো পাতা জুড়ে থাকে */
+    /* প্রিন্ট হওয়ার সময় ডিভটি যেন পুরো পাতা জুড়ে থাকে */
     div[style*="width: 148mm"] {
       width: 100% !important;
       height: 100vh !important;
