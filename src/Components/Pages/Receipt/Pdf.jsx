@@ -103,7 +103,7 @@ const Pdf = () => {
             const shopSummaries = items.reduce((acc, item) => {
               const shopName = item.shop || "N/A";
               const itemCost = Number(item.costPrice || 0) * Number(item.quantity || 1);
-              
+
               // ছোট হাতের শপ চেনার উপায়
               const isSmallShop = shopName !== "N/A" && shopName[0] === shopName[0].toLowerCase() && shopName[0] !== shopName[0].toUpperCase();
 
@@ -122,7 +122,7 @@ const Pdf = () => {
                 style={{
                   width: '148mm',
                   height: '210mm',
-                  padding: '12mm', 
+                  padding: '12mm',
                   boxSizing: 'border-box',
                   pageBreakAfter: 'always'
                 }}
@@ -134,13 +134,17 @@ const Pdf = () => {
                     <div className="flex gap-2 items-center">
                       <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
                       <div>
-                        <h1 className="text-lg font-black leading-tight">বাসায় বাজার</h1>
-                        <p className="text-[10px] font-black uppercase mt-1">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
+                        <h1 className=" text-[16px] font-black leading-tight">বাসায় বাজার</h1>
+                        <p className="text-[10px] font-black uppercase ">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
+                        <p className="text-[11px] font-bold">WhatsApp: 01570226243</p>
                       </div>
                     </div>
-                    <div className="text-[12px] leading-tight font-bold text-right space-y-1">
-                      <p>WhatsApp: 01570226243</p>
+                    <div className="text-[12px] leading-tight font-bold text-right space-y-0.5">
+                      {/* <p>WhatsApp: 01570226243</p> */}
                       <p>bashaybazarmp@gmail.com</p>
+                      {/* নতুন অংশ: Bkash & Nagad */}
+                      <p className="text-[11px] font-bold">Bkash & Nagad</p>
+                      <p className="text-[11px] font-bold">01886-074920 (Send Money)</p>
                     </div>
                   </div>
 

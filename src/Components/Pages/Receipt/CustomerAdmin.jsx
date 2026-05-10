@@ -186,8 +186,8 @@ const CustomerAdmin = () => {
             <button
               onClick={() => setIsMonthFilterActive(!isMonthFilterActive)}
               className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all shadow-sm w-full md:w-auto justify-center ${isMonthFilterActive
-                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
                 }`}
             >
               <FiFilter />
@@ -229,16 +229,6 @@ const CustomerAdmin = () => {
                   className="cursor-pointer text-slate-400 hover:text-red-500 transition-colors ml-1"
                 />
               )}
-            </div>
-
-            <div className="relative w-full md:w-64">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="খুঁজুন..."
-                className="pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl w-full shadow-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-sm"
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
             </div>
 
             <NavLink to="/receipt" className="hidden lg:flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
@@ -358,6 +348,17 @@ const CustomerAdmin = () => {
             </button>
           </div>
         )}
+
+        {/* সার্চ বক্স - টেবিলের ঠিক উপরে */}
+        <div className="mb-4 relative w-full">
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400" />
+          <input
+            type="text"
+            placeholder="নাম, ফোন বা ইনভয়েস নং দিয়ে খুঁজুন..."
+            className="pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-[1.5rem] w-full shadow-md focus:ring-4 focus:ring-indigo-500/10 outline-none font-black text-slate-700 transition-all placeholder:text-slate-300"
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
         {/* Table Section */}
         <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
