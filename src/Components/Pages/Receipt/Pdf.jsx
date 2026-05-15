@@ -143,7 +143,7 @@ const Pdf = () => {
                       {/* <p>WhatsApp: 01570226243</p> */}
                       <p>bashaybazarmp@gmail.com</p>
                       {/* নতুন অংশ: Bkash & Nagad */}
-                      <p className="text-[11px] font-bold">Bkash & Nagad</p>
+                      <p className="text-[11px] font-bold">Bkash, Nagad & Call</p>
                       <p className="text-[11px] font-bold">01886-074920 (Send Money)</p>
                     </div>
                   </div>
