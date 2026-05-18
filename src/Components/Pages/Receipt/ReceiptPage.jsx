@@ -89,7 +89,7 @@ const ReceiptPage = () => {
     const calculatedTotal = cPrice === 0 ? 0 : (qty * sPrice) - disc;
     const calculatedProfit = ((sPrice - cPrice) * qty) - disc;
 
-    setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0);setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0);
+    setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0); setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0);
     setProfit(calculatedProfit);
   }, [quantity, unitPrice, costPrice, itemDiscount]);
 
@@ -240,11 +240,22 @@ const ReceiptPage = () => {
     setModalDragIndex(null);
   };
 
-  const filteredProducts = [...products].reverse().filter(p => {
-    const isAlreadyAdded = items.some(item => item.product === p.name && item.id !== editingId);
-    const matchesSearch = p.name.toLowerCase().includes(selectedProduct.toLowerCase());
-    return !isAlreadyAdded && matchesSearch;
-  });
+  const filteredProducts = [...products]
+    .reverse()
+    .filter(p => {
+      const isAlreadyAdded = items.some(item => item.product === p.name && item.id !== editingId);
+      const matchesSearch = p.name.toLowerCase().includes(selectedProduct.toLowerCase());
+      return !isAlreadyAdded && matchesSearch;
+    })
+    .sort((a, b) => {
+      // shop এর নাম ছোট হাতের "s" হলে সেটি সবার উপরে (top এ) চলে আসবে
+      const aIsS = a.shop && a.shop === "s";
+      const bIsS = b.shop && b.shop === "s";
+      
+      if (aIsS && !bIsS) return -1;
+      if (!aIsS && bIsS) return 1;
+      return 0;
+    });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 px-2 sm:px-4 py-6 sm:py-10 font-sans text-slate-800">

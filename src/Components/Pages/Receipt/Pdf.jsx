@@ -97,7 +97,8 @@ const Pdf = () => {
             const customer = data.customer || {};
             const items = data.items || [];
             const hasAnyItemDiscount = items.some(item => Number(item.discount) > 0);
-            const totalProfit = items.reduce((sum, item) => sum + Number(item.profit || 0), 0);
+            // আইটেমের লাভের সাথে ডেলিভারি চার্জও যোগ করা হয়েছে
+            const totalProfit = items.reduce((sum, item) => sum + Number(item.profit || 0), 0) + Number(data.deliveryCharge || 0);
 
             let grandTotalCost = 0;
             const shopSummaries = items.reduce((acc, item) => {
@@ -143,7 +144,7 @@ const Pdf = () => {
                       {/* <p>WhatsApp: 01570226243</p> */}
                       <p>bashaybazarmp@gmail.com</p>
                       {/* নতুন অংশ: Bkash & Nagad */}
-                      <p className="text-[11px] font-bold">Bkash, Nagad & Call</p>
+                      <p className="text-[11px] font-bold">Call Anytime & Bkash, Nagad</p>
                       <p className="text-[11px] font-bold">01886-074920 (Send Money)</p>
                     </div>
                   </div>

@@ -100,7 +100,8 @@ const CustomerAdmin = () => {
 
     targetData.forEach(inv => {
       totalSell += Number(inv.grandTotal || 0);
-      totalProfit += Number(inv.totalProfit || 0);
+      // কারেন্ট প্রফিটের সাথে ডেলিভারি চার্জ যোগ হচ্ছে
+      totalProfit += Number(inv.totalProfit || 0) + Number(inv.deliveryCharge || 0);
       inv.items?.forEach(item => {
         const cost = (Number(item.costPrice || 0) * Number(item.quantity || 1));
         totalCost += cost;
@@ -374,7 +375,7 @@ const CustomerAdmin = () => {
                   <th className="px-6 py-7 text-center">ইনভয়েস নং</th>
                   <th className="px-6 py-7 text-center">তারিখ</th>
                   <th className="px-6 py-7">ডেলিভারি</th>
-                  <th className="px-6 py-7 text-right">মোট টাকা</th>
+                 <th className="px-6 py-7 text-right">লাভ | বিক্রয়</th>
                   <th className="px-8 py-7 text-center">অ্যাকশন</th>
                 </tr>
               </thead>
@@ -418,9 +419,15 @@ const CustomerAdmin = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-right">
+                     <td className="px-6 py-5 text-right">
                         <div className="flex flex-col">
-                          <span className="font-black text-slate-900 text-lg tracking-tighter">{Number(item.grandTotal || 0).toLocaleString()} ৳</span>
+                          <span className="font-black text-slate-900 text-lg tracking-tighter">
+                            <span className="text-emerald-600">
+                              {Math.round(Number(item.totalProfit || 0) + Number(item.deliveryCharge || 0)).toLocaleString()}
+                            </span>
+                            <span className="text-slate-300 mx-1.5">|</span>
+                            <span>{Number(item.grandTotal || 0).toLocaleString()} ৳</span>
+                          </span>
                           <span className="text-[10px] text-slate-400 font-bold">{item.items?.length || 0} টি আইটেম</span>
                         </div>
                       </td>
