@@ -89,7 +89,7 @@ const ReceiptPage = () => {
     const calculatedTotal = cPrice === 0 ? 0 : (qty * sPrice) - disc;
     const calculatedProfit = ((sPrice - cPrice) * qty) - disc;
 
-    setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0); setTotalPrice(calculatedTotal > 0 ? calculatedTotal : 0);
+    setTotalPrice(calculatedTotal > 0 ? Math.round(calculatedTotal) : 0);
     setProfit(calculatedProfit);
   }, [quantity, unitPrice, costPrice, itemDiscount]);
 
