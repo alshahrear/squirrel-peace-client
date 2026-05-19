@@ -27,7 +27,7 @@ const ReceiptPage = () => {
   const [modalDragIndex, setModalDragIndex] = useState(null);
   const [showCustomer, setShowCustomer] = useState(false);
   const [overallDiscount, setOverallDiscount] = useState(0);
-  const [deliveryCharge, setDeliveryCharge] = useState(0);
+  const [deliveryCharge, setDeliveryCharge] = useState(10);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [showQtyInTable, setShowQtyInTable] = useState(true);
@@ -62,7 +62,7 @@ const ReceiptPage = () => {
           if (data) {
             setItems(data.items || []);
             setOverallDiscount(data.overallDiscount || 0);
-            setDeliveryCharge(data.deliveryCharge || 0);
+            setDeliveryCharge(data.deliveryCharge !== undefined ? data.deliveryCharge : 10);
             setSavedItemId(editIdFromAdmin);
             setShowCustomer(true);
           }
@@ -251,7 +251,7 @@ const ReceiptPage = () => {
       // shop এর নাম ছোট হাতের "s" হলে সেটি সবার উপরে (top এ) চলে আসবে
       const aIsS = a.shop && a.shop === "s";
       const bIsS = b.shop && b.shop === "s";
-      
+
       if (aIsS && !bIsS) return -1;
       if (!aIsS && bIsS) return 1;
       return 0;
