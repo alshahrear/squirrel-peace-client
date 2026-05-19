@@ -97,8 +97,9 @@ const Pdf = () => {
             const customer = data.customer || {};
             const items = data.items || [];
             const hasAnyItemDiscount = items.some(item => Number(item.discount) > 0);
-            // আইটেমের লাভের সাথে ডেলিভারি চার্জও যোগ করা হয়েছে
-            const totalProfit = items.reduce((sum, item) => sum + Number(item.profit || 0), 0) + Number(data.deliveryCharge || 0);
+            // আইটেমের লাভের সাথে ডেলিভারি চার্জ যোগ এবং ওভারঅল ডিসকাউন্ট থাকলে তা বিয়োগ করা হয়েছে
+            const baseProfit = items.reduce((sum, item) => sum + Number(item.profit || 0), 0) + Number(data.deliveryCharge || 0);
+            const totalProfit = baseProfit - Number(data.overallDiscount || 0);
 
             let grandTotalCost = 0;
             const shopSummaries = items.reduce((acc, item) => {
@@ -131,21 +132,34 @@ const Pdf = () => {
 
                 <div>
                   {/* Header */}
-                  <div className="flex justify-between items-center border-b-1 border-black pb-2 mb-2">
-                    <div className="flex gap-2 items-center">
-                      <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
-                      <div>
-                        <h1 className=" text-[16px] font-black leading-tight">বাসায় বাজার</h1>
-                        <p className="text-[10px] font-black uppercase ">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
-                        <p className="text-[11px] font-bold">WhatsApp: 01570226243</p>
+                  <div className="flex flex-col border-b border-black pb-1 mb-2">
+                    {/* Top Row: Logo & Company Details */}
+                    <div className="flex justify-between items-center pb-2">
+                      <div className="flex gap-2 items-center">
+                        <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
+                        <div>
+                          <h1 className="text-[16px] font-black leading-tight">বাসায় বাজার</h1>
+                          <p className="text-[10px] font-black uppercase">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
+                          <p className="text-[11px] font-bold">WhatsApp: 01570226243</p>
+                        </div>
+                      </div>
+                      <div className="text-[12px] leading-tight font-bold text-right space-y-0.5">
+                        <p>bashaybazarmp@gmail.com</p>
+                        <p className="text-[11px] font-bold">Call Anytime & Bkash, Nagad</p>
+                        <p className="text-[11px] font-bold">01886-074920 (Send Money)</p>
                       </div>
                     </div>
-                    <div className="text-[12px] leading-tight font-bold text-right space-y-0.5">
-                      {/* <p>WhatsApp: 01570226243</p> */}
-                      <p>bashaybazarmp@gmail.com</p>
-                      {/* নতুন অংশ: Bkash & Nagad */}
-                      <p className="text-[11px] font-bold">Call Anytime & Bkash, Nagad</p>
-                      <p className="text-[11px] font-bold">01886-074920 (Send Money)</p>
+
+                    {/* Delivery Shift Row (এখন বর্ডারের ভেতরে এবং ওপরে থাকবে) */}
+                    <div className="flex items-center justify-between text-[11px] font-bold w-full">
+                      <div className="flex items-center whitespace-nowrap">
+                        <span>ডেলিভারি শিফট শুরুর আগে অর্ডার করুন | </span>
+                      </div>
+                      <div className="flex gap-2 text-right whitespace-nowrap">
+                        <span>10:30-12:30AM</span>
+                        <span>4:30-6:30PM</span>
+                        <span>7:30-9:30PM</span>
+                      </div>
                     </div>
                   </div>
 
@@ -256,17 +270,17 @@ const Pdf = () => {
                         <span className="font-black">{toBengaliNumber(Number(data.subTotal).toLocaleString())} ৳</span>
                       </div>
 
+                      <div className="flex justify-between font-bold">
+                        <span>সার্ভিস চার্জ:</span>
+                        <span className="font-black">{toBengaliNumber(Number(data.deliveryCharge || 0).toLocaleString())} ৳</span>
+                      </div>
+
                       {Number(data.overallDiscount) > 0 && (
                         <div className="flex justify-between font-bold">
                           <span>ছাড়:</span>
                           <span className="font-black">-{toBengaliNumber(Number(data.overallDiscount).toLocaleString())} ৳</span>
                         </div>
                       )}
-
-                      <div className="flex justify-between font-bold">
-                        <span>সার্ভিস চার্জ:</span>
-                        <span className="font-black">{toBengaliNumber(Number(data.deliveryCharge || 0).toLocaleString())} ৳</span>
-                      </div>
 
                       <div className="pt-1 mt-1 border-t border-black flex justify-between">
                         <span className="font-black text-[11px]">সর্বমোট:</span>
