@@ -79,18 +79,18 @@ const ReceiptPage = () => {
     fetchUnits();
   }, []);
 
+ // শুধুমাত্র Quantity, Price বা Discount পরিবর্তন হলে অটো-ক্যালকুলেট হবে, টাইপ করার সময় ডিস্টার্ব করবে না
   useEffect(() => {
     const qty = parseFloat(quantity) || 0;
     const sPrice = parseFloat(unitPrice) || 0;
     const cPrice = parseFloat(costPrice) || 0;
     const disc = parseFloat(itemDiscount) || 0;
 
-    // Buy Price ০ হলে Total Price ০ হবে, না হলে স্বাভাবিক হিসাব হবে
     const calculatedTotal = cPrice === 0 ? 0 : (qty * sPrice) - disc;
     const calculatedProfit = ((sPrice - cPrice) * qty) - disc;
 
     setTotalPrice(calculatedTotal > 0 ? Math.round(calculatedTotal) : 0);
-    setProfit(calculatedProfit);
+    setProfit(Math.round(calculatedProfit));
   }, [quantity, unitPrice, costPrice, itemDiscount]);
 
   const handleSelectSuggestion = (p) => {
@@ -101,6 +101,9 @@ const ReceiptPage = () => {
     setSelectedUnit(p.unit || "");
     setQuantity(1);
     setItemDiscount(0);
+    // নতুন প্রোডাক্ট সিলেক্ট হলে আগের এডিট করা প্রফিট ও টোটাল রিসেট হয়ে অটো-ক্যালকুলেট হবে
+    setProfit(0);
+    setTotalPrice(0);
     setShowSuggestions(false);
   };
 
@@ -115,19 +118,17 @@ const ReceiptPage = () => {
       return;
     }
 
-    const newItem = {
+   const newItem = {
       id: editingId || Date.now(),
       product: selectedProduct,
       shop: shop,
       costPrice: parseFloat(costPrice) || 0,
       unitPrice: parseFloat(unitPrice) || 0,
-      // এখানে পরিবর্তন: quantity সব সময় সেভ হবে
       quantity: parseFloat(quantity) || 0,
       unit: selectedUnit,
       discount: parseFloat(itemDiscount) || 0,
-      totalPrice: totalPrice,
-      profit: profit,
-      // টিক চিহ্ন দেওয়া আছে কি না সেটা সেভ হবে
+      totalPrice: Math.round(totalPrice), 
+      profit: Math.round(profit),
       showQty: showQtyInTable
     };
 
@@ -345,16 +346,24 @@ const ReceiptPage = () => {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-blue-600 ml-1 text-center block">Profit</label>
-                <div className={`w-full bg-white ring-1 ring-blue-50 p-2.5 rounded-xl text-center font-black text-sm min-h-[42px] flex items-center justify-center ${profit >= 0 ? "text-blue-600" : "text-rose-500"}`}>
-                  {profit}৳
-                </div>
+                <input 
+                  type="number" 
+                  value={profit} 
+                  onChange={(e) => setProfit(parseFloat(e.target.value) || 0)} 
+                  className={`w-full bg-white ring-1 ring-blue-200 p-2.5 rounded-xl text-center font-black text-sm min-h-[42px] outline-none ${profit >= 0 ? "text-blue-600" : "text-rose-500"}`} 
+                  placeholder="0" 
+                />
               </div>
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-emerald-600 ml-1 text-center block">Total</label>
-                <div className="w-full bg-white ring-1 ring-emerald-100 p-2.5 rounded-xl text-center font-black text-slate-900 text-sm min-h-[42px] flex items-center justify-center">
-                  {totalPrice}৳
-                </div>
+                <input 
+                  type="number" 
+                  value={totalPrice} 
+                  onChange={(e) => setTotalPrice(parseFloat(e.target.value) || 0)} 
+                  className="w-full bg-white ring-1 ring-emerald-200 p-2.5 rounded-xl text-center font-black text-slate-900 text-sm min-h-[42px] outline-none" 
+                  placeholder="0" 
+                />
               </div>
 
               <button onClick={handleAddItem} className={`w-full py-2.5 rounded-xl font-bold text-white shadow-lg transition-all ${editingId ? "bg-orange-500 hover:bg-orange-600" : "bg-emerald-600 hover:bg-emerald-700"}`}>
