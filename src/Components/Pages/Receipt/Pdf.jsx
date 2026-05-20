@@ -156,7 +156,7 @@ const Pdf = () => {
                         <span>ডেলিভারি শিফট শুরুর আগে অর্ডার করুন | </span>
                       </div>
                       <div className="flex gap-2 text-right whitespace-nowrap">
-                        <span>10:30-12:30AM</span>
+                        <span>10:30AM-12:30PM</span>
                         <span>4:30-6:30PM</span>
                         <span>7:30-9:30PM</span>
                       </div>
