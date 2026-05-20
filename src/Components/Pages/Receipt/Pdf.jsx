@@ -35,10 +35,41 @@ const Pdf = () => {
       });
     }
 
+    // --- এখানে গ্লোবাল ক্যালকুলেশন করা হচ্ছে (সব পেজের আইটেম একসাথে নিয়ে) ---
+    let globalGrandTotalCost = 0;
+    const globalShopSummaries = {};
+
+    filteredItems.forEach(item => {
+      const shopName = item.shop || "N/A";
+      const itemCost = Number(item.costPrice || 0) * Number(item.quantity || 1);
+
+      const isSmallShop = shopName !== "N/A" && shopName[0] === shopName[0].toLowerCase() && shopName[0] !== shopName[0].toUpperCase();
+
+      if (!isSmallShop) {
+        if (!globalShopSummaries[shopName]) {
+          globalShopSummaries[shopName] = { cost: 0 };
+        }
+        globalShopSummaries[shopName].cost += itemCost;
+        globalGrandTotalCost += itemCost;
+      }
+    });
+
+    const baseProfit = filteredItems.reduce((sum, item) => sum + Number(item.profit || 0), 0) + Number(inv.deliveryCharge || 0);
+    const globalTotalProfit = baseProfit - Number(inv.overallDiscount || 0);
+    // ------------------------------------------------------------------------
+
     // প্রতি পেজে ১৭টি করে আইটেম ভাগ করা
     const itemsPerPage = 17;
     if (filteredItems.length === 0) {
-      finalInvoiceList.push({ ...inv, items: [], isLastPage: true, pageIndex: 0 });
+      finalInvoiceList.push({
+        ...inv,
+        items: [],
+        isLastPage: true,
+        pageIndex: 0,
+        globalGrandTotalCost,
+        globalShopSummaries,
+        globalTotalProfit
+      });
     } else {
       const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
       for (let i = 0; i < totalPages; i++) {
@@ -49,8 +80,10 @@ const Pdf = () => {
           isFirstPage: i === 0,
           isLastPage: i === totalPages - 1,
           pageIndex: i,
-          // সিরিয়াল নম্বর ঠিক রাখার জন্য মূল ইনডেক্স পাস করা
-          itemStartIdx: i * itemsPerPage 
+          itemStartIdx: i * itemsPerPage,
+          globalGrandTotalCost,
+          globalShopSummaries,
+          globalTotalProfit
         });
       }
     }
@@ -117,26 +150,9 @@ const Pdf = () => {
             const customer = data.customer || {};
             const items = data.items || [];
             const hasAnyItemDiscount = items.some(item => Number(item.discount) > 0);
-            // আইটেমের লাভের সাথে ডেলিভারি চার্জ যোগ এবং ওভারঅল ডিসকাউন্ট থাকলে তা বিয়োগ করা হয়েছে
-            const baseProfit = items.reduce((sum, item) => sum + Number(item.profit || 0), 0) + Number(data.deliveryCharge || 0);
-            const totalProfit = baseProfit - Number(data.overallDiscount || 0);
-
-            let grandTotalCost = 0;
-            const shopSummaries = items.reduce((acc, item) => {
-              const shopName = item.shop || "N/A";
-              const itemCost = Number(item.costPrice || 0) * Number(item.quantity || 1);
-
-              // ছোট হাতের শপ চেনার উপায়
-              const isSmallShop = shopName !== "N/A" && shopName[0] === shopName[0].toLowerCase() && shopName[0] !== shopName[0].toUpperCase();
-
-              if (!isSmallShop) {
-                if (!acc[shopName]) acc[shopName] = { cost: 0 };
-                acc[shopName].cost += itemCost;
-                grandTotalCost += itemCost;
-              }
-              return acc;
-            }, {});
-
+            const grandTotalCost = data.globalGrandTotalCost;
+            const shopSummaries = data.globalShopSummaries;
+            const totalProfit = data.globalTotalProfit;
             return (
               <div
                 key={index}
@@ -152,54 +168,59 @@ const Pdf = () => {
               >
 
                 <div>
-                  {/* Header */}
-                  <div className="flex flex-col border-b border-black pb-1 mb-1">
-                    {/* Top Row: Logo & Company Details */}
-                    <div className="flex justify-between items-center pb-2">
-                      <div className="flex gap-2 items-center">
-                        <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
-                        <div>
-                          <h1 className="text-[16px] font-black leading-tight">বাসায় বাজার</h1>
-                          <p className="text-[10px] font-black uppercase">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
-                          <p className="text-[11px] font-bold">WhatsApp: 01570226243</p>
+                  {/* Header & Info Section - Only on First Page */}
+                  {data.isFirstPage && (
+                    <>
+                      {/* Header */}
+                      <div className="flex flex-col border-b border-black pb-1 mb-1">
+                        {/* Top Row: Logo & Company Details */}
+                        <div className="flex justify-between items-center pb-2">
+                          <div className="flex gap-2 items-center">
+                            <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
+                            <div>
+                              <h1 className="text-[16px] font-black leading-tight">বাসায় বাজার</h1>
+                              <p className="text-[10px] font-black uppercase">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
+                              <p className="text-[11px] font-bold">WhatsApp: 01570226243</p>
+                            </div>
+                          </div>
+                          <div className="text-[12px] leading-tight font-bold text-right space-y-0.5">
+                            <p>bashaybazarmp@gmail.com</p>
+                            <p className="text-[11px] font-bold">Call Anytime & Bkash, Nagad</p>
+                            <p className="text-[11px] font-bold">01886-074920 (Send Money)</p>
+                          </div>
+                        </div>
+
+                        {/* Delivery Shift Row */}
+                        <div className="flex items-center justify-between text-[11px] font-bold w-full">
+                          <div className="flex items-center whitespace-nowrap">
+                            <span>ডেলিভারি শিফট শুরুর আগে অর্ডার করুন - </span>
+                          </div>
+                          <div className="flex gap-2 text-right whitespace-nowrap">
+                            <span>10:30AM-12:30PM</span>
+                            <span>4:30-6:30PM</span>
+                            <span>7:30-9:30PM</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-[12px] leading-tight font-bold text-right space-y-0.5">
-                        <p>bashaybazarmp@gmail.com</p>
-                        <p className="text-[11px] font-bold">Call Anytime & Bkash, Nagad</p>
-                        <p className="text-[11px] font-bold">01886-074920 (Send Money)</p>
-                      </div>
-                    </div>
 
-                    {/* Delivery Shift Row (এখন বর্ডারের ভেতরে এবং ওপরে থাকবে) */}
-                    <div className="flex items-center justify-between text-[11px] font-bold w-full">
-                      <div className="flex items-center whitespace-nowrap">
-                        <span>ডেলিভারি শিফট শুরুর আগে অর্ডার করুন - </span>
+                      {/* Info Section */}
+                      <div className="grid grid-cols-2 gap-x-16 gap-y-1 mb-2 text-[12px]">
+                        <div className="space-y-1">
+                          <p><span className="font-bold">Name:</span> <span className="font-bold">{customer.customerName || "N/A"}</span></p>
+                          <p><span className="font-bold">Phone:</span> <span className="font-bold">{customer.phone || "N/A"}</span></p>
+                          <p><span className="font-bold">Address:</span> <span className="font-bold">{customer.address || "N/A"}</span></p>
+                        </div>
+                        <div className="space-y-1">
+                          <p><span className="font-bold">Date:</span> <span className="font-bold">{customer.date || "N/A"}</span></p>
+                          <p><span className="font-bold">Invoice:</span> <span className="font-bold">#{customer.invoiceNumber || "N/A"}</span></p>
+                          <p><span className="font-bold">Delivery:</span> <span className="font-bold">{customer.deliveryMan || "N/A"}</span></p>
+                        </div>
                       </div>
-                      <div className="flex gap-2 text-right whitespace-nowrap">
-                        <span>10:30AM-12:30PM</span>
-                        <span>4:30-6:30PM</span>
-                        <span>7:30-9:30PM</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Info Section */}
-                  <div className="grid grid-cols-2 gap-x-16 gap-y-1 mb-2 text-[12px]">
-                    <div className="space-y-1">
-                      <p><span className="font-bold">Name:</span> <span className="font-bold">{customer.customerName || "N/A"}</span></p>
-                      <p><span className="font-bold">Phone:</span> <span className="font-bold">{customer.phone || "N/A"}</span></p>
-                      <p><span className="font-bold">Address:</span> <span className="font-bold">{customer.address || "N/A"}</span></p>
-                    </div>
-                    <div className="space-y-1">
-                      <p><span className="font-bold">Date:</span> <span className="font-bold">{customer.date || "N/A"}</span></p>
-                      <p><span className="font-bold">Invoice:</span> <span className="font-bold">#{customer.invoiceNumber || "N/A"}</span></p>
-                      <p><span className="font-bold">Delivery:</span> <span className="font-bold">{customer.deliveryMan || "N/A"}</span></p>
-                    </div>
-                  </div>
+                    </>
+                  )}
 
                   {/* Table */}
-                  <table className="w-full mb-2 text-[11px] border-collapse">
+                 <table className={`w-full mb-2 text-[11px] border-collapse ${!data.isFirstPage ? 'mt-4' : ''}`}>
                     <thead>
                       <tr className=" uppercase text-left">
                         <th className="py-1 font-black">#</th>
