@@ -22,18 +22,38 @@ const Pdf = () => {
     invoiceList = originalInvoiceList.map(inv => ({ ...inv, displayMode: viewMode }));
   }
 
-  // নতুন ফিল্টারিং লজিক: কাস্টমার ভিউতে ছোট হাতের শপ নামের আইটেম লুকানো
-  const finalInvoiceList = invoiceList.map(inv => {
+  // নতুন ফিল্টারিং লজিক এবং প্রতি পেজে সর্বোচ্চ ১৭টি আইটেম রাখার জন্য পেজিনেশন লজিক
+  const finalInvoiceList = [];
+
+  invoiceList.forEach(inv => {
+    let filteredItems = inv.items || [];
     if (inv.displayMode === "customer") {
-      const filteredItems = inv.items.filter(item => {
+      filteredItems = filteredItems.filter(item => {
         const shopName = item.shop || "";
         if (shopName === "") return true;
-        // চেক: প্রথম অক্ষর বড় হাতের কি না
         return shopName[0] === shopName[0].toUpperCase() && shopName[0] !== shopName[0].toLowerCase();
       });
-      return { ...inv, items: filteredItems };
     }
-    return inv;
+
+    // প্রতি পেজে ১৭টি করে আইটেম ভাগ করা
+    const itemsPerPage = 17;
+    if (filteredItems.length === 0) {
+      finalInvoiceList.push({ ...inv, items: [], isLastPage: true, pageIndex: 0 });
+    } else {
+      const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+      for (let i = 0; i < totalPages; i++) {
+        const chunk = filteredItems.slice(i * itemsPerPage, (i + 1) * itemsPerPage);
+        finalInvoiceList.push({
+          ...inv,
+          items: chunk,
+          isFirstPage: i === 0,
+          isLastPage: i === totalPages - 1,
+          pageIndex: i,
+          // সিরিয়াল নম্বর ঠিক রাখার জন্য মূল ইনডেক্স পাস করা
+          itemStartIdx: i * itemsPerPage 
+        });
+      }
+    }
   });
 
   const toBengaliNumber = (num) => {
@@ -125,6 +145,7 @@ const Pdf = () => {
                   width: '148mm',
                   height: '210mm',
                   padding: '12mm',
+                  paddingTop: '8mm',
                   boxSizing: 'border-box',
                   pageBreakAfter: 'always'
                 }}
@@ -132,7 +153,7 @@ const Pdf = () => {
 
                 <div>
                   {/* Header */}
-                  <div className="flex flex-col border-b border-black pb-1 mb-2">
+                  <div className="flex flex-col border-b border-black pb-1 mb-1">
                     {/* Top Row: Logo & Company Details */}
                     <div className="flex justify-between items-center pb-2">
                       <div className="flex gap-2 items-center">
@@ -153,7 +174,7 @@ const Pdf = () => {
                     {/* Delivery Shift Row (এখন বর্ডারের ভেতরে এবং ওপরে থাকবে) */}
                     <div className="flex items-center justify-between text-[11px] font-bold w-full">
                       <div className="flex items-center whitespace-nowrap">
-                        <span>ডেলিভারি শিফট শুরুর আগে অর্ডার করুন | </span>
+                        <span>ডেলিভারি শিফট শুরুর আগে অর্ডার করুন - </span>
                       </div>
                       <div className="flex gap-2 text-right whitespace-nowrap">
                         <span>10:30AM-12:30PM</span>
@@ -199,7 +220,7 @@ const Pdf = () => {
                     <tbody>
                       {items.map((item, idx) => (
                         <tr key={idx} className="font-bold">
-                          <td className="py-0.5">{toBengaliNumber(idx + 1)}</td>
+                          <td className="py-0.5">{toBengaliNumber((data.itemStartIdx || 0) + idx + 1)}</td>
                           {currentMode === "admin" && <td className="py-0.5">{item.shop || "—"}</td>}
                           <td className="py-0.5 font-black ">{item.product}</td>
                           <td className="py-0.5 text-center">
@@ -227,72 +248,85 @@ const Pdf = () => {
 
 
                   {/* Calculation Area */}
-                  <div className="flex justify-between pt-2 border-t border-black items-stretch">
+                  {/* Calculation Area */}
+                  {data.isLastPage ? (
+                    <div className="flex justify-between pt-2 border-t border-black items-stretch">
 
-                    {/* Left: Individual Shop Costs (Only for Admin) */}
-                    {currentMode === "admin" ? (
-                      <div className="flex flex-col justify-center border-r border-black pr-4 min-w-[130px] space-y-2 text-[11px]">
-                        {Object.entries(shopSummaries).map(([shop, summary]) => (
-                          <div key={shop} className="flex text-[11px] gap-2 leading-tight pb-0.5">
-                            <p className="font-bold italic whitespace-nowrap">{shop}. ক্রয়মূল্য =</p>
-                            <p className="font-bold">
-                              {toBengaliNumber(summary.cost.toLocaleString())}৳
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="min-w-[0px]"></div>
-                    )}
+                      {/* Left: Individual Shop Costs (Only for Admin) */}
+                      {currentMode === "admin" ? (
+                        <div className="flex flex-col justify-center border-r border-black pr-4 min-w-[130px] space-y-2 text-[11px]">
+                          {Object.entries(shopSummaries).map(([shop, summary]) => (
+                            <div key={shop} className="flex text-[11px] gap-2 leading-tight pb-0.5">
+                              <p className="font-bold italic whitespace-nowrap">{shop}. ক্রয়মূল্য =</p>
+                              <p className="font-bold">
+                                {toBengaliNumber(summary.cost.toLocaleString())}৳
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="min-w-[0px]"></div>
+                      )}
 
-                    {/* Center-Left: Total Cost (Only for Admin) */}
-                    {currentMode === "admin" && (
-                      <div className="flex flex-col items-center justify-center border-r border-black px-4 flex-1">
-                        <p className="text-[11px] font-black border-b border-black w-full text-center mb-1 pb-0.5">মোট ক্রয়মূল্য</p>
-                        <p className="text-[13px] font-black">
-                          {toBengaliNumber(grandTotalCost.toLocaleString())}৳
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Center-Right: Profit (Only for Admin) */}
-                    {currentMode === "admin" && (
-                      <div className="flex flex-col items-center justify-center border-r border-black px-4 flex-1">
-                        <p className="text-[11px] font-black border-b border-black w-full text-center mb-1 pb-0.5">লাভ</p>
-                        <p className="text-[12px] font-black">{toBengaliNumber(totalProfit.toLocaleString())}৳</p>
-                      </div>
-                    )}
-
-                    {/* Right: Final Billing Summary */}
-                    <div className="pl-4 w-44 flex flex-col justify-center space-y-1 text-[11px]">
-                      <div className="flex justify-between font-bold">
-                        <span>মোট:</span>
-                        <span className="font-black">{toBengaliNumber(Number(data.subTotal).toLocaleString())} ৳</span>
-                      </div>
-
-                      <div className="flex justify-between font-bold">
-                        <span>সার্ভিস চার্জ:</span>
-                        <span className="font-black">{toBengaliNumber(Number(data.deliveryCharge || 0).toLocaleString())} ৳</span>
-                      </div>
-
-                      {Number(data.overallDiscount) > 0 && (
-                        <div className="flex justify-between font-bold">
-                          <span>ছাড়:</span>
-                          <span className="font-black">-{toBengaliNumber(Number(data.overallDiscount).toLocaleString())} ৳</span>
+                      {/* Center-Left: Total Cost (Only for Admin) */}
+                      {currentMode === "admin" && (
+                        <div className="flex flex-col items-center justify-center border-r border-black px-4 flex-1">
+                          <p className="text-[11px] font-black border-b border-black w-full text-center mb-1 pb-0.5">মোট ক্রয়মূল্য</p>
+                          <p className="text-[13px] font-black">
+                            {toBengaliNumber(grandTotalCost.toLocaleString())}৳
+                          </p>
                         </div>
                       )}
 
-                      <div className="pt-1 mt-1 border-t border-black flex justify-between">
-                        <span className="font-black text-[11px]">সর্বমোট:</span>
-                        <span className="font-black text-[11px]">{toBengaliNumber(Number(data.grandTotal).toLocaleString())} ৳</span>
+                      {/* Center-Right: Profit (Only for Admin) */}
+                      {currentMode === "admin" && (
+                        <div className="flex flex-col items-center justify-center border-r border-black px-4 flex-1">
+                          <p className="text-[11px] font-black border-b border-black w-full text-center mb-1 pb-0.5">লাভ</p>
+                          <p className="text-[12px] font-black">{toBengaliNumber(totalProfit.toLocaleString())}৳</p>
+                        </div>
+                      )}
+
+                      {/* Right: Final Billing Summary */}
+                      <div className="pl-4 w-44 flex flex-col justify-center space-y-1 text-[11px]">
+                        <div className="flex justify-between font-bold">
+                          <span>মোট:</span>
+                          <span className="font-black">{toBengaliNumber(Number(data.subTotal).toLocaleString())} ৳</span>
+                        </div>
+
+                        <div className="flex justify-between font-bold">
+                          <span>সার্ভিস চার্জ:</span>
+                          <span className="font-black">{toBengaliNumber(Number(data.deliveryCharge || 0).toLocaleString())} ৳</span>
+                        </div>
+
+                        {Number(data.overallDiscount) > 0 && (
+                          <div className="flex justify-between font-bold">
+                            <span>ছাড়:</span>
+                            <span className="font-black">-{toBengaliNumber(Number(data.overallDiscount).toLocaleString())} ৳</span>
+                          </div>
+                        )}
+
+                        <div className="pt-1 mt-1 border-t border-black flex justify-between">
+                          <span className="font-black text-[11px]">সর্বমোট:</span>
+                          <span className="font-black text-[11px]">{toBengaliNumber(Number(data.grandTotal).toLocaleString())} ৳</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    // ১ম পাতায় ১৭টা আইটেম শেষ হলে নিচে এই লেখাটি দেখাবে
+                    <div className="text-right text-[11px] font-black italic pt-2 border-t border-black">
+                      চলমান... (পরবর্তী পৃষ্ঠায় দ্রষ্টব্য)
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer */}
                 <div className="text-center pb-2">
-                  <p className="text-[11px] font-black italic">"বাসায় বাজার" এর সাথে থাকার জন্য ধন্যবাদ।</p>
+                  {data.isLastPage ? (
+                    <p className="text-[11px] font-black italic">"বাসায় বাজার" এর সাথে থাকার জন্য ধন্যবাদ।</p>
+                  ) : (
+                    // শেষ পাতা না হলে ফুটার খালি থাকবে যাতে পেজের হাইট নষ্ট না হয়
+                    <p className="text-[11px]">&nbsp;</p>
+                  )}
                 </div>
               </div>
             );
@@ -355,7 +389,8 @@ const Pdf = () => {
       width: 100% !important;
       height: 100vh !important;
       margin: 0 !important;
-      padding: 12mm !important;
+      padding: 12mm 12mm 12mm 12mm !important;
+      padding-top: 8mm !important;
     }
   }
 `}</style>
