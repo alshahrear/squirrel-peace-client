@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FiUser, FiPhone, FiMapPin, FiCalendar, FiHash, FiRefreshCw, FiArrowRight, FiTruck } from "react-icons/fi";
@@ -7,6 +7,7 @@ import { toast } from "react-hot-toast";
 const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharge, grandTotal, totalProfit, editMode }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const dropdownRef = useRef(null);
 
   const BASE_URL = "https://squirrel-peace-server.onrender.com";
 
@@ -18,6 +19,11 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     date: "",
     invoiceNumber: "",
   });
+
+  // সাজেশনের জন্য স্টেটসমূহ
+  const [allCustomers, setAllCustomers] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const getTodayDate = () => {
     const now = new Date();
@@ -38,6 +44,41 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     return `${year}${month}${day}${hour}${min}${sec}`;
   };
 
+  // ১. API থেকে সমস্ত ডাটা এনে সবচেয়ে রিসেন্ট কাস্টমার লিস্ট তৈরি করা
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        const res = await axios.get(`${BASE_URL}/item`);
+        const allOrders = Array.isArray(res.data) ? res.data : [];
+        
+        // রিভার্স করা হলো যাতে লুপ চালালে প্রথম ম্যাচটিই সবচেয়ে রিসেন্ট (সর্বশেষ) হয়
+        const reversedOrders = [...allOrders].reverse();
+        const customerMap = new Map();
+
+        reversedOrders.forEach(order => {
+          if (order.customer && order.customer.customerName) {
+            const nameKey = order.customer.customerName.trim().toLowerCase();
+            // যদি ম্যাপে এই নাম আগে থেকে না থাকে, তবেই অ্যাড হবে (অর্থাৎ রিসেন্টটাই থাকবে)
+            if (!customerMap.has(nameKey)) {
+              customerMap.set(nameKey, {
+                customerName: order.customer.customerName,
+                phone: order.customer.phone || "",
+                address: order.customer.address || "",
+                deliveryMan: order.customer.deliveryMan || ""
+              });
+            }
+          }
+        });
+
+        setAllCustomers(Array.from(customerMap.values()));
+      } catch (error) {
+        console.error("Error fetching all items for suggestion:", error);
+      }
+    };
+    fetchAllData();
+  }, []);
+
+  // ২. এডিট মোড অথবা নরমাল মোডে কাস্টমার ডাটা লোড করা
   useEffect(() => {
     const loadCustomerData = async () => {
       if (editMode && savedItemId) {
@@ -69,9 +110,48 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     loadCustomerData();
   }, [editMode, savedItemId]);
 
+  // সাজেশনের বাইরে ক্লিক করলে ড্রপডাউন বন্ধ করার হ্যান্ডলার
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ইনপুট চেঞ্জ হ্যান্ডলার + সাজেশন ফিল্টারিং
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "customerName") {
+      if (value.trim() === "") {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      } else {
+        const filtered = allCustomers.filter(cust =>
+          cust.customerName.toLowerCase().includes(value.toLowerCase()) ||
+          cust.phone.includes(value)
+        );
+        setSuggestions(filtered);
+        setShowSuggestions(true);
+      }
+    }
+  };
+
+  // সাজেশন সিলেক্ট করার ফাংশন
+  const handleSelectSuggestion = (cust) => {
+    setFormData((prev) => ({
+      ...prev,
+      customerName: cust.customerName,
+      phone: cust.phone,
+      address: cust.address,
+      deliveryMan: cust.deliveryMan,
+    }));
+    setShowSuggestions(false);
+    toast.success("আগের কাস্টমারের তথ্য যুক্ত করা হয়েছে!");
   };
 
   const handleGenerate = () => {
@@ -140,11 +220,41 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
 
         <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-4 md:space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            <div className="space-y-2">
+            
+            {/* Customer Name Field with Suggestions */}
+            <div className="space-y-2 relative" ref={dropdownRef}>
               <label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 ml-1">
                 <FiUser className="text-emerald-500" /> Customer Name
               </label>
-              <input type="text" name="customerName" value={formData.customerName} onChange={handleChange} placeholder="নাম লিখুন" className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              <input 
+                type="text" 
+                name="customerName" 
+                value={formData.customerName} 
+                onChange={handleChange} 
+                onFocus={() => formData.customerName && setShowSuggestions(true)}
+                placeholder="নাম লিখুন" 
+                className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" 
+                required 
+                autoComplete="off"
+              />
+              
+              {/* Suggestion Dropdown Panel */}
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute z-50 w-full bg-white mt-1 rounded-2xl shadow-2xl border border-slate-100 max-h-60 overflow-y-auto divide-y divide-slate-50">
+                  {suggestions.map((cust, index) => (
+                    <li 
+                      key={index} 
+                      onClick={() => handleSelectSuggestion(cust)}
+                      className="p-3.5 hover:bg-emerald-50/60 cursor-pointer transition-colors flex flex-col gap-0.5 text-left"
+                    >
+                      <span className="font-bold text-slate-800 text-sm">{cust.customerName}</span>
+                      <span className="text-xs text-slate-500 flex items-center gap-1">
+                        📱 {cust.phone} | 📍 {cust.address.substring(0, 25)}{cust.address.length > 25 ? "..." : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="space-y-2">

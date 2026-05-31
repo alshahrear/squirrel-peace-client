@@ -269,7 +269,7 @@ const ReceiptPage = () => {
                 <FiPackage /> Products
               </button>
               <NavLink to="/customerAdmin" className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center">
-                <FiUsers /> Customers
+                <FiUsers /> Orders
               </NavLink>
             </div>
             <div className="order-1 sm:order-2">
