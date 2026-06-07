@@ -33,7 +33,7 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     return `${day}/${month}/${year}`;
   };
 
-  const generateInvoiceNumber = () => {
+ const generateInvoiceNumber = () => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -42,6 +42,14 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     const min = String(now.getMinutes()).padStart(2, "0");
     const sec = String(now.getSeconds()).padStart(2, "0");
     return `${year}${month}${day}${hour}${min}${sec}`;
+  };
+
+  // কাস্টমার ম্যাপের ফলব্যাক হ্যান্ডেল করার জন্য রিসেন্ট লিস্টেও Shadhin সেট করা
+  const getDeliveryMan = (order) => {
+    if (order && order.customer && order.customer.deliveryMan) {
+      return order.customer.deliveryMan;
+    }
+    return "Shadhin";
   };
 
   // ১. API থেকে সমস্ত ডাটা এনে সবচেয়ে রিসেন্ট কাস্টমার লিস্ট তৈরি করা
@@ -55,7 +63,7 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
         const reversedOrders = [...allOrders].reverse();
         const customerMap = new Map();
 
-        reversedOrders.forEach(order => {
+reversedOrders.forEach(order => {
           if (order.customer && order.customer.customerName) {
             const nameKey = order.customer.customerName.trim().toLowerCase();
             // যদি ম্যাপে এই নাম আগে থেকে না থাকে, তবেই অ্যাড হবে (অর্থাৎ রিসেন্টটাই থাকবে)
@@ -64,7 +72,7 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
                 customerName: order.customer.customerName,
                 phone: order.customer.phone || "",
                 address: order.customer.address || "",
-                deliveryMan: order.customer.deliveryMan || ""
+                deliveryMan: getDeliveryMan(order)
               });
             }
           }
@@ -86,12 +94,12 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
           const res = await axios.get(`${BASE_URL}/item/${savedItemId}`);
           const data = res.data;
           
-          if (data && data.customer) {
+         if (data && data.customer) {
             setFormData({
               customerName: data.customer.customerName || "",
               phone: data.customer.phone || "",
               address: data.customer.address || "",
-              deliveryMan: data.customer.deliveryMan || "",
+              deliveryMan: data.customer.deliveryMan || "Shadhin",
               date: data.customer.date || getTodayDate(),
               invoiceNumber: data.customer.invoiceNumber || "",
             });
@@ -103,6 +111,7 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
       } else {
         setFormData((prev) => ({
           ...prev,
+          deliveryMan: "Shadhin",
           date: getTodayDate(),
         }));
       }
@@ -148,10 +157,11 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
       customerName: cust.customerName,
       phone: cust.phone,
       address: cust.address,
-      deliveryMan: cust.deliveryMan,
+      // সাজেশন থেকে ডাটা নিলেও ডেলিভারি ম্যান "Shadhin" বা ইনপুটে যা আছে তাই থাকবে
+      deliveryMan: prev.deliveryMan || "Shadhin",
     }));
     setShowSuggestions(false);
-    toast.success("আগের কাস্টমারের তথ্য যুক্ত করা হয়েছে!");
+    toast.success("আগের কাস্টমারের তথ্য যুক্ত করা হয়েছে!");
   };
 
   const handleGenerate = () => {
