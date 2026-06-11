@@ -14,7 +14,8 @@ import {
   FiX,
   FiShoppingCart,
   FiPhone,
-  FiFilter
+  FiFilter,
+  FiUsers
 } from "react-icons/fi";
 
 const CustomerAdmin = () => {
@@ -183,7 +184,15 @@ const CustomerAdmin = () => {
           </div>
 
           <div className="flex flex-col md:flex-row items-center gap-4">
-
+            {/* ================= [এখানে নতুন বাটনটি বসানো হয়েছে] ================= */}
+            <NavLink
+              to="/customerData"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all shadow-sm w-full md:w-auto justify-center bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-indigo-600"
+            >
+              <FiUsers className="text-indigo-500" />
+              <span>Customer List</span>
+            </NavLink>
+            {/* ================================================================= */}
             <button
               onClick={() => setIsMonthFilterActive(!isMonthFilterActive)}
               className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all shadow-sm w-full md:w-auto justify-center ${isMonthFilterActive
@@ -375,7 +384,7 @@ const CustomerAdmin = () => {
                   <th className="px-6 py-7 text-center">ইনভয়েস নং</th>
                   <th className="px-6 py-7 text-center">তারিখ</th>
                   <th className="px-6 py-7">ডেলিভারি</th>
-                 <th className="px-6 py-7 text-right">লাভ | বিক্রয়</th>
+                  <th className="px-6 py-7 text-right">লাভ | বিক্রয়</th>
                   <th className="px-8 py-7 text-center">অ্যাকশন</th>
                 </tr>
               </thead>
@@ -419,7 +428,7 @@ const CustomerAdmin = () => {
                           </span>
                         </div>
                       </td>
-                     <td className="px-6 py-5 text-right">
+                      <td className="px-6 py-5 text-right">
                         <div className="flex flex-col">
                           <span className="font-black text-slate-900 text-lg tracking-tighter">
                             <span className="text-emerald-600">
