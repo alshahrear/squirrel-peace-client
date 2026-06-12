@@ -136,7 +136,15 @@ const CustomerData = () => {
             }
         });
 
-        return Object.values(customerMap);
+        // ৪. সেলস অনুযায়ী সাজানো, সেলস সমান হলে প্রফিট দিয়ে যাচাই
+        const sortedCustomers = Object.values(customerMap).sort((a, b) => {
+            if (b.totalSales !== a.totalSales) {
+                return b.totalSales - a.totalSales; 
+            }
+            return b.totalProfit - a.totalProfit; 
+        });
+
+        return sortedCustomers;
     }, [filteredOrders]);
 
     // ৩. সার্চ ফিল্টারিং
