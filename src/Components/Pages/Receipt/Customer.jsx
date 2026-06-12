@@ -66,7 +66,8 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
 reversedOrders.forEach(order => {
           if (order.customer && order.customer.customerName) {
             const nameKey = order.customer.customerName.trim().toLowerCase();
-            // যদি ম্যাপে এই নাম আগে থেকে না থাকে, তবেই অ্যাড হবে (অর্থাৎ রিসেন্টটাই থাকবে)
+            
+            // নতুন ডাটা বা ফোন নাম্বার থাকলে সেটি সবসময় আপডেট বা রিপ্লেস হবে
             if (!customerMap.has(nameKey)) {
               customerMap.set(nameKey, {
                 customerName: order.customer.customerName,
@@ -74,6 +75,15 @@ reversedOrders.forEach(order => {
                 address: order.customer.address || "",
                 deliveryMan: getDeliveryMan(order)
               });
+            } else {
+              // যদি নাম আগেই মিলে যায়, তাও নতুন অর্ডারে যদি সচল ফোন নাম্বার থাকে তবে সেটা আপডেট হবে
+              const existing = customerMap.get(nameKey);
+              if (order.customer.phone && order.customer.phone.trim() !== "") {
+                existing.phone = order.customer.phone;
+                existing.address = order.customer.address || existing.address;
+                existing.deliveryMan = getDeliveryMan(order) || existing.deliveryMan;
+                customerMap.set(nameKey, existing);
+              }
             }
           }
         });
