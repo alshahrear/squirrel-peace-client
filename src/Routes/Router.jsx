@@ -38,6 +38,7 @@ import CustomerAdmin from "../Components/Pages/Receipt/CustomerAdmin";
 import Pdf from "../Components/Pages/Receipt/Pdf";
 import PdfCustomer from "../Components/Pages/Receipt/PdfCustomer";
 import CustomerData from "../Components/Pages/Receipt/CustomerData";
+import ProductSales from "../Components/Pages/Receipt/ProductSales";
 
 export const router = createBrowserRouter([
   {
@@ -168,6 +169,10 @@ export const router = createBrowserRouter([
       {
         path: "/customerData",
         element: <AdminRoute><CustomerData></CustomerData></AdminRoute>
+      },
+      {
+        path: "/productSales",
+        element: <AdminRoute><ProductSales></ProductSales></AdminRoute> 
       }
     ]
   },
