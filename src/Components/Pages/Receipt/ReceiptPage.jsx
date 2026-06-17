@@ -26,7 +26,7 @@ const ReceiptPage = () => {
   const [dragIndex, setDragIndex] = useState(null);
   const [modalDragIndex, setModalDragIndex] = useState(null);
   const [showCustomer, setShowCustomer] = useState(false);
-  const [overallDiscount, setOverallDiscount] = useState(0);
+  const [overallDiscount, setOverallDiscount] = useState("0"); // স্ট্রিং হিসেবে পরিবর্তন করা হলো
   const [deliveryCharge, setDeliveryCharge] = useState(10);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -79,7 +79,7 @@ const ReceiptPage = () => {
     fetchUnits();
   }, []);
 
- // শুধুমাত্র Quantity, Price বা Discount পরিবর্তন হলে অটো-ক্যালকুলেট হবে, টাইপ করার সময় ডিস্টার্ব করবে না
+  // শুধুমাত্র Quantity, Price বা Discount পরিবর্তন হলে অটো-ক্যালকুলেট হবে, টাইপ করার সময় ডিস্টার্ব করবে না
   useEffect(() => {
     const qty = parseFloat(quantity) || 0;
     const sPrice = parseFloat(unitPrice) || 0;
@@ -109,8 +109,25 @@ const ReceiptPage = () => {
 
   const subTotal = items.reduce((sum, item) => sum + parseFloat(item.totalPrice || 0), 0);
   const totalProfit = items.reduce((sum, item) => sum + parseFloat(item.profit || 0), 0);
-  // নতুন কোড
-  const grandTotal = subTotal - (parseFloat(overallDiscount) || 0) + (parseFloat(deliveryCharge) || 0);
+
+ // ডিসকাউন্ট টেক্সট থেকে আসল টাকার অংক বের করার হেল্পার ফাংশন
+  const getDiscountValue = () => {
+    const discStr = String(overallDiscount).trim();
+    if (!discStr) return 0;
+    // যদি ব্র্যাকেট সহ অলরেডি কনভার্ট করা থাকে (যেমন: 20 (10%)), তবে শুরুর নাম্বারটুকু নিবে
+    if (discStr.includes("(")) {
+      return parseFloat(discStr.split("(")[0]) || 0;
+    }
+    // যদি ইউজার পার্সেন্টেজ লেখে (দশমিক সহ যেমন: 10.5%)
+    if (discStr.endsWith("%")) {
+      const percent = parseFloat(discStr.replace("%", "")) || 0;
+      return Math.round((subTotal * percent) / 100);
+    }
+    return parseFloat(discStr) || 0;
+  }; 
+
+  const discountAmount = getDiscountValue();
+  const grandTotal = subTotal - discountAmount + (parseFloat(deliveryCharge) || 0);
 
   const handleAddItem = () => {
     if (!selectedProduct || !quantity || !unitPrice) {
@@ -118,7 +135,7 @@ const ReceiptPage = () => {
       return;
     }
 
-   const newItem = {
+    const newItem = {
       id: editingId || Date.now(),
       product: selectedProduct,
       shop: shop,
@@ -127,7 +144,7 @@ const ReceiptPage = () => {
       quantity: parseFloat(quantity) || 0,
       unit: selectedUnit,
       discount: parseFloat(itemDiscount) || 0,
-      totalPrice: Math.round(totalPrice), 
+      totalPrice: Math.round(totalPrice),
       profit: Math.round(profit),
       showQty: showQtyInTable
     };
@@ -158,18 +175,18 @@ const ReceiptPage = () => {
           shop: item.shop,
           costPrice: item.costPrice,
           unitPrice: item.unitPrice,
-          quantity: item.quantity, // এখন এটি ০ বা নাল হবে না
+          quantity: item.quantity,
           unit: item.unit,
           discount: item.discount,
           totalPrice: item.totalPrice,
           profit: item.profit,
-          showQty: item.showQty // ডাটাবেসে ট্রু/ফলস যাবে
+          showQty: item.showQty
         })),
         subTotal,
-        overallDiscount,
+        overallDiscount, // ইউজার যেভাবে ইনপুট দিয়েছে (যেমন: 20 (10%)) ঠিক সেভাবেই ডেটাবেজে যাবে
         deliveryCharge,
         grandTotal,
-        totalProfit: totalProfit - (parseFloat(overallDiscount) || 0)
+        totalProfit: totalProfit - discountAmount // সঠিক ডিসকাউন্ট মাইনাস হবে
       };
 
       if (editIdFromAdmin) {
@@ -346,23 +363,23 @@ const ReceiptPage = () => {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-blue-600 ml-1 text-center block">Profit</label>
-                <input 
-                  type="number" 
-                  value={profit} 
-                  onChange={(e) => setProfit(parseFloat(e.target.value) || 0)} 
-                  className={`w-full bg-white ring-1 ring-blue-200 p-2.5 rounded-xl text-center font-black text-sm min-h-[42px] outline-none ${profit >= 0 ? "text-blue-600" : "text-rose-500"}`} 
-                  placeholder="0" 
+                <input
+                  type="number"
+                  value={profit}
+                  onChange={(e) => setProfit(parseFloat(e.target.value) || 0)}
+                  className={`w-full bg-white ring-1 ring-blue-200 p-2.5 rounded-xl text-center font-black text-sm min-h-[42px] outline-none ${profit >= 0 ? "text-blue-600" : "text-rose-500"}`}
+                  placeholder="0"
                 />
               </div>
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-emerald-600 ml-1 text-center block">Total</label>
-                <input 
-                  type="number" 
-                  value={totalPrice} 
-                  onChange={(e) => setTotalPrice(parseFloat(e.target.value) || 0)} 
-                  className="w-full bg-white ring-1 ring-emerald-200 p-2.5 rounded-xl text-center font-black text-slate-900 text-sm min-h-[42px] outline-none" 
-                  placeholder="0" 
+                <input
+                  type="number"
+                  value={totalPrice}
+                  onChange={(e) => setTotalPrice(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-white ring-1 ring-emerald-200 p-2.5 rounded-xl text-center font-black text-slate-900 text-sm min-h-[42px] outline-none"
+                  placeholder="0"
                 />
               </div>
 
@@ -436,9 +453,52 @@ const ReceiptPage = () => {
               <div className="w-full md:w-1/2 space-y-4 bg-white p-6 rounded-2xl border border-emerald-100 shadow-xl order-1 md:order-2">
                 <div className="flex justify-between text-slate-500 font-medium text-sm"><span>Sub-Total</span><span className="text-slate-900 font-bold">{subTotal} ৳</span></div>
                 <div className="flex justify-between text-blue-500 font-medium text-sm"><span>Total Profit</span><span className="font-bold">{totalProfit} ৳</span></div>
-                <div className="flex justify-between items-center text-slate-500 text-sm">
+<div className="flex justify-between items-center text-slate-500 text-sm">
                   <span className="font-medium">Overall Discount (-)</span>
-                  <input type="number" value={overallDiscount} onChange={(e) => setOverallDiscount(e.target.value)} className="w-20 sm:w-24 bg-emerald-50 text-right p-2 rounded-xl font-bold outline-none border border-emerald-100" />
+                  <input 
+                    type="text" 
+                    value={overallDiscount} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setOverallDiscount(val);
+                    }} 
+                    onBlur={() => {
+                      const val = String(overallDiscount).trim();
+                      if (!val || val === "0") return;
+
+                      // কেস ১: ইউজার যদি সরাসরি শুধু পার্সেন্টেজ লেখে (যেমন: 10% বা 10.5%)
+                      if (val.endsWith("%") && !val.includes("(")) {
+                        const percent = parseFloat(val.replace("%", "")) || 0;
+                        const amt = Math.round((subTotal * percent) / 100);
+                        setOverallDiscount(`${amt} (${percent}%)`);
+                      } 
+                      // কেস ২: ইউজার যদি অলরেডি জেনারেট হওয়া ফরম্যাটের (যেমন: 20 (10%)) টাকা পরিবর্তন করে
+                      else if (val.includes("(")) {
+                        const parts = val.split("(");
+                        const newAmt = parseFloat(parts[0].trim()) || 0;
+                        
+                        if (subTotal > 0) {
+                          // নতুন টাকার ওপর ভিত্তি করে নতুন পার্সেন্টেজ বের করা (দশমিকের পর সর্বোচ্চ ২ ঘর রাখা হলো)
+                          const calculatedPercent = parseFloat(((newAmt / subTotal) * 100).toFixed(2));
+                          setOverallDiscount(`${newAmt} (${calculatedPercent}%)`);
+                        } else {
+                          setOverallDiscount(`${newAmt} (0%)`);
+                        }
+                      }
+                      // কেস ৩: ইউজার যদি ব্র্যাকেট ছাড়া শুধু নরমাল সংখ্যা লিখে চলে যায়
+                      else {
+                        const amt = parseFloat(val) || 0;
+                        if (subTotal > 0) {
+                          const calculatedPercent = parseFloat(((amt / subTotal) * 100).toFixed(2));
+                          setOverallDiscount(`${amt} (${calculatedPercent}%)`);
+                        } else {
+                          setOverallDiscount(`${amt} (0%)`);
+                        }
+                      }
+                    }}
+                    placeholder="0"
+                    className="w-32 sm:w-36 bg-emerald-50 text-right p-2 rounded-xl font-bold outline-none border border-emerald-100 text-sm" 
+                  />
                 </div>
                 <div className="flex justify-between items-center text-teal-600 text-sm">
                   <span className="font-medium">Delivery Charge (+)</span>
@@ -461,8 +521,8 @@ const ReceiptPage = () => {
               subTotal={subTotal}
               overallDiscount={overallDiscount}
               deliveryCharge={deliveryCharge}
-              grandTotal={grandTotal}
-              totalProfit={totalProfit - (parseFloat(overallDiscount) || 0)}
+            grandTotal={grandTotal}
+              totalProfit={totalProfit - discountAmount}
               editMode={!!editIdFromAdmin}
             />
           </div>

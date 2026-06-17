@@ -179,13 +179,25 @@ reversedOrders.forEach(order => {
     toast.success("নতুন ইনভয়েস আইডি জেনারেট হয়েছে!");
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.invoiceNumber) return toast.error("অনুগ্রহ করে ইনভয়েস আইডি দিন!");
     if (!savedItemId) return toast.error("আইটেম আইডি পাওয়া যায়নি!");
 
     setLoading(true);
     try {
+      // ১. আইটেমগুলোর ভেতর থেকে প্রফিট যোগ করার ডাইনামিক লজিক
+      const totalItemsProfit = items.reduce((sum, item) => sum + (parseFloat(item.profit) || 0), 0);
+
+      // ২. overallDiscount (যেমন: "112 (5.46%)") থেকে শুধু আসল ছাড়ের টাকা আলাদা করার লজিক
+      const discStr = String(overallDiscount || "").trim();
+      const cleanDiscount = discStr.includes("(") 
+        ? parseFloat(discStr.split("(")[0]) 
+        : parseFloat(discStr);
+
+      // ৩. নেট প্রফিট = আইটেমগুলোর মোট লাভ - ওভারঅল ডিসকাউন্ট
+      const netProfit = totalItemsProfit - (cleanDiscount || 0);
+
       const finalData = {
         customer: { ...formData }, 
         items: items.map(item => ({
@@ -202,10 +214,10 @@ reversedOrders.forEach(order => {
             showQty: item.showQty
         })),
         subTotal: parseFloat(subTotal),
-        overallDiscount: parseFloat(overallDiscount) || 0,
+        overallDiscount: overallDiscount, 
         deliveryCharge: parseFloat(deliveryCharge) || 0,
         grandTotal: parseFloat(grandTotal),
-        totalProfit: parseFloat(totalProfit)
+        totalProfit: netProfit // এখন এখানে সবসময় ১০০% সঠিক লাভ সেভ হবে
       };
 
       await axios.put(`${BASE_URL}/item/${savedItemId}`, finalData);
@@ -220,11 +232,15 @@ reversedOrders.forEach(order => {
       });
 
     } catch (err) {
+      console.error(err);
       toast.error("সেভ করতে সমস্যা হয়েছে!");
     } finally {
       setLoading(false);
     }
   };
+
+
+
 
   return (
     <div className="flex items-center justify-center p-2 md:p-4 pb-24">

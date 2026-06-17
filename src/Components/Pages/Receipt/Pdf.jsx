@@ -54,8 +54,11 @@ const Pdf = () => {
       }
     });
 
-    const baseProfit = filteredItems.reduce((sum, item) => sum + Number(item.profit || 0), 0) + Number(inv.deliveryCharge || 0);
-    const globalTotalProfit = baseProfit - Number(inv.overallDiscount || 0);
+   const baseProfit = filteredItems.reduce((sum, item) => sum + Number(item.profit || 0), 0) + Number(inv.deliveryCharge || 0);
+    
+    // overallDiscount যদি স্ট্রিং হয় (যেমন: "100 (10%)"), তবে শুধু সামনের সংখ্যাটি নেওয়ার জন্য parseFloat করা হলো
+    const discountValue = typeof inv.overallDiscount === "string" ? parseFloat(inv.overallDiscount) : Number(inv.overallDiscount || 0);
+    const globalTotalProfit = baseProfit - discountValue;
     // ------------------------------------------------------------------------
 
     // প্রতি পেজে ১৭টি করে আইটেম ভাগ করা
@@ -319,12 +322,29 @@ const Pdf = () => {
                           <span className="font-black">{toBengaliNumber(Number(data.deliveryCharge || 0).toLocaleString())} ৳</span>
                         </div>
 
-                        {Number(data.overallDiscount) > 0 && (
-                          <div className="flex justify-between font-bold">
-                            <span>ছাড়:</span>
-                            <span className="font-black">-{toBengaliNumber(Number(data.overallDiscount).toLocaleString())} ৳</span>
-                          </div>
-                        )}
+                      {(() => {
+                          const discountStr = data.overallDiscount ? data.overallDiscount.toString().trim() : "";
+                          if (!discountStr || discountStr === "0") return null;
+
+                          let displayAmount = discountStr;
+                          let percentageLabel = "";
+
+                          // যদি ডাটাবেজে "100 (10%)" এই ফরম্যাটে থাকে
+                          if (discountStr.includes("(")) {
+                            const match = discountStr.match(/^([^(]+)\(([^)]+)\)/);
+                            if (match) {
+                              displayAmount = match[1].trim(); // ব্র্যাকেটের বাইরের অংশ (যেমন: 100)
+                              percentageLabel = `(${match[2].trim()})`; // ব্র্যাকেটের ভেতরের অংশ (যেমন: (10%))
+                            }
+                          }
+
+                          return (
+                            <div className="flex justify-between font-bold">
+                              <span>ছাড় {percentageLabel ? toBengaliNumber(percentageLabel) : ""}:</span>
+                              <span className="font-black">-{toBengaliNumber(Number(displayAmount).toLocaleString())} ৳</span>
+                            </div>
+                          );
+                        })()}
 
                         <div className="pt-1 mt-1 border-t border-black flex justify-between">
                           <span className="font-black text-[11px]">সর্বমোট:</span>
