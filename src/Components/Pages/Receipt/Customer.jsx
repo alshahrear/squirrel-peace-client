@@ -44,12 +44,12 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     return `${year}${month}${day}${hour}${min}${sec}`;
   };
 
-  // কাস্টমার ম্যাপের ফলব্যাক হ্যান্ডেল করার জন্য রিসেন্ট লিস্টেও Shadhin সেট করা
+  // কাস্টমার ম্যাপের ফলব্যাক হ্যান্ডেল করার জন্য রিসেন্ট লিস্টেও Abdur Rafi সেট করা
   const getDeliveryMan = (order) => {
     if (order && order.customer && order.customer.deliveryMan) {
       return order.customer.deliveryMan;
     }
-    return "Shadhin";
+    return "Abdur Rafi";
   };
 
   // ১. API থেকে সমস্ত ডাটা এনে সবচেয়ে রিসেন্ট কাস্টমার লিস্ট তৈরি করা
@@ -109,7 +109,7 @@ reversedOrders.forEach(order => {
               customerName: data.customer.customerName || "",
               phone: data.customer.phone || "",
               address: data.customer.address || "",
-              deliveryMan: data.customer.deliveryMan || "Shadhin",
+              deliveryMan: data.customer.deliveryMan || "Abdur Rafi",
               date: data.customer.date || getTodayDate(),
               invoiceNumber: data.customer.invoiceNumber || "",
             });
@@ -121,7 +121,7 @@ reversedOrders.forEach(order => {
       } else {
         setFormData((prev) => ({
           ...prev,
-          deliveryMan: "Shadhin",
+          deliveryMan: "Abdur Rafi",
           date: getTodayDate(),
         }));
       }
@@ -167,8 +167,8 @@ reversedOrders.forEach(order => {
       customerName: cust.customerName,
       phone: cust.phone,
       address: cust.address,
-      // সাজেশন থেকে ডাটা নিলেও ডেলিভারি ম্যান "Shadhin" বা ইনপুটে যা আছে তাই থাকবে
-      deliveryMan: prev.deliveryMan || "Shadhin",
+      // সাজেশন থেকে ডাটা নিলেও ডেলিভারি ম্যান "Abdur Rafi" বা ইনপুটে যা আছে তাই থাকবে
+      deliveryMan: prev.deliveryMan || "Abdur Rafi",
     }));
     setShowSuggestions(false);
     toast.success("আগের কাস্টমারের তথ্য যুক্ত করা হয়েছে!");
