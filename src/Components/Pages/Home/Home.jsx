@@ -10,7 +10,7 @@ const Home = () => {
         <div>
             <Helmet>
                 {/* Basic Meta Tags */}
-                <title>Home - Squirrel Peace| Positive Stories, Life Lessons & Inspiration</title>
+                <title>Home - Bashay Bazar</title>
                 <meta 
                     name="description" 
                     content="Discover inspiring stories, life lessons, and positivity with Squirrel Peace. Your daily dose of motivation, happiness, and hope for a better tomorrow."
@@ -19,21 +19,21 @@ const Home = () => {
                     name="keywords" 
                     content="positive stories, life lessons, inspiration, motivation, squirrel peace"
                 />
-                <link rel="canonical" href="https://squirrelpeace.com/" />
+                <link rel="canonical" href="https://bashaybazar.com/" />
                 <meta name="robots" content="index, follow" />
 
                 {/* Open Graph / Facebook */}
                 <meta property="og:title" content="Squirrel Peace - Positive Stories, Life Lessons & Inspiration" />
                 <meta property="og:description" content="Discover inspiring stories, life lessons, and positivity with Squirrel Peace. Your daily dose of motivation, happiness, and hope for a better tomorrow." />
-                <meta property="og:image" content="https://squirrelpeace.com/images/home-cover.jpg" />
-                <meta property="og:url" content="https://squirrelpeace.com/" />
+                <meta property="og:image" content="https://bashaybazar.com/images/home-cover.jpg" />
+                <meta property="og:url" content="https://bashaybazar.com/" />
                 <meta property="og:type" content="website" />
 
                 {/* Twitter Card */}
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content="Squirrel Peace - Positive Stories, Life Lessons & Inspiration" />
                 <meta name="twitter:description" content="Discover inspiring stories, life lessons, and positivity with Squirrel Peace. Your daily dose of motivation, happiness, and hope for a better tomorrow." />
-                <meta name="twitter:image" content="https://squirrelpeace.com/images/home-cover.jpg" />
+                <meta name="twitter:image" content="https://bashaybazar.com/images/home-cover.jpg" />
             </Helmet>
 
             <Banner />

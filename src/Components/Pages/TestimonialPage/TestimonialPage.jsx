@@ -55,21 +55,21 @@ const TestimonialPage = () => {
                     name="keywords"
                     content="success stories, life improvement, happy life, achievements, Squirrel Peace, real-life stories"
                 />
-                <link rel="canonical" href="https://squirrelpeace.com/success" />
+                <link rel="canonical" href="https://bashaybazar.com/success" />
                 <meta name="robots" content="index, follow" />
 
                 {/* Open Graph / Facebook */}
                 <meta property="og:title" content="Success Stories - Squirrel Peace | Real-Life Achievements" />
                 <meta property="og:description" content="Discover real success stories from our community at Squirrel Peace. Learn how people improved their lives, found happiness, and achieved meaningful transformation through our guidance." />
-                <meta property="og:image" content="https://squirrelpeace.com/images/success-banner.jpg" />
-                <meta property="og:url" content="https://squirrelpeace.com/success" />
+                <meta property="og:image" content="https://bashaybazar.com/images/success-banner.jpg" />
+                <meta property="og:url" content="https://bashaybazar.com/success" />
                 <meta property="og:type" content="website" />
 
                 {/* Twitter Card */}
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content="Success Stories - Squirrel Peace | Real-Life Achievements" />
                 <meta name="twitter:description" content="Discover real success stories from our community at Squirrel Peace. Learn how people improved their lives, found happiness, and achieved meaningful transformation through our guidance." />
-                <meta name="twitter:image" content="https://squirrelpeace.com/images/success-banner.jpg" />
+                <meta name="twitter:image" content="https://bashaybazar.com/images/success-banner.jpg" />
             </Helmet>
 
             {/* ✅ One Responsive Banner for All Devices */}

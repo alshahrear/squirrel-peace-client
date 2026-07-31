@@ -17,7 +17,7 @@ const BlogPages = () => {
                     name="keywords"
                     content="happy life tips, health tips, wellness blog, positivity, lifestyle, motivation, squirrel peace blog"
                 />
-                <link rel="canonical" href="https://squirrelpeace.com/blog" />
+                <link rel="canonical" href="https://bashaybazar.com/blog" />
                 <meta name="robots" content="index, follow" />
 
                 {/* Open Graph / Facebook */}
@@ -26,8 +26,8 @@ const BlogPages = () => {
                     property="og:description"
                     content="Discover practical life tips, health advice, and positivity blogs at Squirrel Peace. Stay inspired and live a balanced lifestyle."
                 />
-                <meta property="og:image" content="https://squirrelpeace.com/images/blog-cover.jpg" />
-                <meta property="og:url" content="https://squirrelpeace.com/blog" />
+                <meta property="og:image" content="https://bashaybazar.com/images/blog-cover.jpg" />
+                <meta property="og:url" content="https://bashaybazar.com/blog" />
                 <meta property="og:type" content="website" />
 
                 {/* Twitter Card */}
@@ -37,7 +37,7 @@ const BlogPages = () => {
                     name="twitter:description"
                     content="Read wellness, happiness, and health tips on Squirrel Peace Blog. Start your journey towards a peaceful and positive life."
                 />
-                <meta name="twitter:image" content="https://squirrelpeace.com/images/blog-cover.jpg" />
+                <meta name="twitter:image" content="https://bashaybazar.com/images/blog-cover.jpg" />
             </Helmet>
             <div
                 className="relative w-full h-[350px] sm:h-[320px] md:h-[380px] lg:h-[480px] bg-cover bg-center flex items-center justify-center"

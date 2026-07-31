@@ -145,14 +145,16 @@ const CustomerAdmin = () => {
     if (selectedData.length > 0) navigate("/pdf", { state: { bulkData: selectedData } });
   };
 
+
   const handleDelete = (id) => {
     Swal.fire({
       title: "ডিলিট করবেন?",
+      text: "এই ইনভয়েসটি আর ফিরে পাওয়া যাবে না!",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#6366f1",
+      confirmButtonColor: "#ef4444",
       cancelButtonColor: "#94a3b8",
-      confirmButtonText: "হ্যাঁ",
+      confirmButtonText: "হ্যাঁ, ডিলিট করুন",
       cancelButtonText: "না"
     }).then(async (result) => {
       if (result.isConfirmed) {
@@ -166,6 +168,34 @@ const CustomerAdmin = () => {
       }
     });
   };
+
+  // মাল্টিপল ডিলিট করার ফাংশন
+  const handleBulkDelete = () => {
+    Swal.fire({
+      title: `${selectedIds.length} টি ইনভয়েস ডিলিট করবেন?`,
+      text: "নির্বাচিত সব ইনভয়েস চিরতরে মুছে যাবে!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#94a3b8",
+      confirmButtonText: "হ্যাঁ, সব ডিলিট করুন",
+      cancelButtonText: "বাতিল"
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axios.delete("https://squirrel-peace-server.onrender.com/items/delete-multiple", {
+            data: { ids: selectedIds }
+          });
+          Toast.fire({ icon: "success", title: "সফলভাবে মুছে ফেলা হয়েছে" });
+          setSelectedIds([]); // সিলেক্ট ক্লিয়ার করা হলো
+          fetchItems(); // ডাটা রিফ্রেশ করা হলো
+        } catch (error) {
+          Toast.fire({ icon: "error", title: "ডিলিট করতে সমস্যা হয়েছে" });
+        }
+      }
+    });
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50 p-3 md:p-8 font-sans text-slate-900">
@@ -350,15 +380,24 @@ const CustomerAdmin = () => {
         </div>
 
         {/* Selected Counter */}
+       
         {selectedIds.length > 0 && (
           <div className="mb-6 flex items-center justify-between bg-indigo-600 p-5 rounded-3xl shadow-xl animate-bounce-short">
             <span className="text-white font-black text-sm md:text-base">নির্বাচিত ইনভয়েস: {selectedIds.length} টি</span>
-            <button onClick={handlePrintSelected} className="bg-white text-indigo-700 px-6 py-2 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all flex items-center gap-2">
-              <FiPrinter /> প্রিন্ট করুন
-            </button>
+            
+            <div className="flex items-center gap-3">
+              <button onClick={handlePrintSelected} className="bg-white text-indigo-700 px-5 py-2 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all flex items-center gap-2">
+                <FiPrinter /> প্রিন্ট করুন
+              </button>
+              
+              {/* নতুন ডিলিট বাটন */}
+              <button onClick={handleBulkDelete} className="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-2xl font-black text-sm transition-all flex items-center gap-2 shadow-md active:scale-95">
+                <FiTrash2 /> ডিলিট করুন
+              </button>
+            </div>
           </div>
         )}
-
+        
         {/* সার্চ বক্স - টেবিলের ঠিক উপরে */}
         <div className="mb-4 relative w-full">
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400" />

@@ -95,21 +95,21 @@ const Contact = () => {
           name="keywords"
           content="contact, squirrel peace contact, get in touch, support, collaboration, newsletter, inquiries"
         />
-        <link rel="canonical" href="https://squirrelpeace.com/contact" />
+        <link rel="canonical" href="https://bashaybazar.com/contact" />
         <meta name="robots" content="index, follow" />
 
         {/* Open Graph / Facebook */}
         <meta property="og:title" content="Contact - Squirrel Peace | Get in Touch with Us" />
         <meta property="og:description" content="Have questions, need support, or want to collaborate? Contact Squirrel Peace and connect with our team. We're here to listen and respond with care." />
-        <meta property="og:image" content="https://squirrelpeace.com/images/contact-cover.jpg" />
-        <meta property="og:url" content="https://squirrelpeace.com/contact" />
+        <meta property="og:image" content="https://bashaybazar.com/images/contact-cover.jpg" />
+        <meta property="og:url" content="https://bashaybazar.com/contact" />
         <meta property="og:type" content="website" />
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Contact - Squirrel Peace | Get in Touch with Us" />
         <meta name="twitter:description" content="Have questions, need support, or want to collaborate? Contact Squirrel Peace and connect with our team. We're here to listen and respond with care." />
-        <meta name="twitter:image" content="https://squirrelpeace.com/images/contact-cover.jpg" />
+        <meta name="twitter:image" content="https://bashaybazar.com/images/contact-cover.jpg" />
       </Helmet>
 
 

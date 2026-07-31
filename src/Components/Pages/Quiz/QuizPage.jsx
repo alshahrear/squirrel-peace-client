@@ -38,7 +38,7 @@ const QuizPage = () => {
           name="keywords"
           content="quiz, online quiz, test knowledge, fun quiz, squirrel peace quiz, challenge mind, learning"
         />
-        <link rel="canonical" href="https://squirrelpeace.com/quiz" />
+        <link rel="canonical" href="https://bashaybazar.com/quiz" />
       </Helmet>
 
       {/* Banner */}

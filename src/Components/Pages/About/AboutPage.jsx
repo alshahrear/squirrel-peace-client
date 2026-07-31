@@ -20,21 +20,21 @@ const AboutPage = () => {
                     name="keywords"
                     content="about squirrel peace, our story, mission, vision, positivity, community"
                 />
-                <link rel="canonical" href="https://squirrelpeace.com/about" />
+                <link rel="canonical" href="https://bashaybazar.com/about" />
                 <meta name="robots" content="index, follow" />
 
                 {/* Open Graph / Facebook */}
                 <meta property="og:title" content="About Us - Squirrel Peace | Our Story, Mission & Vision" />
                 <meta property="og:description" content="Learn about Squirrel Peace - our story, mission, vision, and how we inspire joy, positivity, and community connection every day." />
-                <meta property="og:image" content="https://squirrelpeace.com/images/about-cover.jpg" />
-                <meta property="og:url" content="https://squirrelpeace.com/about" />
+                <meta property="og:image" content="https://bashaybazar.com/images/about-cover.jpg" />
+                <meta property="og:url" content="https://bashaybazar.com/about" />
                 <meta property="og:type" content="website" />
 
                 {/* Twitter Card */}
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content="About Us - Squirrel Peace | Our Story, Mission & Vision" />
                 <meta name="twitter:description" content="Learn about Squirrel Peace - our story, mission, vision, and how we inspire joy, positivity, and community connection every day." />
-                <meta name="twitter:image" content="https://squirrelpeace.com/images/about-cover.jpg" />
+                <meta name="twitter:image" content="https://bashaybazar.com/images/about-cover.jpg" />
             </Helmet>
 
             <div>

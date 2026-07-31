@@ -100,21 +100,21 @@ const NewsletterPage = () => {
           name="keywords"
           content="newsletter, daily inspiration, positive newsletter, squirrel peace newsletter, life tips, motivation, happiness"
         />
-        <link rel="canonical" href="https://squirrelpeace.com/newsletter" />
+        <link rel="canonical" href="https://bashaybazar.com/newsletter" />
         <meta name="robots" content="index, follow" />
 
         {/* Open Graph / Facebook */}
         <meta property="og:title" content="Newsletter - Squirrel Peace | Daily Positivity & Inspiration" />
         <meta property="og:description" content="Join 1000+ readers who receive our free daily newsletter filled with positivity, inspiring stories, and life-enriching ideas from Squirrel Peace." />
-        <meta property="og:image" content="https://squirrelpeace.com/images/newsletter-cover.jpg" />
-        <meta property="og:url" content="https://squirrelpeace.com/newsletter" />
+        <meta property="og:image" content="https://bashaybazar.com/images/newsletter-cover.jpg" />
+        <meta property="og:url" content="https://bashaybazar.com/newsletter" />
         <meta property="og:type" content="website" />
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Newsletter - Squirrel Peace | Daily Positivity & Inspiration" />
         <meta name="twitter:description" content="Join 1000+ readers who receive our free daily newsletter filled with positivity, inspiring stories, and life-enriching ideas from Squirrel Peace." />
-        <meta name="twitter:image" content="https://squirrelpeace.com/images/newsletter-cover.jpg" />
+        <meta name="twitter:image" content="https://bashaybazar.com/images/newsletter-cover.jpg" />
       </Helmet>
 
 
