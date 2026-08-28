@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa6";
 import { TbPhoneCalling } from "react-icons/tb";
@@ -8,13 +8,27 @@ import useAxiosPublic from "../../../hooks/useAxiosPublic";
 import { Helmet } from "react-helmet";
 
 const Register = () => {
+    const navigate = useNavigate();
+
+    // সিকিউরিটি চেক: শুধু /login পেজ থেকে না আসলে হোম পেজে পাঠিয়ে দিবে
+    useEffect(() => {
+        const allowedAccess = sessionStorage.getItem("allow_register");
+        if (!allowedAccess) {
+            navigate("/", { replace: true });
+        } else {
+            const timer = setTimeout(() => {
+                sessionStorage.removeItem("allow_register");
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [navigate]);
+
     const axiosPublic = useAxiosPublic();
     const [showPassword, setShowPassword] = useState(false);
     const [password, setPassword] = useState("");
     const [showErrors, setShowErrors] = useState(false);
     const { createUser } = useAuth();
-    const location = useLocation();
-    const navigate = useNavigate();
+    
 
     const handleRegister = e => {
         e.preventDefault();
@@ -108,13 +122,12 @@ const Register = () => {
                 <h2 className="text-4xl font-semibold">
                     <span className="text-[#2acb35]">Join Us</span> Today
                 </h2>
-                <p className="text-lg ">
-                    Create your free account today and unlock a world of personalized features just for you. Join our community to stay updated, manage your preferences, and enjoy seamless access to all our services. Getting started is quick and easy — let's begin your journey with us!
-                </p>
+               
                 <p className="text-lg">
-                   Already have an account?{" "}
+                    Already have an account?{" "}
                     <Link
                         to="/login"
+                        onClick={() => sessionStorage.setItem("allow_login", "true")}
                         className="text-[#2acb35] underline hover:text-[#1a9d29]"
                     >
                         Log in here
@@ -195,7 +208,11 @@ const Register = () => {
                         </button>
                         <p className="text-center text-lg font-medium mt-4 text-gray-700">
                             Already have an account?{' '}
-                            <Link to="/login" className="text-[#2acb35] hover:underline hover:text-[#60c300] font-semibold">
+                           <Link 
+                                to="/login" 
+                                onClick={() => sessionStorage.setItem("allow_login", "true")}
+                                className="text-[#2acb35] hover:underline hover:text-[#60c300] font-semibold"
+                            >
                                 Login Now
                             </Link>
                         </p>

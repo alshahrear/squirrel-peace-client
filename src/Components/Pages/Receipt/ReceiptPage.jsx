@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { FiEdit3, FiTrash2, FiPlusCircle, FiChevronRight, FiPackage, FiLayers, FiSearch, FiChevronDown, FiUsers } from "react-icons/fi";
-import ReceiptEdit from "./ReceiptEdit";
+import { FiEdit3, FiTrash2, FiChevronRight, FiPackage, FiLayers, FiSearch, FiChevronDown, FiUsers } from "react-icons/fi";
 import Customer from "./Customer";
 import { toast } from "react-hot-toast";
 import { NavLink, useLocation } from "react-router-dom";
+import { BsShop } from "react-icons/bs";
+
 
 const ReceiptPage = () => {
   const [products, setProducts] = useState([]);
@@ -15,20 +16,21 @@ const ReceiptPage = () => {
   const [unitPrice, setUnitPrice] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [shop, setShop] = useState("");
-  const [itemDiscount, setItemDiscount] = useState(0);
+
+  const [itemDiscount, setItemDiscount] = useState("0");
   const [totalPrice, setTotalPrice] = useState(0);
   const [profit, setProfit] = useState(0);
 
   const [items, setItems] = useState([]);
   const [editingId, setEditingId] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState("product");
+
   const [dragIndex, setDragIndex] = useState(null);
-  const [modalDragIndex, setModalDragIndex] = useState(null);
+
   const [showCustomer, setShowCustomer] = useState(false);
   const [overallDiscount, setOverallDiscount] = useState("0"); // স্ট্রিং হিসেবে পরিবর্তন করা হলো
-  const [deliveryCharge, setDeliveryCharge] = useState(10);
+  const [deliveryCharge, setDeliveryCharge] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
 
   const [showQtyInTable, setShowQtyInTable] = useState(true);
   const [savedItemId, setSavedItemId] = useState(null);
@@ -37,7 +39,7 @@ const ReceiptPage = () => {
   const location = useLocation();
   const editIdFromAdmin = location.state?.editId;
 
-  const BASE_URL = "https://squirrel-peace-server.onrender.com";
+  const BASE_URL = "http://localhost:5000";
 
   const fetchProducts = async () => {
     try {
@@ -79,12 +81,30 @@ const ReceiptPage = () => {
     fetchUnits();
   }, []);
 
-  // শুধুমাত্র Quantity, Price বা Discount পরিবর্তন হলে অটো-ক্যালকুলেট হবে, টাইপ করার সময় ডিস্টার্ব করবে না
+  // ডিসকাউন্ট ফিল্ডে "80 (5%)" বা "5%" যাই থাকুক, শুধু টাকার পরিমাণটি বের করার হেল্পার
+  const getItemDiscountValue = () => {
+    const discStr = String(itemDiscount).trim();
+    if (!discStr || discStr === "0") return 0;
+    if (discStr.includes("(")) {
+      return parseFloat(discStr.split("(")[0]) || 0;
+    }
+    const qty = parseFloat(quantity) || 0;
+    const sPrice = parseFloat(unitPrice) || 0;
+    const itemSubTotal = qty * sPrice;
+
+    if (discStr.endsWith("%")) {
+      const percent = parseFloat(discStr.replace("%", "")) || 0;
+      return Math.round((itemSubTotal * percent) / 100);
+    }
+    return parseFloat(discStr) || 0;
+  };
+
+  // অটো-ক্যালকুলেট লজিক
   useEffect(() => {
     const qty = parseFloat(quantity) || 0;
     const sPrice = parseFloat(unitPrice) || 0;
     const cPrice = parseFloat(costPrice) || 0;
-    const disc = parseFloat(itemDiscount) || 0;
+    const disc = getItemDiscountValue();
 
     const calculatedTotal = cPrice === 0 ? 0 : (qty * sPrice) - disc;
     const calculatedProfit = ((sPrice - cPrice) * qty) - disc;
@@ -110,7 +130,7 @@ const ReceiptPage = () => {
   const subTotal = items.reduce((sum, item) => sum + parseFloat(item.totalPrice || 0), 0);
   const totalProfit = items.reduce((sum, item) => sum + parseFloat(item.profit || 0), 0);
 
- // ডিসকাউন্ট টেক্সট থেকে আসল টাকার অংক বের করার হেল্পার ফাংশন
+  // ডিসকাউন্ট টেক্সট থেকে আসল টাকার অংক বের করার হেল্পার ফাংশন
   const getDiscountValue = () => {
     const discStr = String(overallDiscount).trim();
     if (!discStr) return 0;
@@ -124,7 +144,7 @@ const ReceiptPage = () => {
       return Math.round((subTotal * percent) / 100);
     }
     return parseFloat(discStr) || 0;
-  }; 
+  };
 
   const discountAmount = getDiscountValue();
   const grandTotal = subTotal - discountAmount + (parseFloat(deliveryCharge) || 0);
@@ -135,6 +155,35 @@ const ReceiptPage = () => {
       return;
     }
 
+
+
+    // ডিসকাউন্ট টাকা ও পার্সেন্টেজ "80 (5%)" ফরম্যাটে তৈরি করার লজিক
+    const qtyVal = parseFloat(quantity) || 0;
+    const uPriceVal = parseFloat(unitPrice) || 0;
+    const itemSubTotal = qtyVal * uPriceVal;
+    let finalFormattedDiscount = "0";
+
+    const discStr = String(itemDiscount).trim();
+    if (discStr && discStr !== "0") {
+      let amt = 0;
+      let pct = 0;
+
+      if (discStr.endsWith("%") && !discStr.includes("(")) {
+        pct = parseFloat(discStr.replace("%", "")) || 0;
+        amt = Math.round((itemSubTotal * pct) / 100);
+      } else if (discStr.includes("(")) {
+        amt = parseFloat(discStr.split("(")[0].trim()) || 0;
+        pct = itemSubTotal > 0 ? parseFloat(((amt / itemSubTotal) * 100).toFixed(2)) : 0;
+      } else {
+        amt = parseFloat(discStr) || 0;
+        pct = itemSubTotal > 0 ? parseFloat(((amt / itemSubTotal) * 100).toFixed(2)) : 0;
+      }
+
+      if (amt > 0) {
+        finalFormattedDiscount = `${amt} (${pct}%)`;
+      }
+    }
+
     const newItem = {
       id: editingId || Date.now(),
       product: selectedProduct,
@@ -143,11 +192,12 @@ const ReceiptPage = () => {
       unitPrice: parseFloat(unitPrice) || 0,
       quantity: parseFloat(quantity) || 0,
       unit: selectedUnit,
-      discount: parseFloat(itemDiscount) || 0,
+      discount: finalFormattedDiscount, // এখন ডাটাবেজে "80 (5%)" বা "10 (5%)" ফরম্যাটে সেভ হবে
       totalPrice: Math.round(totalPrice),
       profit: Math.round(profit),
       showQty: showQtyInTable
     };
+
 
     if (editingId) {
       setItems(items.map((item) => (item.id === editingId ? newItem : item)));
@@ -157,7 +207,7 @@ const ReceiptPage = () => {
       setItems([...items, newItem]);
       toast.success("যোগ করা হয়েছে");
     }
-    setSelectedProduct(""); setQuantity(""); setUnitPrice(""); setCostPrice(""); setShop(""); setItemDiscount(0); setSelectedUnit("");
+    setSelectedProduct(""); setQuantity(""); setUnitPrice(""); setCostPrice(""); setShop(""); setItemDiscount("0"); setSelectedUnit("");
   };
 
 
@@ -220,8 +270,8 @@ const ReceiptPage = () => {
     setUnitPrice(item.unitPrice);
     setQuantity(item.quantity);
     setSelectedUnit(item.unit);
-    setItemDiscount(item.discount);
-    // এডিট মুডে টিক চিহ্ন সঠিক অবস্থায় সেট করা
+    setItemDiscount(item.discount !== undefined ? String(item.discount) : "0");
+    // এডিট মুডে টিক চিহ্ন সঠিক অবস্থায় সেট করা
     setShowQtyInTable(item.showQty !== undefined ? item.showQty : true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -242,21 +292,7 @@ const ReceiptPage = () => {
     setDragIndex(null);
   };
 
-  const handleModalDragStart = (index) => setModalDragIndex(index);
-  const handleModalDrop = async (index) => {
-    let list = modalType === "product" ? [...products] : [...units];
-    const draggedItem = list[modalDragIndex];
-    list.splice(modalDragIndex, 1);
-    list.splice(index, 0, draggedItem);
-    if (modalType === "product") {
-      setProducts(list);
-      await axios.put(`${BASE_URL}/products/reorder`, list);
-    } else {
-      setUnits(list);
-      await axios.put(`${BASE_URL}/unit/reorder`, list);
-    }
-    setModalDragIndex(null);
-  };
+
 
   const filteredProducts = [...products]
     .reverse()
@@ -282,19 +318,43 @@ const ReceiptPage = () => {
 
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 sm:p-8 text-white flex flex-col sm:flex-row justify-between items-center gap-4 text-center">
             <div className="order-2 sm:order-1 flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <button onClick={() => { setModalType("product"); setShowModal(true); }} className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center">
+
+              <NavLink
+                to="/products"
+                className={({ isActive }) =>
+                  `bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center ${isActive ? 'bg-white/40' : ''
+                  }`
+                }
+              >
                 <FiPackage /> Products
-              </button>
+              </NavLink>
               <NavLink to="/customerAdmin" className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 justify-center">
                 <FiUsers /> Orders
+              </NavLink>
+              {/* shop button feature */}
+              <NavLink
+                to="/shop"
+                className={({ isActive }) =>
+                  `order-3 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 w-full sm:w-auto justify-center ${isActive ? 'bg-white/40' : ''
+                  }`
+                }
+              >
+                <BsShop /> Shop
               </NavLink>
             </div>
             <div className="order-1 sm:order-2">
               <h1 className="text-xl sm:text-3xl font-black tracking-tight uppercase">Billing Receipt</h1>
             </div>
-            <button onClick={() => { setModalType("unit"); setShowModal(true); }} className="order-3 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 w-full sm:w-auto justify-center">
+            <NavLink
+              to="/units"
+
+              className={({ isActive }) =>
+                `order-3 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm border border-white/30 w-full sm:w-auto justify-center ${isActive ? 'bg-white/40' : ''
+                }`
+              }
+            >
               <FiLayers /> Units
-            </button>
+            </NavLink>
           </div>
 
           <div className="p-4 sm:p-8">
@@ -332,18 +392,78 @@ const ReceiptPage = () => {
                 <input type="text" value={shop} onChange={(e) => setShop(e.target.value)} className="w-full ring-1 ring-emerald-200 p-2.5 rounded-xl outline-none font-semibold text-sm bg-white" placeholder="Shop" />
               </div>
 
-              <div className="sm:col-span-2 space-y-1">
+              <div className="sm:col-span-2 space-y-1 relative">
                 <div className="flex items-center gap-2 ml-1">
                   <label className="text-[10px] font-bold uppercase text-emerald-700">Qty & Unit</label>
                   <input type="checkbox" checked={showQtyInTable} onChange={(e) => setShowQtyInTable(e.target.checked)} className="w-3.5 h-3.5 accent-emerald-600 cursor-pointer" />
                 </div>
-                <div className="flex ring-1 ring-emerald-200 rounded-xl overflow-hidden bg-white">
-                  <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="p-2.5 w-1/2 outline-none text-center border-r border-emerald-50 font-bold text-sm" placeholder="Qty" />
-                  <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)} className="p-2.5 w-1/2 outline-none bg-transparent text-[10px] font-semibold">
-                    <option value="">Unit</option>
-                    {units.map((u) => <option key={u._id} value={u.name}>{u.name}</option>)}
-                  </select>
+                <div className="flex ring-1 ring-emerald-200 rounded-xl overflow-hidden bg-white relative">
+                  <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="p-2.5 w-1/2 outline-none text-center border-r-1 border-emerald-200 font-bold text-sm" placeholder="Qty" />
+
+                  {/* টাইপ করা ও সিলেক্ট করার সুযোগ সহ Unit Search Box */}
+                  <div className="w-1/2 relative flex items-center">
+                    <input
+                      type="text"
+                      value={selectedUnit}
+                      onChange={(e) => {
+                        setSelectedUnit(e.target.value);
+                        setShowUnitSuggestions(true);
+                      }}
+                      onFocus={() => setShowUnitSuggestions(true)}
+                      placeholder="Unit"
+                      className="p-2.5 pr-7 w-full outline-none bg-transparent text-[11px] font-semibold text-center"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUnitSuggestions(!showUnitSuggestions)}
+                      className="absolute right-2 text-emerald-500 hover:text-emerald-700"
+                    >
+                      <FiChevronDown size={14} />
+                    </button>
+                  </div>
                 </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                {/* ড্রপডাউন সার্চ সাজেশনের ফিল্টার্ড লিস্ট */}
+                {showUnitSuggestions && (
+                  <>
+                    <div className="absolute z-50 right-0 w-1/2 mt-1 bg-white border border-emerald-100 rounded-xl shadow-2xl max-h-48 overflow-y-auto">
+                      {units
+                        .filter((u) => u.name.toLowerCase().includes((selectedUnit || "").toLowerCase()))
+                        .map((u, index) => (
+                          <div
+                            key={u._id || index}
+                            onClick={() => {
+                              setSelectedUnit(u.name);
+                              setShowUnitSuggestions(false);
+                            }}
+                            className="p-2.5 cursor-pointer hover:bg-emerald-600 hover:text-white flex justify-between items-center border-b border-emerald-50 last:border-0 text-xs font-semibold text-slate-700"
+                          >
+                            <span>{u.name}</span>
+                          </div>
+                        ))}
+                      {units.filter((u) => u.name.toLowerCase().includes((selectedUnit || "").toLowerCase())).length === 0 && (
+                        <div className="p-2.5 text-xs text-slate-400 text-center font-medium">কোনো ইউনিট পাওয়া যায়নি</div>
+                      )}
+                    </div>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowUnitSuggestions(false)}></div>
+                  </>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -358,7 +478,49 @@ const ReceiptPage = () => {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase ml-1">Discount</label>
-                <input type="number" value={itemDiscount} onChange={(e) => setItemDiscount(e.target.value)} className="w-full ring-1 ring-emerald-200 p-2.5 rounded-xl outline-none font-bol text-sm" placeholder="0" />
+                <input
+                  type="text"
+                  value={itemDiscount}
+                  onChange={(e) => setItemDiscount(e.target.value)}
+                  onBlur={() => {
+                    const val = String(itemDiscount).trim();
+                    if (!val || val === "0") return;
+
+                    const qty = parseFloat(quantity) || 0;
+                    const sPrice = parseFloat(unitPrice) || 0;
+                    const itemSubTotal = qty * sPrice;
+
+                    // কেস ১: ইউজার যদি শুধু পার্সেন্টেজ লেখে (যেমন: 5%)
+                    if (val.endsWith("%") && !val.includes("(")) {
+                      const percent = parseFloat(val.replace("%", "")) || 0;
+                      const amt = Math.round((itemSubTotal * percent) / 100);
+                      setItemDiscount(`${amt} (${percent}%)`);
+                    }
+                    // কেস ২: ব্র্যাকেট সহ টাকার মান পরিবর্তন করলে
+                    else if (val.includes("(")) {
+                      const parts = val.split("(");
+                      const newAmt = parseFloat(parts[0].trim()) || 0;
+                      if (itemSubTotal > 0) {
+                        const calculatedPercent = parseFloat(((newAmt / itemSubTotal) * 100).toFixed(2));
+                        setItemDiscount(`${newAmt} (${calculatedPercent}%)`);
+                      } else {
+                        setItemDiscount(`${newAmt} (0%)`);
+                      }
+                    }
+                    // কেস ৩: ইউজার যদি শুধু সংখ্যা লেখে (যেমন: 2)
+                    else {
+                      const amt = parseFloat(val) || 0;
+                      if (itemSubTotal > 0) {
+                        const calculatedPercent = parseFloat(((amt / itemSubTotal) * 100).toFixed(2));
+                        setItemDiscount(`${amt} (${calculatedPercent}%)`);
+                      } else {
+                        setItemDiscount(`${amt} (0%)`);
+                      }
+                    }
+                  }}
+                  className="w-full ring-1 ring-emerald-200 p-2.5 rounded-xl outline-none font-bold text-sm bg-white"
+                  placeholder="0"
+                />
               </div>
 
               <div className="space-y-1">
@@ -406,8 +568,25 @@ const ReceiptPage = () => {
                 </thead>
                 <tbody className="divide-y divide-emerald-50">
                   {items.map((item, index) => (
-                    <tr key={item.id} className="group cursor-move hover:bg-emerald-50/50 transition-colors text-sm">
-                      <td className="p-3 text-center text-slate-400 text-[10px] w-12">{index + 1}</td>
+                    <tr
+                      key={item.id}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => handleRowDrop(index)}
+                      className={`group hover:bg-emerald-50/50 transition-colors text-sm ${dragIndex === index ? "opacity-40 bg-emerald-100" : ""
+                        }`}
+                    >
+                      {/* শুধুমাত্র সিরিয়াল নম্বর কলাম থেকেই ড্র্যাগ করা যাবে */}
+                      <td
+                        draggable
+                        onDragStart={() => handleRowDragStart(index)}
+                        className="p-3 text-center text-slate-600 font-bold text-[11px] w-12 cursor-grab active:cursor-grabbing select-none hover:bg-emerald-100/70 transition-all rounded-lg"
+                        title="সিরিয়াল ধরে ড্র্যাগ করুন"
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-slate-300 font-bold text-xs select-none">⋮⋮</span>
+                          <span>{index + 1}</span>
+                        </div>
+                      </td>
                       <td className="p-3 font-bold text-slate-700 min-w-[180px]">{item.product}</td>
                       <td className="p-3 text-center w-24">
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase">{item.shop}</span>
@@ -453,15 +632,15 @@ const ReceiptPage = () => {
               <div className="w-full md:w-1/2 space-y-4 bg-white p-6 rounded-2xl border border-emerald-100 shadow-xl order-1 md:order-2">
                 <div className="flex justify-between text-slate-500 font-medium text-sm"><span>Sub-Total</span><span className="text-slate-900 font-bold">{subTotal} ৳</span></div>
                 <div className="flex justify-between text-blue-500 font-medium text-sm"><span>Total Profit</span><span className="font-bold">{totalProfit} ৳</span></div>
-<div className="flex justify-between items-center text-slate-500 text-sm">
+                <div className="flex justify-between items-center text-slate-500 text-sm">
                   <span className="font-medium">Overall Discount (-)</span>
-                  <input 
-                    type="text" 
-                    value={overallDiscount} 
+                  <input
+                    type="text"
+                    value={overallDiscount}
                     onChange={(e) => {
                       const val = e.target.value;
                       setOverallDiscount(val);
-                    }} 
+                    }}
                     onBlur={() => {
                       const val = String(overallDiscount).trim();
                       if (!val || val === "0") return;
@@ -471,12 +650,12 @@ const ReceiptPage = () => {
                         const percent = parseFloat(val.replace("%", "")) || 0;
                         const amt = Math.round((subTotal * percent) / 100);
                         setOverallDiscount(`${amt} (${percent}%)`);
-                      } 
+                      }
                       // কেস ২: ইউজার যদি অলরেডি জেনারেট হওয়া ফরম্যাটের (যেমন: 20 (10%)) টাকা পরিবর্তন করে
                       else if (val.includes("(")) {
                         const parts = val.split("(");
                         const newAmt = parseFloat(parts[0].trim()) || 0;
-                        
+
                         if (subTotal > 0) {
                           // নতুন টাকার ওপর ভিত্তি করে নতুন পার্সেন্টেজ বের করা (দশমিকের পর সর্বোচ্চ ২ ঘর রাখা হলো)
                           const calculatedPercent = parseFloat(((newAmt / subTotal) * 100).toFixed(2));
@@ -497,7 +676,7 @@ const ReceiptPage = () => {
                       }
                     }}
                     placeholder="0"
-                    className="w-32 sm:w-36 bg-emerald-50 text-right p-2 rounded-xl font-bold outline-none border border-emerald-100 text-sm" 
+                    className="w-32 sm:w-36 bg-emerald-50 text-right p-2 rounded-xl font-bold outline-none border border-emerald-100 text-sm"
                   />
                 </div>
                 <div className="flex justify-between items-center text-teal-600 text-sm">
@@ -521,21 +700,13 @@ const ReceiptPage = () => {
               subTotal={subTotal}
               overallDiscount={overallDiscount}
               deliveryCharge={deliveryCharge}
-            grandTotal={grandTotal}
+              grandTotal={grandTotal}
               totalProfit={totalProfit - discountAmount}
               editMode={!!editIdFromAdmin}
             />
           </div>
         )}
       </div>
-
-      {showModal && (
-        <ReceiptEdit
-          modalType={modalType} setShowModal={setShowModal} products={products} units={units}
-          fetchProducts={fetchProducts} fetchUnits={fetchUnits}
-          handleDragStart={handleModalDragStart} handleDragOver={(e) => e.preventDefault()} handleDrop={handleModalDrop}
-        />
-      )}
     </div>
   );
 };

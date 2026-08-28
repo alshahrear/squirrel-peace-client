@@ -53,7 +53,7 @@ const Users = () => {
     }).then(callback);
   };
 
-  const handleMakeAdmin = (user) => {
+ const handleMakeAdmin = (user) => {
     renderPasswordInput(async (result) => {
       if (result.isConfirmed && result.value === ADMIN_PASSWORD) {
         const confirm = await Swal.fire({
@@ -74,6 +74,42 @@ const Users = () => {
                 position: "top-end",
                 icon: "success",
                 title: `${user.name} is now an Admin!`,
+                showConfirmButton: false,
+                timer: 1500
+              });
+            }
+          });
+        }
+      } else if (result.isConfirmed) {
+        Swal.fire('Incorrect Password', 'You entered the wrong password.', 'error');
+      }
+    });
+  };
+  
+
+
+
+  const handleRemoveAdmin = (user) => {
+    renderPasswordInput(async (result) => {
+      if (result.isConfirmed && result.value === ADMIN_PASSWORD) {
+        const confirm = await Swal.fire({
+          title: `Are you sure?`,
+          text: `You are about to remove admin role from ${user.name}.`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, remove admin'
+        });
+
+        if (confirm.isConfirmed) {
+          axiosSecure.patch(`/users/remove-admin/${user._id}`).then(res => {
+            if (res.data.modifiedCount > 0) {
+              refetch();
+              Swal.fire({
+                position: "top-end",
+                icon: "success",
+                title: `${user.name} is no longer an Admin!`,
                 showConfirmButton: false,
                 timer: 1500
               });
@@ -147,9 +183,7 @@ const Users = () => {
         <h1 className="text-2xl sm:text-3xl font-bold">
           Welcome <i className="text-[#2acb35]">{user?.displayName || "Admin"}</i> To The Users Administration Panel
         </h1>
-        <p className="max-w-5xl mx-auto">
-          Here you can view all registered users on our website, including those with admin roles. From this panel, you can manage user records and delete users as needed. Please note that deleting a user here only removes them from this list—it does not delete their data from the entire website. Handle user management carefully to maintain platform integrity.
-        </p>
+        
       </div>
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-5 gap-2">
@@ -166,6 +200,7 @@ const Users = () => {
               <th className="py-3 px-2 sm:px-4">Name</th>
               <th className="py-3 px-2 sm:px-4">Email</th>
               <th className="py-3 px-2 sm:px-4">Role</th>
+              <th className="py-3 px-2 sm:px-4">Shift</th>
               <th className="py-3 px-2 sm:px-4 text-center">Action</th>
             </tr>
           </thead>
@@ -181,15 +216,30 @@ const Users = () => {
                 <td className="py-3 px-2 sm:px-4 text-gray-700 break-words" data-label="Email">
                   {user.email}
                 </td>
-                <td className="py-3 px-2 sm:px-4" data-label="Role">
-                  {user.role === 'admin' ? 'Admin' : (
+              <td className="py-3 px-2 sm:px-4" data-label="Role">
+                  {user.role === 'admin' ? (
+                    <button
+                      onClick={() => handleRemoveAdmin(user)}
+                      className="btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-xs sm:text-sm font-semibold"
+                    >
+                      Remove Admin
+                    </button>
+                  ) : (
                     <button
                       onClick={() => handleMakeAdmin(user)}
-                      className="btn bg-orange-500 text-white px-2 py-1 rounded-lg"
+                      className="btn bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs sm:text-sm font-semibold"
                     >
-                      <FaUsers className="text-xl" />
+                      Make Admin
                     </button>
                   )}
+                </td>
+                <td className="py-3 px-2 sm:px-4" data-label="Shift">
+                  <button
+                    onClick={() => console.log('Shift action for', user.name)}
+                    className="btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs sm:text-sm font-semibold"
+                  >
+                    Shift
+                  </button>
                 </td>
                 <td className="py-3 px-2 sm:px-4 text-center" data-label="Action">
                   <button

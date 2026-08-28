@@ -7,7 +7,7 @@ const CustomerData = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     // তারিখ ও মাস ফিল্টারের স্টেটসমূহ
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
@@ -20,7 +20,7 @@ const CustomerData = () => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('https://squirrel-peace-server.onrender.com/item');
+                const response = await fetch('http://localhost:5000/item');
                 if (!response.ok) {
                     throw new Error('ডেটা লোড করতে ব্যর্থ হয়েছে!');
                 }
@@ -53,7 +53,7 @@ const CustomerData = () => {
             let matchesMonth = true;
             if (isMonthFilterActive) {
                 matchesMonth = orderDate.getMonth() === today.getMonth() &&
-                               orderDate.getFullYear() === today.getFullYear();
+                    orderDate.getFullYear() === today.getFullYear();
             }
 
             // ডেট রেঞ্জ ফিল্টার লজিক
@@ -76,7 +76,14 @@ const CustomerData = () => {
             const name = order.customer.customerName ? order.customer.customerName.trim() : 'অজানা কাস্টমার';
             const address = order.customer.address || 'ঠিকানা দেওয়া নেই';
             const sales = order.grandTotal || 0;
-            const overallDiscount = order.overallDiscount || 0;
+            // স্ট্রিং থেকে প্রথম সংখ্যাটি বের করে নেওয়ার জন্য (যেমন "6 (0.9%)" থেকে 6 আলাদা করা)
+            const parseDiscount = (disc) => {
+                if (typeof disc === 'number') return disc;
+                if (!disc) return 0;
+                const match = String(disc).match(/[\d.]+/);
+                return match ? parseFloat(match[0]) : 0;
+            };
+            const overallDiscount = parseDiscount(order.overallDiscount);
 
             let itemsProfit = 0;
             const currentOrderShops = {};
@@ -84,13 +91,13 @@ const CustomerData = () => {
             if (Array.isArray(order.items)) {
                 order.items.forEach(item => {
                     const shopName = (item.shop || '').trim();
-                    
+
                     // শুধুমাত্র Capital Letter শপগুলো কাউন্ট হবে (যেমন: N, F)
                     if (shopName && shopName === shopName.toUpperCase() && shopName !== shopName.toLowerCase()) {
-                        
-                        const itemCost = (Number(item.costPrice) || 0) * (Number(item.quantity) || 0); 
-                        const itemSales = Number(item.totalPrice) || 0;                         
-                        const itemProfit = Number(item.profit) || 0;                           
+
+                        const itemCost = (Number(item.costPrice) || 0) * (Number(item.quantity) || 0);
+                        const itemSales = Number(item.totalPrice) || 0;
+                        const itemProfit = Number(item.profit) || 0;
 
                         itemsProfit += itemProfit;
 
@@ -110,7 +117,7 @@ const CustomerData = () => {
                 customerMap[phoneKey].totalSales += sales;
                 customerMap[phoneKey].totalProfit += calculatedOrderProfit;
                 customerMap[phoneKey].orderCount += 1;
-                
+
                 if (address && !customerMap[phoneKey].addresses.includes(address)) {
                     customerMap[phoneKey].addresses.push(address);
                 }
@@ -139,9 +146,9 @@ const CustomerData = () => {
         // ৪. সেলস অনুযায়ী সাজানো, সেলস সমান হলে প্রফিট দিয়ে যাচাই
         const sortedCustomers = Object.values(customerMap).sort((a, b) => {
             if (b.totalSales !== a.totalSales) {
-                return b.totalSales - a.totalSales; 
+                return b.totalSales - a.totalSales;
             }
-            return b.totalProfit - a.totalProfit; 
+            return b.totalProfit - a.totalProfit;
         });
 
         return sortedCustomers;
@@ -213,7 +220,7 @@ const CustomerData = () => {
 
                     {/* বাটন ও ফিল্টার কন্টেইনার */}
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-                        
+
                         {/* নতুন রিকোয়েস্ট করা Order List বাটন */}
                         <Link
                             to="/customerAdmin"
@@ -328,12 +335,12 @@ const CustomerData = () => {
                             <tbody className="divide-y divide-slate-100">
                                 {filteredCustomers.length > 0 ? (
                                     filteredCustomers.map((customer, index) => {
-                                        const totalProfitPercentage = customer.totalSales > 0 
-                                            ? (customer.totalProfit / customer.totalSales) * 100 
+                                        const totalProfitPercentage = customer.totalSales > 0
+                                            ? (customer.totalProfit / customer.totalSales) * 100
                                             : 0;
-                                        
-                                        const displayTotalPercentage = totalProfitPercentage % 1 === 0 
-                                            ? totalProfitPercentage 
+
+                                        const displayTotalPercentage = totalProfitPercentage % 1 === 0
+                                            ? totalProfitPercentage
                                             : totalProfitPercentage.toFixed(2);
 
                                         return (
@@ -379,14 +386,14 @@ const CustomerData = () => {
                                                     <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
                                                         {Object.keys(customer.shops).length > 0 ? (
                                                             Object.entries(customer.shops).map(([shopName, data]) => {
-                                                                const rawPercentage = data.sales > 0 
-                                                                    ? (data.profit / data.sales) * 100 
+                                                                const rawPercentage = data.sales > 0
+                                                                    ? (data.profit / data.sales) * 100
                                                                     : 0;
-                                                                
-                                                                const displayPercentage = rawPercentage % 1 === 0 
-                                                                    ? rawPercentage 
+
+                                                                const displayPercentage = rawPercentage % 1 === 0
+                                                                    ? rawPercentage
                                                                     : rawPercentage.toFixed(2);
-                                                                
+
                                                                 return (
                                                                     <div key={shopName} className="flex flex-col gap-0.5 bg-slate-100 border border-slate-200/80 px-2.5 py-1.5 rounded-xl w-full shadow-2xs">
                                                                         <div className="flex items-center justify-between border-b border-slate-200 pb-0.5 mb-0.5">
@@ -398,7 +405,7 @@ const CustomerData = () => {
                                                                                 {displayPercentage}% Profit
                                                                             </span>
                                                                         </div>
-                                                                        
+
                                                                         <div className="flex items-center justify-between text-[11px] sm:text-xs font-bold text-slate-700">
                                                                             <span>ক্রয়: <span className="text-slate-900 font-black">{formatDecimal(data.cost)}৳</span></span>
                                                                             <span className="text-slate-300">|</span>
@@ -429,7 +436,7 @@ const CustomerData = () => {
                                                             <span className="opacity-30 font-normal">|</span>
                                                             <span className="font-extrabold">{customer.totalProfit.toLocaleString()} ৳</span>
                                                         </span>
-                                                        
+
                                                         <span className="bg-slate-200/90 text-slate-800 border border-slate-300 px-1.5 py-0.5 rounded-lg text-[11px] font-black shrink-0 shadow-2xs">
                                                             {displayTotalPercentage}%
                                                         </span>

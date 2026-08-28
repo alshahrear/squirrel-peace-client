@@ -1,20 +1,23 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FiUser, FiPhone, FiMapPin, FiCalendar, FiHash, FiRefreshCw, FiArrowRight, FiTruck } from "react-icons/fi";
+import { FiUser, FiPhone, FiMapPin, FiCalendar, FiHash, FiRefreshCw, FiArrowRight, FiTruck, } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import Swal from "sweetalert2";
+
 
 const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharge, grandTotal, totalProfit, editMode }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
 
-  const BASE_URL = "https://squirrel-peace-server.onrender.com";
+  const BASE_URL = "http://localhost:5000";
 
   const [formData, setFormData] = useState({
     customerName: "",
     phone: "",
     address: "",
+    deliveryRoute: "",
     deliveryMan: "",
     date: "",
     invoiceNumber: "",
@@ -25,6 +28,27 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+ 
+
+ const [routes, setRoutes] = useState([]);
+
+
+  const fetchRoutes = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/route`);
+      if (Array.isArray(res.data)) {
+        setRoutes(res.data);
+        const activeRoute = res.data.find((r) => r.isActive);
+        if (activeRoute && !editMode) {
+          setFormData((prev) => ({ ...prev, deliveryRoute: prev.deliveryRoute || activeRoute.name }));
+        }
+      }
+    } catch (error) { console.error(error); }
+  };
+
+
+ 
+
   const getTodayDate = () => {
     const now = new Date();
     const day = String(now.getDate()).padStart(2, "0");
@@ -33,7 +57,7 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     return `${day}/${month}/${year}`;
   };
 
- const generateInvoiceNumber = () => {
+  const generateInvoiceNumber = () => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -52,38 +76,32 @@ const Customer = ({ savedItemId, items, subTotal, overallDiscount, deliveryCharg
     return "Abdur Rafi";
   };
 
-  // ১. API থেকে সমস্ত ডাটা এনে সবচেয়ে রিসেন্ট কাস্টমার লিস্ট তৈরি করা
+  // ১. API থেকে সমস্ত ডাটা এনে সবচেয়ে রিসেন্ট কাস্টমার লিস্ট তৈরি করা
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         const res = await axios.get(`${BASE_URL}/item`);
         const allOrders = Array.isArray(res.data) ? res.data : [];
-        
-        // রিভার্স করা হলো যাতে লুপ চালালে প্রথম ম্যাচটিই সবচেয়ে রিসেন্ট (সর্বশেষ) হয়
+
+        // রিভার্স করা হলো যাতে লুপ চালালে প্রথম ম্যাচটিই সবচেয়ে রিসেন্ট (সর্বশেষ) হয়
         const reversedOrders = [...allOrders].reverse();
         const customerMap = new Map();
 
-reversedOrders.forEach(order => {
+        reversedOrders.forEach(order => {
           if (order.customer && order.customer.customerName) {
             const nameKey = order.customer.customerName.trim().toLowerCase();
-            
-            // নতুন ডাটা বা ফোন নাম্বার থাকলে সেটি সবসময় আপডেট বা রিপ্লেস হবে
-            if (!customerMap.has(nameKey)) {
-              customerMap.set(nameKey, {
+            const phoneKey = (order.customer.phone || "").trim();
+            // নাম এবং ফোন নম্বর মিলিয়ে ইউনিক কি তৈরি করা হলো, যাতে একই নামের আলাদা কাস্টমার আলাদা থাকে
+            const uniqueKey = `${nameKey}_${phoneKey}`;
+
+            if (!customerMap.has(uniqueKey)) {
+              customerMap.set(uniqueKey, {
                 customerName: order.customer.customerName,
                 phone: order.customer.phone || "",
                 address: order.customer.address || "",
+                deliveryRoute: order.customer.deliveryRoute || "",
                 deliveryMan: getDeliveryMan(order)
               });
-            } else {
-              // যদি নাম আগেই মিলে যায়, তাও নতুন অর্ডারে যদি সচল ফোন নাম্বার থাকে তবে সেটা আপডেট হবে
-              const existing = customerMap.get(nameKey);
-              if (order.customer.phone && order.customer.phone.trim() !== "") {
-                existing.phone = order.customer.phone;
-                existing.address = order.customer.address || existing.address;
-                existing.deliveryMan = getDeliveryMan(order) || existing.deliveryMan;
-                customerMap.set(nameKey, existing);
-              }
             }
           }
         });
@@ -93,23 +111,27 @@ reversedOrders.forEach(order => {
         console.error("Error fetching all items for suggestion:", error);
       }
     };
-    fetchAllData();
+   fetchAllData();
+    fetchRoutes(); // রুটগুলোর ডেটা ফেচ করার জন্য এটি যুক্ত করা হলো
   }, []);
 
-  // ২. এডিট মোড অথবা নরমাল মোডে কাস্টমার ডাটা লোড করা
+
+
+ // ২. এডিট মোড অথবা নরমাল মোডে কাস্টমার ডাটা লোড করা
   useEffect(() => {
     const loadCustomerData = async () => {
       if (editMode && savedItemId) {
         try {
           const res = await axios.get(`${BASE_URL}/item/${savedItemId}`);
           const data = res.data;
-          
-         if (data && data.customer) {
+
+          if (data && data.customer) {
             setFormData({
               customerName: data.customer.customerName || "",
               phone: data.customer.phone || "",
               address: data.customer.address || "",
-              deliveryMan: data.customer.deliveryMan || "Abdur Rafi",
+              deliveryRoute: data.customer.deliveryRoute || "",
+              deliveryMan: data.customer.deliveryMan || "",
               date: data.customer.date || getTodayDate(),
               invoiceNumber: data.customer.invoiceNumber || "",
             });
@@ -121,7 +143,6 @@ reversedOrders.forEach(order => {
       } else {
         setFormData((prev) => ({
           ...prev,
-          deliveryMan: "Abdur Rafi",
           date: getTodayDate(),
         }));
       }
@@ -140,7 +161,7 @@ reversedOrders.forEach(order => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ইনপুট চেঞ্জ হ্যান্ডলার + সাজেশন ফিল্টারিং
+ // ইনপুট চেঞ্জ হ্যান্ডলার + সাজেশন ফিল্টারিং
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -150,36 +171,53 @@ reversedOrders.forEach(order => {
         setSuggestions([]);
         setShowSuggestions(false);
       } else {
-        const filtered = allCustomers.filter(cust =>
-          cust.customerName.toLowerCase().includes(value.toLowerCase()) ||
-          cust.phone.includes(value)
-        );
+        // বর্তমানে কোন রুটটি Active আছে তা খুঁজে বের করুন
+        const activeRoute = routes.find((r) => r.isActive);
+
+        const filtered = allCustomers.filter((cust) => {
+          const matchesNameOrPhone =
+            cust.customerName.toLowerCase().includes(value.toLowerCase()) ||
+            cust.phone.includes(value);
+
+          // যদি রুট Active থাকে, তবে শুধু ঐ রুটের কাস্টমার দেখাবে
+          if (activeRoute) {
+            return matchesNameOrPhone && cust.deliveryRoute === activeRoute.name;
+          }
+          
+          // রুট Active না থাকলে স্বাভাবিকভাবে সব দেখাবে
+          return matchesNameOrPhone;
+        });
+
         setSuggestions(filtered);
         setShowSuggestions(true);
       }
     }
   };
 
-  // সাজেশন সিলেক্ট করার ফাংশন
+
+ // সাজেশন সিলেক্ট করার ফাংশন
   const handleSelectSuggestion = (cust) => {
+    const activeRoute = routes.find((r) => r.isActive);
+
     setFormData((prev) => ({
       ...prev,
       customerName: cust.customerName,
       phone: cust.phone,
       address: cust.address,
-      // সাজেশন থেকে ডাটা নিলেও ডেলিভারি ম্যান "Abdur Rafi" বা ইনপুটে যা আছে তাই থাকবে
-      deliveryMan: prev.deliveryMan || "Abdur Rafi",
+      deliveryRoute: activeRoute ? activeRoute.name : (cust.deliveryRoute || ""),
+      deliveryMan: cust.deliveryMan || prev.deliveryMan,
     }));
     setShowSuggestions(false);
     toast.success("আগের কাস্টমারের তথ্য যুক্ত করা হয়েছে!");
   };
+
 
   const handleGenerate = () => {
     setFormData((prev) => ({ ...prev, invoiceNumber: generateInvoiceNumber() }));
     toast.success("নতুন ইনভয়েস আইডি জেনারেট হয়েছে!");
   };
 
- const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.invoiceNumber) return toast.error("অনুগ্রহ করে ইনভয়েস আইডি দিন!");
     if (!savedItemId) return toast.error("আইটেম আইডি পাওয়া যায়নি!");
@@ -191,44 +229,44 @@ reversedOrders.forEach(order => {
 
       // ২. overallDiscount (যেমন: "112 (5.46%)") থেকে শুধু আসল ছাড়ের টাকা আলাদা করার লজিক
       const discStr = String(overallDiscount || "").trim();
-      const cleanDiscount = discStr.includes("(") 
-        ? parseFloat(discStr.split("(")[0]) 
+      const cleanDiscount = discStr.includes("(")
+        ? parseFloat(discStr.split("(")[0])
         : parseFloat(discStr);
 
       // ৩. নেট প্রফিট = আইটেমগুলোর মোট লাভ - ওভারঅল ডিসকাউন্ট
       const netProfit = totalItemsProfit - (cleanDiscount || 0);
 
       const finalData = {
-        customer: { ...formData }, 
+        customer: { ...formData },
         items: items.map(item => ({
-            id: item.id,
-            product: item.product,
-            shop: item.shop,
-            costPrice: parseFloat(item.costPrice) || 0,
-            unitPrice: parseFloat(item.unitPrice) || 0,
-            quantity: parseFloat(item.quantity) || 0,
-            unit: item.unit,
-            discount: parseFloat(item.discount) || 0,
-            totalPrice: parseFloat(item.totalPrice) || 0,
-            profit: parseFloat(item.profit) || 0,
-            showQty: item.showQty
+          id: item.id,
+          product: item.product,
+          shop: item.shop,
+          costPrice: parseFloat(item.costPrice) || 0,
+          unitPrice: parseFloat(item.unitPrice) || 0,
+          quantity: parseFloat(item.quantity) || 0,
+          unit: item.unit,
+          discount: parseFloat(item.discount) || 0,
+          totalPrice: parseFloat(item.totalPrice) || 0,
+          profit: parseFloat(item.profit) || 0,
+          showQty: item.showQty
         })),
         subTotal: parseFloat(subTotal),
-        overallDiscount: overallDiscount, 
+        overallDiscount: overallDiscount,
         deliveryCharge: parseFloat(deliveryCharge) || 0,
         grandTotal: parseFloat(grandTotal),
         totalProfit: netProfit // এখন এখানে সবসময় ১০০% সঠিক লাভ সেভ হবে
       };
 
       await axios.put(`${BASE_URL}/item/${savedItemId}`, finalData);
-      
+
       toast.success("সফলভাবে আপডেট করা হয়েছে!");
-      
-      navigate("/pdf", { 
-        state: { 
+
+      navigate("/pdf", {
+        state: {
           ...finalData,
-          _id: savedItemId 
-        } 
+          _id: savedItemId
+        }
       });
 
     } catch (err) {
@@ -238,8 +276,6 @@ reversedOrders.forEach(order => {
       setLoading(false);
     }
   };
-
-
 
 
   return (
@@ -256,36 +292,37 @@ reversedOrders.forEach(order => {
 
         <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-4 md:space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            
+
             {/* Customer Name Field with Suggestions */}
             <div className="space-y-2 relative" ref={dropdownRef}>
               <label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 ml-1">
                 <FiUser className="text-emerald-500" /> Customer Name
               </label>
-              <input 
-                type="text" 
-                name="customerName" 
-                value={formData.customerName} 
-                onChange={handleChange} 
+              <input
+                type="text"
+                name="customerName"
+                value={formData.customerName}
+                onChange={handleChange}
                 onFocus={() => formData.customerName && setShowSuggestions(true)}
-                placeholder="নাম লিখুন" 
-                className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" 
-                required 
+                placeholder="নাম লিখুন"
+                className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500"
+                required
                 autoComplete="off"
               />
-              
+
               {/* Suggestion Dropdown Panel */}
               {showSuggestions && suggestions.length > 0 && (
                 <ul className="absolute z-50 w-full bg-white mt-1 rounded-2xl shadow-2xl border border-slate-100 max-h-60 overflow-y-auto divide-y divide-slate-50">
                   {suggestions.map((cust, index) => (
-                    <li 
-                      key={index} 
+                    <li
+                      key={index}
                       onClick={() => handleSelectSuggestion(cust)}
                       className="p-3.5 hover:bg-emerald-50/60 cursor-pointer transition-colors flex flex-col gap-0.5 text-left"
                     >
-                      <span className="font-bold text-slate-800 text-sm">{cust.customerName}</span>
-                      <span className="text-xs text-slate-500 flex items-center gap-1">
-                        📱 {cust.phone} | 📍 {cust.address.substring(0, 25)}{cust.address.length > 25 ? "..." : ""}
+                      <span className="font-bold text-slate-800 text-sm">{cust.customerName} 📱 {cust.phone}</span>
+                      <span className="text-xs text-slate-500 flex flex-wrap items-center gap-1 mt-0.5">
+                        {cust.deliveryRoute ? ` 🛣️ ${cust.deliveryRoute}` : ""} 📍
+                        {cust.address.substring(0, 25)}{cust.address.length > 25 ? "..." : ""}
                       </span>
                     </li>
                   ))}
@@ -300,11 +337,35 @@ reversedOrders.forEach(order => {
               <input type="text" name="phone" value={formData.phone} onChange={handleChange} placeholder="মোবাইল নম্বর" className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" required />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
+           <div className="space-y-2 md:col-span-2">
               <label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 ml-1">
                 <FiTruck className="text-emerald-500" /> Delivery Man
               </label>
-              <input type="text" name="deliveryMan" value={formData.deliveryMan} onChange={handleChange} placeholder="নাম লিখুন" className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              <input
+                type="text"
+                name="deliveryMan"
+                value={formData.deliveryMan}
+                onChange={handleChange}
+                placeholder="ডেলিভারি ম্যানের নাম লিখুন"
+                className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500"
+                required
+              />
+            </div>
+
+           <div className="space-y-2 md:col-span-2">
+              <div className="flex justify-between items-center ml-1 mr-1">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500">
+                  <FiMapPin className="text-emerald-500" /> Route Name
+                </label>
+              </div>
+              {routes.length > 0 ? (
+                <select name="deliveryRoute" value={formData.deliveryRoute} onChange={handleChange} className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-bold">
+                  <option value="">রুট নির্বাচন করুন</option>
+                  {routes.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
+                </select>
+              ) : (
+                <input type="text" name="deliveryRoute" value={formData.deliveryRoute} onChange={handleChange} placeholder="রুট নাম" className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" />
+              )}
             </div>
 
             <div className="space-y-2 md:col-span-2">

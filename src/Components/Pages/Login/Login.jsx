@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa6";
 import { TbPhoneCalling } from "react-icons/tb";
@@ -8,14 +8,30 @@ import useAuth from "../../Layout/useAuth";
 import { Helmet } from "react-helmet";
 
 const Login = () => {
+    const navigate = useNavigate();
+
+    // সিকিউরিটি চেক: রেজিস্টার বা ফুটার ছাড়া অন্য কোথাও থেকে আসলে হোম পেজে পাঠিয়ে দিবে
+    useEffect(() => {
+        const allowedAccess = sessionStorage.getItem("allow_login");
+        if (!allowedAccess) {
+            navigate("/", { replace: true });
+        } else {
+            // একটু ডিলে করে টোকেন রিমুভ করা হলো যাতে রেন্ডারিং গ্লিচ না করে
+            const timer = setTimeout(() => {
+                sessionStorage.removeItem("allow_login");
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [navigate]);
+
+
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
     const [showForgotModal, setShowForgotModal] = useState(false);
     const [resetEmail, setResetEmail] = useState("");
 
-    const { signIn, resetPassword } = useAuth();
+   const { signIn, resetPassword } = useAuth();
     const location = useLocation();
-    const navigate = useNavigate();
 
     const handleLogin = (e) => {
         e.preventDefault();
@@ -70,16 +86,16 @@ const Login = () => {
                 <h2 className="text-3xl font-semibold ">
                     <span className="text-[#2acb35]">Welcome</span> back!
                 </h2>
-                <p className="text-lg">Log in to unlock a personalized experience made just for you. Explore exclusive features, manage your activity with ease, and stay connected with everything you love.Your journey with us continues — and it only gets better from here.
-                </p>
+               
                 <p className="text-lg">
                     Don't have an account yet?{" "}
                     <Link
                         to="/register"
+                        onClick={() => sessionStorage.setItem("allow_register", "true")}
                         className="text-[#2acb35] underline hover:text-[#1a9d29]"
                     >
                         Create one
-                    </Link>{" "}
+                    </Link>
                     now to enjoy all the features and stay connected.
                 </p>
                 <Link to="/contact">
@@ -162,7 +178,11 @@ const Login = () => {
                         {/* Register Link */}
                         <p className="text-center text-lg font-medium mt-4 text-gray-700">
                             Don't have an account?
-                            <Link to="/register" className="text-[#2acb35] hover:underline ml-1">
+                           <Link 
+                                to="/register" 
+                                onClick={() => sessionStorage.setItem("allow_register", "true")}
+                                className="text-[#2acb35] hover:underline ml-1"
+                            >
                                 Register
                             </Link>
                         </p>

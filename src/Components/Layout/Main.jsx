@@ -1,22 +1,25 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "../Pages/Home/Navbar/Navbar";
 import Footer from "./Footer/Footer";
-import SocialContact from "../SocialContact/SocialContact";
 import ScrollToTop from "./ScrollToTop";
 import ScrollToTopButton from "../ScrollToTopButton";
-import NewsletterFloatingPopup from "./NewsletterFloatingPopup";
 import { Toaster } from "react-hot-toast";
 
 const Main = () => {
     return (
-        <div>
+        <div className="flex flex-col min-h-screen">
             <ScrollToTop />
             <ScrollToTopButton />
-            <SocialContact />
-            <Navbar />
-            <Outlet />
+           <div className="sticky top-0 z-50 bg-white shadow-sm">
+                <Navbar />
+            </div>
+            
+            {/* Main content area will take up all available space, pushing the footer down */}
+            <div className="flex-grow">
+                <Outlet />
+            </div>
+
             <Footer />
-            <NewsletterFloatingPopup />
             
             <Toaster 
                 position="top-right"

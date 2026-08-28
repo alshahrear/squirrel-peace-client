@@ -1,202 +1,245 @@
-import { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { FaUserCircle, FaBars } from "react-icons/fa";
+import { RiAdminFill } from "react-icons/ri";
 import useAuth from "../../../Layout/useAuth";
-import { HiMenuAlt1 } from "react-icons/hi";
 import useAdmin from "../../../../hooks/useAdmin";
-import toast from "react-hot-toast";
+import { useClientAuth } from "../../../Provider/ClientAuthContext";
 import log from "../../../../assets/squirrel-peace-logo.png";
+import fav from "../../../../assets/squirrelpeacelogo.png";
+import Drawer from "./Drawer"; // ড্রয়ার কম্পোনেন্ট ইম্পোর্ট করা হলো
 
 const Navbar = () => {
-  const { user, logOut } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isAdmin] = useAdmin();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSignOut = async () => {
-    try {
-      await logOut();
-      toast.success("Logged out successfully!");
-      navigate("/");
-    } catch {
-      toast.error("Logout failed. Please try again.");
-    }
+  // পেজ স্ক্রল ট্র্যাক করার স্টেট
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 60) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  // সেন্ট্রাল কনটেক্সট থেকে ক্লায়েন্ট ডেটা ও লগআউট ফাংশন নেওয়া
+  const { clientUser, clientLogout } = useClientAuth();
+
+  const handleLogout = () => {
+    clientLogout();
+    navigate('/login-client');
   };
 
   const navLinkStyle = ({ isActive }) =>
-    `text-lg font-semibold rounded ${
+    `text-lg font-semibold rounded block py-2 px-3 ${
       isActive ? "text-[#2acb35]" : "text-black"
-    } hover:bg-gray-200`;
-
-  const baseDelay = 80;
-  const [animatedItems, setAnimatedItems] = useState([]);
-
-  const mobileNavItems = [
-    { path: "/", label: "Home" },
-    { path: "/about", label: "About" },
-    { path: "/blog", label: "Blog" },
-    { path: "/quiz", label: "Quiz" },
-    { path: "/newsletter", label: "Newsletter" },
-    { path: "/success", label: "Success" },
-    { path: "/faq", label: "FAQ" },
-    { path: "/contact", label: "Contact" },
-    ...(user && isAdmin ? [{ path: "/adminPages", label: "Admin" }] : []),
-  ];
-
-  useEffect(() => {
-    if (drawerOpen) {
-      const timeouts = [];
-      for (let i = 0; i < mobileNavItems.length + 1; i++) {
-        const timeout = setTimeout(() => {
-          setAnimatedItems((prev) => [...prev, i]);
-        }, baseDelay * i);
-        timeouts.push(timeout);
-      }
-      return () => timeouts.forEach(clearTimeout);
-    } else {
-      setAnimatedItems([]);
-    }
-  }, [drawerOpen]);
+    } hover:bg-gray-100 transition`;
 
   return (
-    <div className="bg-[#f7f7f7] relative z-50 shadow-xs">
-      <div className="navbar max-w-screen-xl mx-auto py-2 px-4 justify-between lg:justify-normal">
-        {/* Mobile Header */}
-        <div className="flex justify-between w-full lg:hidden items-center py-3">
-          <NavLink to="/" aria-label="Go to Squirrel Peace Home">
-            <img
-              src={log}
-              alt="Squirrel Peace Official Logo"
-              className="h-9 w-auto"
-            />
-          </NavLink>
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="bg-[#2acb35] w-10 h-10 flex items-center justify-center rounded-lg shadow"
-          >
-            <HiMenuAlt1 className="text-white text-2xl" />
-          </button>
-        </div>
+    <>
+      <div className="bg-[#f7f7f7] relative z-50 shadow-xs">
+        <div className="navbar max-w-screen-xl mx-auto py-2 px-4 justify-between lg:justify-between">
+          
+          {/* Mobile Header */}
+          <div className="flex justify-between w-full lg:hidden items-center py-3">
+            <div className="flex items-center space-x-3">
+              <NavLink to="/" aria-label="Go to Home" className="flex items-center">
+                <img src={fav} alt="Favicon" className="h-7 w-7 object-cover rounded-md" />
+              </NavLink>
 
-        {/* Desktop Left Logo */}
-        <div className="navbar-start hidden lg:flex">
-          <NavLink to="/" aria-label="Go to Squirrel Peace Home">
-            <img
-              src={log}
-              alt="Squirrel Peace Official Logo"
-              className="h-9 w-auto"
-            />
-          </NavLink>
-        </div>
-
-        {/* Desktop Nav */}
-        <div className="navbar-center hidden lg:flex">
-          <ul className="menu menu-horizontal px-1 space-x-16">
-            <li><NavLink to="/" className={navLinkStyle}>Home</NavLink></li>
-            <li><NavLink to="/about" className={navLinkStyle}>About</NavLink></li>
-            <li><NavLink to="/blog" className={navLinkStyle}>Blog</NavLink></li>
-            <li><NavLink to="/quiz" className={navLinkStyle}>Quiz</NavLink></li>
-            <li><NavLink to="/newsletter" className={navLinkStyle}>Newsletter</NavLink></li>
-            <li><NavLink to="/contact" className={navLinkStyle}>Contact</NavLink></li>
-          </ul>
-        </div>
-
-        {/* Desktop Right Auth Button */}
-        <div className="navbar-end hidden lg:flex">
-          {user ? (
-            <button
-              onClick={handleSignOut}
-              className="btn px-7 py-5 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040] hover:bg-white hover:border-[#2acb35]"
-            >
-              <span className="text-lg font-medium">Log Out</span>
-            </button>
-          ) : (
-            <NavLink to="/login">
-              <button className="btn px-7 py-5 rounded-full text-white border-2 bg-[#2acb35] hover:text-[#404040] hover:bg-white hover:border-[#2acb35]">
-                <span className="text-lg font-medium">Login</span>
-              </button>
-            </NavLink>
-          )}
-        </div>
-      </div>
-
-      {/* Mobile Drawer */}
-      <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white z-[100] transform transition-transform duration-300 ease-in-out shadow ${
-          drawerOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="p-4">
-          <div className="flex justify-between items-center mb-4">
-            <NavLink
-              to="/"
-              onClick={() => setDrawerOpen(false)}
-              aria-label="Go to Squirrel Peace Home"
-            >
-              <img
-                src={log}
-                alt="Squirrel Peace Official Logo"
-                className="h-8 w-auto"
-              />
-            </NavLink>
-            <button
-              onClick={() => setDrawerOpen(false)}
-              className="text-xl font-extrabold"
-            >
-              ✕
-            </button>
-          </div>
-          <ul className="menu space-y-1">
-            {mobileNavItems.map((item, idx) => {
-              const isVisible = animatedItems.includes(idx);
-              const itemClasses = `transition-all duration-300 ease-in-out transform ${
-                isVisible
-                  ? "translate-x-0 opacity-100"
-                  : "-translate-x-10 opacity-0"
-              } border-b border-gray-300 pb-2`;
-
-              return (
-                <li key={item.label} className={itemClasses}>
-                  <NavLink
-                    to={item.path}
-                    className={navLinkStyle}
-                    onClick={() => setDrawerOpen(false)}
-                  >
-                    {item.label}
-                  </NavLink>
-                </li>
-              );
-            })}
-
-            {/* Auth Button in Drawer */}
-            <li
-              className={`mt-4 transition-all duration-300 transform ${
-                animatedItems.includes(mobileNavItems.length)
-                  ? "translate-x-0 opacity-100"
-                  : "-translate-x-10 opacity-0"
-              }`}
-            >
-              {user ? (
-                <button
-                  onClick={() => {
-                    handleSignOut();
-                    setDrawerOpen(false);
-                  }}
-                  className="btn w-full text-white border-2 bg-[#2acb35] hover:text-[#404040] hover:bg-white hover:border-[#2acb35]"
+             {/* মোবাইল ভিউতে লোগোর ডানপাশে মেনু বাটন (Drawer Trigger) */}
+              {clientUser && (
+                <button 
+                  onClick={() => setDrawerOpen(!drawerOpen)}
+                  className="p-1 text-gray-700 hover:text-[#2acb35] focus:outline-none transition"
+                  aria-label="Toggle Menu"
                 >
-                  Log Out
+                  <FaBars className="text-2xl" />
                 </button>
-              ) : (
-                <NavLink to="/login" onClick={() => setDrawerOpen(false)}>
-                  <button className="btn w-full text-white border-2 bg-[#2acb35] hover:text-[#404040] hover:bg-white hover:border-[#2acb35] px-8">
-                    Login
-                  </button>
+              )}
+            </div>
+            
+           <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* ক্লায়েন্ট লগইন করা থাকলে Create Order বাটন দেখাবে */}
+              {clientUser && location.pathname !== '/login-client' && (
+                <NavLink 
+                  to="/receipt" 
+                  className="bg-[#2acb35] hover:bg-green-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1"
+                >
+                  <span>Create Order</span>
                 </NavLink>
               )}
-            </li>
-          </ul>
+
+              {/* মোবাইল ভিউতে অ্যাডমিন আইকন */}
+              {user && isAdmin && (
+                <NavLink 
+                  to="/adminPages" 
+                  title="Admin Dashboard"
+                  className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-full transition"
+                >
+                  <RiAdminFill className="text-2xl" />
+                </NavLink>
+              )}
+
+              {clientUser && location.pathname !== '/login-client' ? (
+                <div className="dropdown dropdown-end lg:hidden">
+                  <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar">
+                    <div className="w-10 rounded-full flex items-center justify-center bg-gray-200 text-gray-700">
+                      <FaUserCircle className="text-3xl" />
+                    </div>
+                  </div>
+                  <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-3 shadow bg-white rounded-box w-52 space-y-2 border border-gray-100">
+                    <li className="font-bold text-gray-800 text-base px-2 py-1 border-b">
+                      {clientUser.name}
+                    </li>
+                    <li className="text-gray-500 text-xs px-2 truncate">
+                      {clientUser.email}
+                    </li>
+                    <li>
+                      <button 
+                        onClick={handleLogout}
+                        className="text-red-600 font-semibold hover:bg-red-50 w-full text-left mt-1"
+                      >
+                        Log Out
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              ) : (
+                location.pathname !== '/login-client' && (
+                  <NavLink 
+                    to="/login-client" 
+                    className="bg-[#2acb35] hover:bg-green-600 text-white font-medium px-4 py-1.5 rounded-lg text-sm shadow-sm transition"
+                  >
+                    Login
+                  </NavLink>
+                )
+              )}
+            </div> 
+          </div>
+
+          {/* Desktop Left Logo & Favicon + Menu Icon on the Right of Logo */}
+          <div className="navbar-start hidden lg:flex items-center space-x-4">
+            <NavLink to="/" aria-label="Go to Home" className="flex items-center space-x-3">
+              <img src={fav} alt="Favicon" className="h-7 w-7 object-cover rounded-md" />
+              <img src={log} alt="Logo" className="h-6 w-auto" />
+            </NavLink>
+
+           {/* ডেস্কটপে লোগোর ডানপাশে মেনু বাটন (Drawer Trigger) */}
+            {clientUser && (
+              <button 
+                onClick={() => setDrawerOpen(!drawerOpen)}
+                className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-lg transition focus:outline-none flex items-center gap-2 font-medium"
+                aria-label="Toggle Menu"
+              >
+                <FaBars className="text-xl" />
+                <span>Menu</span>
+              </button>
+            )}
+          </div>
+
+          {/* Desktop Nav */}
+          <div className="navbar-center hidden lg:flex">
+            <ul className="menu menu-horizontal px-1 space-x-2">
+              {!clientUser && (
+                <li><NavLink to="/" className={navLinkStyle}>Home</NavLink></li>
+              )}
+              {clientUser && (
+                <li><NavLink to="/dashboard" className={navLinkStyle}>Dashboard</NavLink></li>
+              )}
+            </ul>
+          </div>
+          
+         {/* Desktop Right Side: Profile or Login Button */}
+          <div className="navbar-end hidden lg:flex items-center space-x-3">
+            {/* ক্লায়েন্ট লগইন করা থাকলে Create Order বাটন দেখাবে */}
+            {clientUser && location.pathname !== '/login-client' && (
+              <NavLink 
+                to="/receipt" 
+                className="bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-3.5 py-2 rounded-lg shadow-sm transition duration-200 text-sm flex items-center gap-1"
+              >
+                <span>Create Order</span>
+              </NavLink>
+            )}
+
+            {/* পিসি ভিউতে অ্যাডমিন আইকন */}
+            {user && isAdmin && (
+              <NavLink 
+                to="/adminPages" 
+                title="Admin Dashboard"
+                className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-lg transition flex items-center gap-1 font-medium"
+              >
+                <RiAdminFill className="text-2xl" />
+              </NavLink>
+            )}
+
+            {clientUser ? (
+              location.pathname !== '/login-client' && (
+                <div className="dropdown dropdown-end">
+                  <div tabIndex={0} role="button" className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-gray-200">
+                    <FaUserCircle className="text-3xl text-gray-700" />
+                    
+                  </div>
+                  <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-4 shadow-lg bg-white rounded-box w-60 space-y-2 border border-gray-100">
+                    <li>
+                      <span className="font-bold text-gray-800 text-base p-0 pb-1 border-b block">
+                        {clientUser.name}
+                      </span>
+                    </li>
+                    <li>
+                      <span className="text-gray-500 text-sm p-0 truncate block">
+                        {clientUser.email}
+                      </span>
+                    </li>
+                    <li className="pt-2">
+                      <button 
+                        onClick={handleLogout}
+                        className="text-red-600 font-semibold bg-red-50 hover:bg-red-100 w-full text-center py-2 rounded-md"
+                      >
+                        Log Out
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              )
+            ) : (
+              location.pathname !== '/login-client' && (
+                <NavLink 
+                  to="/login-client" 
+                  className="bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-5 py-2 rounded-lg shadow-sm transition duration-200"
+                >
+                  Login
+                </NavLink>
+              )
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* --- আলাদা করা Drawer কম্পোনেন্ট এখানে কল করা হয়েছে --- */}
+      <Drawer 
+        drawerOpen={drawerOpen}
+        setDrawerOpen={setDrawerOpen}
+        scrolled={scrolled}
+        clientUser={clientUser}
+        user={user}
+        isAdmin={isAdmin}
+      />
+    </>
   );
 };
 

@@ -3,42 +3,36 @@ import {
 } from "react-router-dom";
 import Main from "../Components/Layout/Main";
 import Home from "../Components/Pages/Home/Home";
-import Contact from "../Components/Pages/Contact/Contact";
-import Faq from "../Components/Pages/Faq/Faq";
+// import Contact from "../Components/Pages/Contact/Contact";
 import ErrorPage from "../Components/Pages/ErrorPage/ErrorPage";
-import TestimonialsAdmin from "../Components/Pages/Home/Testimonials/TestimonialsAdmin";
-import TestimonialPage from "../Components/Pages/TestimonialPage/TestimonialPage";
 import Login from "../Components/Pages/Login/Login";
 import Register from "../Components/Pages/Register/Register";
-import FaqAdmin from "../Components/Pages/FaqAdmin/FaqAdmin";
 import ContactAdmin from "../Components/Pages/Contact/ContactAdmin";
 import Users from "../Components/Pages/Users/Users";
-import NewsletterPage from "../Components/Pages/NewsletterPage/NewsletterPage";
-import AboutPage from "../Components/Pages/About/AboutPage";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
 import AdminRoute from "../Components/Layout/Privet/AdminRoute";
-import CommentsAdmin from "../Components/Pages/StoryPage/CommentsAdmin";
-import PrivacyPolicy from "../Components/Pages/PrivacyPolicy";
-import TermCondition from "../Components/Pages/TermCondition";
-import DraftBlogAdmin from "../Components/Pages/DraftBlogAdmin/DraftBlogAdmin";
-import DraftDetails from "../Components/Pages/DraftBlogAdmin/DraftDetails";
-import BlogAdmin from "../Components/Pages/StoryPage/BlogAdmin";
-import BlogPages from "../Components/Pages/StoryPage/BlogPages";
-import Blogs from "../Components/Pages/StoryPage/Blogs";
-import BlogDetails from "../Components/Pages/StoryPage/BlogDetails";
-import QuizPage from "../Components/Pages/Quiz/QuizPage";
-import QuizFaqAdmin from "../Components/Pages/Quiz/QuizFaqAdmin";
-import WinAdmin from "../Components/Pages/Quiz/WinAdmin";
-import QuizTest from "../Components/Pages/Quiz/QuizTest";
-import QuizTestAdmin from "../Components/Pages/Quiz/QuizTestAdmin";
-import ProtectedQuizRoute from "../Components/Pages/Quiz/ProtectedQuizRoute";
 import ReceiptPage from "../Components/Pages/Receipt/ReceiptPage";
 import Customer from "../Components/Pages/Receipt/Customer";
 import CustomerAdmin from "../Components/Pages/Receipt/CustomerAdmin";
 import Pdf from "../Components/Pages/Receipt/Pdf";
-import PdfCustomer from "../Components/Pages/Receipt/PdfCustomer";
 import CustomerData from "../Components/Pages/Receipt/CustomerData";
 import ProductSales from "../Components/Pages/Receipt/ProductSales";
+import TrashPage from "../Components/Pages/Receipt/TrashPage";
+import ProductPage from "../Components/Pages/Receipt/ProductPage";
+import Units from "../Components/Pages/Receipt/Units";
+import Shop from "../Components/Pages/Receipt/Shop";
+import PdfProducts from "../Components/Pages/Receipt/PdfProducts";
+import Software from "../Components/Pages/Software/Software";
+import Client from "../Components/Pages/Software/Client";
+import LoginClient from "../Components/Pages/Software/LoginClient";
+import Dashboard from "../Components/Pages/Software/Dashboard/Dashboard";
+import ClientRoute from "../Components/Layout/Privet/ClientRoute";
+import Route from "../Components/Pages/Receipt/Route";
+import Category from "../Components/Pages/Receipt/Category";
+import Company from "../Components/Pages/Software/Company";
+import Customers from "../Components/Pages/Software/Customers";
+import ProductAll from "../Components/Pages/Software/ProductAll";
+
 
 export const router = createBrowserRouter([
   {
@@ -55,85 +49,10 @@ export const router = createBrowserRouter([
         element: <AdminRoute><AdminPages></AdminPages></AdminRoute>
       },
       {
-        path: "/about",
-        element: <AboutPage></AboutPage>
-      },
-      {
-        path: "/draft/:id",
-        element: <AdminRoute><DraftDetails></DraftDetails></AdminRoute>
-      },
-      {
-        path: "/blog",
-        element: <BlogPages></BlogPages>
-      },
-      {
-        path: "/Blogs",
-        element: <Blogs></Blogs>
-      },
-      {
-        path: "/blog/:slug",
-        element: <BlogDetails />
-      },
-      {
-        path: "/blogAdmin",
-        element: <AdminRoute><BlogAdmin></BlogAdmin></AdminRoute>
-      },
-      {
-        path: "/draftBlogAdmin",
-        element: <AdminRoute><DraftBlogAdmin></DraftBlogAdmin></AdminRoute>
-      },
-      {
-        path: "/commentAdmin",
-        element: <AdminRoute><CommentsAdmin></CommentsAdmin></AdminRoute>
-      },
-      {
-        path: "/quizFaqAdmin",
-        element: <AdminRoute><QuizFaqAdmin></QuizFaqAdmin></AdminRoute>
-      },
-      {
-        path: "/winnerAdmin",
-        element: <AdminRoute><WinAdmin></WinAdmin></AdminRoute>
-      },
-      {
-        path: "/quiz",
-        element: <QuizPage/>
-      },
-      {
-        path: "/quizTest",
-        element: <ProtectedQuizRoute><QuizTest/></ProtectedQuizRoute> 
-      },
-      {
-        path: "/quizTestAdmin",
-        element: <AdminRoute><QuizTestAdmin></QuizTestAdmin></AdminRoute> 
-      },
-      {
-        path: "/newsletter",
-        element: <NewsletterPage></NewsletterPage>
-      },
-      {
-        path: "/contact",
-        element: <Contact></Contact>
-      },
-      {
         path: "/contactAdmin",
         element: <AdminRoute><ContactAdmin></ContactAdmin></AdminRoute>
       },
-      {
-        path: "/faq",
-        element: <Faq></Faq>
-      },
-      {
-        path: "/faqAdmin",
-        element: <AdminRoute><FaqAdmin></FaqAdmin></AdminRoute>
-      },
-      {
-        path: "/success",
-        element: <TestimonialPage></TestimonialPage>
-      },
-      {
-        path: "/testimonialsAdmin",
-        element: <AdminRoute><TestimonialsAdmin></TestimonialsAdmin></AdminRoute>
-      },
+
       {
         path: "/login",
         element: <Login></Login>
@@ -147,32 +66,81 @@ export const router = createBrowserRouter([
         element: <AdminRoute><Users></Users></AdminRoute>
       },
       {
-        path: "/privacyPolicy",
-        element: <PrivacyPolicy></PrivacyPolicy>
-      },
-      {
-        path: "/termCondition",
-        element: <TermCondition></TermCondition>
-      },
-      {
         path: "/receipt",
-        element: <AdminRoute><ReceiptPage></ReceiptPage></AdminRoute>
+        element: <ClientRoute><ReceiptPage></ReceiptPage></ClientRoute> 
       },
       {
         path: "/customer",
-        element: <AdminRoute><Customer></Customer></AdminRoute>
+        element: <Customer></Customer>
       },
       {
         path: "/customerAdmin",
-        element: <AdminRoute><CustomerAdmin></CustomerAdmin></AdminRoute>
+        element:<CustomerAdmin></CustomerAdmin>
+      },
+      {
+        path: "/trash",
+        element:<TrashPage></TrashPage>
       },
       {
         path: "/customerData",
-        element: <AdminRoute><CustomerData></CustomerData></AdminRoute>
+        element:<CustomerData></CustomerData>
+      },
+      {
+        path: "/products",
+        element: <ClientRoute><ProductPage></ProductPage></ClientRoute>
+      },
+      {
+        path: "/units",
+        element: <ClientRoute><Units></Units></ClientRoute> 
+      },
+      {
+        path: "/category",
+        element: <ClientRoute><Category></Category> </ClientRoute> 
+      },
+      {
+        path: "/shop",
+        element: <ClientRoute><Shop></Shop></ClientRoute>
+      },
+      {
+        path: "/company",
+        element: <ClientRoute><Company></Company></ClientRoute>
+      },
+      {
+        path: "/customers",
+        element: <ClientRoute><Customers></Customers></ClientRoute>
+      },
+      
+      {
+        path: "/productAll",
+        element: <ClientRoute><ProductAll></ProductAll></ClientRoute>
       },
       {
         path: "/productSales",
-        element: <AdminRoute><ProductSales></ProductSales></AdminRoute> 
+        element: <ProductSales></ProductSales>
+      },
+      {
+        path: "/pdfProducts",
+        element: <PdfProducts></PdfProducts>
+      },
+      {
+        path: "/software",
+        element: <AdminRoute><Software></Software></AdminRoute>
+      },
+      {
+        path: "/client",
+        element: <Client></Client>
+      },
+      {
+        path: "/login-client",
+        element: <LoginClient></LoginClient>
+      },
+      {
+        path: "/dashboard",
+        element: <ClientRoute><Dashboard></Dashboard></ClientRoute> 
+      },
+      {
+        path: "/routes",
+        element: <ClientRoute><Route></Route></ClientRoute> 
       }
     ]
   },
@@ -181,8 +149,5 @@ export const router = createBrowserRouter([
     path: "/pdf",
     element: <Pdf></Pdf>
   },
-  {
-    path: "/pdfCustomer",
-    element: <PdfCustomer></PdfCustomer>
-  }
+ 
 ]);

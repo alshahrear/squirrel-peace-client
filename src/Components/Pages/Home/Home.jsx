@@ -1,46 +1,13 @@
 import { Helmet } from "react-helmet";
-import StoryHomes from "../StoryPage/BlogHomes";
-import AboutHome from "./AboutHome/AboutHome";
-import Banner from "./Banner/Banner";
-import Newsletter from "./NewsletterHome/NewsletterHome";
-import Testimonials from "./Testimonials/Testimonials";
+
+
+
+
 
 const Home = () => {
     return (
         <div>
-            <Helmet>
-                {/* Basic Meta Tags */}
-                <title>Home - Bashay Bazar</title>
-                <meta 
-                    name="description" 
-                    content="Discover inspiring stories, life lessons, and positivity with Squirrel Peace. Your daily dose of motivation, happiness, and hope for a better tomorrow."
-                />
-                <meta 
-                    name="keywords" 
-                    content="positive stories, life lessons, inspiration, motivation, squirrel peace"
-                />
-                <link rel="canonical" href="https://bashaybazar.com/" />
-                <meta name="robots" content="index, follow" />
-
-                {/* Open Graph / Facebook */}
-                <meta property="og:title" content="Squirrel Peace - Positive Stories, Life Lessons & Inspiration" />
-                <meta property="og:description" content="Discover inspiring stories, life lessons, and positivity with Squirrel Peace. Your daily dose of motivation, happiness, and hope for a better tomorrow." />
-                <meta property="og:image" content="https://bashaybazar.com/images/home-cover.jpg" />
-                <meta property="og:url" content="https://bashaybazar.com/" />
-                <meta property="og:type" content="website" />
-
-                {/* Twitter Card */}
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content="Squirrel Peace - Positive Stories, Life Lessons & Inspiration" />
-                <meta name="twitter:description" content="Discover inspiring stories, life lessons, and positivity with Squirrel Peace. Your daily dose of motivation, happiness, and hope for a better tomorrow." />
-                <meta name="twitter:image" content="https://bashaybazar.com/images/home-cover.jpg" />
-            </Helmet>
-
-            <Banner />
-            <AboutHome />
-            <StoryHomes />
-            <Newsletter />
-            <Testimonials />
+            <h3>Home</h3>
         </div>
     );
 };

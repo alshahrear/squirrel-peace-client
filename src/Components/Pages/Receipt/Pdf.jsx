@@ -54,8 +54,8 @@ const Pdf = () => {
       }
     });
 
-   const baseProfit = filteredItems.reduce((sum, item) => sum + Number(item.profit || 0), 0) + Number(inv.deliveryCharge || 0);
-    
+   const baseProfit = filteredItems.reduce((sum, item) => sum + Number(item.profit || 0), 0);
+   
     // overallDiscount যদি স্ট্রিং হয় (যেমন: "100 (10%)"), তবে শুধু সামনের সংখ্যাটি নেওয়ার জন্য parseFloat করা হলো
     const discountValue = typeof inv.overallDiscount === "string" ? parseFloat(inv.overallDiscount) : Number(inv.overallDiscount || 0);
     const globalTotalProfit = baseProfit - discountValue;
@@ -181,12 +181,12 @@ const Pdf = () => {
                           <div className="flex gap-2 items-center">
                             <img src={logo} alt="Logo" className="w-12 h-12 object-cover rounded" />
                             <div>
-                              <h1 className="text-[16px] font-black leading-tight">বাসায় বাজার</h1>
-                              <p className="text-[10px] font-black uppercase">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
+                              <h1 className="text-[14px] font-black leading-tight">বাসায় বাজার</h1>
+                              <p className="text-[11px] font-black uppercase">শাহজীপাড়া, বড় বাজার, মেহেরপুর</p>
                               <p className="text-[11px] font-bold">WhatsApp: 01570226243</p>
                             </div>
                           </div>
-                          <div className="text-[12px] leading-tight font-bold text-right space-y-0.5">
+                          <div className="text-[11px] leading-tight font-bold text-right space-y-0.5">
                             <p>bashaybazarmp@gmail.com</p>
                             <p className="text-[11px] font-bold">Call Anytime & Bkash, Nagad</p>
                             <p className="text-[11px] font-bold">01886-074920 (Send Money)</p>
@@ -206,11 +206,14 @@ const Pdf = () => {
                         </div>
                       </div>
 
-                      {/* Info Section */}
-                      <div className="grid grid-cols-2 gap-x-16 gap-y-1 mb-2 text-[12px]">
+                    {/* Info Section */}
+                      <div className="grid grid-cols-2 gap-x-16 gap-y-1 mb-2 text-[11px]">
                         <div className="space-y-1">
                           <p><span className="font-bold">Name:</span> <span className="font-bold">{customer.customerName || "N/A"}</span></p>
                           <p><span className="font-bold">Phone:</span> <span className="font-bold">{customer.phone || "N/A"}</span></p>
+                          {customer.deliveryRoute && customer.deliveryRoute.trim() !== "" && (
+                            <p><span className="font-bold">Route:</span> <span className="font-bold">{customer.deliveryRoute}</span></p>
+                          )}
                           <p><span className="font-bold">Address:</span> <span className="font-bold">{customer.address || "N/A"}</span></p>
                         </div>
                         <div className="space-y-1">
@@ -281,9 +284,8 @@ const Pdf = () => {
                         <div className="flex flex-col justify-center border-r border-black pr-4 min-w-[130px] space-y-2 text-[11px]">
                           {Object.entries(shopSummaries).map(([shop, summary]) => (
                             <div key={shop} className="flex text-[11px] gap-2 leading-tight pb-0.5">
-                              <p className="font-bold italic whitespace-nowrap">{shop}. ক্রয়মূল্য =</p>
+                              <p className="font-bold italic whitespace-nowrap">{shop}. <br /> ক্রয়মূল্য ={toBengaliNumber(summary.cost.toLocaleString())}৳</p>
                               <p className="font-bold">
-                                {toBengaliNumber(summary.cost.toLocaleString())}৳
                               </p>
                             </div>
                           ))}
@@ -306,7 +308,7 @@ const Pdf = () => {
                       {currentMode === "admin" && (
                         <div className="flex flex-col items-center justify-center border-r border-black px-4 flex-1">
                           <p className="text-[11px] font-black border-b border-black w-full text-center mb-1 pb-0.5">লাভ</p>
-                          <p className="text-[12px] font-black">{toBengaliNumber(totalProfit.toLocaleString())}৳</p>
+                          <p className="text-[11px] font-black">{toBengaliNumber(totalProfit.toLocaleString())}৳</p>
                         </div>
                       )}
 

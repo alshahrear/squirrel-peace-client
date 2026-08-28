@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
+
 import { useNavigate, NavLink } from "react-router-dom";
 import {
   FiPrinter,
@@ -46,7 +47,7 @@ const CustomerAdmin = () => {
 
   const fetchItems = async () => {
     try {
-      const res = await axios.get("https://squirrel-peace-server.onrender.com/item");
+      const res = await axios.get("http://localhost:5000/item");
       setItems(res.data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -101,8 +102,8 @@ const CustomerAdmin = () => {
 
     targetData.forEach(inv => {
       totalSell += Number(inv.grandTotal || 0);
-      // কারেন্ট প্রফিটের সাথে ডেলিভারি চার্জ যোগ হচ্ছে
-      totalProfit += Number(inv.totalProfit || 0) + Number(inv.deliveryCharge || 0);
+
+      totalProfit += Number(inv.totalProfit || 0);
       inv.items?.forEach(item => {
         const cost = (Number(item.costPrice || 0) * Number(item.quantity || 1));
         totalCost += cost;
@@ -159,7 +160,7 @@ const CustomerAdmin = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await axios.delete(`https://squirrel-peace-server.onrender.com/item/${id}`);
+          await axios.delete(`http://localhost:5000/item/${id}`);
           Toast.fire({ icon: "success", title: "মুছে ফেলা হয়েছে" });
           fetchItems();
         } catch (error) {
@@ -169,35 +170,34 @@ const CustomerAdmin = () => {
     });
   };
 
-  // মাল্টিপল ডিলিট করার ফাংশন
-  // পাসওয়ার্ড প্রটেক্টেড বাল্ক ডিলিট ফাংশন
+  // মাল্টিপল ডিলিট করার ফাংশন (DELETE কনফার্মেশন সহ)
   const handleBulkDelete = () => {
     Swal.fire({
-      title: "পাসওয়ার্ড প্রয়োজন",
-      text: `${selectedIds.length} টি ইনভয়েস ডিলিট করতে পাসওয়ার্ড লিখুন:`,
-      input: "password",
-      inputPlaceholder: "পাসওয়ার্ড দিন",
+      title: "নিশ্চিত করতে চান?",
+      text: `${selectedIds.length} টি ইনভয়েস ডিলিট করতে নিচের বক্সে বড় হাতের অক্ষরে "DELETE" লিখুন:`,
+      input: "text",
+      inputPlaceholder: "DELETE লিখুন",
       inputAttributes: {
         autocapitalize: "off",
         autocorrect: "off"
       },
       showCancelButton: true,
-      confirmButtonText: "যাচাই করুন",
+      confirmButtonText: "পরবর্তী",
       cancelButtonText: "বাতিল",
-      confirmButtonColor: "#4f46e5",
+      confirmButtonColor: "#ef4444",
       cancelButtonColor: "#94a3b8",
-      preConfirm: (password) => {
-        if (password !== "Typing114337@??@") {
-          Swal.showValidationMessage("ভুল পাসওয়ার্ড! আবার চেষ্টা করুন।");
+      preConfirm: (value) => {
+        if (value !== "DELETE") {
+          Swal.showValidationMessage('দয়া করে সঠিকটায় বড় হাতের অক্ষরে "DELETE" লিখুন!');
         }
-        return password;
+        return value;
       }
-    }).then((passResult) => {
-      // পাসওয়ার্ড সঠিক হলে ফাইনাল কনফার্মেশন প্রম্পট আসবে
-      if (passResult.isConfirmed) {
+    }).then((inputResult) => {
+      // DELETE সঠিক লেখা হলে ফাইনাল কনফার্মেশন প্রম্পট আসবে
+      if (inputResult.isConfirmed) {
         Swal.fire({
           title: `${selectedIds.length} টি ইনভয়েস ডিলিট করবেন?`,
-          text: "নির্বাচিত সব ইনভয়েস চিরতরে মুছে যাবে!",
+          text: "নির্বাচিত সব ইনভয়েস ট্র্যাশ পেজে চলে যাবে!",
           icon: "warning",
           showCancelButton: true,
           confirmButtonColor: "#ef4444",
@@ -207,7 +207,7 @@ const CustomerAdmin = () => {
         }).then(async (deleteResult) => {
           if (deleteResult.isConfirmed) {
             try {
-              await axios.delete("https://squirrel-peace-server.onrender.com/items/delete-multiple", {
+              await axios.delete("http://localhost:5000/items/delete-multiple", {
                 data: { ids: selectedIds }
               });
               Toast.fire({ icon: "success", title: "সফলভাবে মুছে ফেলা হয়েছে" });
@@ -375,13 +375,25 @@ const CustomerAdmin = () => {
         {/* Status Bar: অর্ডারের সংখ্যা এবং গড় বিক্রয়/লাভ */}
         <div className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
           {/* বামে: অর্ডারের সংখ্যা */}
-          <div className="flex items-center gap-3 bg-indigo-50 px-6 py-3 rounded-2xl w-full md:w-auto justify-center md:justify-start">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-              <FiShoppingCart size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-indigo-400 uppercase leading-none mb-1">মোট অর্ডার</p>
-              <p className="text-xl font-black text-indigo-900 leading-none">{filteredItems.length} টি</p>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* Trash Button */}
+            <NavLink
+              to="/trash"
+              className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 px-5 py-3 rounded-2xl transition-all duration-200 border border-rose-100 shadow-sm hover:shadow font-bold text-sm cursor-pointer"
+            >
+              <FiTrash2 size={18} />
+              <span>ট্র্যাশ</span>
+            </NavLink>
+
+            {/* মোট অর্ডার Card */}
+            <div className="flex items-center gap-3 bg-indigo-50 px-6 py-3 rounded-2xl w-full md:w-auto justify-center md:justify-start">
+              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <FiShoppingCart size={20} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-indigo-400 uppercase leading-none mb-1">মোট অর্ডার</p>
+                <p className="text-xl font-black text-indigo-900 leading-none">{filteredItems.length} টি</p>
+              </div>
             </div>
           </div>
 
@@ -509,7 +521,7 @@ const CustomerAdmin = () => {
                         <div className="flex flex-col">
                           <span className="font-black text-slate-900 text-lg tracking-tighter">
                             <span className="text-emerald-600">
-                              {Math.round(Number(item.totalProfit || 0) + Number(item.deliveryCharge || 0)).toLocaleString()}
+                              {Math.round(Number(item.totalProfit || 0)).toLocaleString()}
                             </span>
                             <span className="text-slate-300 mx-1.5">|</span>
                             <span>{Number(item.grandTotal || 0).toLocaleString()} ৳</span>
