@@ -1,7 +1,30 @@
-import React from 'react';
-import { FaUser, FaPhone, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave, FaStore, FaRoute, FaCreditCard } from 'react-icons/fa';
+import React, { useState, useRef, useEffect } from 'react';
+import { FaUser, FaPhone, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave, FaStore, FaRoute, FaCreditCard, FaChevronDown } from 'react-icons/fa';
 
 const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handleCancelEdit, routes = [] }) => {
+    const [routeSearch, setRouteSearch] = useState('');
+    const [isRouteOpen, setIsRouteOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsRouteOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        setRouteSearch(formData.route || '');
+    }, [formData.route]);
+
+    const filteredRoutes = routes
+        .filter(rt => rt.isActive !== false)
+        .map(rt => rt.routeName || rt.name || rt)
+        .filter(routeName => routeName.toLowerCase().includes(routeSearch.toLowerCase()));
+
     return (
         <div className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-indigo-100 backdrop-blur-sm transition-all duration-300">
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
@@ -145,32 +168,62 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                     />
                 </div>
 
-              {/* Route (Conditional: Only show if Wholesale Customer) */}
+              {/* Route (Conditional: Searchable Select for Wholesale Customer) */}
                 {formData.customerType === 'Wholesale Customer' && (
-                    <div>
+                    <div className="relative" ref={dropdownRef}>
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
                             <FaRoute className="text-indigo-500" /> Route <span className="text-red-500">*</span>
                         </label>
-                        <select
-                            name="route"
-                            value={formData.route || ''}
-                            onChange={handleChange}
-                            required={formData.customerType === 'Wholesale Customer'}
-                            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                        >
-                            <option value="">Select Route</option>
-                         {routes
-                                .filter(rt => rt.isActive !== false) // শুধুমাত্র active রুটগুলো ফিল্টার করে রাখছি যাতে ইনঅ্যাক্টিভ রুট দেখাই না যায়
-                                .map((rt, idx) => {
-                                    const routeName = rt.routeName || rt.name || rt;
-                                    return (
-                                        <option key={rt._id || idx} value={routeName}>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Search or select route..."
+                                value={routeSearch}
+                                onFocus={() => setIsRouteOpen(true)}
+                                onChange={(e) => {
+                                    setRouteSearch(e.target.value);
+                                    setIsRouteOpen(true);
+                                    handleChange({
+                                        target: { name: 'route', value: e.target.value }
+                                    });
+                                }}
+                                required={formData.customerType === 'Wholesale Customer'}
+                                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 pr-8"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setIsRouteOpen(!isRouteOpen)}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                <FaChevronDown size={12} />
+                            </button>
+                        </div>
+
+                        {isRouteOpen && (
+                            <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                {filteredRoutes.length > 0 ? (
+                                    filteredRoutes.map((routeName, idx) => (
+                                        <li
+                                            key={idx}
+                                            onClick={() => {
+                                                setRouteSearch(routeName);
+                                                setIsRouteOpen(false);
+                                                handleChange({
+                                                    target: { name: 'route', value: routeName }
+                                                });
+                                            }}
+                                            className="px-3 py-2 text-sm hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors"
+                                        >
                                             {routeName}
-                                        </option>
-                                    );
-                                })
-                            }
-                        </select>
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="px-3 py-2 text-sm text-gray-400">
+                                        No matching route (You can type a new one)
+                                    </li>
+                                )}
+                            </ul>
+                        )}
                     </div>
                 )}
 

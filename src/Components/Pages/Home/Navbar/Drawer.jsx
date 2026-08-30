@@ -67,6 +67,16 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/routes", label: "Route" },
       ],
     },
+    {
+      type: "dropdown",
+      key: "users",
+      label: "Users",
+      children: [
+        { to: "/user", label: "All User" },
+        { to: "/user-role", label: "All Role" },
+       
+      ],
+    },
     // { type: "link", to: "/receipt", label: "Receipt" },
     
 

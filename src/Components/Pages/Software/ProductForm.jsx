@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { FaBox, FaBuilding, FaBarcode, FaTags, FaExclamationTriangle, FaDollarSign, FaBalanceScale, FaGift, FaWarehouse, FaStickyNote, FaTimes, FaEdit, FaSave } from 'react-icons/fa';
+import { FaBox, FaBuilding, FaBarcode, FaTags, FaExclamationTriangle, FaDollarSign, FaBalanceScale, FaGift, FaWarehouse, FaStickyNote, FaTimes, FaEdit, FaSave, FaChevronDown } from 'react-icons/fa';
 
 const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProducts }) => {
     const [companies, setCompanies] = useState([]);
     const [categories, setCategories] = useState([]);
     const [units, setUnits] = useState([]);
+
+    const [companyInput, setCompanyInput] = useState('');
+    const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+
+    const [categoryInput, setCategoryInput] = useState('');
+    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
+    const [unitInput, setUnitInput] = useState('');
+    const [showUnitDropdown, setShowUnitDropdown] = useState(false);
 
     useEffect(() => {
         // Company Fetch
@@ -32,6 +41,13 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
             })
             .catch(err => console.error('Error fetching units:', err));
     }, []);
+
+    // Sync inputs when formData changes (e.g. on Edit mode load or reset)
+    useEffect(() => {
+        setCompanyInput(formData.company || '');
+        setCategoryInput(formData.category || '');
+        setUnitInput(formData.unit || '');
+    }, [formData]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -61,6 +77,9 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
             isActive: true,
             createdAt: ''
         });
+        setCompanyInput('');
+        setCategoryInput('');
+        setUnitInput('');
     };
 
     const getFormattedDateTime = () => {
@@ -176,24 +195,58 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                     </div>
 
                     {/* Company */}
-                    <div>
+                    <div className="relative">
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
                             <FaBuilding className="text-indigo-500" /> Company <span className="text-red-500">*</span>
                         </label>
-                        <select
-                            name="company"
-                            value={formData.company}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                        >
-                            <option value="">Select Company</option>
-                            {companies.map((comp) => (
-                                <option key={comp._id} value={comp.businessName}>
-                                    {comp.businessName}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Select or type company"
+                                value={companyInput}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setCompanyInput(val);
+                                    setShowCompanyDropdown(true);
+                                    setFormData({ ...formData, company: val });
+                                }}
+                                onFocus={() => setShowCompanyDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowCompanyDropdown(false), 200)}
+                                required
+                                className="w-full px-3 py-2 pr-8 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
+                            />
+                            <span 
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer pointer-events-none"
+                                onClick={() => setShowCompanyDropdown(!showCompanyDropdown)}
+                            >
+                                <FaChevronDown className="text-xs" />
+                            </span>
+                        </div>
+                        {showCompanyDropdown && (
+                            <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                                {companies
+                                    .filter(c => c.businessName.toLowerCase().includes(companyInput.toLowerCase()))
+                                    .length > 0 ? (
+                                    companies
+                                        .filter(c => c.businessName.toLowerCase().includes(companyInput.toLowerCase()))
+                                        .map((comp) => (
+                                            <li
+                                                key={comp._id}
+                                                onClick={() => {
+                                                    setCompanyInput(comp.businessName);
+                                                    setFormData({ ...formData, company: comp.businessName });
+                                                    setShowCompanyDropdown(false);
+                                                }}
+                                                className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer text-gray-700"
+                                            >
+                                                {comp.businessName}
+                                            </li>
+                                        ))
+                                ) : (
+                                    <li className="px-3 py-2 text-sm text-gray-400 italic">No company found</li>
+                                )}
+                            </ul>
+                        )}
                     </div>
 
                     {/* SKU */}
@@ -212,23 +265,57 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                     </div>
 
                     {/* Category */}
-                    <div>
+                    <div className="relative">
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
                             <FaTags className="text-indigo-500" /> Category
                         </label>
-                        <select
-                            name="category"
-                            value={formData.category}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                        >
-                            <option value="">Select Category</option>
-                            {categories.map((cat) => (
-                                <option key={cat._id} value={cat.name}>
-                                    {cat.name}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Select or type category"
+                                value={categoryInput}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setCategoryInput(val);
+                                    setShowCategoryDropdown(true);
+                                    setFormData({ ...formData, category: val });
+                                }}
+                                onFocus={() => setShowCategoryDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
+                                className="w-full px-3 py-2 pr-8 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
+                            />
+                            <span 
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer pointer-events-none"
+                                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                            >
+                                <FaChevronDown className="text-xs" />
+                            </span>
+                        </div>
+                        {showCategoryDropdown && (
+                            <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                                {categories
+                                    .filter(cat => cat.name.toLowerCase().includes(categoryInput.toLowerCase()))
+                                    .length > 0 ? (
+                                    categories
+                                        .filter(cat => cat.name.toLowerCase().includes(categoryInput.toLowerCase()))
+                                        .map((cat) => (
+                                            <li
+                                                key={cat._id}
+                                                onClick={() => {
+                                                    setCategoryInput(cat.name);
+                                                    setFormData({ ...formData, category: cat.name });
+                                                    setShowCategoryDropdown(false);
+                                                }}
+                                                className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer text-gray-700"
+                                            >
+                                                {cat.name}
+                                            </li>
+                                        ))
+                                ) : (
+                                    <li className="px-3 py-2 text-sm text-gray-400 italic">No category found</li>
+                                )}
+                            </ul>
+                        )}
                     </div>
 
                     {/* Alert Quantity */}
@@ -303,24 +390,58 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {/* Unit */}
-                        <div>
+                        <div className="relative">
                             <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
                                 <FaBalanceScale className="text-indigo-500" /> Unit <span className="text-red-500">*</span>
                             </label>
-                            <select
-                                name="unit"
-                                value={formData.unit}
-                                onChange={handleChange}
-                                required
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                            >
-                                <option value="">Select Unit</option>
-                                {units.map((u) => (
-                                    <option key={u._id} value={u.name}>
-                                        {u.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Select or type unit"
+                                    value={unitInput}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setUnitInput(val);
+                                        setShowUnitDropdown(true);
+                                        setFormData({ ...formData, unit: val });
+                                    }}
+                                    onFocus={() => setShowUnitDropdown(true)}
+                                    onBlur={() => setTimeout(() => setShowUnitDropdown(false), 200)}
+                                    required
+                                    className="w-full px-3 py-2 pr-8 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
+                                />
+                                <span 
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer pointer-events-none"
+                                    onClick={() => setShowUnitDropdown(!showUnitDropdown)}
+                                >
+                                    <FaChevronDown className="text-xs" />
+                                </span>
+                            </div>
+                            {showUnitDropdown && (
+                                <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                                    {units
+                                        .filter(u => u.name.toLowerCase().includes(unitInput.toLowerCase()))
+                                        .length > 0 ? (
+                                        units
+                                            .filter(u => u.name.toLowerCase().includes(unitInput.toLowerCase()))
+                                            .map((u) => (
+                                                <li
+                                                    key={u._id}
+                                                    onClick={() => {
+                                                        setUnitInput(u.name);
+                                                        setFormData({ ...formData, unit: u.name });
+                                                        setShowUnitDropdown(false);
+                                                    }}
+                                                    className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer text-gray-700"
+                                                >
+                                                    {u.name}
+                                                </li>
+                                            ))
+                                    ) : (
+                                        <li className="px-3 py-2 text-sm text-gray-400 italic">No unit found</li>
+                                    )}
+                                </ul>
+                            )}
                         </div>
 
                         {/* PCS of 1 Unit */}

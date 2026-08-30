@@ -3,24 +3,15 @@ import {
 } from "react-router-dom";
 import Main from "../Components/Layout/Main";
 import Home from "../Components/Pages/Home/Home";
-// import Contact from "../Components/Pages/Contact/Contact";
 import ErrorPage from "../Components/Pages/ErrorPage/ErrorPage";
 import Login from "../Components/Pages/Login/Login";
 import Register from "../Components/Pages/Register/Register";
-import ContactAdmin from "../Components/Pages/Contact/ContactAdmin";
 import Users from "../Components/Pages/Users/Users";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
 import AdminRoute from "../Components/Layout/Privet/AdminRoute";
-import ReceiptPage from "../Components/Pages/Receipt/ReceiptPage";
-import Customer from "../Components/Pages/Receipt/Customer";
-import CustomerAdmin from "../Components/Pages/Receipt/CustomerAdmin";
 import Pdf from "../Components/Pages/Receipt/Pdf";
-import CustomerData from "../Components/Pages/Receipt/CustomerData";
-import ProductSales from "../Components/Pages/Receipt/ProductSales";
-import TrashPage from "../Components/Pages/Receipt/TrashPage";
 import ProductPage from "../Components/Pages/Receipt/ProductPage";
 import Units from "../Components/Pages/Receipt/Units";
-import Shop from "../Components/Pages/Receipt/Shop";
 import PdfProducts from "../Components/Pages/Receipt/PdfProducts";
 import Software from "../Components/Pages/Software/Software";
 import Client from "../Components/Pages/Software/Client";
@@ -32,6 +23,8 @@ import Category from "../Components/Pages/Receipt/Category";
 import Company from "../Components/Pages/Software/Company";
 import Customers from "../Components/Pages/Software/Customers";
 import ProductAll from "../Components/Pages/Software/ProductAll";
+import UserRole from "../Components/Pages/Software/User/UserRole";
+import User from "../Components/Pages/Software/User/User";
 
 
 export const router = createBrowserRouter([
@@ -49,11 +42,6 @@ export const router = createBrowserRouter([
         element: <AdminRoute><AdminPages></AdminPages></AdminRoute>
       },
       {
-        path: "/contactAdmin",
-        element: <AdminRoute><ContactAdmin></ContactAdmin></AdminRoute>
-      },
-
-      {
         path: "/login",
         element: <Login></Login>
       },
@@ -64,27 +52,7 @@ export const router = createBrowserRouter([
       {
         path: "/users",
         element: <AdminRoute><Users></Users></AdminRoute>
-      },
-      {
-        path: "/receipt",
-        element: <ClientRoute><ReceiptPage></ReceiptPage></ClientRoute> 
-      },
-      {
-        path: "/customer",
-        element: <Customer></Customer>
-      },
-      {
-        path: "/customerAdmin",
-        element:<CustomerAdmin></CustomerAdmin>
-      },
-      {
-        path: "/trash",
-        element:<TrashPage></TrashPage>
-      },
-      {
-        path: "/customerData",
-        element:<CustomerData></CustomerData>
-      },
+      },   
       {
         path: "/products",
         element: <ClientRoute><ProductPage></ProductPage></ClientRoute>
@@ -98,10 +66,6 @@ export const router = createBrowserRouter([
         element: <ClientRoute><Category></Category> </ClientRoute> 
       },
       {
-        path: "/shop",
-        element: <ClientRoute><Shop></Shop></ClientRoute>
-      },
-      {
         path: "/company",
         element: <ClientRoute><Company></Company></ClientRoute>
       },
@@ -109,14 +73,9 @@ export const router = createBrowserRouter([
         path: "/customers",
         element: <ClientRoute><Customers></Customers></ClientRoute>
       },
-      
       {
         path: "/productAll",
         element: <ClientRoute><ProductAll></ProductAll></ClientRoute>
-      },
-      {
-        path: "/productSales",
-        element: <ProductSales></ProductSales>
       },
       {
         path: "/pdfProducts",
@@ -125,6 +84,14 @@ export const router = createBrowserRouter([
       {
         path: "/software",
         element: <AdminRoute><Software></Software></AdminRoute>
+      },
+      {
+        path: "/user-role",
+        element: <ClientRoute><UserRole></UserRole></ClientRoute>
+      },
+      {
+        path: "/user",
+        element: <ClientRoute><User></User></ClientRoute>
       },
       {
         path: "/client",

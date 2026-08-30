@@ -296,6 +296,16 @@ const Company = () => {
         }
     };
 
+
+
+
+
+
+
+
+
+    
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
