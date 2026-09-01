@@ -25,6 +25,12 @@ import Customers from "../Components/Pages/Software/Customers";
 import ProductAll from "../Components/Pages/Software/ProductAll";
 import UserRole from "../Components/Pages/Software/User/UserRole";
 import User from "../Components/Pages/Software/User/User";
+import OpeningInvestment from "../Components/Pages/Software/Account/OpeningInvestment";
+import Income from "../Components/Pages/Software/Account/Income";
+import AccountHeads from "../Components/Pages/Software/Account/AccountHeads";
+import Expense from "../Components/Pages/Software/Account/Expense";
+import RouteExpense from "../Components/Pages/Software/Account/RouteExpense";
+import Transfer from "../Components/Pages/Software/Account/Transfer";
 
 
 export const router = createBrowserRouter([
@@ -104,6 +110,34 @@ export const router = createBrowserRouter([
       {
         path: "/dashboard",
         element: <ClientRoute><Dashboard></Dashboard></ClientRoute> 
+      },
+      {
+        path: "/opening-investment",
+        element: <ClientRoute><OpeningInvestment></OpeningInvestment></ClientRoute>
+      },
+      {
+        path: "/opening-investment",
+        element: <ClientRoute><OpeningInvestment></OpeningInvestment></ClientRoute>
+      },
+      {
+        path: "/income",
+        element: <ClientRoute><Income></Income></ClientRoute>
+      },
+      {
+        path: "/expense",
+        element: <ClientRoute><Expense></Expense></ClientRoute>
+      },
+      {
+        path: "/route-expense",
+        element: <ClientRoute><RouteExpense></RouteExpense></ClientRoute>
+      },
+      {
+        path: "/transfer",
+        element:<ClientRoute><Transfer></Transfer></ClientRoute>
+      },
+      {
+        path: "/account-heads",
+        element: <ClientRoute><AccountHeads></AccountHeads></ClientRoute>
       },
       {
         path: "/routes",

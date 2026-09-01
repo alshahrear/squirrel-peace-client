@@ -69,6 +69,20 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
     },
     {
       type: "dropdown",
+      key: "account",
+      label: "Account",
+      children: [
+        { to: "/opening-investment", label: "Opening Investment" },
+        { to: "/income", label: "Income" },
+        { to: "/expense", label: "Expense" },
+        { to: "/route-expense", label: "Route Expense" },
+        { to: "/transfer", label: "Transfer" },
+        { to: "/account-heads", label: "Account Heads" },
+        
+      ],
+    },
+    {
+      type: "dropdown",
       key: "users",
       label: "Users",
       children: [
