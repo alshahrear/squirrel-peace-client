@@ -7,7 +7,9 @@ const InvestmentForm = ({
     setEditingInvestment,
     showToast,
     scrollToTable,
+    investments = [],
 }) => {
+
     // আজকের ডেট ফরম্যাট করার ফাংশন (যেমন: "31 Aug 2026")
     const getFormattedToday = () => {
         const today = new Date();
@@ -123,7 +125,34 @@ const InvestmentForm = ({
             finalData.accountNumber = formData.accountNumber;
         }
 
-        const isEditing = Boolean(editingInvestment && editingInvestment._id);
+                const isEditing = Boolean(editingInvestment && editingInvestment._id);
+
+        // Duplicate account চেক করা (Mobile Banking: accountName + accountNumber, Bank: bankName + accountNumber)
+        const normalize = (val) => (val || '').toString().trim().toLowerCase();
+        const isDuplicate = investments.some((inv) => {
+            if (isEditing && inv._id === editingInvestment._id) return false; // নিজেকে বাদ দিয়ে চেক করা হচ্ছে
+            if (formData.accountType === 'Mobile Banking' && inv.accountType === 'Mobile Banking') {
+                return (
+                    normalize(inv.accountName) === normalize(formData.accountName) &&
+                    normalize(inv.accountNumber) === normalize(formData.accountNumber)
+                );
+            }
+            if (formData.accountType === 'Bank' && inv.accountType === 'Bank') {
+                return (
+                    normalize(inv.bankName) === normalize(formData.bankName) &&
+                    normalize(inv.accountNumber) === normalize(formData.accountNumber)
+                );
+            }
+            return false;
+        });
+
+        if (isDuplicate) {
+            const duplicateLabel = formData.accountType === 'Bank' ? 'This bank account' : 'This mobile banking account';
+            showToast(`${duplicateLabel} already exists!`, 'error');
+            setLoading(false);
+            return;
+        }
+
         const url = isEditing
             ? `http://localhost:5000/investment/${editingInvestment._id}`
             : 'http://localhost:5000/investment';

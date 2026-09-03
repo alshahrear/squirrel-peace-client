@@ -31,6 +31,7 @@ import AccountHeads from "../Components/Pages/Software/Account/AccountHeads";
 import Expense from "../Components/Pages/Software/Account/Expense";
 import RouteExpense from "../Components/Pages/Software/Account/RouteExpense";
 import Transfer from "../Components/Pages/Software/Account/Transfer";
+import AccountBalance from "../Components/Pages/Software/Account/AccountBalance";
 
 
 export const router = createBrowserRouter([
@@ -138,6 +139,10 @@ export const router = createBrowserRouter([
       {
         path: "/account-heads",
         element: <ClientRoute><AccountHeads></AccountHeads></ClientRoute>
+      },
+      {
+        path: "/account-balance",
+        element: <ClientRoute><AccountBalance></AccountBalance></ClientRoute>
       },
       {
         path: "/routes",

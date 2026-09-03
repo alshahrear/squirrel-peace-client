@@ -39,6 +39,11 @@ const RouteExpenseForm = ({
     const [investments, setInvestments] = useState([]);
     const [deliveryMen, setDeliveryMen] = useState([]);
     const [routes, setRoutes] = useState([]);
+    const [adjustments, setAdjustments] = useState([]);
+    const [allIncomes, setAllIncomes] = useState([]);
+    const [allExpenses, setAllExpenses] = useState([]);
+    const [allRouteExpenses, setAllRouteExpenses] = useState([]);
+    const [allTransfers, setAllTransfers] = useState([]);
 
     const dateInputRef = useRef(null);
 
@@ -60,13 +65,31 @@ const RouteExpenseForm = ({
         fetchRouteExpenseHeads();
     }, []);
 
-    // Investment API থেকে ব্যাংক বা অ্যাকাউন্ট ডেটা ফেচ করা
+    // Investment + Balance সংক্রান্ত সব ডেটা ফেচ করা (Account Balance check করার জন্য)
     useEffect(() => {
         const fetchInvestments = async () => {
             try {
-                const res = await fetch('http://localhost:5000/investment');
-                const data = await res.json();
+                const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, transferRes] = await Promise.all([
+                    fetch('http://localhost:5000/investment'),
+                    fetch('http://localhost:5000/adjustment'),
+                    fetch('http://localhost:5000/income'),
+                    fetch('http://localhost:5000/expense'),
+                    fetch('http://localhost:5000/routeExpense'),
+                    fetch('http://localhost:5000/transfer'),
+                ]);
+                const data = await invRes.json();
+                const adjData = await adjRes.json();
+                const incomeData = await incomeRes.json();
+                const expenseData = await expenseRes.json();
+                const routeExpenseData = await routeExpenseRes.json();
+                const transferData = await transferRes.json();
+
                 setInvestments(data);
+                setAdjustments(Array.isArray(adjData) ? adjData : []);
+                setAllIncomes(Array.isArray(incomeData) ? incomeData : []);
+                setAllExpenses(Array.isArray(expenseData) ? expenseData : []);
+                setAllRouteExpenses(Array.isArray(routeExpenseData) ? routeExpenseData : []);
+                setAllTransfers(Array.isArray(transferData) ? transferData : []);
             } catch (error) {
                 console.error('Error fetching investments:', error);
             }
@@ -226,6 +249,109 @@ const RouteExpenseForm = ({
         }
     };
 
+    // accountType কে normalize করে cash/mobile/bank ক্যাটাগরিতে ভাগ করা (AccountBalance পেজের সাথে মিলিয়ে)
+    const getCategory = (accountType = '') => {
+        const type = accountType.toLowerCase();
+        if (type.includes('cash')) return 'cash';
+        if (type.includes('mobile')) return 'mobile';
+        if (type.includes('bank')) return 'bank';
+        return 'others';
+    };
+
+    // AccountBalance পেজের ensureKey এর সাথে মিলিয়ে account key বানানো
+    const buildAccountKey = (item) => {
+        const accountName = item.accountName || item.bankName || 'N/A';
+        const accountNumber = item.accountNumber || '';
+        const accountBranch = item.accountBranch || '';
+        return `${accountName}||${accountNumber}||${accountBranch}`;
+    };
+
+    // Transfer এর label এর সাথে investment মিলানোর জন্য
+    const getAccountLabelForTransfer = (acc) => {
+        if (acc.accountType === 'Cash') return 'Cash';
+        if (acc.accountType === 'Mobile Banking') {
+            return `${acc.accountName} (${acc.accountNumber})`;
+        }
+        if (acc.accountType === 'Bank') {
+            return `${acc.bankName} - ${acc.accountNumber} (${acc.accountBranch || 'Main'})`;
+        }
+        return acc.accountNumber || acc.accountType;
+    };
+
+    const resolveTransferAccountKey = (type, label) => {
+        if (label === 'Cash') {
+            const cashAcc = investments.find(inv => getCategory(inv.accountType) === 'cash');
+            return cashAcc ? buildAccountKey(cashAcc) : 'N/A||||';
+        }
+        const acc = investments.find(inv => inv.accountType === type && getAccountLabelForTransfer(inv) === label);
+        return acc ? buildAccountKey(acc) : null;
+    };
+
+    // একটা investment এর remaining amount (Deposit/Withdraw ধরে)
+    const getRemainingInvestment = (investment) => {
+        const relatedAdjustments = adjustments.filter(adj => adj.adjustmentID === investment._id);
+        const totalDeposit = relatedAdjustments
+            .filter(adj => adj.mode === 'Deposit')
+            .reduce((sum, adj) => sum + Number(adj.amount || 0), 0);
+        const totalWithdraw = relatedAdjustments
+            .filter(adj => adj.mode === 'Withdraw')
+            .reduce((sum, adj) => sum + Number(adj.amount || 0), 0);
+        return Number(investment.amount || 0) + totalDeposit - totalWithdraw;
+    };
+
+    // বর্তমান ফর্মে সিলেক্ট করা account এর key বের করা (Cash / Mobile Banking / Bank)
+    const getSelectedAccountKey = () => {
+        if (formData.accountType === 'Cash') {
+            return 'N/A||||';
+        }
+        if (formData.accountType === 'Bank') {
+            const accountName = formData.bankName || 'N/A';
+            return `${accountName}||${formData.accountNumber || ''}||${formData.accountBranch || ''}`;
+        }
+        if (formData.accountType === 'Mobile Banking') {
+            const accountName = formData.accountName || 'N/A';
+            return `${accountName}||${formData.accountNumber || ''}||`;
+        }
+        return null;
+    };
+
+    // নির্দিষ্ট account key এর বর্তমান remaining balance বের করা (Investment + Income - Expense - RouteExpense +/- Transfer)
+    const getAccountBalance = (targetKey) => {
+        if (!targetKey) return 0;
+
+        let balance = 0;
+
+        investments.forEach(inv => {
+            if (buildAccountKey(inv) === targetKey) balance += getRemainingInvestment(inv);
+        });
+
+        allIncomes.forEach(item => {
+            if (buildAccountKey(item) === targetKey) balance += Number(item.amount) || 0;
+        });
+
+        allExpenses.forEach(item => {
+            if (buildAccountKey(item) === targetKey) balance -= Number(item.amount) || 0;
+        });
+
+        allRouteExpenses.forEach(item => {
+            // এডিট মোডে থাকা রুট এক্সপেন্স টা বাদ, কারণ সেটার effect আগে থেকেই ধরা আছে
+            if (editingRouteExpense && item._id === editingRouteExpense._id) return;
+            if (buildAccountKey(item) === targetKey) balance -= Number(item.amount) || 0;
+        });
+
+        allTransfers.forEach(item => {
+            const amt = Number(item.amount) || 0;
+
+            const fromKey = resolveTransferAccountKey(item.transferFrom, item.fromAccount);
+            if (fromKey && fromKey === targetKey) balance -= amt;
+
+            const toKey = resolveTransferAccountKey(item.transferTo, item.toAccount);
+            if (toKey && toKey === targetKey) balance += amt;
+        });
+
+        return balance;
+    };
+
     const handleCancel = () => {
         setFormData(emptyForm);
         setEditingRouteExpense(null);
@@ -234,6 +360,15 @@ const RouteExpenseForm = ({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // সিলেক্ট করা account এ পর্যাপ্ত ব্যালেন্স আছে কিনা চেক করা হচ্ছে
+        const selectedAccountKey = getSelectedAccountKey();
+        const availableBalance = getAccountBalance(selectedAccountKey);
+        if (Number(formData.amount) > availableBalance) {
+            showToast('Insufficient balance in the selected account!', 'error', { position: 'top-right' });
+            return;
+        }
+
         setLoading(true);
 
         const isEditing = Boolean(editingRouteExpense && editingRouteExpense._id);
@@ -340,9 +475,9 @@ const RouteExpenseForm = ({
                         <h3 className="text-xl font-extrabold text-gray-800">
                             {isEditing ? 'Edit Route Expense Record' : 'New Route Expense Record'}
                         </h3>
-                       
+
                     </div>
-                </div>       
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">

@@ -72,6 +72,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       key: "account",
       label: "Account",
       children: [
+        { to: "/account-balance", label: "Account Balance" },
         { to: "/opening-investment", label: "Opening Investment" },
         { to: "/income", label: "Income" },
         { to: "/expense", label: "Expense" },

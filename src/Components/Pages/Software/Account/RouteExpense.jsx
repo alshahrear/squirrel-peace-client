@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaFilter, FaRedo } from 'react-icons/fa';
 import RouteExpenseForm from './RouteExpenseForm';
-import { FiEye } from 'react-icons/fi';
+import { FiEye, FiPieChart, FiX } from 'react-icons/fi';
 
 const RouteExpense = () => {
     const [routeExpenses, setRouteExpenses] = useState([]);
@@ -12,6 +12,10 @@ const RouteExpense = () => {
     // Form & Edit Modal States
     const [showForm, setShowForm] = useState(false);
     const [editingRouteExpense, setEditingRouteExpense] = useState(null);
+
+    // Breakdown Modal States
+    const [showBreakdown, setShowBreakdown] = useState(false);
+    const [breakdownVisible, setBreakdownVisible] = useState(false);
 
     // Filter Dropdown source data
     const [deliveryMen, setDeliveryMen] = useState([]);
@@ -33,6 +37,9 @@ const RouteExpense = () => {
 
     // Table section ref for auto scrolling
     const tableSectionRef = useRef(null);
+
+    // Form section ref for auto scrolling on edit
+    const formSectionRef = useRef(null);
 
     // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
     const displayFormattedDate = (dateString) => {
@@ -206,9 +213,84 @@ const RouteExpense = () => {
     const hasAccountDetails = (routeExpense) =>
         Boolean(routeExpense.bankName || routeExpense.accountNumber || routeExpense.accountBranch || routeExpense.accountName);
 
+    // Open/close breakdown modal with smooth animation
+    const openBreakdown = () => {
+        setShowBreakdown(true);
+        setTimeout(() => setBreakdownVisible(true), 10);
+    };
+
+    const closeBreakdown = () => {
+        setBreakdownVisible(false);
+        setTimeout(() => setShowBreakdown(false), 250);
+    };
+
+    // Route Expense Breakdown Calculation
+    // - accountType wise total (Cash, Mobile Banking, Bank ...)
+    // - Mobile Banking er khetre accountName (Bkash/Nagad) + accountNumber onujayi sub-group
+    // - Bank er khetre bankName + accountNumber onujayi sub-group
+    const getExpenseBreakdown = () => {
+        const groups = {};
+
+        filteredRouteExpenses.forEach((routeExpense) => {
+            const type = routeExpense.accountType?.trim() || 'Others';
+            const amount = Number(routeExpense.amount) || 0;
+
+            if (!groups[type]) {
+                groups[type] = { total: 0, subGroups: {} };
+            }
+
+            groups[type].total += amount;
+
+            const normalizedType = type.toLowerCase();
+            let subKey = '';
+
+            if (normalizedType === 'mobile banking') {
+                const provider = routeExpense.accountName?.trim();
+                const number = routeExpense.accountNumber?.trim();
+                if (provider && number) {
+                    subKey = `${provider} (${number})`;
+                } else if (provider) {
+                    subKey = provider;
+                } else if (number) {
+                    subKey = number;
+                }
+            } else if (normalizedType === 'bank') {
+                const bank = routeExpense.bankName?.trim();
+                const number = routeExpense.accountNumber?.trim();
+                if (bank && number) {
+                    subKey = `${bank} (${number})`;
+                } else if (bank) {
+                    subKey = bank;
+                } else if (number) {
+                    subKey = number;
+                }
+            } else if (normalizedType !== 'cash') {
+                const fallbackName = routeExpense.bankName?.trim() || routeExpense.accountName?.trim();
+                const number = routeExpense.accountNumber?.trim();
+                if (fallbackName && number) {
+                    subKey = `${fallbackName} (${number})`;
+                } else if (fallbackName) {
+                    subKey = fallbackName;
+                } else if (number) {
+                    subKey = number;
+                }
+            }
+            // Cash hole subKey empty thakbe, tai sub-breakdown dekhabe na
+
+            if (subKey) {
+                groups[type].subGroups[subKey] = (groups[type].subGroups[subKey] || 0) + amount;
+            }
+        });
+
+        return groups;
+    };
+
+    const breakdown = getExpenseBreakdown();
+    const grandTotal = filteredRouteExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-cyan-100 via-blue-50 to-sky-100 p-6 md:p-8 relative">
-            
+
             {/* Top Right Toast Notification */}
             {toast.show && (
                 <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
@@ -216,8 +298,68 @@ const RouteExpense = () => {
                 </div>
             )}
 
+            {/* Route Expense Breakdown Modal */}
+            {showBreakdown && (
+                <div
+                    className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-all duration-300 ${breakdownVisible ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'}`}
+                    onClick={closeBreakdown}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className={`bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-white overflow-hidden transform transition-all duration-300 ${breakdownVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}`}
+                    >
+                        {/* Modal Header */}
+                        <div className="bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-5 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Route Expense Breakdown</h3>
+                                <p className="text-cyan-100 text-xs mt-0.5">Source wise total expense</p>
+                            </div>
+                            <button
+                                onClick={closeBreakdown}
+                                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition duration-200 cursor-pointer"
+                            >
+                                <FiX className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                            {Object.keys(breakdown).length === 0 ? (
+                                <div className="text-center py-10 text-gray-400 font-medium">No data to show!</div>
+                            ) : (
+                                Object.entries(breakdown).map(([type, data]) => (
+                                    <div key={type} className="bg-gray-50/70 rounded-2xl border border-gray-100 p-4">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-gray-800 text-sm">{type}</span>
+                                            <span className="font-bold text-cyan-600 text-sm">৳ {data.total.toLocaleString()}</span>
+                                        </div>
+
+                                        {Object.keys(data.subGroups).length > 0 && (
+                                            <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-cyan-100">
+                                                {Object.entries(data.subGroups).map(([subKey, subAmount]) => (
+                                                    <div key={subKey} className="flex items-center justify-between text-xs text-gray-600">
+                                                        <span className="font-medium">{subKey}</span>
+                                                        <span className="font-semibold text-gray-700">৳ {subAmount.toLocaleString()}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 bg-cyan-50/60 border-t border-cyan-100 flex items-center justify-between">
+                            <span className="text-sm font-bold text-gray-700">Grand Total</span>
+                            <span className="text-lg font-extrabold text-cyan-700">৳ {grandTotal.toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto space-y-8">
-                
+
                 {/* Top Section: Title & Add Button */}
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
@@ -253,8 +395,8 @@ const RouteExpense = () => {
 
                 {/* Collapsible Form Component */}
                 {showForm && (
-                    <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white">
-                        <RouteExpenseForm 
+                    <div ref={formSectionRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white">
+                        <RouteExpenseForm
                             fetchRouteExpenses={fetchRouteExpenses}
                             setShowForm={setShowForm}
                             editingRouteExpense={editingRouteExpense}
@@ -400,16 +542,24 @@ const RouteExpense = () => {
 
                 {/* Table Card Section */}
                 <div ref={tableSectionRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl overflow-hidden p-6 md:p-8 border border-white space-y-6">
-                    
+
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                       <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                             <h3 className="text-xl font-bold text-gray-800">Route Expense Records</h3>
                             <span className="px-3 py-1 bg-cyan-50 border border-cyan-100 text-cyan-700 font-semibold text-xs rounded-full shadow-sm">
                                 Showing: {filteredRouteExpenses.length} of {routeExpenses.length}
                             </span>
                             <span className="px-3 py-3  bg-blue-50 border border-blue-100 text-blue-700 font-bold text-xs rounded-full shadow-sm">
-                                Total Route Expense: ৳ {filteredRouteExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0).toLocaleString()}
+                                Total Route Expense: ৳ {grandTotal.toLocaleString()}
                             </span>
+                            <button
+                                onClick={openBreakdown}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-xs rounded-full shadow-sm transition duration-200 cursor-pointer"
+                                title="View Route Expense Breakdown"
+                            >
+                                <FiPieChart className="w-3.5 h-3.5" />
+                                Breakdown
+                            </button>
                         </div>
                     </div>
 
@@ -452,20 +602,41 @@ const RouteExpense = () => {
                                             <td className="py-4 px-4 font-bold text-gray-800">{routeExpense.routeExpenseCategory || 'N/A'}</td>
                                             <td className="py-4 px-4 text-gray-600">{routeExpense.name || 'N/A'}</td>
                                             <td className="py-4 px-4">
-                                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold text-xs whitespace-nowrap">
-                                                    {routeExpense.accountType || 'N/A'}
-                                                </span>
+                                                {routeExpense.accountType === 'Mobile Banking' ? (
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <span className="font-semibold text-amber-700 text-sm">
+                                                            {routeExpense.accountName || 'N/A'}
+                                                        </span>
+                                                        <span className="inline-flex items-center w-fit gap-1 px-2.5 py-0.5 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border border-amber-200 rounded-full font-bold text-[10px] uppercase tracking-wide whitespace-nowrap">
+                                                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                                                            Mobile Banking
+                                                        </span>
+                                                    </div>
+                                                ) : routeExpense.accountType === 'Bank' ? (
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <span className="font-semibold text-cyan-700 text-sm">
+                                                            {routeExpense.bankName || 'N/A'}
+                                                        </span>
+                                                        <span className="inline-flex items-center w-fit gap-1 px-2.5 py-0.5 bg-gradient-to-r from-cyan-100 to-blue-100 text-cyan-700 border border-cyan-200 rounded-full font-bold text-[10px] uppercase tracking-wide whitespace-nowrap">
+                                                            <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></span>
+                                                            Bank
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-blue-100 to-sky-100 text-blue-700 border border-blue-200 rounded-full font-semibold text-xs whitespace-nowrap">
+                                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                                                        {routeExpense.accountType || 'N/A'}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="py-4 px-4 text-xs text-gray-500">
                                                 {hasAccountDetails(routeExpense) ? (
                                                     <div className="space-y-0.5">
-                                                        {routeExpense.bankName && <p><strong className="text-gray-700">Bank:</strong> {routeExpense.bankName}</p>}
                                                         {routeExpense.accountNumber && <p><strong className="text-gray-700">A/C:</strong> {routeExpense.accountNumber}</p>}
                                                         {routeExpense.accountBranch && <p><strong className="text-gray-700">Branch:</strong> {routeExpense.accountBranch}</p>}
-                                                        {routeExpense.accountName && <p><strong className="text-gray-700">Holder:</strong> {routeExpense.accountName}</p>}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-gray-400">N/A</span>
+                                                    <span className="text-gray-500">Cash</span>
                                                 )}
                                             </td>
                                             <td className="py-4 px-4 font-bold text-cyan-600 whitespace-nowrap">৳ {routeExpense.amount ?? 'N/A'}</td>
@@ -481,10 +652,13 @@ const RouteExpense = () => {
                                             </td>
                                             <td className="py-4 px-4 text-center">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             setEditingRouteExpense(routeExpense);
                                                             setShowForm(true);
+                                                            setTimeout(() => {
+                                                                formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                            }, 100);
                                                         }}
                                                         className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 shadow-sm cursor-pointer"
                                                         title="Edit Route Expense"
@@ -494,7 +668,7 @@ const RouteExpense = () => {
                                                         </svg>
                                                     </button>
 
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleDelete(routeExpense._id)}
                                                         className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl transition duration-200 shadow-sm cursor-pointer"
                                                         title="Delete Route Expense"

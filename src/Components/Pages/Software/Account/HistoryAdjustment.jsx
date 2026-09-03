@@ -12,7 +12,7 @@ import useAuth from '../../../Layout/useAuth';
 import useAdmin from '../../../../hooks/useAdmin';
 import AdjustmentForm from './Adjustment';
 
-const HistoryAdjustment = ({ selectedInvestment }) => {
+const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
     const [historyData, setHistoryData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
@@ -167,6 +167,7 @@ const HistoryAdjustment = ({ selectedInvestment }) => {
                 if (data.deletedCount > 0 || data.acknowledged) {
                     setHistoryData(prev => prev.filter(item => item._id !== id));
                     showToast('Record deleted successfully!', 'success');
+                    refreshInvestments?.();
                 } else {
                     showToast('Failed to delete record!', 'error');
                 }
@@ -405,10 +406,12 @@ const HistoryAdjustment = ({ selectedInvestment }) => {
                                 setShowEditModal(false);
                                 setEditingAdjustment(null);
                                 fetchAdjustmentHistory();
+                                refreshInvestments?.();
                             }}
                             showToast={showToast}
                             selectedInvestment={selectedInvestment}
                             editingAdjustment={editingAdjustment}
+                            availableAmount={totalRemaining}
                         />
                     </div>
                 </div>

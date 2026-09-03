@@ -13,7 +13,8 @@ import {
     FiRotateCcw,
     FiChevronDown,
     FiSliders,
-    FiClock // হিস্ট্রির জন্য আইকন ইম্পোর্ট করা হলো
+    FiClock, // হিস্ট্রির জন্য আইকন ইম্পোর্ট করা হলো
+    FiPieChart // Breakdown আইকন ইম্পোর্ট করা হলো
 } from 'react-icons/fi';
 import { IoWalletOutline } from 'react-icons/io5';
 
@@ -42,6 +43,10 @@ const OpeningInvestment = () => {
 
     // Active Action Dropdown State
     const [activeDropdownId, setActiveDropdownId] = useState(null);
+
+    // Breakdown Modal States (নতুন যোগ করা হলো)
+    const [showBreakdown, setShowBreakdown] = useState(false);
+    const [breakdownVisible, setBreakdownVisible] = useState(false);
 
     // Table and Top section refs for auto scrolling
     const tableSectionRef = useRef(null);
@@ -198,12 +203,147 @@ const OpeningInvestment = () => {
         return typeMatch && nameMatch && numberMatch && branchMatch;
     });
 
+    // Open/close breakdown modal with smooth animation (নতুন যোগ করা হলো)
+    const openBreakdown = () => {
+        setShowBreakdown(true);
+        setTimeout(() => setBreakdownVisible(true), 10);
+    };
+
+    const closeBreakdown = () => {
+        setBreakdownVisible(false);
+        setTimeout(() => setShowBreakdown(false), 250);
+    };
+
+    // Investment Breakdown Calculation (নতুন যোগ করা হলো)
+    // - accountType wise total (Cash, Mobile Banking, Bank ...) — remaining amount ভিত্তিক
+    // - Mobile Banking er khetre accountName (Bkash/Nagad) + accountNumber onujayi sub-group
+    // - Bank er khetre bankName/accountName + accountNumber onujayi sub-group
+    const getInvestmentBreakdown = () => {
+        const groups = {};
+
+        filteredInvestments.forEach((item) => {
+            const type = item.accountType?.trim() || 'Others';
+            const amount = getRemainingAmount(item);
+
+            if (!groups[type]) {
+                groups[type] = { total: 0, subGroups: {} };
+            }
+
+            groups[type].total += amount;
+
+            const normalizedType = type.toLowerCase();
+            let subKey = '';
+
+            if (normalizedType === 'mobile banking') {
+                const provider = item.accountName?.trim();
+                const number = item.accountNumber?.trim();
+                if (provider && number) {
+                    subKey = `${provider} (${number})`;
+                } else if (provider) {
+                    subKey = provider;
+                } else if (number) {
+                    subKey = number;
+                }
+            } else if (normalizedType === 'bank') {
+                const bank = item.bankName?.trim() || item.accountName?.trim();
+                const number = item.accountNumber?.trim();
+                if (bank && number) {
+                    subKey = `${bank} (${number})`;
+                } else if (bank) {
+                    subKey = bank;
+                } else if (number) {
+                    subKey = number;
+                }
+            } else if (normalizedType !== 'cash') {
+                const fallbackName = item.bankName?.trim() || item.accountName?.trim();
+                const number = item.accountNumber?.trim();
+                if (fallbackName && number) {
+                    subKey = `${fallbackName} (${number})`;
+                } else if (fallbackName) {
+                    subKey = fallbackName;
+                } else if (number) {
+                    subKey = number;
+                }
+            }
+            // Cash hole subKey empty thakbe, tai sub-breakdown dekhabe na
+
+            if (subKey) {
+                groups[type].subGroups[subKey] = (groups[type].subGroups[subKey] || 0) + amount;
+            }
+        });
+
+        return groups;
+    };
+
+    const breakdown = getInvestmentBreakdown();
+    const grandTotal = filteredInvestments.reduce((sum, item) => sum + getRemainingAmount(item), 0);
+
     return (
         <div ref={topSectionRef} className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
 
             {toast.show && (
                 <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
                     <span>{toast.message}</span>
+                </div>
+            )}
+
+            {/* Investment Breakdown Modal (নতুন যোগ করা হলো) */}
+            {showBreakdown && (
+                <div
+                    className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-all duration-300 ${breakdownVisible ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'}`}
+                    onClick={closeBreakdown}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className={`bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-white overflow-hidden transform transition-all duration-300 ${breakdownVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}`}
+                    >
+                        {/* Modal Header */}
+                        <div className="bg-gradient-to-r from-indigo-600 to-pink-600 px-6 py-5 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Investment Breakdown</h3>
+                                <p className="text-indigo-100 text-xs mt-0.5">Source wise total balance</p>
+                            </div>
+                            <button
+                                onClick={closeBreakdown}
+                                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition duration-200 cursor-pointer"
+                            >
+                                <FiX className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                            {Object.keys(breakdown).length === 0 ? (
+                                <div className="text-center py-10 text-gray-400 font-medium">No data to show!</div>
+                            ) : (
+                                Object.entries(breakdown).map(([type, data]) => (
+                                    <div key={type} className="bg-gray-50/70 rounded-2xl border border-gray-100 p-4">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-gray-800 text-sm">{type}</span>
+                                            <span className="font-bold text-emerald-600 text-sm">৳ {data.total.toLocaleString()}</span>
+                                        </div>
+
+                                        {Object.keys(data.subGroups).length > 0 && (
+                                            <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-indigo-100">
+                                                {Object.entries(data.subGroups).map(([subKey, subAmount]) => (
+                                                    <div key={subKey} className="flex items-center justify-between text-xs text-gray-600">
+                                                        <span className="font-medium">{subKey}</span>
+                                                        <span className="font-semibold text-gray-700">৳ {subAmount.toLocaleString()}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 bg-indigo-50/60 border-t border-indigo-100 flex items-center justify-between">
+                            <span className="text-sm font-bold text-gray-700">Grand Total</span>
+                            <span className="text-lg font-extrabold text-indigo-700">৳ {grandTotal.toLocaleString()}</span>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -244,6 +384,7 @@ const OpeningInvestment = () => {
                             setEditingInvestment={setEditingInvestment}
                             showToast={showToast}
                             scrollToTable={scrollToTable}
+                            investments={investments}
                         />
                     </div>
                 )}
@@ -252,11 +393,22 @@ const OpeningInvestment = () => {
 
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 <h3 className="text-xl font-bold text-gray-800">Investment Records</h3>
                                 <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
                                     Total: {filteredInvestments.length} / {investments.length}
                                 </span>
+                                <span className="px-3 py-3 bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold text-xs rounded-full shadow-sm">
+                                    Total Balance: ৳ {grandTotal.toLocaleString()}
+                                </span>
+                                <button
+                                    onClick={openBreakdown}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-full shadow-sm transition duration-200 cursor-pointer"
+                                    title="View Investment Breakdown"
+                                >
+                                    <FiPieChart className="w-3.5 h-3.5" />
+                                    Breakdown
+                                </button>
                             </div>
 
                             <button
@@ -486,6 +638,7 @@ const OpeningInvestment = () => {
                             }}
                             showToast={showToast}
                             selectedInvestment={selectedInvestmentForAdjustment}
+                            availableAmount={selectedInvestmentForAdjustment ? getRemainingAmount(selectedInvestmentForAdjustment) : 0}
                         />
                     </div>
                 </div>
@@ -520,6 +673,7 @@ const OpeningInvestment = () => {
                             onClose={() => setShowHistoryModal(false)}
                             showToast={showToast}
                             selectedInvestment={selectedInvestmentForHistory}
+                            refreshInvestments={fetchAdjustments}
                         />
                     </div>
                 </div>

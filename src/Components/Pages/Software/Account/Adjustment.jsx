@@ -1,15 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiCalendar, FiCheck } from 'react-icons/fi';
 
-const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustment }) => {
+const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustment, availableAmount = 0 }) => {
     const [adjustmentData, setAdjustmentData] = useState({
         date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
         mode: 'Deposit',
         amount: '',
         note: '',
     });
-    const [adjustmentLoading, setAdjustmentLoading] = useState(false);
+        const [adjustmentLoading, setAdjustmentLoading] = useState(false);
+    const [localToast, setLocalToast] = useState({ show: false, message: '' });
     const adjDateInputRef = useRef(null);
+
+    // Edit করার সময় পুরনো adjustment-এর প্রভাব বাদ দিয়ে আসল available balance বের করা হচ্ছে
+    const baseAvailableAmount = availableAmount + (editingAdjustment
+        ? (editingAdjustment.mode === 'Withdraw'
+            ? Number(editingAdjustment.amount || 0)
+            : -Number(editingAdjustment.amount || 0))
+        : 0);
 
     // Edit মোডে থাকলে ফর্মে আগের ডেটা বসিয়ে দেওয়া হচ্ছে
     useEffect(() => {
@@ -23,8 +31,15 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
         }
     }, [editingAdjustment]);
 
-    const handleAdjustmentSubmit = async (e) => {
+        const handleAdjustmentSubmit = async (e) => {
         e.preventDefault();
+
+        if (adjustmentData.mode === 'Withdraw' && Number(adjustmentData.amount) > baseAvailableAmount) {
+            setLocalToast({ show: true, message: `Withdraw amount cannot exceed available balance (৳ ${baseAvailableAmount})!` });
+            setTimeout(() => setLocalToast({ show: false, message: '' }), 3000);
+            return;
+        }
+
         setAdjustmentLoading(true);
 
         const finalData = {
@@ -63,8 +78,22 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
         }
     };
 
-    return (
+        return (
         <form onSubmit={handleAdjustmentSubmit} className="space-y-4">
+
+            {/* Local Toast - Modal এর উপরে দেখানোর জন্য */}
+            {localToast.show && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[999] px-4 py-2.5 bg-rose-600 text-white text-xs font-semibold rounded-xl shadow-lg whitespace-nowrap animate-in fade-in slide-in-from-top-2 duration-200">
+                    {localToast.message}
+                </div>
+            )}
+
+            {/* Available Balance Banner */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+                <span className="text-xs font-semibold text-gray-600">Available Balance</span>
+                <span className="text-sm font-extrabold text-indigo-700">৳ {baseAvailableAmount.toLocaleString()}</span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Mode Field */}
                 <div>
