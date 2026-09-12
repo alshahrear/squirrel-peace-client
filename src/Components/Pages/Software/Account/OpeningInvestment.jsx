@@ -12,6 +12,8 @@ import {
     FiEye,
     FiRotateCcw,
     FiChevronDown,
+    FiChevronLeft,
+    FiChevronRight,
     FiSliders,
     FiClock, // হিস্ট্রির জন্য আইকন ইম্পোর্ট করা হলো
     FiPieChart // Breakdown আইকন ইম্পোর্ট করা হলো
@@ -22,6 +24,10 @@ const OpeningInvestment = () => {
     const [investments, setInvestments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 30;
 
     // Multi-Field Search States
     const [searchType, setSearchType] = useState('');
@@ -137,6 +143,7 @@ const OpeningInvestment = () => {
         setSearchName('');
         setSearchNumber('');
         setSearchBranch('');
+        setCurrentPage(1);
         showToast('Filters cleared successfully!', 'success');
     };
 
@@ -202,6 +209,19 @@ const OpeningInvestment = () => {
 
         return typeMatch && nameMatch && numberMatch && branchMatch;
     });
+
+    // Pagination Calculations
+    const totalPages = Math.ceil(filteredInvestments.length / itemsPerPage) || 1;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentInvestments = filteredInvestments.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Handle page change
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
 
     // Open/close breakdown modal with smooth animation (নতুন যোগ করা হলো)
     const openBreakdown = () => {
@@ -396,7 +416,7 @@ const OpeningInvestment = () => {
                             <div className="flex flex-wrap items-center gap-3">
                                 <h3 className="text-xl font-bold text-gray-800">Investment Records</h3>
                                 <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                                    Total: {filteredInvestments.length} / {investments.length}
+                                    Showing: {filteredInvestments.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredInvestments.length)}` : 0} of {filteredInvestments.length} ({investments.length} total)
                                 </span>
                                 <span className="px-3 py-3 bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold text-xs rounded-full shadow-sm">
                                     Total Balance: ৳ {grandTotal.toLocaleString()}
@@ -426,7 +446,7 @@ const OpeningInvestment = () => {
                                 <label className="block text-xs font-semibold text-gray-600 mb-1">Filter by Account Type</label>
                                 <select
                                     value={searchType}
-                                    onChange={(e) => setSearchType(e.target.value)}
+                                    onChange={(e) => { setSearchType(e.target.value); setCurrentPage(1); }}
                                     className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none bg-white text-sm text-gray-700 cursor-pointer"
                                 >
                                     <option value="">All Account Types</option>
@@ -446,7 +466,7 @@ const OpeningInvestment = () => {
                                         type="text"
                                         placeholder="e.g. Brac Bank, Cash..."
                                         value={searchName}
-                                        onChange={(e) => setSearchName(e.target.value)}
+                                        onChange={(e) => { setSearchName(e.target.value); setCurrentPage(1); }}
                                         className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none bg-white text-sm text-gray-700"
                                     />
                                 </div>
@@ -462,7 +482,7 @@ const OpeningInvestment = () => {
                                         type="text"
                                         placeholder="e.g. 123456..."
                                         value={searchNumber}
-                                        onChange={(e) => setSearchNumber(e.target.value)}
+                                        onChange={(e) => { setSearchNumber(e.target.value); setCurrentPage(1); }}
                                         className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none bg-white text-sm text-gray-700"
                                     />
                                 </div>
@@ -478,7 +498,7 @@ const OpeningInvestment = () => {
                                         type="text"
                                         placeholder="e.g. Motijheel..."
                                         value={searchBranch}
-                                        onChange={(e) => setSearchBranch(e.target.value)}
+                                        onChange={(e) => { setSearchBranch(e.target.value); setCurrentPage(1); }}
                                         className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none bg-white text-sm text-gray-700"
                                     />
                                 </div>
@@ -506,9 +526,9 @@ const OpeningInvestment = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                                    {filteredInvestments.map((item, index) => (
+                                    {currentInvestments.map((item, index) => (
                                         <tr key={item._id || index} className="hover:bg-indigo-50/40 transition duration-150">
-                                            <td className="py-4 px-5 font-medium text-gray-400">{index + 1}</td>
+                                            <td className="py-4 px-5 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-5 text-gray-600">{item.date}</td>
                                             <td className="py-4 px-5">
                                                 <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-semibold text-xs">
@@ -516,10 +536,10 @@ const OpeningInvestment = () => {
                                                 </span>
                                             </td>
                                             <td className="py-4 px-5 font-bold text-gray-800">
-                                                {item.accountName || item.bankName || 'N/A'}
+                                                {item.accountName || item.bankName || 'Cash'}
                                             </td>
                                             <td className="py-4 px-5 text-gray-600">
-                                                {item.accountNumber ? `${item.accountNumber} ${item.accountBranch ? `(${item.accountBranch})` : ''}` : 'N/A'}
+                                                {item.accountNumber ? `${item.accountNumber} ${item.accountBranch ? `(${item.accountBranch})` : ''}` : 'Cash'}
                                             </td>
                                             <td className="py-4 px-5 font-bold text-emerald-600">
                                                 ৳ {getRemainingAmount(item)}
@@ -602,6 +622,69 @@ const OpeningInvestment = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+
+                    {/* Pagination Footer */}
+                    {!loading && filteredInvestments.length > 0 && (
+                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <span className="text-xs text-gray-500 font-medium">
+                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    <FiChevronLeft size={12} /> Previous
+                                </button>
+
+                                <div className="hidden sm:flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNum = index + 1;
+                                        if (
+                                            pageNum === 1 ||
+                                            pageNum === totalPages ||
+                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => handlePageChange(pageNum)}
+                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNum === currentPage - 2 ||
+                                            pageNum === currentPage + 2
+                                        ) {
+                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    Next <FiChevronRight size={12} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

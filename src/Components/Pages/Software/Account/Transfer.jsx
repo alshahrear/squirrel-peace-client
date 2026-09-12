@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import TransferForm from './TransferForm';
-import { FiPieChart, FiX, FiArrowRight } from 'react-icons/fi';
-
+import { FiPieChart, FiX, FiArrowRight, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 const Transfer = () => {
     const [transfers, setTransfers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -11,6 +10,10 @@ const Transfer = () => {
     // Form & Edit Modal States
     const [showForm, setShowForm] = useState(false);
     const [editingTransfer, setEditingTransfer] = useState(null);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 30;
 
     // Advanced Filter States
     const [transferFromFilter, setTransferFromFilter] = useState('');
@@ -23,7 +26,7 @@ const Transfer = () => {
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [breakdownVisible, setBreakdownVisible] = useState(false);
 
-        // Refs for auto scrolling
+    // Refs for auto scrolling
     const tableSectionRef = useRef(null);
     const formSectionRef = useRef(null);
 
@@ -45,7 +48,7 @@ const Transfer = () => {
         }
     };
 
-       useEffect(() => {
+    useEffect(() => {
         fetchTransfers();
     }, []);
 
@@ -118,6 +121,7 @@ const Transfer = () => {
         setStartDate('');
         setEndDate('');
         setSearchTerm('');
+        setCurrentPage(1);
     };
 
     // Filtered Transfers based on Advanced Filters
@@ -159,6 +163,19 @@ const Transfer = () => {
 
         return matchTransferFrom && matchTransferTo && matchSearch;
     });
+
+    // Pagination Calculations
+    const totalPages = Math.ceil(filteredTransfers.length / itemsPerPage) || 1;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentTransfers = filteredTransfers.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Handle page change
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
 
     // Unique options for dropdowns based on existing data
     const uniqueTransferFrom = [...new Set(transfers.map(item => item.transferFrom).filter(Boolean))];
@@ -604,7 +621,7 @@ const Transfer = () => {
                         <div className="flex flex-wrap items-center gap-3">
                             <h3 className="text-xl font-bold text-gray-800">Transfers History</h3>
                             <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                                Total: {filteredTransfers.length} / {transfers.length}
+                                Showing: {filteredTransfers.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredTransfers.length)}` : 0} of {filteredTransfers.length} ({transfers.length} total)
                             </span>
                             <span className="px-3 py-3 bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold text-xs rounded-full shadow-sm">
                                 Total Transferred: ৳ {grandTransferredTotal.toLocaleString()}
@@ -628,7 +645,7 @@ const Transfer = () => {
                             <label className="block text-xs font-semibold text-gray-600 mb-1">Transfer From</label>
                             <select
                                 value={transferFromFilter}
-                                onChange={(e) => setTransferFromFilter(e.target.value)}
+                                onChange={(e) => { setTransferFromFilter(e.target.value); setCurrentPage(1); }}
                                 className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700"
                             >
                                 <option value="">All From Types</option>
@@ -643,7 +660,7 @@ const Transfer = () => {
                             <label className="block text-xs font-semibold text-gray-600 mb-1">Transfer To</label>
                             <select
                                 value={transferToFilter}
-                                onChange={(e) => setTransferToFilter(e.target.value)}
+                                onChange={(e) => { setTransferToFilter(e.target.value); setCurrentPage(1); }}
                                 className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700"
                             >
                                 <option value="">All To Types</option>
@@ -653,7 +670,7 @@ const Transfer = () => {
                             </select>
                         </div>
 
-                                               {/* Start Date */}
+                        {/* Start Date */}
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">Start Date</label>
                             <div
@@ -664,7 +681,7 @@ const Transfer = () => {
                                     ref={startDateRef}
                                     type="date"
                                     value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
+                                    onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
                                     className="absolute opacity-0 w-0 h-0 pointer-events-none"
                                 />
                                 <input
@@ -688,7 +705,7 @@ const Transfer = () => {
                                     ref={endDateRef}
                                     type="date"
                                     value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
+                                    onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
                                     className="absolute opacity-0 w-0 h-0 pointer-events-none"
                                 />
                                 <input
@@ -707,7 +724,7 @@ const Transfer = () => {
                                     type="text"
                                     placeholder="Search..."
                                     value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                     className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700"
                                 />
                             </div>
@@ -742,9 +759,9 @@ const Transfer = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                                    {filteredTransfers.map((item, index) => (
+                                    {currentTransfers.map((item, index) => (
                                         <tr key={item._id || index} className="hover:bg-indigo-50/40 transition duration-150">
-                                            <td className="py-4 px-5 font-medium text-gray-400">{index + 1}</td>
+                                            <td className="py-4 px-5 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-5 font-semibold text-gray-800 whitespace-nowrap">{item.date}</td>
                                             <td className="py-4 px-5">
                                                 <div className="font-semibold text-gray-800">{item.transferFrom}</div>
@@ -797,6 +814,69 @@ const Transfer = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+
+                    {/* Pagination Footer */}
+                    {!loading && filteredTransfers.length > 0 && (
+                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <span className="text-xs text-gray-500 font-medium">
+                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    <FiChevronLeft size={12} /> Previous
+                                </button>
+
+                                <div className="hidden sm:flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNum = index + 1;
+                                        if (
+                                            pageNum === 1 ||
+                                            pageNum === totalPages ||
+                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => handlePageChange(pageNum)}
+                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNum === currentPage - 2 ||
+                                            pageNum === currentPage + 2
+                                        ) {
+                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    Next <FiChevronRight size={12} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

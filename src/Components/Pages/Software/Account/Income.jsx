@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import IncomeForm from './IncomeForm';
-import { FiEye, FiPieChart, FiX } from 'react-icons/fi';
+import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 const Income = () => {
     const [incomes, setIncomes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
-    
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 30;
+
     // Search, Form & Edit Modal States
     const [searchTerm, setSearchTerm] = useState('');
     const [showForm, setShowForm] = useState(false);
@@ -104,6 +108,19 @@ const Income = () => {
         return categoryMatch || nameMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
     });
 
+    // Pagination Calculations
+    const totalPages = Math.ceil(filteredIncomes.length / itemsPerPage) || 1;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentIncomes = filteredIncomes.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Handle page change
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
+
     // কোনো account detail field আছে কিনা চেক করার হেল্পার (bankName না থাকলেও accountNumber/accountName/accountBranch থাকতে পারে)
     const hasAccountDetails = (income) =>
         Boolean(income.bankName || income.accountNumber || income.accountBranch || income.accountName);
@@ -188,7 +205,7 @@ const Income = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
-            
+
             {/* Top Right Toast Notification */}
             {toast.show && (
                 <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
@@ -257,7 +274,7 @@ const Income = () => {
             )}
 
             <div className="max-w-7xl mx-auto space-y-8">
-                
+
                 {/* Top Section: Title & Add Button */}
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
@@ -294,7 +311,7 @@ const Income = () => {
                 {/* Collapsible Form Component */}
                 {showForm && (
                     <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white">
-                        <IncomeForm 
+                        <IncomeForm
                             fetchIncomes={fetchIncomes}
                             setShowForm={setShowForm}
                             editingIncome={editingIncome}
@@ -311,12 +328,12 @@ const Income = () => {
 
                 {/* Table Card Section */}
                 <div ref={tableSectionRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl overflow-hidden p-6 md:p-8 border border-white space-y-6">
-                    
+
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                       <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                             <h3 className="text-xl font-bold text-gray-800">Income Records</h3>
                             <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                                Total: {filteredIncomes.length}
+                                Showing: {filteredIncomes.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredIncomes.length)}` : 0} of {filteredIncomes.length} ({incomes.length} total)
                             </span>
                             <span className="px-3 py-3  bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold text-xs rounded-full shadow-sm">
                                 Total Income: ৳ {grandTotal.toLocaleString()}
@@ -341,7 +358,7 @@ const Income = () => {
                                 type="text"
                                 placeholder="Search by category, name, account, invoice..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                 className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
                             />
                         </div>
@@ -370,14 +387,14 @@ const Income = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                                    {filteredIncomes.map((income, index) => (
+                                    {currentIncomes.map((income, index) => (
                                         <tr key={income._id || index} className="hover:bg-indigo-50/40 transition duration-150">
-                                            <td className="py-4 px-4 font-medium text-gray-400">{index + 1}</td>
+                                            <td className="py-4 px-4 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-4 text-gray-600 whitespace-nowrap">{income.date || 'N/A'}</td>
                                             <td className="py-4 px-4 font-mono text-xs text-indigo-600 font-semibold">{income.invoiceNumber || 'N/A'}</td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{income.incomeCategory || 'N/A'}</td>
                                             <td className="py-4 px-4 text-gray-600">{income.name || 'N/A'}</td>
-                                                                                        <td className="py-4 px-4">
+                                            <td className="py-4 px-4">
                                                 {income.accountType === 'Mobile Banking' ? (
                                                     <div className="flex flex-col gap-1.5">
                                                         <span className="font-semibold text-amber-700 text-sm">
@@ -408,10 +425,10 @@ const Income = () => {
                                             <td className="py-4 px-4 text-xs text-gray-500">
                                                 {hasAccountDetails(income) ? (
                                                     <div className="space-y-0.5">
-                                                       
+
                                                         {income.accountNumber && <p><strong className="text-gray-700">A/C:</strong> {income.accountNumber}</p>}
                                                         {income.accountBranch && <p><strong className="text-gray-700">Branch:</strong> {income.accountBranch}</p>}
-                                                       
+
                                                     </div>
                                                 ) : (
                                                     <span className="text-gray-500 ">Cash</span>
@@ -430,7 +447,7 @@ const Income = () => {
                                             </td>
                                             <td className="py-4 px-4 text-center">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             setEditingIncome(income);
                                                             setShowForm(true);
@@ -443,7 +460,7 @@ const Income = () => {
                                                         </svg>
                                                     </button>
 
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleDelete(income._id)}
                                                         className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl transition duration-200 shadow-sm cursor-pointer"
                                                         title="Delete Income"
@@ -458,6 +475,69 @@ const Income = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+
+                    {/* Pagination Footer */}
+                    {!loading && filteredIncomes.length > 0 && (
+                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <span className="text-xs text-gray-500 font-medium">
+                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    <FiChevronLeft size={12} /> Previous
+                                </button>
+
+                                <div className="hidden sm:flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNum = index + 1;
+                                        if (
+                                            pageNum === 1 ||
+                                            pageNum === totalPages ||
+                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => handlePageChange(pageNum)}
+                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNum === currentPage - 2 ||
+                                            pageNum === currentPage + 2
+                                        ) {
+                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    Next <FiChevronRight size={12} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

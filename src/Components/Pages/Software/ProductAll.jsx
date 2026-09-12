@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaBoxOpen } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaBoxOpen, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import ProductForm from './ProductForm';
 
 const ProductAll = () => {
@@ -15,6 +15,10 @@ const ProductAll = () => {
     // Modal State for Description/Note
     const [selectedDescription, setSelectedDescription] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 30;
 
     // Separate Filter States
     const [filters, setFilters] = useState({
@@ -51,6 +55,12 @@ const ProductAll = () => {
     // Refs for triggering date pickers
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
+
+    // Category & Company searchable-select state
+    const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+    const [isCompanyOpen, setIsCompanyOpen] = useState(false);
+    const categoryDropdownRef = useRef(null);
+    const companyDropdownRef = useRef(null);
 
     // Helper function to format date & time like: 28/08/2026, 4:26:09 pm
     const formatDateTime = (date = new Date()) => {
@@ -133,11 +143,60 @@ const ProductAll = () => {
         fetchCompanies();
     }, []);
 
+    // Close Category/Company dropdowns on outside click
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+                setIsCategoryOpen(false);
+            }
+            if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target)) {
+                setIsCompanyOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
+    // Filter categories based on search typing
+    const filteredCategories = categories.filter((cat) =>
+        cat.name?.toLowerCase().includes(filters.category.toLowerCase())
+    );
+
+    const handleSelectCategory = (cat) => {
+        setFilters({ ...filters, category: cat.name });
+        setCurrentPage(1);
+        setIsCategoryOpen(false);
+    };
+
+    const handleClearCategory = (e) => {
+        e.stopPropagation();
+        setFilters({ ...filters, category: '' });
+        setCurrentPage(1);
+        setIsCategoryOpen(false);
+    };
+
+    // Filter companies based on search typing
+    const filteredCompanies = companies.filter((comp) =>
+        comp.businessName?.toLowerCase().includes(filters.company.toLowerCase())
+    );
+
+    const handleSelectCompany = (comp) => {
+        setFilters({ ...filters, company: comp.businessName });
+        setCurrentPage(1);
+        setIsCompanyOpen(false);
+    };
+
+    const handleClearCompany = (e) => {
+        e.stopPropagation();
+        setFilters({ ...filters, company: '' });
+        setCurrentPage(1);
+        setIsCompanyOpen(false);
+    };
 
     // Handle Filter input change
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
+        setCurrentPage(1); // Reset to first page on filter change
     };
 
     // Clear all filters
@@ -153,6 +212,7 @@ const ProductAll = () => {
             price: '',
             status: '',
         });
+        setCurrentPage(1);
     };
 
     // Handle Form Submit (Add or Update)
@@ -351,6 +411,19 @@ const ProductAll = () => {
         return true;
     });
 
+    // Pagination Calculations
+    const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Handle page change
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
@@ -398,27 +471,6 @@ const ProductAll = () => {
                         fetchProducts={fetchProducts}
                     />
                 </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                 {/* Separate Multi-Search Filter Panel */}
                 <div className="bg-white shadow-lg rounded-2xl p-5 mb-6 border border-indigo-100">
                     <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
@@ -510,40 +562,90 @@ const ProductAll = () => {
                             />
                         </div>
 
-                        {/* Category Dropdown Filter */}
-                        <div>
+                        {/* Category Searchable Dropdown Filter */}
+                        <div className="relative" ref={categoryDropdownRef}>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Category</label>
-                            <select
-                                name="category"
-                                value={filters.category}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                            <div
+                                onClick={() => setIsCategoryOpen(true)}
+                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
                             >
-                                <option value="">All Categories</option>
-                                {categories.map((cat) => (
-                                    <option key={cat._id} value={cat.name}>
-                                        {cat.name}
-                                    </option>
-                                ))}
-                            </select>
+                                <input
+                                    type="text"
+                                    placeholder="Search or select category..."
+                                    value={filters.category}
+                                    onChange={(e) => {
+                                        handleFilterChange({ target: { name: 'category', value: e.target.value } });
+                                        setIsCategoryOpen(true);
+                                    }}
+                                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                                />
+                                {filters.category && (
+                                    <button type="button" onClick={handleClearCategory} className="text-gray-400 hover:text-red-500 pl-1">
+                                        <FaTimes size={10} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {isCategoryOpen && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                                    {filteredCategories.length > 0 ? (
+                                        filteredCategories.map((cat) => (
+                                            <div
+                                                key={cat._id}
+                                                onClick={() => handleSelectCategory(cat)}
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                            >
+                                                {cat.name}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No category found</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        {/* Company Dropdown Filter */}
-                        <div>
+                        {/* Company Searchable Dropdown Filter */}
+                        <div className="relative" ref={companyDropdownRef}>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
-                            <select
-                                name="company"
-                                value={filters.company}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                            <div
+                                onClick={() => setIsCompanyOpen(true)}
+                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
                             >
-                                <option value="">All Companies</option>
-                                {companies.map((comp) => (
-                                    <option key={comp._id} value={comp.businessName}>
-                                        {comp.businessName}
-                                    </option>
-                                ))}
-                            </select>
+                                <input
+                                    type="text"
+                                    placeholder="Search or select company..."
+                                    value={filters.company}
+                                    onChange={(e) => {
+                                        handleFilterChange({ target: { name: 'company', value: e.target.value } });
+                                        setIsCompanyOpen(true);
+                                    }}
+                                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                                />
+                                {filters.company && (
+                                    <button type="button" onClick={handleClearCompany} className="text-gray-400 hover:text-red-500 pl-1">
+                                        <FaTimes size={10} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {isCompanyOpen && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                                    {filteredCompanies.length > 0 ? (
+                                        filteredCompanies.map((comp) => (
+                                            <div
+                                                key={comp._id}
+                                                onClick={() => handleSelectCompany(comp)}
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                            >
+                                                {comp.businessName}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Status Dropdown Filter */}
@@ -570,7 +672,7 @@ const ProductAll = () => {
                             <FaBoxOpen /> Product Inventory List
                         </h2>
                         <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                            Showing: {filteredProducts.length} / {products.length}
+                            Showing: {filteredProducts.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredProducts.length)}` : 0} of {filteredProducts.length} ({products.length} total)
                         </span>
                     </div>
 
@@ -596,8 +698,8 @@ const ProductAll = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
-                                {filteredProducts.length > 0 ? (
-                                    filteredProducts.map((product) => (
+                                {currentProducts.length > 0 ? (
+                                    currentProducts.map((product) => (
                                         <tr key={product._id} className="hover:bg-indigo-50/50 transition-colors">
                                             <td className="px-3 py-3 whitespace-nowrap font-bold text-gray-900">
                                                 {product.productName}
@@ -688,6 +790,69 @@ const ProductAll = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination Footer */}
+                    {filteredProducts.length > 0 && (
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <span className="text-xs text-gray-500 font-medium">
+                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
+                                        }`}
+                                >
+                                    <FaChevronLeft size={10} /> Previous
+                                </button>
+
+                                <div className="hidden sm:flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNum = index + 1;
+                                        if (
+                                            pageNum === 1 ||
+                                            pageNum === totalPages ||
+                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => handlePageChange(pageNum)}
+                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${currentPage === pageNum
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNum === currentPage - 2 ||
+                                            pageNum === currentPage + 2
+                                        ) {
+                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
+                                        }`}
+                                >
+                                    Next <FaChevronRight size={10} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Smooth Note/Description Modal */}
@@ -723,10 +888,8 @@ const ProductAll = () => {
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );
 };
-
 export default ProductAll;

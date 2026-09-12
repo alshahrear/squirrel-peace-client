@@ -10,10 +10,14 @@ import {
     FiLayers,
     FiArrowUpCircle,
     FiArrowDownCircle,
-    FiRepeat
+    FiRepeat,
+    FiArrowRight,
+    FiBell,
+    FiX
 } from 'react-icons/fi';
 import { FaRoute } from 'react-icons/fa';
 import { IoWalletOutline } from 'react-icons/io5';
+import Swal from 'sweetalert2';
 
 // প্রতি কত সেকেন্ড পর পর ডাটা অটো-রিফ্রেশ হবে (পেজ রিলোড ছাড়াই)
 const POLL_INTERVAL = 5000;
@@ -38,6 +42,37 @@ const AccountBalance = () => {
     const [activeTab, setActiveTab] = useState('accounts');
     const isFirstLoad = useRef(true);
 
+    const loadStoredIds = (key) => {
+        try {
+            const saved = localStorage.getItem(key);
+            if (!saved) return null;
+            const arr = JSON.parse(saved);
+            return Array.isArray(arr) ? new Set(arr) : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const prevInvestmentIds = useRef(loadStoredIds('prevInvestmentIds'));
+    const prevIncomeIds = useRef(loadStoredIds('prevIncomeIds'));
+    const prevExpenseIds = useRef(loadStoredIds('prevExpenseIds'));
+    const prevRouteExpenseIds = useRef(loadStoredIds('prevRouteExpenseIds'));
+    const prevTransferIds = useRef(loadStoredIds('prevTransferIds'));
+    const prevAdjustmentIds = useRef(loadStoredIds('prevAdjustmentIds'));
+    const MAX_NOTIFICATIONS = 20;
+    const NOTIF_STORAGE_KEY = 'accountBalanceNotifications';
+
+    const [notifications, setNotifications] = useState(() => {
+        try {
+            const saved = localStorage.getItem(NOTIF_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [notifVisible, setNotifVisible] = useState(false);
+
     // Investment + Adjustment + Income + Expense + Route Expense ডাটা fetch করা (silent background refresh সাপোর্ট করে)
     const fetchAllData = useCallback(async () => {
         try {
@@ -55,12 +90,115 @@ const AccountBalance = () => {
             const expenseData = await expenseRes.json();
             const routeExpenseData = await routeExpenseRes.json();
             const transferData = await transferRes.json();
-            setInvestments(Array.isArray(invData) ? invData : []);
-            setAdjustments(Array.isArray(adjData) ? adjData : []);
-            setIncomes(Array.isArray(incomeData) ? incomeData : []);
-            setExpenses(Array.isArray(expenseData) ? expenseData : []);
-            setRouteExpenses(Array.isArray(routeExpenseData) ? routeExpenseData : []);
-            setTransfers(Array.isArray(transferData) ? transferData : []);
+
+            const safeInv = Array.isArray(invData) ? invData : [];
+            const safeAdj = Array.isArray(adjData) ? adjData : [];
+            const safeIncome = Array.isArray(incomeData) ? incomeData : [];
+            const safeExpense = Array.isArray(expenseData) ? expenseData : [];
+            const safeRouteExpense = Array.isArray(routeExpenseData) ? routeExpenseData : [];
+            const safeTransfer = Array.isArray(transferData) ? transferData : [];
+
+            // ---- Notification detection: notun kono record ashle notification banano ----
+            const detectNewItems = (list, prevIdsRef, storageKey) => {
+                const currentIds = new Set(list.map((i) => i._id));
+                let newItems = [];
+                if (prevIdsRef.current !== null) {
+                    newItems = list.filter((i) => i._id && !prevIdsRef.current.has(i._id));
+                }
+                prevIdsRef.current = currentIds;
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(Array.from(currentIds)));
+                } catch (error) {
+                    console.error('Error saving ids to localStorage:', error);
+                }
+                return newItems;
+            };
+
+            const getAccName = (item) => item.accountName || item.bankName || 'Cash';
+
+            const newInvestments = detectNewItems(safeInv, prevInvestmentIds, 'prevInvestmentIds');
+            const newAdjustments = detectNewItems(safeAdj, prevAdjustmentIds, 'prevAdjustmentIds');
+            const newIncomes = detectNewItems(safeIncome, prevIncomeIds, 'prevIncomeIds');
+            const newExpenses = detectNewItems(safeExpense, prevExpenseIds, 'prevExpenseIds');
+            const newRouteExpenses = detectNewItems(safeRouteExpense, prevRouteExpenseIds, 'prevRouteExpenseIds');
+            const newTransfers = detectNewItems(safeTransfer, prevTransferIds, 'prevTransferIds');
+
+            const newNotifs = [
+                ...newInvestments.map((item) => ({
+                    id: `accounts-${item._id}-${Date.now()}-${Math.random()}`,
+                    tab: 'Account',
+                    accountName: getAccName(item),
+                    amount: Number(item.amount) || 0,
+                    isPositive: true,
+                    isTransfer: false,
+                    read: false,
+                    time: new Date(),
+                })),
+                ...newAdjustments.map((item) => {
+                    const relatedInv = safeInv.find((inv) => inv._id === item.adjustmentID);
+                    return {
+                        id: `adjustment-${item._id}-${Date.now()}-${Math.random()}`,
+                        tab: 'Adjustment',
+                        accountName: relatedInv ? getAccName(relatedInv) : 'Cash',
+                        amount: Number(item.amount) || 0,
+                        isPositive: item.mode === 'Deposit',
+                        isTransfer: false,
+                        read: false,
+                        time: new Date(),
+                    };
+                }),
+                ...newIncomes.map((item) => ({
+                    id: `income-${item._id}-${Date.now()}-${Math.random()}`,
+                    tab: 'Income',
+                    accountName: getAccName(item),
+                    amount: Number(item.amount) || 0,
+                    isPositive: true,
+                    isTransfer: false,
+                    read: false,
+                    time: new Date(),
+                })),
+                ...newExpenses.map((item) => ({
+                    id: `expense-${item._id}-${Date.now()}-${Math.random()}`,
+                    tab: 'Expense',
+                    accountName: getAccName(item),
+                    amount: Number(item.amount) || 0,
+                    isPositive: false,
+                    isTransfer: false,
+                    read: false,
+                    time: new Date(),
+                })),
+                ...newRouteExpenses.map((item) => ({
+                    id: `routeExpense-${item._id}-${Date.now()}-${Math.random()}`,
+                    tab: 'Route Expense',
+                    accountName: getAccName(item),
+                    amount: Number(item.amount) || 0,
+                    isPositive: false,
+                    isTransfer: false,
+                    read: false,
+                    time: new Date(),
+                })),
+                ...newTransfers.map((item) => ({
+                    id: `transfer-${item._id}-${Date.now()}-${Math.random()}`,
+                    tab: 'Transfer',
+                    fromLabel: item.fromAccount || item.transferFrom || 'Cash',
+                    toLabel: item.toAccount || item.transferTo || 'Cash',
+                    amount: Number(item.amount) || 0,
+                    isTransfer: true,
+                    read: false,
+                    time: new Date(),
+                })),
+            ];
+
+            if (newNotifs.length > 0) {
+                setNotifications((prev) => [...newNotifs, ...prev].slice(0, MAX_NOTIFICATIONS));
+            }
+
+            setInvestments(safeInv);
+            setAdjustments(safeAdj);
+            setIncomes(safeIncome);
+            setExpenses(safeExpense);
+            setRouteExpenses(safeRouteExpense);
+            setTransfers(safeTransfer);
         } catch (error) {
             console.error('Error fetching balance data:', error);
         } finally {
@@ -76,6 +214,15 @@ const AccountBalance = () => {
         const intervalId = setInterval(fetchAllData, POLL_INTERVAL);
         return () => clearInterval(intervalId);
     }, [fetchAllData]);
+
+    // ---- notifications localStorage a save kora (max 50 ta, page refresh a jate na hariye jai) ----
+    useEffect(() => {
+        try {
+            localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(notifications));
+        } catch (error) {
+            console.error('Error saving notifications to localStorage:', error);
+        }
+    }, [notifications]);
 
     // OpeningInvestment.jsx এর মতোই remaining amount হিসাব (Deposit/Withdraw ধরে)
     const getRemainingAmount = (investment) => {
@@ -115,7 +262,7 @@ const AccountBalance = () => {
         const grouped = {};
         investments.forEach((item) => {
             if (getCategory(item.accountType) !== category) return;
-            const accountName = item.accountName || item.bankName || 'N/A';
+            const accountName = item.accountName || item.bankName || 'Cash';
             const accountNumber = item.accountNumber || '';
             const accountBranch = item.accountBranch || '';
             const key = `${accountName}||${accountNumber}||${accountBranch}`;
@@ -133,7 +280,7 @@ const AccountBalance = () => {
         const grouped = {};
         list.forEach((item) => {
             if (getCategory(item.accountType) !== category) return;
-            const accountName = item.accountName || item.bankName || 'N/A';
+            const accountName = item.accountName || item.bankName || 'Cash';
             const accountNumber = item.accountNumber || '';
             const accountBranch = item.accountBranch || '';
             const key = `${accountName}||${accountNumber}||${accountBranch}`;
@@ -151,7 +298,7 @@ const AccountBalance = () => {
         const grouped = {};
 
         const ensureKey = (item) => {
-            const accountName = item.accountName || item.bankName || 'N/A';
+            const accountName = item.accountName || item.bankName || 'Cash';
             const accountNumber = item.accountNumber || '';
             const accountBranch = item.accountBranch || '';
             const key = `${accountName}||${accountNumber}||${accountBranch}`;
@@ -213,24 +360,10 @@ const AccountBalance = () => {
             }
         });
 
-               return Object.values(grouped).sort((a, b) => b.amount - a.amount);
-    };
-
-    // ---- Transfer লিস্টের জন্য গ্রুপিং (Outgoing/Incoming, account wise) ----
-    const groupTransferByAccount = (typeField, accountField, category) => {
-        const grouped = {};
-        transfers.forEach((item) => {
-            if (getCategory(item[typeField]) !== category) return;
-            const accountName = item[accountField] || item[typeField] || 'N/A';
-            const key = accountName;
-
-            if (!grouped[key]) {
-                grouped[key] = { accountName, accountNumber: '', accountBranch: '', amount: 0 };
-            }
-            grouped[key].amount += Number(item.amount) || 0;
-        });
         return Object.values(grouped).sort((a, b) => b.amount - a.amount);
     };
+
+
 
     // ---- Investment (Accounts tab) breakdown ----
     const cashAccounts = groupByAccount('cash');
@@ -272,26 +405,122 @@ const AccountBalance = () => {
     const routeExpenseCashTotal = sumOf(routeExpenseCashAccounts);
     const routeExpenseMobileTotal = sumOf(routeExpenseMobileAccounts);
     const routeExpenseBankTotal = sumOf(routeExpenseBankAccounts);
-        const routeExpenseGrandTotal = routeExpenseCashTotal + routeExpenseMobileTotal + routeExpenseBankTotal;
-
-    // ---- Transfer breakdown (Outgoing / Incoming) ----
-    const transferOutCashAccounts = groupTransferByAccount('transferFrom', 'fromAccount', 'cash');
-    const transferOutMobileAccounts = groupTransferByAccount('transferFrom', 'fromAccount', 'mobile');
-    const transferOutBankAccounts = groupTransferByAccount('transferFrom', 'fromAccount', 'bank');
-
-    const transferOutCashTotal = sumOf(transferOutCashAccounts);
-    const transferOutMobileTotal = sumOf(transferOutMobileAccounts);
-    const transferOutBankTotal = sumOf(transferOutBankAccounts);
-
-    const transferInCashAccounts = groupTransferByAccount('transferTo', 'toAccount', 'cash');
-    const transferInMobileAccounts = groupTransferByAccount('transferTo', 'toAccount', 'mobile');
-    const transferInBankAccounts = groupTransferByAccount('transferTo', 'toAccount', 'bank');
-
-    const transferInCashTotal = sumOf(transferInCashAccounts);
-    const transferInMobileTotal = sumOf(transferInMobileAccounts);
-    const transferInBankTotal = sumOf(transferInBankAccounts);
+    const routeExpenseGrandTotal = routeExpenseCashTotal + routeExpenseMobileTotal + routeExpenseBankTotal;
 
     const transferGrandTotal = transfers.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    // ---- Flow Data: kon account theke kon account e koto taka gese ----
+
+    const getFlowData = () => {
+
+        const pairs = {};
+
+        const fromNodesMap = {};
+
+        const toNodesMap = {};
+
+        transfers.forEach((item) => {
+
+            const fromLabel = item.fromAccount || item.transferFrom || 'Cash';
+
+            const toLabel = item.toAccount || item.transferTo || 'Cash';
+
+            const amount = Number(item.amount) || 0;
+
+            const fromKey = `${item.transferFrom || 'Others'}::${fromLabel}`;
+
+            const toKey = `${item.transferTo || 'Others'}::${toLabel}`;
+
+            const pairKey = `${fromKey}=>${toKey}`;
+
+            if (!pairs[pairKey]) {
+
+                pairs[pairKey] = { fromKey, toKey, fromLabel, toLabel, amount: 0 };
+
+            }
+
+            pairs[pairKey].amount += amount;
+
+            if (!fromNodesMap[fromKey]) fromNodesMap[fromKey] = { key: fromKey, label: fromLabel, total: 0 };
+
+            fromNodesMap[fromKey].total += amount;
+
+            if (!toNodesMap[toKey]) toNodesMap[toKey] = { key: toKey, label: toLabel, total: 0 };
+
+            toNodesMap[toKey].total += amount;
+
+        });
+
+        return {
+
+            pairs: Object.values(pairs).sort((a, b) => b.amount - a.amount),
+
+            fromNodes: Object.values(fromNodesMap).sort((a, b) => b.total - a.total),
+
+            toNodes: Object.values(toNodesMap).sort((a, b) => b.total - a.total),
+
+        };
+
+    };
+
+    const flowData = getFlowData();
+
+    const flowColors = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6', '#ef4444', '#14b8a6', '#84cc16', '#f97316'];
+
+    // ---- Notification Bell er jonno unread count ----
+    const unreadCount = notifications.filter((n) => !n.read).length;
+
+    const openNotifications = () => {
+        setShowNotifications(true);
+        setTimeout(() => setNotifVisible(true), 10);
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    };
+
+    const closeNotifications = () => {
+        setNotifVisible(false);
+        setTimeout(() => setShowNotifications(false), 250);
+    };
+
+   const clearNotifications = () => {
+    Swal.fire({
+        title: 'Clear all notifications?',
+        text: 'All notifications will be permanently removed.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, clear them',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            setNotifications([]);
+
+            try {
+                localStorage.removeItem(NOTIF_STORAGE_KEY);
+
+                Swal.fire({
+                    title: 'Cleared!',
+                    text: 'All notifications have been removed.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+            } catch (error) {
+                console.error(
+                    'Error clearing notifications from localStorage:',
+                    error
+                );
+            }
+        }
+    });
+};
+
+    const formatNotifTime = (date) => {
+        try {
+            return new Date(date).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return '';
+        }
+    };
 
     // ---- Total Remaining Balance = (Accounts + Income) - (Expense + Route Expense) ----
     const totalRemainingBalance =
@@ -382,6 +611,119 @@ const AccountBalance = () => {
         );
     };
 
+
+    // Flow Diagram Component
+    const FlowDiagram = ({ fromNodes, toNodes, pairs }) => {
+        if (pairs.length === 0) {
+            return (
+                <div className="text-center py-10 text-gray-400 font-medium text-sm">No transfer flow to show!</div>
+            );
+        }
+
+        const svgWidth = 640;
+        const nodeCount = Math.max(fromNodes.length, toNodes.length, 1);
+        const svgHeight = Math.max(220, nodeCount * 62 + 50);
+        const leftX = 140;
+        const rightX = svgWidth - 140;
+        const maxAmount = Math.max(...pairs.map((p) => p.amount), 1);
+
+        const getY = (index, total) => {
+            if (total <= 1) return svgHeight / 2;
+            const usableHeight = svgHeight - 60;
+            return 30 + (usableHeight / (total - 1)) * index;
+        };
+
+        const fromYMap = {};
+        fromNodes.forEach((node, i) => {
+            fromYMap[node.key] = getY(i, fromNodes.length);
+        });
+
+        const toYMap = {};
+        toNodes.forEach((node, i) => {
+            toYMap[node.key] = getY(i, toNodes.length);
+        });
+
+        return (
+            <div className="overflow-x-auto">
+                <svg
+                    viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                    width="100%"
+                    height={svgHeight}
+                    style={{ overflow: 'visible', minWidth: '520px' }}
+                >
+                    {pairs.map((pair, idx) => {
+                        const fromY = fromYMap[pair.fromKey];
+                        const toY = toYMap[pair.toKey];
+                        const strokeWidth = 2 + (pair.amount / maxAmount) * 8;
+                        const color = flowColors[idx % flowColors.length];
+                        const path = `M ${leftX} ${fromY} C ${leftX + 130} ${fromY}, ${rightX - 130} ${toY}, ${rightX} ${toY}`;
+                        return (
+                            <path
+                                key={idx}
+                                d={path}
+                                fill="none"
+                                stroke={color}
+                                strokeWidth={strokeWidth}
+                                strokeOpacity="0.55"
+                                strokeLinecap="round"
+                            >
+                                <title>{`${pair.fromLabel} → ${pair.toLabel}: ৳${pair.amount.toLocaleString()}`}</title>
+                            </path>
+                        );
+                    })}
+
+                    {fromNodes.map((node, i) => {
+                        const y = getY(i, fromNodes.length);
+                        return (
+                            <g key={node.key}>
+                                <circle cx={leftX} cy={y} r="5" fill="#4f46e5" />
+                                <foreignObject x={leftX - 145} y={y - 25} width="135" height="55">
+                                    <div className="text-right leading-tight">
+                                        {node.label.split(' - ').map((part, index) => (
+                                            <div
+                                                key={index}
+                                                className={index === 0 ? "font-bold text-gray-700 text-[11px]" : "text-[10px] text-gray-500"}
+                                            >
+                                                {index === 0 ? part : `(${part})`}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </foreignObject>
+                                <text x={leftX - 12} y={y + 10} textAnchor="end" fontSize="9" fill="#9ca3af">
+                                    ৳{node.total.toLocaleString()}
+                                </text>
+                            </g>
+                        );
+                    })}
+
+                    {toNodes.map((node, i) => {
+                        const y = getY(i, toNodes.length);
+                        return (
+                            <g key={node.key}>
+                                <circle cx={rightX} cy={y} r="5" fill="#db2777" />
+                                <foreignObject x={rightX + 12} y={y - 25} width="135" height="55">
+                                    <div className="text-left leading-tight">
+                                        {node.label.split(' - ').map((part, index) => (
+                                            <div
+                                                key={index}
+                                                className={index === 0 ? "font-bold text-gray-700 text-[11px]" : "text-[10px] text-gray-500"}
+                                            >
+                                                {index === 0 ? part : `(${part})`}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </foreignObject>
+                                <text x={rightX + 12} y={y + 10} textAnchor="start" fontSize="9" fill="#9ca3af">
+                                    ৳{node.total.toLocaleString()}
+                                </text>
+                            </g>
+                        );
+                    })}
+                </svg>
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center">
@@ -390,8 +732,85 @@ const AccountBalance = () => {
         );
     }
 
+
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
+
+            {/* Notifications Modal */}
+            {showNotifications && (
+                <div
+                    className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-all duration-300 ${notifVisible ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'}`}
+                    onClick={closeNotifications}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className={`bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-white overflow-hidden transform transition-all duration-300 ${notifVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}`}
+                    >
+                        <div className="bg-gradient-to-r from-indigo-600 to-pink-600 px-6 py-5 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Notifications</h3>
+                                <p className="text-indigo-100 text-xs mt-0.5">সাম্প্রতিক সব transaction ও update এর তালিকা</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {notifications.length > 0 && (
+                                    <button
+                                        onClick={clearNotifications}
+                                        className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-xl transition duration-200 cursor-pointer"
+                                    >
+                                        Clear Notification
+                                    </button>
+                                )}
+                                <button
+                                    onClick={closeNotifications}
+                                    className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition duration-200 cursor-pointer"
+                                >
+                                    <FiX className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
+                            {notifications.length === 0 ? (
+                                <div className="text-center py-10 text-gray-400 font-medium text-sm">No notifications yet!</div>
+                            ) : (
+                                notifications.map((n) => (
+                                    <div
+                                        key={n.id}
+                                        className="grid grid-cols-3 items-start gap-3 p-4 rounded-2xl bg-gray-50/70 border border-gray-100"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">{n.tab}</p>
+                                            <p className="text-[10px] text-gray-400 mt-0.5">{formatNotifTime(n.time)}</p>
+                                        </div>
+                                        {n.isTransfer ? (
+                                            <div className="min-w-0 text-xs font-semibold text-gray-700 space-y-1">
+                                                <div className="truncate">{n.fromLabel}</div>
+                                                <FiArrowRight className="w-3 h-3 text-gray-400 rotate-90" />
+                                                <div className="truncate">{n.toLabel}</div>
+                                            </div>
+                                        ) : (
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-gray-800 text-sm truncate">{n.accountName}</p>
+                                            </div>
+                                        )}
+                                        <div className="text-right">
+                                            {n.isTransfer ? (
+                                                <span className="font-extrabold text-indigo-700 text-sm whitespace-nowrap">৳ {n.amount.toLocaleString()}</span>
+                                            ) : (
+                                                <span className={`font-extrabold text-sm whitespace-nowrap ${n.isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                    {n.isPositive ? '+' : '-'}৳ {n.amount.toLocaleString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-6xl mx-auto space-y-8">
 
                 {/* Header */}
@@ -402,10 +821,24 @@ const AccountBalance = () => {
                         </h2>
                         <p className="text-gray-500 text-sm mt-1">Live overview of Cash, Mobile Banking & Bank balances</p>
                     </div>
-                    <span className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-100 text-emerald-600 font-semibold text-xs rounded-full shadow-sm">
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        Live Updating
-                    </span>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={openNotifications}
+                            className="relative w-11 h-11 flex items-center justify-center bg-white border border-gray-100 text-indigo-600 rounded-2xl shadow-sm hover:bg-indigo-50 transition duration-200 cursor-pointer"
+                            title="Notifications"
+                        >
+                            <FiBell className="w-5 h-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 flex items-center justify-center bg-rose-500 text-white text-[10px] font-bold rounded-full shadow-md">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+                        <span className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-100 text-emerald-600 font-semibold text-xs rounded-full shadow-sm">
+                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                            Live Updating
+                        </span>
+                    </div>
                 </div>
 
                 {/* Total Remaining Balance Hero = (Accounts + Income) - (Expense + Route Expense) - সবসময় ভিসিবল, রিফ্রেশ ছাড়াই আপডেট হয় */}
@@ -443,7 +876,7 @@ const AccountBalance = () => {
 
                 {/* ================= Account-wise Remaining Balance (Cash / Mobile Banking / Bank, প্রতিটা account আলাদা) ================= */}
                 <div className="space-y-6">
-                    
+
 
                     {/* Account-wise Summary Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -515,8 +948,8 @@ const AccountBalance = () => {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={`flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-bold text-sm transition duration-200 cursor-pointer ${activeTab === tab.key
-                                    ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-lg shadow-indigo-200'
-                                    : 'text-gray-500 hover:bg-gray-100'
+                                ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-lg shadow-indigo-200'
+                                : 'text-gray-500 hover:bg-gray-100'
                                 }`}
                         >
                             {tab.icon}
@@ -874,7 +1307,7 @@ const AccountBalance = () => {
                             />
                         </div>
 
-                                              {routeExpenseGrandTotal === 0 && (
+                        {routeExpenseGrandTotal === 0 && (
                             <div className="text-center py-12 text-gray-400 font-medium bg-white/60 rounded-3xl border border-white shadow-sm">
                                 No route expense data found yet!
                             </div>
@@ -908,124 +1341,52 @@ const AccountBalance = () => {
                             </div>
                         </div>
 
-                        {/* Outgoing (Transfer From) Section */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-extrabold text-gray-800 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-rose-500 rounded-full"></span>
-                                Outgoing (Transfer From)
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                                <SummaryCard
-                                    title="Outgoing - Cash"
-                                    amount={transferOutCashTotal}
-                                    count={transferOutCashAccounts.length}
-                                    icon={<FiDollarSign />}
-                                    gradient="bg-gradient-to-br from-rose-500 to-red-600"
-                                />
-                                <SummaryCard
-                                    title="Outgoing - Mobile Banking"
-                                    amount={transferOutMobileTotal}
-                                    count={transferOutMobileAccounts.length}
-                                    icon={<FiSmartphone />}
-                                    gradient="bg-gradient-to-br from-orange-500 to-amber-600"
-                                />
-                                <SummaryCard
-                                    title="Outgoing - Bank"
-                                    amount={transferOutBankTotal}
-                                    count={transferOutBankAccounts.length}
-                                    icon={<FiCreditCard />}
-                                    gradient="bg-gradient-to-br from-rose-600 to-orange-600"
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <DetailPanel
-                                    title="Cash - Outgoing"
-                                    icon={<FiDollarSign />}
-                                    accounts={transferOutCashAccounts}
-                                    total={transferOutCashTotal}
-                                    accentColor="bg-gradient-to-tr from-rose-500 to-red-600"
-                                    showNumberBranch={false}
-                                    amountColor="text-rose-600"
-                                />
-                                <DetailPanel
-                                    title="Mobile Banking - Outgoing"
-                                    icon={<FiSmartphone />}
-                                    accounts={transferOutMobileAccounts}
-                                    total={transferOutMobileTotal}
-                                    accentColor="bg-gradient-to-tr from-orange-500 to-amber-600"
-                                    showNumberBranch={false}
-                                    amountColor="text-rose-600"
-                                />
-                                <DetailPanel
-                                    title="Bank - Outgoing"
-                                    icon={<FiCreditCard />}
-                                    accounts={transferOutBankAccounts}
-                                    total={transferOutBankTotal}
-                                    accentColor="bg-gradient-to-tr from-rose-600 to-orange-600"
-                                    showNumberBranch={false}
-                                    amountColor="text-rose-600"
+                        {/* Flow Diagram Section */}
+                        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-white p-6 md:p-7">
+                            <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                                Transfer Flow Diagram
+                            </p>
+                            <div className="bg-gray-50/70 rounded-2xl border border-gray-100 p-4">
+                                <FlowDiagram
+                                    fromNodes={flowData.fromNodes}
+                                    toNodes={flowData.toNodes}
+                                    pairs={flowData.pairs}
                                 />
                             </div>
                         </div>
 
-                        {/* Incoming (Transfer To) Section */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-extrabold text-gray-800 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                                Incoming (Transfer To)
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                                <SummaryCard
-                                    title="Incoming - Cash"
-                                    amount={transferInCashTotal}
-                                    count={transferInCashAccounts.length}
-                                    icon={<FiDollarSign />}
-                                    gradient="bg-gradient-to-br from-emerald-500 to-teal-600"
-                                />
-                                <SummaryCard
-                                    title="Incoming - Mobile Banking"
-                                    amount={transferInMobileTotal}
-                                    count={transferInMobileAccounts.length}
-                                    icon={<FiSmartphone />}
-                                    gradient="bg-gradient-to-br from-teal-500 to-lime-600"
-                                />
-                                <SummaryCard
-                                    title="Incoming - Bank"
-                                    amount={transferInBankTotal}
-                                    count={transferInBankAccounts.length}
-                                    icon={<FiCreditCard />}
-                                    gradient="bg-gradient-to-br from-lime-500 to-emerald-600"
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <DetailPanel
-                                    title="Cash - Incoming"
-                                    icon={<FiDollarSign />}
-                                    accounts={transferInCashAccounts}
-                                    total={transferInCashTotal}
-                                    accentColor="bg-gradient-to-tr from-emerald-500 to-teal-600"
-                                    showNumberBranch={false}
-                                    amountColor="text-emerald-600"
-                                />
-                                <DetailPanel
-                                    title="Mobile Banking - Incoming"
-                                    icon={<FiSmartphone />}
-                                    accounts={transferInMobileAccounts}
-                                    total={transferInMobileTotal}
-                                    accentColor="bg-gradient-to-tr from-teal-500 to-lime-600"
-                                    showNumberBranch={false}
-                                    amountColor="text-emerald-600"
-                                />
-                                <DetailPanel
-                                    title="Bank - Incoming"
-                                    icon={<FiCreditCard />}
-                                    accounts={transferInBankAccounts}
-                                    total={transferInBankTotal}
-                                    accentColor="bg-gradient-to-tr from-lime-500 to-emerald-600"
-                                    showNumberBranch={false}
-                                    amountColor="text-emerald-600"
-                                />
-                            </div>
+                        {/* Flow List Section (exact from -> to amount) */}
+                        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-white p-6 md:p-7">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full"></span>
+                                Flow List (Exact Amount)
+                            </p>
+                            {flowData.pairs.length === 0 ? (
+                                <div className="text-center py-6 text-gray-400 font-medium text-sm">No data to show!</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {flowData.pairs.map((pair, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-50/70 border border-gray-100 text-xs"
+                                        >
+                                            <div className="flex items-center gap-2 min-w-0 font-semibold text-gray-700">
+                                                <span
+                                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                                    style={{ backgroundColor: flowColors[idx % flowColors.length] }}
+                                                ></span>
+                                                <span className="truncate">{pair.fromLabel}</span>
+                                                <FiArrowRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                                <span className="truncate">{pair.toLabel}</span>
+                                            </div>
+                                            <span className="font-bold text-indigo-700 whitespace-nowrap">
+                                                ৳ {pair.amount.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {transferGrandTotal === 0 && (

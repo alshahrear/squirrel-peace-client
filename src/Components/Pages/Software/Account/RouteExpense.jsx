@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaFilter, FaRedo } from 'react-icons/fa';
 import RouteExpenseForm from './RouteExpenseForm';
-import { FiEye, FiPieChart, FiX } from 'react-icons/fi';
+import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 const RouteExpense = () => {
     const [routeExpenses, setRouteExpenses] = useState([]);
@@ -16,6 +16,10 @@ const RouteExpense = () => {
     // Breakdown Modal States
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [breakdownVisible, setBreakdownVisible] = useState(false);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 30;
 
     // Filter Dropdown source data
     const [deliveryMen, setDeliveryMen] = useState([]);
@@ -108,6 +112,7 @@ const RouteExpense = () => {
     // Handle Filter input change
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
+        setCurrentPage(1); // Reset to first page on filter change
     };
 
     // Clear all filters
@@ -120,6 +125,7 @@ const RouteExpense = () => {
             category: '',
             name: '',
         });
+        setCurrentPage(1);
     };
 
     // View Note Handler with SweetAlert2
@@ -208,6 +214,19 @@ const RouteExpense = () => {
 
         return true;
     });
+
+    // Pagination Calculations
+    const totalPages = Math.ceil(filteredRouteExpenses.length / itemsPerPage) || 1;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentRouteExpenses = filteredRouteExpenses.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Handle page change
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
 
     // কোনো account detail field আছে কিনা চেক করার হেল্পার (bankName না থাকলেও accountNumber/accountName/accountBranch থাকতে পারে)
     const hasAccountDetails = (routeExpense) =>
@@ -547,7 +566,7 @@ const RouteExpense = () => {
                         <div className="flex flex-wrap items-center gap-3">
                             <h3 className="text-xl font-bold text-gray-800">Route Expense Records</h3>
                             <span className="px-3 py-1 bg-cyan-50 border border-cyan-100 text-cyan-700 font-semibold text-xs rounded-full shadow-sm">
-                                Showing: {filteredRouteExpenses.length} of {routeExpenses.length}
+                                Showing: {filteredRouteExpenses.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredRouteExpenses.length)}` : 0} of {filteredRouteExpenses.length} ({routeExpenses.length} total)
                             </span>
                             <span className="px-3 py-3  bg-blue-50 border border-blue-100 text-blue-700 font-bold text-xs rounded-full shadow-sm">
                                 Total Route Expense: ৳ {grandTotal.toLocaleString()}
@@ -588,9 +607,9 @@ const RouteExpense = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                                    {filteredRouteExpenses.map((routeExpense, index) => (
+                                    {currentRouteExpenses.map((routeExpense, index) => (
                                         <tr key={routeExpense._id || index} className="hover:bg-cyan-50/40 transition duration-150">
-                                            <td className="py-4 px-4 font-medium text-gray-400">{index + 1}</td>
+                                            <td className="py-4 px-4 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-4 text-gray-600 whitespace-nowrap">{routeExpense.date || 'N/A'}</td>
                                             <td className="py-4 px-4 font-mono text-xs text-cyan-600 font-semibold">{routeExpense.invoiceNumber || 'N/A'}</td>
                                             <td className="py-4 px-4">
@@ -683,6 +702,69 @@ const RouteExpense = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+
+                    {/* Pagination Footer */}
+                    {!loading && filteredRouteExpenses.length > 0 && (
+                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <span className="text-xs text-gray-500 font-medium">
+                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    <FiChevronLeft size={12} /> Previous
+                                </button>
+
+                                <div className="hidden sm:flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNum = index + 1;
+                                        if (
+                                            pageNum === 1 ||
+                                            pageNum === totalPages ||
+                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => handlePageChange(pageNum)}
+                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
+                                                        ? 'bg-cyan-600 text-white shadow-md shadow-cyan-200'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNum === currentPage - 2 ||
+                                            pageNum === currentPage + 2
+                                        ) {
+                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    Next <FiChevronRight size={12} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

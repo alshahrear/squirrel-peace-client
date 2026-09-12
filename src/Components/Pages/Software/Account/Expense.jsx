@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import ExpenseForm from './ExpenseForm';
-import { FiEye, FiPieChart, FiX } from 'react-icons/fi';
+import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 const Expense = () => {
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
-    
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 30;
+
     // Search, Form & Edit Modal States
     const [searchTerm, setSearchTerm] = useState('');
     const [showForm, setShowForm] = useState(false);
@@ -104,6 +108,19 @@ const Expense = () => {
         return categoryMatch || nameMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
     });
 
+    // Pagination Calculations
+    const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage) || 1;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentExpenses = filteredExpenses.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Handle page change
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
+
     // কোনো account detail field আছে কিনা চেক করার হেল্পার (bankName না থাকলেও accountNumber/accountName/accountBranch থাকতে পারে)
     const hasAccountDetails = (expense) =>
         Boolean(expense.bankName || expense.accountNumber || expense.accountBranch || expense.accountName);
@@ -188,7 +205,7 @@ const Expense = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-rose-100 via-orange-50 to-amber-100 p-6 md:p-8 relative">
-            
+
             {/* Top Right Toast Notification */}
             {toast.show && (
                 <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
@@ -257,7 +274,7 @@ const Expense = () => {
             )}
 
             <div className="max-w-7xl mx-auto space-y-8">
-                
+
                 {/* Top Section: Title & Add Button */}
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
@@ -294,7 +311,7 @@ const Expense = () => {
                 {/* Collapsible Form Component */}
                 {showForm && (
                     <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white">
-                        <ExpenseForm 
+                        <ExpenseForm
                             fetchExpenses={fetchExpenses}
                             setShowForm={setShowForm}
                             editingExpense={editingExpense}
@@ -311,12 +328,12 @@ const Expense = () => {
 
                 {/* Table Card Section */}
                 <div ref={tableSectionRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl overflow-hidden p-6 md:p-8 border border-white space-y-6">
-                    
+
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                       <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                             <h3 className="text-xl font-bold text-gray-800">Expense Records</h3>
                             <span className="px-3 py-1 bg-rose-50 border border-rose-100 text-rose-700 font-semibold text-xs rounded-full shadow-sm">
-                                Total: {filteredExpenses.length}
+                                Showing: {filteredExpenses.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredExpenses.length)}` : 0} of {filteredExpenses.length} ({expenses.length} total)
                             </span>
                             <span className="px-3 py-3  bg-amber-50 border border-amber-100 text-amber-700 font-bold text-xs rounded-full shadow-sm">
                                 Total Expense: ৳ {grandTotal.toLocaleString()}
@@ -341,7 +358,7 @@ const Expense = () => {
                                 type="text"
                                 placeholder="Search by category, name, account, invoice..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                 className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
                             />
                         </div>
@@ -370,9 +387,9 @@ const Expense = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                                    {filteredExpenses.map((expense, index) => (
+                                    {currentExpenses.map((expense, index) => (
                                         <tr key={expense._id || index} className="hover:bg-rose-50/40 transition duration-150">
-                                            <td className="py-4 px-4 font-medium text-gray-400">{index + 1}</td>
+                                            <td className="py-4 px-4 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-4 text-gray-600 whitespace-nowrap">{expense.date || 'N/A'}</td>
                                             <td className="py-4 px-4 font-mono text-xs text-rose-600 font-semibold">{expense.invoiceNumber || 'N/A'}</td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{expense.expenseCategory || 'N/A'}</td>
@@ -428,7 +445,7 @@ const Expense = () => {
                                             </td>
                                             <td className="py-4 px-4 text-center">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             setEditingExpense(expense);
                                                             setShowForm(true);
@@ -441,7 +458,7 @@ const Expense = () => {
                                                         </svg>
                                                     </button>
 
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleDelete(expense._id)}
                                                         className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl transition duration-200 shadow-sm cursor-pointer"
                                                         title="Delete Expense"
@@ -456,6 +473,69 @@ const Expense = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+
+                    {/* Pagination Footer */}
+                    {!loading && filteredExpenses.length > 0 && (
+                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <span className="text-xs text-gray-500 font-medium">
+                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-rose-50 hover:text-rose-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    <FiChevronLeft size={12} /> Previous
+                                </button>
+
+                                <div className="hidden sm:flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNum = index + 1;
+                                        if (
+                                            pageNum === 1 ||
+                                            pageNum === totalPages ||
+                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => handlePageChange(pageNum)}
+                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
+                                                        ? 'bg-rose-600 text-white shadow-md shadow-rose-200'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNum === currentPage - 2 ||
+                                            pageNum === currentPage + 2
+                                        ) {
+                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-rose-50 hover:text-rose-600 border border-gray-200 shadow-sm cursor-pointer'
+                                        }`}
+                                >
+                                    Next <FiChevronRight size={12} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

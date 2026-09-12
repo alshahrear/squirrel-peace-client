@@ -125,12 +125,15 @@ const InvestmentForm = ({
             finalData.accountNumber = formData.accountNumber;
         }
 
-                const isEditing = Boolean(editingInvestment && editingInvestment._id);
+        const isEditing = Boolean(editingInvestment && editingInvestment._id);
 
         // Duplicate account চেক করা (Mobile Banking: accountName + accountNumber, Bank: bankName + accountNumber)
         const normalize = (val) => (val || '').toString().trim().toLowerCase();
         const isDuplicate = investments.some((inv) => {
             if (isEditing && inv._id === editingInvestment._id) return false; // নিজেকে বাদ দিয়ে চেক করা হচ্ছে
+            if (formData.accountType === 'Cash' && inv.accountType === 'Cash') {
+                return true;
+            }
             if (formData.accountType === 'Mobile Banking' && inv.accountType === 'Mobile Banking') {
                 return (
                     normalize(inv.accountName) === normalize(formData.accountName) &&
@@ -147,7 +150,12 @@ const InvestmentForm = ({
         });
 
         if (isDuplicate) {
-            const duplicateLabel = formData.accountType === 'Bank' ? 'This bank account' : 'This mobile banking account';
+            const duplicateLabel =
+                formData.accountType === 'Bank'
+                    ? 'This bank account'
+                    : formData.accountType === 'Cash'
+                        ? 'A Cash account'
+                        : 'This mobile banking account';
             showToast(`${duplicateLabel} already exists!`, 'error');
             setLoading(false);
             return;

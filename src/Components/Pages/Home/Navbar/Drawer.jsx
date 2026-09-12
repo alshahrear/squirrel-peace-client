@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { FaTimes, FaChevronDown } from "react-icons/fa";
 import fav from "../../../../assets/squirrelpeacelogo.png";
@@ -7,6 +7,22 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
   const [drawerHeight, setDrawerHeight] = useState("100%");
   const baseDelay = 80;
   const [animatedItems, setAnimatedItems] = useState([]);
+  const drawerPanelRef = useRef(null);
+
+  // বাইরে কোথাও ক্লিক করলে ড্রয়ার বন্ধ হয়ে যাবে (মেনু টগল বাটন ছাড়া)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!drawerOpen) return;
+      const clickedInsideDrawer = drawerPanelRef.current && drawerPanelRef.current.contains(event.target);
+      const clickedToggleButton = event.target.closest(".drawer-toggle-btn");
+      if (!clickedInsideDrawer && !clickedToggleButton) {
+        setDrawerOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [drawerOpen, setDrawerOpen]);
 
   // ড্রপডাউনগুলোর খোলা/বন্ধ অবস্থা ট্র্যাক করার জন্য ডায়নামিক স্টেট
   const [openDropdowns, setOpenDropdowns] = useState({});
@@ -47,14 +63,24 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
     { type: "link", to: clientUser ? "/dashboard" : "/", label: clientUser ? "Dashboard" : "Home" },
     clientUser && {
       type: "dropdown",
+      key: "purchase",
+      label: "Purchase",
+      children: [
+        { to: "/add-purchase", label: "Add Purchase" },
+        { to: "/purchase", label: "All Purchase" },
+        { to: "/purchase-return", label: "Purchase Return" },
+      ],
+    },
+    clientUser && {
+      type: "dropdown",
       key: "products",
       label: "Products",
       children: [
-       
+
         { to: "/productAll", label: "All Products" },
         { to: "/category", label: "Category" },
         { to: "/units", label: "Units" },
-        
+
       ],
     },
     {
@@ -79,7 +105,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/route-expense", label: "Route Expense" },
         { to: "/transfer", label: "Transfer" },
         { to: "/account-heads", label: "Account Heads" },
-        
+
       ],
     },
     {
@@ -89,11 +115,11 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       children: [
         { to: "/user", label: "All User" },
         { to: "/user-role", label: "All Role" },
-       
+
       ],
     },
     // { type: "link", to: "/receipt", label: "Receipt" },
-    
+
 
   ].filter(Boolean); // কোনো ভ্যালু ফলসি হলে ফিল্টার করে বাদ দিবে
 
@@ -120,6 +146,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       onClick={() => setDrawerOpen(false)}
     >
       <div
+        ref={drawerPanelRef}
         className={`absolute left-0 top-0 w-64 max-w-[80vw] bg-white shadow-2xl flex flex-col p-5 transition-transform duration-300 ease-in-out pointer-events-auto ${drawerOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         style={{ height: drawerHeight }}

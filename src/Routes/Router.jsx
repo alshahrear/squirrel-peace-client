@@ -32,6 +32,12 @@ import Expense from "../Components/Pages/Software/Account/Expense";
 import RouteExpense from "../Components/Pages/Software/Account/RouteExpense";
 import Transfer from "../Components/Pages/Software/Account/Transfer";
 import AccountBalance from "../Components/Pages/Software/Account/AccountBalance";
+import PurchaseAdd from "../Components/Pages/Software/Purchase/PurchaseAdd";
+import Purchase from "../Components/Pages/Software/Purchase/Purchase";
+import PurchaseDetails from "../Components/Pages/Software/Purchase/PurchaseDetails";
+import PurchaseReturn from "../Components/Pages/Software/Purchase/PurchaseReturn";
+import PurchaseReturnDetails from "../Components/Pages/Software/Purchase/PurchaseReturnDetails";
+import PurchaseReturnView from "../Components/Pages/Software/Purchase/PurchaseReturnView";
 
 
 export const router = createBrowserRouter([
@@ -59,18 +65,42 @@ export const router = createBrowserRouter([
       {
         path: "/users",
         element: <AdminRoute><Users></Users></AdminRoute>
-      },   
+      },
+      {
+        path: "/purchase",
+        element: <ClientRoute><Purchase></Purchase></ClientRoute>
+      },
+      {
+        path: "/add-purchase",
+        element: <ClientRoute><PurchaseAdd></PurchaseAdd></ClientRoute>
+      },
+      {
+        path: "/purchase-details/:id",
+        element: <ClientRoute><PurchaseDetails></PurchaseDetails></ClientRoute>
+      },
+      {
+        path: "/purchase-return",
+        element: <ClientRoute><PurchaseReturn></PurchaseReturn></ClientRoute>
+      },
+      {
+        path: "/purchase-return-details/:id",
+        element: <ClientRoute><PurchaseReturnDetails></PurchaseReturnDetails></ClientRoute>
+      },
+      {
+        path: "/purchase-return-view/:id",
+        element: <ClientRoute><PurchaseReturnView></PurchaseReturnView></ClientRoute>
+      },
       {
         path: "/products",
         element: <ClientRoute><ProductPage></ProductPage></ClientRoute>
       },
       {
         path: "/units",
-        element: <ClientRoute><Units></Units></ClientRoute> 
+        element: <ClientRoute><Units></Units></ClientRoute>
       },
       {
         path: "/category",
-        element: <ClientRoute><Category></Category> </ClientRoute> 
+        element: <ClientRoute><Category></Category> </ClientRoute>
       },
       {
         path: "/company",
@@ -110,16 +140,13 @@ export const router = createBrowserRouter([
       },
       {
         path: "/dashboard",
-        element: <ClientRoute><Dashboard></Dashboard></ClientRoute> 
+        element: <ClientRoute><Dashboard></Dashboard></ClientRoute>
       },
       {
         path: "/opening-investment",
         element: <ClientRoute><OpeningInvestment></OpeningInvestment></ClientRoute>
       },
-      {
-        path: "/opening-investment",
-        element: <ClientRoute><OpeningInvestment></OpeningInvestment></ClientRoute>
-      },
+
       {
         path: "/income",
         element: <ClientRoute><Income></Income></ClientRoute>
@@ -134,7 +161,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/transfer",
-        element:<ClientRoute><Transfer></Transfer></ClientRoute>
+        element: <ClientRoute><Transfer></Transfer></ClientRoute>
       },
       {
         path: "/account-heads",
@@ -146,7 +173,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/routes",
-        element: <ClientRoute><Route></Route></ClientRoute> 
+        element: <ClientRoute><Route></Route></ClientRoute>
       }
     ]
   },
@@ -155,5 +182,5 @@ export const router = createBrowserRouter([
     path: "/pdf",
     element: <Pdf></Pdf>
   },
- 
+
 ]);

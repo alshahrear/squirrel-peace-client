@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import CustomerForm from './CustomersFrom';
 
 const Customers = () => {
@@ -14,6 +14,10 @@ const Customers = () => {
     // Modal State for Note
     const [selectedNote, setSelectedNote] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 30;
 
     // Separate Filter States
     const [filters, setFilters] = useState({
@@ -47,6 +51,10 @@ const Customers = () => {
     // Refs for triggering date pickers
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
+
+    // Route searchable-select state
+    const [isRouteOpen, setIsRouteOpen] = useState(false);
+    const routeDropdownRef = useRef(null);
 
     // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
     const formatDateTime = (date = new Date()) => {
@@ -92,6 +100,38 @@ const Customers = () => {
         fetchRoutes();
     }, []);
 
+    // Close Route dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (routeDropdownRef.current && !routeDropdownRef.current.contains(event.target)) {
+                setIsRouteOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Filter routes (active only) based on search typing
+    const filteredRoutes = routes
+        .filter(r => r.isActive !== false)
+        .filter((r) => {
+            const routeName = r.routeName || r.name || r;
+            return routeName?.toLowerCase().includes(filters.route.toLowerCase());
+        });
+
+    const handleSelectRoute = (routeName) => {
+        setFilters({ ...filters, route: routeName });
+        setCurrentPage(1);
+        setIsRouteOpen(false);
+    };
+
+    const handleClearRoute = (e) => {
+        e.stopPropagation();
+        setFilters({ ...filters, route: '' });
+        setCurrentPage(1);
+        setIsRouteOpen(false);
+    };
+
     // Handle input change
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -119,6 +159,7 @@ const Customers = () => {
     // Handle Filter input change
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
+        setCurrentPage(1); // Reset to first page on filter change
     };
 
     // Clear all filters
@@ -135,6 +176,7 @@ const Customers = () => {
             address: '',
             route: ''
         });
+        setCurrentPage(1);
     };
 
     // Handle Form Submit (Add or Update)
@@ -320,8 +362,18 @@ const Customers = () => {
         return true;
     });
 
+    // Pagination Calculations
+    const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage) || 1;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentCustomers = filteredCustomers.slice(indexOfFirstItem, indexOfLastItem);
 
-    
+    // Handle page change
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -526,28 +578,50 @@ const Customers = () => {
                             />
                         </div>
 
-                        {/* Route Select (Active only) */}
-                        <div>
+                        {/* Route Searchable Select (Active only) */}
+                        <div className="relative" ref={routeDropdownRef}>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Route</label>
-                            <select
-                                name="route"
-                                value={filters.route}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700"
+                            <div
+                                onClick={() => setIsRouteOpen(true)}
+                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
                             >
-                                <option value="">All Routes</option>
-                                {routes
-                                    .filter(r => r.isActive !== false) // ইনঅ্যাক্টিভ রুট ফিল্টার করে বাদ দেওয়া হলো
-                                    .map((r, idx) => {
-                                        const routeName = r.routeName || r.name || r;
-                                        return (
-                                            <option key={idx} value={routeName}>
-                                                {routeName}
-                                            </option>
-                                        );
-                                    })
-                                }
-                            </select>
+                                <input
+                                    type="text"
+                                    placeholder="Search or select route..."
+                                    value={filters.route}
+                                    onChange={(e) => {
+                                        handleFilterChange({ target: { name: 'route', value: e.target.value } });
+                                        setIsRouteOpen(true);
+                                    }}
+                                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                                />
+                                {filters.route && (
+                                    <button type="button" onClick={handleClearRoute} className="text-gray-400 hover:text-red-500 pl-1">
+                                        <FaTimes size={10} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {isRouteOpen && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                                    {filteredRoutes.length > 0 ? (
+                                        filteredRoutes.map((r, idx) => {
+                                            const routeName = r.routeName || r.name || r;
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => handleSelectRoute(routeName)}
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                >
+                                                    {routeName}
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No route found</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -557,7 +631,7 @@ const Customers = () => {
                     <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center">
                         <h2 className="text-xl font-bold">Customer Directory</h2>
                         <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                            Showing: {filteredCustomers.length} / {customers.length}
+                            Showing: {filteredCustomers.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredCustomers.length)}` : 0} of {filteredCustomers.length} ({customers.length} total)
                         </span>
                     </div>
 
@@ -581,8 +655,8 @@ const Customers = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
-                                {filteredCustomers.length > 0 ? (
-                                    filteredCustomers.map((customer) => (
+                                {currentCustomers.length > 0 ? (
+                                    currentCustomers.map((customer) => (
                                         <tr key={customer._id} className="hover:bg-indigo-50/50 transition-colors">
                                             <td className="px-4 py-3 whitespace-nowrap text-xs">
                                                 <span className={`px-2 py-1 rounded-full font-semibold ${customer.customerType === 'Wholesale Customer'
@@ -674,6 +748,69 @@ const Customers = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination Footer */}
+                    {filteredCustomers.length > 0 && (
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <span className="text-xs text-gray-500 font-medium">
+                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
+                                        }`}
+                                >
+                                    <FaChevronLeft size={10} /> Previous
+                                </button>
+
+                                <div className="hidden sm:flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNum = index + 1;
+                                        if (
+                                            pageNum === 1 ||
+                                            pageNum === totalPages ||
+                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                        ) {
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => handlePageChange(pageNum)}
+                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${currentPage === pageNum
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        } else if (
+                                            pageNum === currentPage - 2 ||
+                                            pageNum === currentPage + 2
+                                        ) {
+                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                                        }
+                                        return null;
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
+                                        }`}
+                                >
+                                    Next <FaChevronRight size={10} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Smooth Note Modal */}

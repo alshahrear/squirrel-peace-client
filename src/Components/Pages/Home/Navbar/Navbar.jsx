@@ -45,15 +45,14 @@ const Navbar = () => {
   };
 
   const navLinkStyle = ({ isActive }) =>
-    `text-lg font-semibold rounded block py-2 px-3 ${
-      isActive ? "text-[#2acb35]" : "text-black"
+    `text-lg font-semibold rounded block py-2 px-3 ${isActive ? "text-[#2acb35]" : "text-black"
     } hover:bg-gray-100 transition`;
 
   return (
     <>
       <div className="bg-[#f7f7f7] relative z-50 shadow-xs">
         <div className="navbar max-w-screen-xl mx-auto py-2 px-4 justify-between lg:justify-between">
-          
+
           {/* Mobile Header */}
           <div className="flex justify-between w-full lg:hidden items-center py-3">
             <div className="flex items-center space-x-3">
@@ -61,23 +60,23 @@ const Navbar = () => {
                 <img src={fav} alt="Favicon" className="h-7 w-7 object-cover rounded-md" />
               </NavLink>
 
-             {/* মোবাইল ভিউতে লোগোর ডানপাশে মেনু বাটন (Drawer Trigger) */}
+              {/* মোবাইল ভিউতে লোগোর ডানপাশে মেনু বাটন (Drawer Trigger) */}
               {clientUser && (
-                <button 
+                <button
                   onClick={() => setDrawerOpen(!drawerOpen)}
-                  className="p-1 text-gray-700 hover:text-[#2acb35] focus:outline-none transition"
+                  className="drawer-toggle-btn p-1 text-gray-700 hover:text-[#2acb35] focus:outline-none transition"
                   aria-label="Toggle Menu"
                 >
                   <FaBars className="text-2xl" />
                 </button>
               )}
             </div>
-            
-           <div className="flex items-center space-x-1 sm:space-x-2">
+
+            <div className="flex items-center space-x-1 sm:space-x-2">
               {/* ক্লায়েন্ট লগইন করা থাকলে Create Order বাটন দেখাবে */}
               {clientUser && location.pathname !== '/login-client' && (
-                <NavLink 
-                  to="/receipt" 
+                <NavLink
+                  to="/receipt"
                   className="bg-[#2acb35] hover:bg-green-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1"
                 >
                   <span>Create Order</span>
@@ -86,8 +85,8 @@ const Navbar = () => {
 
               {/* মোবাইল ভিউতে অ্যাডমিন আইকন */}
               {user && isAdmin && (
-                <NavLink 
-                  to="/adminPages" 
+                <NavLink
+                  to="/adminPages"
                   title="Admin Dashboard"
                   className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-full transition"
                 >
@@ -110,7 +109,7 @@ const Navbar = () => {
                       {clientUser.email}
                     </li>
                     <li>
-                      <button 
+                      <button
                         onClick={handleLogout}
                         className="text-red-600 font-semibold hover:bg-red-50 w-full text-left mt-1"
                       >
@@ -121,15 +120,15 @@ const Navbar = () => {
                 </div>
               ) : (
                 location.pathname !== '/login-client' && (
-                  <NavLink 
-                    to="/login-client" 
+                  <NavLink
+                    to="/login-client"
                     className="bg-[#2acb35] hover:bg-green-600 text-white font-medium px-4 py-1.5 rounded-lg text-sm shadow-sm transition"
                   >
                     Login
                   </NavLink>
                 )
               )}
-            </div> 
+            </div>
           </div>
 
           {/* Desktop Left Logo & Favicon + Menu Icon on the Right of Logo */}
@@ -139,11 +138,11 @@ const Navbar = () => {
               <img src={log} alt="Logo" className="h-6 w-auto" />
             </NavLink>
 
-           {/* ডেস্কটপে লোগোর ডানপাশে মেনু বাটন (Drawer Trigger) */}
+            {/* ডেস্কটপে লোগোর ডানপাশে মেনু বাটন (Drawer Trigger) */}
             {clientUser && (
-              <button 
+              <button
                 onClick={() => setDrawerOpen(!drawerOpen)}
-                className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-lg transition focus:outline-none flex items-center gap-2 font-medium"
+                className="drawer-toggle-btn p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-lg transition focus:outline-none flex items-center gap-2 font-medium"
                 aria-label="Toggle Menu"
               >
                 <FaBars className="text-xl" />
@@ -163,13 +162,13 @@ const Navbar = () => {
               )}
             </ul>
           </div>
-          
-         {/* Desktop Right Side: Profile or Login Button */}
+
+          {/* Desktop Right Side: Profile or Login Button */}
           <div className="navbar-end hidden lg:flex items-center space-x-3">
             {/* ক্লায়েন্ট লগইন করা থাকলে Create Order বাটন দেখাবে */}
             {clientUser && location.pathname !== '/login-client' && (
-              <NavLink 
-                to="/receipt" 
+              <NavLink
+                to="/receipt"
                 className="bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-3.5 py-2 rounded-lg shadow-sm transition duration-200 text-sm flex items-center gap-1"
               >
                 <span>Create Order</span>
@@ -178,8 +177,8 @@ const Navbar = () => {
 
             {/* পিসি ভিউতে অ্যাডমিন আইকন */}
             {user && isAdmin && (
-              <NavLink 
-                to="/adminPages" 
+              <NavLink
+                to="/adminPages"
                 title="Admin Dashboard"
                 className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-lg transition flex items-center gap-1 font-medium"
               >
@@ -192,7 +191,7 @@ const Navbar = () => {
                 <div className="dropdown dropdown-end">
                   <div tabIndex={0} role="button" className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-gray-200">
                     <FaUserCircle className="text-3xl text-gray-700" />
-                    
+
                   </div>
                   <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-4 shadow-lg bg-white rounded-box w-60 space-y-2 border border-gray-100">
                     <li>
@@ -206,7 +205,7 @@ const Navbar = () => {
                       </span>
                     </li>
                     <li className="pt-2">
-                      <button 
+                      <button
                         onClick={handleLogout}
                         className="text-red-600 font-semibold bg-red-50 hover:bg-red-100 w-full text-center py-2 rounded-md"
                       >
@@ -218,8 +217,8 @@ const Navbar = () => {
               )
             ) : (
               location.pathname !== '/login-client' && (
-                <NavLink 
-                  to="/login-client" 
+                <NavLink
+                  to="/login-client"
                   className="bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-5 py-2 rounded-lg shadow-sm transition duration-200"
                 >
                   Login
@@ -231,7 +230,7 @@ const Navbar = () => {
       </div>
 
       {/* --- আলাদা করা Drawer কম্পোনেন্ট এখানে কল করা হয়েছে --- */}
-      <Drawer 
+      <Drawer
         drawerOpen={drawerOpen}
         setDrawerOpen={setDrawerOpen}
         scrolled={scrolled}
