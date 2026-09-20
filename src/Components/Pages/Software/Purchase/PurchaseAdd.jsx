@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PurchaseForm from "./PurchaseForm";
+import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
 const PurchaseAdd = () => {
     const navigate = useNavigate();
@@ -10,15 +11,23 @@ const PurchaseAdd = () => {
     const [isEditMode] = useState(!!editingPurchase);
     const [editId] = useState(editingPurchase?._id || null);
 
+    // Draft key: নতুন Purchase আর Edit/Receive এর draft আলাদা থাকবে
+    const draftPrefix = editingPurchase ? `purchaseEdit:${editingPurchase._id}` : 'purchaseNew';
+    const clearPurchaseDrafts = () => {
+        ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'companySearch', 'categorySearch']
+            .forEach((k) => clearDraft(`${draftPrefix}:${k}`));
+    };
+
     // ---------------- Payment / Receive States ----------------
     const [investments, setInvestments] = useState([]);
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentAmountTouched, setPaymentAmountTouched] = useState(false); // ইউজার নিজে হাতে Payment Amount change করেছে কিনা
     const [paymentAccountType, setPaymentAccountType] = useState('');
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
+    const [paymentNote, setPaymentNote] = useState('');
 
     // সিলেক্ট করা প্রোডাক্টগুলো রাখার স্টেট
-    const [purchaseItems, setPurchaseItems] = useState([]);
+    const [purchaseItems, setPurchaseItems] = useDraftState(`${draftPrefix}:items`, []);
 
     // PurchaseForm থেকে আসা company, phone, address, date, shippingAddress, category
     const [purchaseFormData, setPurchaseFormData] = useState({
@@ -36,13 +45,17 @@ const PurchaseAdd = () => {
     // Toast notification
     const [toast, setToast] = useState({ show: false, message: '', isError: false });
 
+    // Overall Discount
+    const [overallDiscountAmount, setOverallDiscountAmount] = useDraftState(`${draftPrefix}:overallAmount`, 0);
+    const [overallDiscountType, setOverallDiscountType] = useDraftState(`${draftPrefix}:overallType`, 'amount'); // 'amount' | 'percent'
+
     // Adjustment
-    const [adjustmentText, setAdjustmentText] = useState('');
-    const [adjustmentAmount, setAdjustmentAmount] = useState(0);
-    const [adjustmentType, setAdjustmentType] = useState('+');
+    const [adjustmentText, setAdjustmentText] = useDraftState(`${draftPrefix}:adjText`, '');
+    const [adjustmentAmount, setAdjustmentAmount] = useDraftState(`${draftPrefix}:adjAmount`, 0);
+    const [adjustmentType, setAdjustmentType] = useDraftState(`${draftPrefix}:adjType`, '+');
 
     // Order Note
-    const [orderNote, setOrderNote] = useState('');
+    const [orderNote, setOrderNote] = useDraftState(`${draftPrefix}:note`, '');
 
     // --------------------------------------------------
     // PurchaseForm-কে দেওয়ার জন্য stable initialData (re-render এ যেন
@@ -67,15 +80,18 @@ const PurchaseAdd = () => {
     useEffect(() => {
         if (editingPurchase) {
             const mappedItems = (editingPurchase.items || []).map((item, index) => {
-                const unitMode = item.unit === 'pcs' ? 'pcs' : 'main';
-                const qtyNum = Number(item.qty) || 0;
-                const pcsNum = Number(item.pcs) || 0;
+                const qtyNum = Number(item.unitQty ?? item.qty) || 0;
+                const pcsQtyNum = Number(item.pcsQty) || 0;
+                const totalQtyNum =
+                    item.totalPcs !== undefined && item.totalPcs !== null
+                        ? Number(item.totalPcs) || 0
+                        : item.pcs !== undefined && item.pcs !== null
+                            ? Number(item.pcs) || 0
+                            : qtyNum + pcsQtyNum;
                 const pcsPerUnit =
-                    unitMode !== 'pcs' && qtyNum > 0 ? pcsNum / qtyNum : 1;
+                    qtyNum > 0 ? (totalQtyNum - pcsQtyNum) / qtyNum : 1;
                 const baseFreeQty =
-                    unitMode !== 'pcs' && qtyNum > 0
-                        ? (Number(item.freeQty) || 0) / qtyNum
-                        : 0;
+                    qtyNum > 0 ? (Number(item.freeQty) || 0) / qtyNum : 0;
 
                 return {
                     _id: item.productId,
@@ -85,18 +101,21 @@ const PurchaseAdd = () => {
                     uniqueId: `${item.productId || 'item'}-${index}-${Date.now()}`,
                     buyPrice: Number(item.buyPrice) || 0,
                     sellPrice: Number(item.sellPrice) || 0,
-                    unitQty: item.qty,
-                    pcs: item.pcs,
-                    unitMode,
-                    pcsPerUnit,
+                    unit: item.unit || 'Pcs',
+                    unitQty: qtyNum === 0 ? '' : qtyNum,
+                    pcsQty: pcsQtyNum === 0 ? '' : pcsQtyNum,
+                    pcsPerUnit: pcsPerUnit || 1,
+                    totalQty: totalQtyNum,
                     freeQty: Number(item.freeQty) || 0,
                     baseFreeQty,
-                    freeProductName: item.freeProduct || '',
                     discount: Number(item.discount) || 0,
+                    discountType: item.discountType || 'amount',
                 };
             });
 
             setPurchaseItems(mappedItems);
+            setOverallDiscountAmount(editingPurchase.overallDiscount || 0);
+            setOverallDiscountType(editingPurchase.overallDiscountType || 'amount');
             setAdjustmentText(editingPurchase.adjustment?.text || '');
             setAdjustmentAmount(editingPurchase.adjustment?.amount || 0);
             setAdjustmentType(editingPurchase.adjustment?.type || '+');
@@ -117,6 +136,12 @@ const PurchaseAdd = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // --------------------------------------------------
+    // Number কে সবসময় 2 digit পর্যন্ত Round করার Helper
+    // (floating point error যেমন 22.339999999 এড়ানোর জন্য)
+    // --------------------------------------------------
+    const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
     // --------------------------------------------------
     // Invoice Number Generate (YYMMDDHHMMSS - 24hr, no separators)
@@ -144,48 +169,52 @@ const PurchaseAdd = () => {
     };
 
     // --------------------------------------------------
+    // Company Clear Handler -> company select kete dile,
+    // table a add kra shob product remove/reset hye jbe
+    // --------------------------------------------------
+    const handleCompanyClear = () => {
+        setPurchaseItems([]);
+    };
+
+    // --------------------------------------------------
     // Product Add
     // --------------------------------------------------
     const handleAddProduct = (product) => {
-        const initialUnitQty = 1;
+        const initialUnitQty = '';
+        const initialPcsQty = '';
         const baseFreeQty = Number(product.freeProductQty) || 0;
-        const initialUnitMode = 'pcs';
-
-        // PCS মোডে Free Qty সবসময় 0
-        const calculatedFreeQty =
-            initialUnitMode === 'pcs'
-                ? 0
-                : baseFreeQty * initialUnitQty;
+        const pcsPerUnit = Number(product.pcsOfUnit) || 1;
 
         const newItem = {
             ...product,
             uniqueId: Date.now() + Math.random(),
 
+            productName: product.productName || '',
+            company: product.company || '',
+            category: product.category || null,
+            sku: product.sku || null,
+
             buyPrice: Number(product.purchasePrice) || 0,
             sellPrice: Number(product.sellingPrice) || 0,
 
+            unit: product.unit || 'Pcs',
+
             unitQty: initialUnitQty,
 
-            pcs:
-                initialUnitMode === 'pcs'
-                    ? initialUnitQty
-                    : initialUnitQty *
-                    (Number(product.pcsOfUnit) || 1),
+            pcsQty: initialPcsQty,
 
-            unitMode: initialUnitMode,
+            pcsPerUnit: pcsPerUnit,
 
-            pcsPerUnit: Number(product.pcsOfUnit) || 1,
+            totalQty: (Number(initialUnitQty) || 0) * pcsPerUnit + (Number(initialPcsQty) || 0),
 
-            freeQty: calculatedFreeQty,
+            freeQty: baseFreeQty * (Number(initialUnitQty) || 0),
 
             // মূল Free Qty
             baseFreeQty: baseFreeQty,
 
-            // Free Product Name
-            freeProductName: product.freeProductName || '',
-
             // Product Discount
             discount: 0,
+            discountType: 'amount', // 'amount' | 'percent'
         };
 
         setPurchaseItems((prev) => [...prev, newItem]);
@@ -212,94 +241,41 @@ const PurchaseAdd = () => {
                 if (item.uniqueId !== uniqueId) {
                     return item;
                 }
-
                 // ------------------------------------------
                 // Unit Qty Change
                 // ------------------------------------------
                 if (field === 'unitQty') {
-                    const numVal =
-                        value === '' ? '' : Number(value);
+                    const numVal = value === '' ? 0 : Number(value) || 0;
+                    const pcsQtyVal = Number(item.pcsQty) || 0;
 
-                    let newPcs = item.pcs;
-                    let newFreeQty = item.freeQty;
+                    const newTotalQty =
+                        numVal * (Number(item.pcsPerUnit) || 1) + pcsQtyVal;
 
-                    if (numVal === '') {
-                        newPcs = '';
-                        newFreeQty = 0;
-                    } else {
-                        if (item.unitMode === 'pcs') {
-                            newPcs = numVal;
-
-                            // PCS mode-এ Free Qty 0
-                            newFreeQty = 0;
-                        } else {
-                            newPcs =
-                                numVal *
-                                (Number(item.pcsPerUnit) || 1);
-
-                            // Unit mode-এ Free Qty
-                            newFreeQty =
-                                numVal *
-                                (Number(item.baseFreeQty) || 0);
-                        }
-                    }
+                    const newFreeQty =
+                        numVal * (Number(item.baseFreeQty) || 0);
 
                     return {
                         ...item,
-                        unitQty: value,
-                        pcs: newPcs,
+                        unitQty: value === '' ? '' : numVal,
+                        totalQty: newTotalQty,
                         freeQty: newFreeQty,
                     };
                 }
 
                 // ------------------------------------------
-                // PCS Change
+                // PCS Qty Change
                 // ------------------------------------------
-                if (field === 'pcs') {
-                    const numVal =
-                        value === '' ? '' : Number(value);
+                if (field === 'pcsQty') {
+                    const numVal = value === '' ? 0 : Number(value) || 0;
+                    const unitQtyVal = Number(item.unitQty) || 0;
 
-                    let newUnitQty = item.unitQty;
-
-                    // PCS mode হলে Unit Qty = PCS
-                    if (
-                        numVal !== '' &&
-                        item.unitMode === 'pcs'
-                    ) {
-                        newUnitQty = numVal;
-                    }
+                    const newTotalQty =
+                        unitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal;
 
                     return {
                         ...item,
-                        pcs: value,
-                        unitQty: newUnitQty,
-                    };
-                }
-
-                // ------------------------------------------
-                // PCS Per Unit Change
-                // ------------------------------------------
-                if (field === 'pcsPerUnit') {
-                    let newPcs = item.pcs;
-
-                    if (
-                        item.unitMode !== 'pcs' &&
-                        item.unitQty !== ''
-                    ) {
-                        newPcs =
-                            Number(item.unitQty) *
-                            (value === ''
-                                ? 0
-                                : Number(value));
-                    }
-
-                    return {
-                        ...item,
-                        pcsPerUnit:
-                            value === ''
-                                ? ''
-                                : Number(value),
-                        pcs: newPcs,
+                        pcsQty: value === '' ? '' : numVal,
+                        totalQty: newTotalQty,
                     };
                 }
 
@@ -317,6 +293,19 @@ const PurchaseAdd = () => {
                 }
 
                 // ------------------------------------------
+                // Discount Change
+                // ------------------------------------------
+                if (field === 'discount') {
+                    return {
+                        ...item,
+                        discount:
+                            value === ''
+                                ? ''
+                                : Number(value),
+                    };
+                }
+
+                // ------------------------------------------
                 // Other Fields
                 // ------------------------------------------
                 return {
@@ -327,49 +316,17 @@ const PurchaseAdd = () => {
         );
     };
 
+
     // --------------------------------------------------
-    // Unit Toggle
+    // Discount Type Toggle (Amount / Percent)
     // --------------------------------------------------
-    const handleToggleUnitMode = (uniqueId) => {
+    const handleToggleDiscountType = (uniqueId) => {
         setPurchaseItems((prev) =>
             prev.map((item) => {
-                if (item.uniqueId !== uniqueId) {
-                    return item;
-                }
-
-                const nextMode =
-                    item.unitMode === 'pcs'
-                        ? 'main'
-                        : 'pcs';
-
-                let newPcs = item.pcs;
-                let newFreeQty = item.freeQty;
-
-                if (nextMode === 'pcs') {
-                    // PCS mode
-                    newFreeQty = 0;
-
-                    if (item.unitQty !== '') {
-                        newPcs = Number(item.unitQty);
-                    }
-                } else {
-                    // Unit mode
-                    if (item.unitQty !== '') {
-                        newPcs =
-                            Number(item.unitQty) *
-                            (Number(item.pcsPerUnit) || 1);
-
-                        newFreeQty =
-                            Number(item.unitQty) *
-                            (Number(item.baseFreeQty) || 0);
-                    }
-                }
-
+                if (item.uniqueId !== uniqueId) return item;
                 return {
                     ...item,
-                    unitMode: nextMode,
-                    pcs: newPcs,
-                    freeQty: newFreeQty,
+                    discountType: item.discountType === 'percent' ? 'amount' : 'percent',
                 };
             })
         );
@@ -419,28 +376,51 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
 
     // Product-এর মূল SubTotal
-    const subTotal = purchaseItems.reduce((total, item) => {
-        const buyPrice = Number(item.buyPrice) || 0;
-        const pcs = Number(item.pcs) || 0;
+    const subTotal = roundTo2(
+        purchaseItems.reduce((total, item) => {
+            const buyPrice = Number(item.buyPrice) || 0;
+            const totalQty = Number(item.totalQty) || 0;
 
-        return total + buyPrice * pcs;
-    }, 0);
-
-    // Product Wise Discount
-    const productWiseDiscount = purchaseItems.reduce(
-        (total, item) => {
-            return total + (Number(item.discount) || 0);
-        },
-        0
+            return total + buyPrice * totalQty;
+        }, 0)
     );
+
+    // Product Wise Discount (percent হলে row gross total অনুযায়ী হিসাব হবে)
+    const productWiseDiscount = roundTo2(
+        purchaseItems.reduce((total, item) => {
+            const rowGrossTotal = (Number(item.buyPrice) || 0) * (Number(item.totalQty) || 0);
+            const effectiveDiscount =
+                item.discountType === 'percent'
+                    ? (rowGrossTotal * (Number(item.discount) || 0)) / 100
+                    : Number(item.discount) || 0;
+            return total + effectiveDiscount;
+        }, 0)
+    );
+
+    // Grand Total এর তুলনায় Product Wise Discount কত % হলো তার হিসাব
+    const productWiseDiscountPercent =
+        subTotal > 0 ? roundTo2((productWiseDiscount / subTotal) * 100) : 0;
+
+    // Overall Discount (Grand Total - Product Wise Discount এর উপর হিসাব হবে)
+    const afterProductDiscount = subTotal - productWiseDiscount;
+    const overallDiscountValue = roundTo2(
+        overallDiscountType === 'percent'
+            ? (afterProductDiscount * (Number(overallDiscountAmount) || 0)) / 100
+            : Number(overallDiscountAmount) || 0
+    );
+
+    const overallDiscountPercent =
+        overallDiscountType === 'amount'
+            ? (afterProductDiscount > 0 ? roundTo2(((Number(overallDiscountAmount) || 0) / afterProductDiscount) * 100) : 0)
+            : 0;
 
     // Adjustment
     const adjustmentValue =
         Number(adjustmentAmount) || 0;
 
     let payableAmount =
-        subTotal -
-        productWiseDiscount;
+        afterProductDiscount -
+        overallDiscountValue;
 
     if (adjustmentType === '+') {
         payableAmount += adjustmentValue;
@@ -452,6 +432,9 @@ const PurchaseAdd = () => {
     if (payableAmount < 0) {
         payableAmount = 0;
     }
+
+    payableAmount = roundTo2(payableAmount);
+
 
     // --------------------------------------------------
     // Receive Mode এ Payment Amount লাইভ Payable Amount এর সাথে
@@ -490,33 +473,40 @@ const PurchaseAdd = () => {
         }
 
         const hasInvalidQty = purchaseItems.some(
-            (item) => item.unitQty === '' || Number(item.unitQty) < 1
+            (item) => !item.totalQty || Number(item.totalQty) <= 0
         );
 
         if (hasInvalidQty) {
-            setToast({ show: true, message: 'Each product must have a minimum quantity of 1!', isError: true });
+            setToast({ show: true, message: 'Each product must have a valid quantity (greater than 0)!', isError: true });
             setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
             return;
         }
         // ---------------- Validation End ----------------
 
         const itemsPayload = purchaseItems.map((item) => {
+            const totalQty = Number(item.totalQty) || 0;
             const rowGrossTotal =
-                (Number(item.buyPrice) || 0) * (Number(item.pcs) || 0);
+                (Number(item.buyPrice) || 0) * totalQty;
+            const effectiveDiscount =
+                item.discountType === 'percent'
+                    ? roundTo2((rowGrossTotal * (Number(item.discount) || 0)) / 100)
+                    : roundTo2(Number(item.discount) || 0);
             const rowSubtotal =
-                rowGrossTotal - (Number(item.discount) || 0);
+                roundTo2(rowGrossTotal - effectiveDiscount);
 
             return {
                 productId: item.uniqueId,
                 productName: item.productName,
-                buyPrice: Number(item.buyPrice) || 0,
-                sellPrice: Number(item.sellPrice) || 0,
-                unit: item.unitMode === 'pcs' ? 'pcs' : (item.unit || 'pcs'),
-                qty: item.unitQty,
-                pcs: item.pcs,
+                buyPrice: roundTo2(item.buyPrice),
+                sellPrice: roundTo2(item.sellPrice),
+                unit: item.unit || 'Pcs',
+                unitQty: Number(item.unitQty) || 0,
+                pcsQty: Number(item.pcsQty) || 0,
+                totalPcs: totalQty,
                 freeQty: item.freeQty,
-                freeProduct: item.freeProductName || '',
-                discount: Number(item.discount) || 0,
+                discount: roundTo2(item.discount),
+                discountType: item.discountType || 'amount',
+                discountAmount: effectiveDiscount,
                 subtotal: rowSubtotal,
             };
         });
@@ -534,10 +524,15 @@ const PurchaseAdd = () => {
 
             grandTotal: subTotal,
             productWiseDiscount: productWiseDiscount,
+            productWiseDiscountPercent: productWiseDiscountPercent,
+
+            overallDiscount: roundTo2(overallDiscountAmount),
+            overallDiscountType: overallDiscountType,
+            overallDiscountValue: overallDiscountValue,
 
             adjustment: {
                 text: adjustmentText,
-                amount: adjustmentValue,
+                amount: roundTo2(adjustmentValue),
                 type: adjustmentType,
             },
 
@@ -573,14 +568,16 @@ const PurchaseAdd = () => {
                 isError: false,
             });
 
+            clearPurchaseDrafts();
             // টেবিল ও ফর্ম রিসেট
             setPurchaseItems([]);
+            setOverallDiscountAmount(0);
+            setOverallDiscountType('amount');
             setAdjustmentText('');
             setAdjustmentAmount(0);
             setAdjustmentType('+');
             setOrderNote('');
             setFormResetKey((prev) => prev + 1);
-
             // Purchase লিস্টে ফিরে যাবে যাতে fresh data load হয় (রিফ্রেশ লাগবে না)
             setTimeout(() => {
                 navigate('/purchase', { replace: true, state: null });
@@ -648,22 +645,28 @@ const PurchaseAdd = () => {
         }
 
         const itemsPayload = purchaseItems.map((item) => {
+            const totalQty = Number(item.totalQty) || 0;
             const rowGrossTotal =
-                (Number(item.buyPrice) || 0) * (Number(item.pcs) || 0);
+                (Number(item.buyPrice) || 0) * totalQty;
+            const effectiveDiscount =
+                item.discountType === 'percent'
+                    ? roundTo2((rowGrossTotal * (Number(item.discount) || 0)) / 100)
+                    : roundTo2(Number(item.discount) || 0);
             const rowSubtotal =
-                rowGrossTotal - (Number(item.discount) || 0);
+                roundTo2(rowGrossTotal - effectiveDiscount);
 
             return {
                 productId: item.uniqueId,
                 productName: item.productName,
-                buyPrice: Number(item.buyPrice) || 0,
-                sellPrice: Number(item.sellPrice) || 0,
-                unit: item.unitMode === 'pcs' ? 'pcs' : (item.unit || 'pcs'),
-                qty: item.unitQty,
-                pcs: item.pcs,
+                buyPrice: roundTo2(item.buyPrice),
+                sellPrice: roundTo2(item.sellPrice),
+                unit: item.unit || 'Pcs',
+                unitQty: Number(item.unitQty) || 0,
+                pcsQty: Number(item.pcsQty) || 0,
+                totalPcs: totalQty,
                 freeQty: item.freeQty,
-                freeProduct: item.freeProductName || '',
-                discount: Number(item.discount) || 0,
+                discount: roundTo2(item.discount),
+                discountType: item.discountType || 'amount',
                 subtotal: rowSubtotal,
             };
         });
@@ -680,21 +683,26 @@ const PurchaseAdd = () => {
 
             grandTotal: subTotal,
             productWiseDiscount: productWiseDiscount,
+            productWiseDiscountPercent: productWiseDiscountPercent,
+
+            overallDiscount: roundTo2(overallDiscountAmount),
+            overallDiscountType: overallDiscountType,
 
             adjustment: {
                 text: adjustmentText,
-                amount: adjustmentValue,
+                amount: roundTo2(adjustmentValue),
                 type: adjustmentType,
             },
 
             payableAmount: payableAmount,
             orderNote: orderNote,
 
-            paidAmount: Number(paymentAmount) || 0,
+            paidAmount: roundTo2(paymentAmount),
             receiveDate: receiveDate,
             receiveStatus: 'Received',
             paymentMethod: paymentAccountType,
             paymentAccount: accountInfo,
+            paymentNote: paymentNote,
         };
 
         try {
@@ -710,6 +718,7 @@ const PurchaseAdd = () => {
 
             await res.json();
 
+            clearPurchaseDrafts();
             setToast({
                 show: true,
                 message: 'Payment received successfully!',
@@ -762,6 +771,8 @@ const PurchaseAdd = () => {
                 addedProductIds={addedProductIds}
                 onFormDataChange={handleFormDataChange}
                 initialData={initialFormData}
+                draftKey={draftPrefix}
+                onCompanyClear={handleCompanyClear}
             />
 
             {/* -----------------------------------------
@@ -775,8 +786,21 @@ const PurchaseAdd = () => {
                         {/* ---------------------------------
                             Product Table
                         --------------------------------- */}
-                        <div className="overflow-x-auto rounded-2xl border border-teal-100">
-                            <table className="w-full text-left border-collapse">
+                        <div className="rounded-2xl border border-teal-100">
+                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
+                                <colgroup>
+                                    <col style={{ width: '11%' }} />
+                                    <col style={{ width: '11%' }} />
+                                    <col style={{ width: '8%' }} />
+                                    <col style={{ width: '8%' }} />
+                                    <col style={{ width: '13%' }} />
+                                    <col style={{ width: '8%' }} />
+                                    <col style={{ width: '7%' }} />
+                                    <col style={{ width: '7%' }} />
+                                    <col style={{ width: '16%' }} />
+                                    <col style={{ width: '7%' }} />
+                                    <col style={{ width: '4%' }} />
+                                </colgroup>
 
                                 <thead>
                                     <tr className="bg-teal-50/60 border-b-2 border-teal-100 text-xs font-semibold text-teal-800">
@@ -797,12 +821,16 @@ const PurchaseAdd = () => {
                                             Sell Price
                                         </th>
 
-                                        <th className="py-3 px-3">
+                                        <th className="py-3 pl-4 pr-1">
                                             Unit Qty
                                         </th>
 
+                                        <th className="py-3 pl-3 pr-2">
+                                            PCS Qty
+                                        </th>
+
                                         <th className="py-3 px-3">
-                                            Pcs
+                                            Total Qty
                                         </th>
 
                                         <th className="py-3 px-3">
@@ -833,22 +861,23 @@ const PurchaseAdd = () => {
                                             // Row Subtotal
                                             const rowGrossTotal =
                                                 (Number(item.buyPrice) || 0) *
-                                                (Number(item.pcs) || 0);
+                                                (Number(item.totalQty) || 0);
+
+                                            const rowEffectiveDiscount =
+                                                item.discountType === 'percent'
+                                                    ? roundTo2((rowGrossTotal * (Number(item.discount) || 0)) / 100)
+                                                    : roundTo2(Number(item.discount) || 0);
+
+                                            const rowDiscountPercent =
+                                                item.discountType === 'amount'
+                                                    ? (rowGrossTotal > 0 ? roundTo2(((Number(item.discount) || 0) / rowGrossTotal) * 100) : 0)
+                                                    : 0;
 
                                             const rowSubtotal =
-                                                rowGrossTotal -
-                                                (Number(item.discount) || 0);
+                                                roundTo2(rowGrossTotal - rowEffectiveDiscount);
 
                                             const currentUnitLabel =
-                                                item.unitMode === 'pcs'
-                                                    ? 'pcs'
-                                                    : item.unit || 'pcs';
-
-                                            // Free Product দেখাবে কিনা
-                                            const showFreeName =
-                                                item.unitMode !== 'pcs' &&
-                                                item.freeProductName &&
-                                                Number(item.freeQty) > 0;
+                                                item.unit || 'Pcs';
 
                                             return (
                                                 <tr
@@ -861,12 +890,6 @@ const PurchaseAdd = () => {
                                                         <div className="font-semibold text-slate-800">
                                                             {item.productName}
                                                         </div>
-
-                                                        {showFreeName && (
-                                                            <div className="text-xs text-amber-600 italic mt-0.5">
-                                                                (Free: {item.freeProductName})
-                                                            </div>
-                                                        )}
                                                     </td>
 
                                                     {/* Company */}
@@ -879,14 +902,19 @@ const PurchaseAdd = () => {
                                                         <input
                                                             type="number"
                                                             min="0"
+                                                            step="0.01"
                                                             value={item.buyPrice}
-                                                            onChange={(e) =>
-                                                                handleItemChange(
-                                                                    item.uniqueId,
-                                                                    'buyPrice',
-                                                                    e.target.value
-                                                                )
-                                                            }
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+
+                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                    handleItemChange(
+                                                                        item.uniqueId,
+                                                                        'buyPrice',
+                                                                        value
+                                                                    );
+                                                                }
+                                                            }}
                                                             className="w-24 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                                                         />
                                                     </td>
@@ -896,66 +924,91 @@ const PurchaseAdd = () => {
                                                         <input
                                                             type="number"
                                                             min="0"
+                                                            step="0.01"
                                                             value={item.sellPrice}
-                                                            onChange={(e) =>
-                                                                handleItemChange(
-                                                                    item.uniqueId,
-                                                                    'sellPrice',
-                                                                    e.target.value
-                                                                )
-                                                            }
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+
+                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                    handleItemChange(
+                                                                        item.uniqueId,
+                                                                        'sellPrice',
+                                                                        value
+                                                                    );
+                                                                }
+                                                            }}
                                                             className="w-24 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                                                         />
                                                     </td>
 
                                                     {/* Unit Qty */}
-                                                    <td className="py-3 px-3">
-                                                        <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden w-32">
+                                                    <td className="py-3 pl-2 pr-0">
+                                                        <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
+                                                            <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
 
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                value={item.unitQty}
-                                                                onChange={(e) =>
-                                                                    handleItemChange(
-                                                                        item.uniqueId,
-                                                                        'unitQty',
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                                className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                            />
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="1"
+                                                                    placeholder="0"
+                                                                    value={item.unitQty}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
 
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    handleToggleUnitMode(
-                                                                        item.uniqueId
-                                                                    )
-                                                                }
-                                                                className="w-18 bg-amber-400 hover:bg-amber-700 text-white text-xs px-2 py-2 text-center font-medium transition cursor-pointer"
-                                                                title="Click to toggle unit mode"
-                                                            >
-                                                                {currentUnitLabel}
-                                                            </button>
+                                                                        if (/^\d*$/.test(value)) {
+                                                                            handleItemChange(
+                                                                                item.uniqueId,
+                                                                                'unitQty',
+                                                                                value
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                />
 
+                                                                <span
+                                                                    className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                    title="Unit"
+                                                                >
+                                                                    {currentUnitLabel}
+                                                                </span>
+
+                                                            </div>
                                                         </div>
                                                     </td>
 
-                                                    {/* PCS */}
+                                                    {/* PCS Qty */}
+                                                    <td className="py-3 pl-0 pr-2">
+                                                        <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="1"
+                                                                placeholder="0"
+                                                                value={item.pcsQty}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+
+                                                                    if (/^\d*$/.test(value)) {
+                                                                        handleItemChange(
+                                                                            item.uniqueId,
+                                                                            'pcsQty',
+                                                                            value
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                className="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                                            />
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Total Qty */}
                                                     <td className="py-3 px-3">
                                                         <input
                                                             type="number"
-                                                            min="0"
-                                                            value={item.pcs}
-                                                            onChange={(e) =>
-                                                                handleItemChange(
-                                                                    item.uniqueId,
-                                                                    'pcs',
-                                                                    e.target.value
-                                                                )
-                                                            }
-                                                            className="w-20 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                                                            readOnly
+                                                            value={item.totalQty}
+                                                            className="w-20 px-3 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
                                                         />
                                                     </td>
 
@@ -964,34 +1017,80 @@ const PurchaseAdd = () => {
                                                         <input
                                                             type="number"
                                                             min="0"
-                                                            value={item.freeQty}
-                                                            onChange={(e) =>
-                                                                handleItemChange(
-                                                                    item.uniqueId,
-                                                                    'freeQty',
-                                                                    e.target.value
-                                                                )
-                                                            }
+                                                            step="1"
+                                                            placeholder="0"
+                                                            value={item.freeQty === 0 ? '' : item.freeQty}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+
+                                                                if (/^\d*$/.test(value)) {
+                                                                    handleItemChange(
+                                                                        item.uniqueId,
+                                                                        'freeQty',
+                                                                        value
+                                                                    );
+                                                                }
+                                                            }}
                                                             className="w-20 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                                                         />
                                                     </td>
 
                                                     {/* Discount */}
                                                     <td className="py-3 px-3">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            placeholder="0"
-                                                            value={item.discount}
-                                                            onChange={(e) =>
-                                                                handleItemChange(
-                                                                    item.uniqueId,
-                                                                    'discount',
-                                                                    e.target.value
-                                                                )
-                                                            }
-                                                            className="w-24 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                                                        />
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    handleToggleDiscountType(item.uniqueId)
+                                                                }
+                                                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold transition cursor-pointer"
+                                                                title="Click to toggle Amount / Percentage"
+                                                            >
+                                                                {item.discountType === 'percent' ? '%' : '৳'}
+                                                            </button>
+
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.01"
+                                                                placeholder="0"
+                                                                value={item.discount === 0 ? '' : item.discount}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+
+                                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                        handleItemChange(
+                                                                            item.uniqueId,
+                                                                            'discount',
+                                                                            value
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                className="w-16 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                                                            />
+
+                                                            {item.discountType === 'percent' && (
+                                                                <input
+                                                                    type="text"
+                                                                    readOnly
+                                                                    value={rowEffectiveDiscount ? rowEffectiveDiscount.toFixed(2) : ''}
+                                                                    placeholder="৳0.00"
+                                                                    title="Discount amount in Taka"
+                                                                    className="w-16 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                                                />
+                                                            )}
+
+                                                            {item.discountType === 'amount' && (
+                                                                <input
+                                                                    type="text"
+                                                                    readOnly
+                                                                    value={rowDiscountPercent ? `${rowDiscountPercent.toFixed(2)}%` : ''}
+                                                                    placeholder="0%"
+                                                                    title="Discount percentage"
+                                                                    className="w-16 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                                                />
+                                                            )}
+                                                        </div>
                                                     </td>
 
                                                     {/* Row Subtotal */}
@@ -1035,7 +1134,7 @@ const PurchaseAdd = () => {
 
                                         <tr>
                                             <td
-                                                colSpan="10"
+                                                colSpan="11"
                                                 className="text-center py-8 text-slate-400 text-sm"
                                             >
                                                 No products added yet.
@@ -1077,12 +1176,90 @@ const PurchaseAdd = () => {
                                         Product Wise Discount
                                     </label>
 
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        value={productWiseDiscount.toFixed(2)}
-                                        className="flex-1 px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm outline-none"
-                                    />
+                                    <div className="flex flex-1 rounded-lg overflow-hidden border border-slate-200">
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={productWiseDiscount.toFixed(2)}
+                                            className="flex-1 min-w-0 px-3 py-2 bg-slate-100 text-sm outline-none"
+                                        />
+
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={productWiseDiscountPercent ? `${productWiseDiscountPercent.toFixed(2)}%` : ''}
+                                            placeholder="0%"
+                                            title="Grand Total এর তুলনায় Discount percentage"
+                                            className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Overall Discount */}
+                                <div className="flex items-center">
+
+                                    <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
+                                        Overall Discount
+                                    </label>
+
+                                    <div className="flex flex-1 rounded-lg overflow-hidden border border-slate-200">
+
+                                        {/* Overall Discount Amount */}
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="0"
+                                            value={overallDiscountAmount === 0 ? '' : overallDiscountAmount}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+
+                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                    setOverallDiscountAmount(
+                                                        value === '' ? '' : Number(value)
+                                                    );
+                                                }
+                                            }}
+                                            className="flex-1 min-w-0 px-3 py-2 bg-white text-sm outline-none focus:bg-teal-50/30"
+                                        />
+
+                                        {overallDiscountType === 'percent' && (
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={overallDiscountValue ? overallDiscountValue.toFixed(2) : ''}
+                                                placeholder="৳0.00"
+                                                title="Discount amount in Taka"
+                                                className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                            />
+                                        )}
+
+                                        {overallDiscountType === 'amount' && (
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={overallDiscountPercent ? `${overallDiscountPercent.toFixed(2)}%` : ''}
+                                                placeholder="0%"
+                                                title="Discount percentage"
+                                                className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                            />
+                                        )}
+
+                                        {/* Amount / Percent Toggle */}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setOverallDiscountType((prev) =>
+                                                    prev === 'amount' ? 'percent' : 'amount'
+                                                )
+                                            }
+                                            className="w-16 shrink-0 border-l border-slate-200 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold transition cursor-pointer"
+                                            title="Click to toggle Amount / Percentage"
+                                        >
+                                            {overallDiscountType === 'percent' ? '%' : '৳'}
+                                        </button>
+
+                                    </div>
                                 </div>
 
                                 {/* Adjustment */}
@@ -1109,10 +1286,18 @@ const PurchaseAdd = () => {
                                         <input
                                             type="number"
                                             min="0"
-                                            value={adjustmentAmount}
-                                            onChange={(e) =>
-                                                setAdjustmentAmount(e.target.value)
-                                            }
+                                            step="0.01"
+                                            placeholder="0"
+                                            value={adjustmentAmount === 0 ? '' : adjustmentAmount}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+
+                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                    setAdjustmentAmount(
+                                                        value === '' ? '' : Number(value)
+                                                    );
+                                                }
+                                            }}
                                             className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-white text-sm outline-none focus:bg-teal-50/30"
                                         />
 
@@ -1187,10 +1372,15 @@ const PurchaseAdd = () => {
                                         <input
                                             type="number"
                                             min="0"
+                                            step="0.01"
                                             value={paymentAmount}
                                             onChange={(e) => {
-                                                setPaymentAmount(e.target.value);
-                                                setPaymentAmountTouched(true);
+                                                const value = e.target.value;
+
+                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                    setPaymentAmount(value);
+                                                    setPaymentAmountTouched(true);
+                                                }
                                             }}
                                             className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
                                         />
@@ -1247,6 +1437,20 @@ const PurchaseAdd = () => {
                                             })}
                                         </select>
                                     </div>
+                                </div>
+
+                                {/* Payment Note (Optional) */}
+                                <div className="mt-6">
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                        Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
+                                    </label>
+                                    <textarea
+                                        rows="2"
+                                        placeholder="Write any note about this payment..."
+                                        value={paymentNote}
+                                        onChange={(e) => setPaymentNote(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
+                                    />
                                 </div>
                             </div>
                         )}

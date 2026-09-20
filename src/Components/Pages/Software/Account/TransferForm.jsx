@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
 const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferSaved }) => {
 
@@ -12,15 +13,28 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
         });
     };
 
-    const [formData, setFormData] = useState({
-        transferFrom: '',
-        transferTo: '',
-        date: getFormattedToday(),
-        fromAccount: '',
-        toAccount: '',
-        amount: '',
-        note: '',
-    });
+    const draftKey = editingTransfer?._id ? `transferForm:${editingTransfer._id}` : 'transferForm:new';
+    const [formData, setFormData] = useDraftState(draftKey, () =>
+        editingTransfer
+            ? {
+                transferFrom: editingTransfer.transferFrom || '',
+                transferTo: editingTransfer.transferTo || '',
+                date: editingTransfer.date || getFormattedToday(),
+                fromAccount: editingTransfer.fromAccount || '',
+                toAccount: editingTransfer.toAccount || '',
+                amount: editingTransfer.amount || '',
+                note: editingTransfer.note || '',
+            }
+            : {
+                transferFrom: '',
+                transferTo: '',
+                date: getFormattedToday(),
+                fromAccount: '',
+                toAccount: '',
+                amount: '',
+                note: '',
+            }
+    );
 
     const [loading, setLoading] = useState(false);
     const [accounts, setAccounts] = useState([]);
@@ -82,30 +96,7 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
         fetchAccounts();
     }, []);
 
-    // Handle Edit Mode Data Load
-    useEffect(() => {
-        if (editingTransfer) {
-            setFormData({
-                transferFrom: editingTransfer.transferFrom || '',
-                transferTo: editingTransfer.transferTo || '',
-                date: editingTransfer.date || getFormattedToday(),
-                fromAccount: editingTransfer.fromAccount || '',
-                toAccount: editingTransfer.toAccount || '',
-                amount: editingTransfer.amount || '',
-                note: editingTransfer.note || '',
-            });
-        } else {
-            setFormData({
-                transferFrom: '',
-                transferTo: '',
-                date: getFormattedToday(),
-                fromAccount: '',
-                toAccount: '',
-                amount: '',
-                note: '',
-            });
-        }
-    }, [editingTransfer]);
+
 
     // ক্যালেন্ডার থেকে ডেট সিলেক্ট করলে সেটি ফরম্যাট হয়ে যাবে
     const handleDateChange = (e) => {
@@ -209,16 +200,8 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
                     onTransferAdded(createdTransferObj);
                 }
 
-                // ফর্ম রিসেট
-                setFormData({
-                    transferFrom: '',
-                    transferTo: '',
-                    date: getFormattedToday(),
-                    fromAccount: '',
-                    toAccount: '',
-                    amount: '',
-                    note: '',
-                });
+                // ফর্ম রিসেট (draft মুছে ফেলা)
+                clearDraft(draftKey);
             } else {
                 showToast('Something went wrong, please try again.', 'error');
             }
@@ -510,10 +493,18 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
                             type="number"
                             name="amount"
                             value={formData.amount}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
                             disabled={areTransferDropdownsEmpty}
                             required
                             placeholder="Enter amount"
+                            step="0.01"
+                            min="0"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm disabled:cursor-not-allowed"
                         />
                     </div>

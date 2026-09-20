@@ -120,6 +120,27 @@ const Purchase = () => {
         return dateObj.toLocaleDateString('en-GB', options);
     };
 
+    // Helper function to parse any date string into a timezone-safe LOCAL date (time stripped)
+    // Handles: DD/MM/YYYY (with optional ", time" suffix), YYYY-MM-DD (from <input type="date">), and ISO strings
+    const parseToLocalDate = (dateStr) => {
+        if (!dateStr) return null;
+        const datePart = dateStr.split(',')[0].trim();
+
+        if (datePart.includes('/')) {
+            const [d, m, y] = datePart.split('/');
+            if (!d || !m || !y) return null;
+            return new Date(Number(y), Number(m) - 1, Number(d));
+        }
+
+        if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
+            const [y, m, d] = datePart.split('-');
+            return new Date(Number(y), Number(m) - 1, Number(d));
+        }
+
+        const parsed = new Date(datePart);
+        return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    };
+
     // Handle Filter input change
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
@@ -203,20 +224,17 @@ const Purchase = () => {
     const filteredPurchases = purchases.filter((item) => {
         // Date Range Filter (purchaseDate)
         if (filters.startDate || filters.endDate) {
-            if (!item.purchaseDate) return false;
-
-            const datePart = item.purchaseDate.split(',')[0].trim();
-            const [cDay, cMonth, cYear] = datePart.split('/');
-            const purchaseDateObj = new Date(`${cYear}-${cMonth}-${cDay}`);
+            const purchaseDateObj = parseToLocalDate(item.purchaseDate);
+            if (!purchaseDateObj) return false;
 
             if (filters.startDate) {
-                const startDateObj = new Date(filters.startDate);
-                if (!isNaN(startDateObj) && purchaseDateObj < startDateObj) return false;
+                const startDateObj = parseToLocalDate(filters.startDate);
+                if (startDateObj && purchaseDateObj < startDateObj) return false;
             }
 
             if (filters.endDate) {
-                const endDateObj = new Date(filters.endDate);
-                if (!isNaN(endDateObj) && purchaseDateObj > endDateObj) return false;
+                const endDateObj = parseToLocalDate(filters.endDate);
+                if (endDateObj && purchaseDateObj > endDateObj) return false;
             }
         }
 

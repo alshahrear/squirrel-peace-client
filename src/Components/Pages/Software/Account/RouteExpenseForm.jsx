@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
 const RouteExpenseForm = ({
     fetchRouteExpenses,
@@ -33,7 +34,25 @@ const RouteExpenseForm = ({
         note: '',
     };
 
-    const [formData, setFormData] = useState(emptyForm);
+    const draftKey = editingRouteExpense?._id ? `routeExpenseForm:${editingRouteExpense._id}` : 'routeExpenseForm:new';
+    const [formData, setFormData] = useDraftState(draftKey, () =>
+        editingRouteExpense
+            ? {
+                deliveredBy: editingRouteExpense.deliveredBy || '',
+                routeName: editingRouteExpense.routeName || '',
+                routeExpenseCategory: editingRouteExpense.routeExpenseCategory || '',
+                name: editingRouteExpense.name || '',
+                date: editingRouteExpense.date || getFormattedToday(),
+                accountType: editingRouteExpense.accountType || '',
+                bankName: editingRouteExpense.bankName || '',
+                accountNumber: editingRouteExpense.accountNumber || '',
+                accountBranch: editingRouteExpense.accountBranch || '',
+                accountName: editingRouteExpense.accountName || '',
+                amount: editingRouteExpense.amount ?? '',
+                note: editingRouteExpense.note || '',
+            }
+            : emptyForm
+    );
     const [loading, setLoading] = useState(false);
     const [routeExpenseHeads, setRouteExpenseHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
@@ -132,31 +151,7 @@ const RouteExpenseForm = ({
         fetchRoutes();
     }, []);
 
-    // এডিট মোডে গেলে ফর্মটা editingRouteExpense এর ডাটা দিয়ে ভরে দেওয়া
-    useEffect(() => {
-        if (editingRouteExpense) {
-            setFormData({
-                deliveredBy: editingRouteExpense.deliveredBy || '',
-                routeName: editingRouteExpense.routeName || '',
-                routeExpenseCategory: editingRouteExpense.routeExpenseCategory || '',
-                name: editingRouteExpense.name || '',
-                date: editingRouteExpense.date || getFormattedToday(),
-                accountType: editingRouteExpense.accountType || '',
-                bankName: editingRouteExpense.bankName || '',
-                accountNumber: editingRouteExpense.accountNumber || '',
-                accountBranch: editingRouteExpense.accountBranch || '',
-                accountName: editingRouteExpense.accountName || '',
-                amount: editingRouteExpense.amount ?? '',
-                note: editingRouteExpense.note || '',
-            });
-        } else {
-            setFormData({
-                ...emptyForm,
-                date: getFormattedToday(),
-            });
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editingRouteExpense]);
+
 
     // ইউনিক ইনভয়েস নম্বর তৈরির ফাংশন (যেমন: 260901035526)
     const generateInvoiceNumber = () => {
@@ -353,9 +348,12 @@ const RouteExpenseForm = ({
     };
 
     const handleCancel = () => {
-        setFormData(emptyForm);
+        clearDraft(draftKey);
         setEditingRouteExpense(null);
         setShowForm(false);
+        if (scrollToTable) {
+            scrollToTable();
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -429,10 +427,7 @@ const RouteExpenseForm = ({
                     await fetchRouteExpenses();
                 }
 
-                setFormData({
-                    ...emptyForm,
-                    date: getFormattedToday(),
-                });
+                clearDraft(draftKey);
                 setEditingRouteExpense(null);
                 setShowForm(false);
 
@@ -615,9 +610,17 @@ const RouteExpenseForm = ({
                                 Select Bank Account <span className="text-red-500">*</span>
                             </label>
                             <select
+                                value={
+                                    bankInvestments.find(
+                                        (inv) =>
+                                            inv.bankName === formData.bankName &&
+                                            inv.accountNumber === formData.accountNumber &&
+                                            inv.accountBranch === formData.accountBranch
+                                    )?._id || ''
+                                }
                                 onChange={handleBankSelectChange}
+                                required
                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
-                                defaultValue=""
                             >
                                 <option value="" disabled>Select saved bank account</option>
                                 {bankInvestments.map((inv) => (
@@ -637,7 +640,7 @@ const RouteExpenseForm = ({
                                     type="text"
                                     name="bankName"
                                     value={formData.bankName}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. City Bank"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -651,7 +654,7 @@ const RouteExpenseForm = ({
                                     type="text"
                                     name="accountNumber"
                                     value={formData.accountNumber}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="Enter account no"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -665,7 +668,7 @@ const RouteExpenseForm = ({
                                     type="text"
                                     name="accountBranch"
                                     value={formData.accountBranch}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. Gulshan Branch"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -684,9 +687,16 @@ const RouteExpenseForm = ({
                                 Select Mobile Account <span className="text-red-500">*</span>
                             </label>
                             <select
+                                value={
+                                    mobileInvestments.find(
+                                        (inv) =>
+                                            inv.accountName === formData.accountName &&
+                                            inv.accountNumber === formData.accountNumber
+                                    )?._id || ''
+                                }
                                 onChange={handleMobileBankingSelectChange}
+                                required
                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
-                                defaultValue=""
                             >
                                 <option value="" disabled>Select saved mobile account</option>
                                 {mobileInvestments.map((inv) => (
@@ -706,7 +716,7 @@ const RouteExpenseForm = ({
                                     type="text"
                                     name="accountName"
                                     value={formData.accountName}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. bKash / Nagad"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -720,7 +730,7 @@ const RouteExpenseForm = ({
                                     type="text"
                                     name="accountNumber"
                                     value={formData.accountNumber}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="Enter mobile number"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -740,9 +750,17 @@ const RouteExpenseForm = ({
                             type="number"
                             name="amount"
                             value={formData.amount}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
                             required
                             placeholder="Enter amount"
+                            step="0.01"
+                            min="0"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>

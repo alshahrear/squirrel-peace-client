@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { FaBox, FaBuilding, FaBarcode, FaTags, FaExclamationTriangle, FaDollarSign, FaBalanceScale, FaGift, FaStickyNote, FaTimes, FaEdit, FaSave, FaChevronDown } from 'react-icons/fa';
 import Swal from 'sweetalert2';
-import { FaBox, FaBuilding, FaBarcode, FaTags, FaExclamationTriangle, FaDollarSign, FaBalanceScale, FaGift, FaWarehouse, FaStickyNote, FaTimes, FaEdit, FaSave, FaChevronDown } from 'react-icons/fa';
 
-const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProducts }) => {
+const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProducts, setIsFormOpen, showToast, products = [] }) => {
     const [companies, setCompanies] = useState([]);
     const [categories, setCategories] = useState([]);
     const [units, setUnits] = useState([]);
@@ -51,9 +51,9 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData({ 
-            ...formData, 
-            [name]: type === 'checkbox' ? checked : value 
+        setFormData({
+            ...formData,
+            [name]: type === 'checkbox' ? checked : value
         });
     };
 
@@ -71,8 +71,6 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
             unit: '',
             pcsOfUnit: '',
             freeProductQty: '',
-            freeProductName: '',
-            openingStockQty: '',
             note: '',
             isActive: true,
             createdAt: ''
@@ -97,66 +95,65 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
         return `${day}/${month}/${year}, ${strTime}`;
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
+    const handleSubmit = async (e) => {
+               e.preventDefault();
         const isEditing = Boolean(editingId);
 
-        Swal.fire({
-            title: 'Are you sure?',
-            text: isEditing ? "Do you want to update this product?" : "Do you want to add this product to inventory?",
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#7c3aed',
-            cancelButtonColor: '#d33',
-            confirmButtonText: isEditing ? 'Yes, Update!' : 'Yes, Add Product!',
-            cancelButtonText: 'Cancel'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                const finalData = {
-                    ...formData,
-                    createdAt: formData.createdAt || getFormattedDateTime()
-                };
+        const nameInput = formData.productName.trim().toLowerCase();
+        const companyInput = formData.company.trim().toLowerCase();
 
-                try {
-                    let response;
-                    if (isEditing) {
-                        response = await fetch(`http://localhost:5000/product/${editingId}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(finalData),
-                        });
-                    } else {
-                        response = await fetch('http://localhost:5000/product', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(finalData),
-                        });
-                    }
+        const isDuplicate = products.some(
+            (p) =>
+                p.productName?.trim().toLowerCase() === nameInput &&
+                p.company?.trim().toLowerCase() === companyInput &&
+                p._id !== editingId
+        );
+        if (isDuplicate) {
+            if (showToast) showToast('This product already exists for this company!', 'error');
+            return;
+        }
 
-                    const data = await response.json();
-                    if (data.insertedId || data.modifiedCount > 0) {
-                        const Toast = Swal.mixin({
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 3000,
-                            timerProgressBar: true,
-                        });
+        const finalData = {
+            ...formData,
+            createdAt: formData.createdAt || getFormattedDateTime()
+        };
 
-                        Toast.fire({
-                            icon: 'success',
-                            title: isEditing ? 'Product updated successfully!' : 'Product added successfully!'
-                        });
-
-                        handleCancelEdit();
-                        if (fetchProducts) fetchProducts();
-                    }
-                } catch (error) {
-                    console.error('Error saving product:', error);
-                    Swal.fire('Error!', 'Failed to save product.', 'error');
-                }
+        try {
+            let response;
+            if (isEditing) {
+                response = await fetch(`http://localhost:5000/product/${editingId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(finalData),
+                });
+            } else {
+                response = await fetch('http://localhost:5000/product', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(finalData),
+                });
             }
-        });
+
+            const data = await response.json();
+            if (data.insertedId || data.modifiedCount > 0) {
+                if (showToast) {
+                    showToast(isEditing ? 'Product updated successfully!' : 'Product added successfully!', 'success');
+                }
+
+                handleCancelEdit();
+                if (fetchProducts) fetchProducts();
+                if (setIsFormOpen) setIsFormOpen(false);
+
+                setTimeout(() => {
+                    const tableSection = document.getElementById('product-table-section');
+                    if (tableSection) {
+                        tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 150);
+            }
+        } catch (error) {
+            console.error('Error saving product:', error);
+        }
     };
 
     return (
@@ -215,7 +212,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                                 required
                                 className="w-full px-3 py-2 pr-8 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                             />
-                            <span 
+                            <span
                                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer pointer-events-none"
                                 onClick={() => setShowCompanyDropdown(!showCompanyDropdown)}
                             >
@@ -284,7 +281,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                                 onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
                                 className="w-full px-3 py-2 pr-8 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                             />
-                            <span 
+                            <span
                                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer pointer-events-none"
                                 onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
                             >
@@ -328,7 +325,15 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                             name="alertQuantity"
                             placeholder="0"
                             value={formData.alertQuantity}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
+                            min="0"
+                            step="1"
                             className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                         />
                     </div>
@@ -340,11 +345,18 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                         </label>
                         <input
                             type="number"
-                            step="any"
+                            step="0.01"
+                            min="0"
                             name="purchasePrice"
                             placeholder="0.00"
                             value={formData.purchasePrice}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
                             className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                         />
                     </div>
@@ -356,11 +368,18 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                         </label>
                         <input
                             type="number"
-                            step="any"
+                            step="0.01"
+                            min="0"
                             name="sellingPrice"
                             placeholder="0.00"
                             value={formData.sellingPrice}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
                             className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                         />
                     </div>
@@ -372,11 +391,18 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                         </label>
                         <input
                             type="number"
-                            step="any"
+                            step="0.01"
+                            min="0"
                             name="mrp"
                             placeholder="0.00"
                             value={formData.mrp}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
                             className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                         />
                     </div>
@@ -410,7 +436,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                                     required
                                     className="w-full px-3 py-2 pr-8 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                                 />
-                                <span 
+                                <span
                                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer pointer-events-none"
                                     onClick={() => setShowUnitDropdown(!showUnitDropdown)}
                                 >
@@ -454,8 +480,16 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                                 name="pcsOfUnit"
                                 placeholder="e.g. 10"
                                 value={formData.pcsOfUnit}
-                                onChange={handleChange}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+
+                                    if (/^\d*$/.test(value)) {
+                                        handleChange(e);
+                                    }
+                                }}
                                 required
+                                min="0"
+                                step="1"
                                 className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                             />
                         </div>
@@ -470,40 +504,19 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                                 name="freeProductQty"
                                 placeholder="0"
                                 value={formData.freeProductQty}
-                                onChange={handleChange}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+
+                                    if (/^\d*$/.test(value)) {
+                                        handleChange(e);
+                                    }
+                                }}
+                                min="0"
+                                step="1"
                                 className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                             />
                         </div>
 
-                        {/* Free Product Name */}
-                        <div>
-                            <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                                <FaGift className="text-indigo-500" /> Free Product Name
-                            </label>
-                            <input
-                                type="text"
-                                name="freeProductName"
-                                placeholder="Free item name"
-                                value={formData.freeProductName}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                            />
-                        </div>
-
-                        {/* Opening Stock Qty */}
-                        <div>
-                            <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                                <FaWarehouse className="text-indigo-500" /> Opening Stock Qty (PCS)
-                            </label>
-                            <input
-                                type="number"
-                                name="openingStockQty"
-                                placeholder="Initial stock"
-                                value={formData.openingStockQty}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                            />
-                        </div>
                     </div>
                 </div>
 
@@ -528,12 +541,12 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                             <span className="text-xs font-semibold text-gray-700 block">Product Status</span>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                type="checkbox" 
+                            <input
+                                type="checkbox"
                                 name="isActive"
-                                checked={formData.isActive} 
+                                checked={formData.isActive}
                                 onChange={handleChange}
-                                className="sr-only peer" 
+                                className="sr-only peer"
                             />
                             <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
                             <span className="ml-2 text-xs font-bold text-gray-700 w-12">
@@ -547,11 +560,10 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                 <div className="flex justify-end pt-2">
                     <button
                         type="submit"
-                        className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${
-                            editingId
-                                ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200'
-                                : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
-                        }`}
+                        className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${editingId
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200'
+                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
+                            }`}
                     >
                         {editingId ? 'Update Product Details' : 'Submit Product'}
                     </button>

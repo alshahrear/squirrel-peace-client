@@ -3,17 +3,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import CompanyForm from './CompanyForm';
+import useDraftState from '../../../../hooks/useDraftState';
 
 const Company = () => {
     const [companies, setCompanies] = useState([]);
-    const [editingId, setEditingId] = useState(null);
+    const [editingId, setEditingId] = useDraftState('companyEditingId', null);
+
+    // Action Dropdown state
+    const [openDropdownId, setOpenDropdownId] = useState(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
 
     // Toggle Form State (Default false/off)
-    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useDraftState('companyFormOpen', false);
 
     // Modal State for Note
     const [selectedNote, setSelectedNote] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Toast State
+    const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -32,7 +40,7 @@ const Company = () => {
     });
 
     // Form state
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useDraftState('companyFormData', {
         businessName: '',
         contactNumber: '',
         email: '',
@@ -46,6 +54,14 @@ const Company = () => {
     // Refs for triggering date pickers
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
+
+    // Show Toast Notification
+    const showToast = (message, type = 'success') => {
+        setToast({ show: true, message, type });
+        setTimeout(() => {
+            setToast({ show: false, message: '', type: '' });
+        }, 3500);
+    };
 
     // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
     const formatDateTime = (date = new Date()) => {
@@ -78,6 +94,29 @@ const Company = () => {
     useEffect(() => {
         fetchCompanies();
     }, []);
+
+    // Dropdown er baire click korle close hobe
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!event.target.closest('.action-dropdown-container')) {
+                setOpenDropdownId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Scroll korle dropdown auto close hoye jabe
+    useEffect(() => {
+        if (openDropdownId === null) return;
+
+        const handleScroll = () => {
+            setOpenDropdownId(null);
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        return () => window.removeEventListener('scroll', handleScroll, true);
+    }, [openDropdownId]);
 
     // Handle input change
     const handleChange = (e) => {
@@ -120,6 +159,27 @@ const Company = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        const contactInput = formData.contactNumber.trim();
+        const businessNoInput = formData.businessNumber.trim().toLowerCase();
+
+        const contactExists = companies.some(
+            (c) => c.contactNumber?.trim() === contactInput && c._id !== editingId
+        );
+        if (contactExists) {
+            showToast('This contact number already exists!', 'error');
+            return;
+        }
+
+        if (businessNoInput) {
+            const businessNoExists = companies.some(
+                (c) => c.businessNumber?.trim().toLowerCase() === businessNoInput && c._id !== editingId
+            );
+            if (businessNoExists) {
+                showToast('This business number already exists!', 'error');
+                return;
+            }
+        }
+
         const submissionData = editingId
             ? formData
             : { ...formData, createdAt: formatDateTime(new Date()) };
@@ -141,14 +201,7 @@ const Company = () => {
 
             const data = await res.json();
             if (data.insertedId || data.modifiedCount > 0) {
-                Swal.fire({
-                    icon: 'success',
-                    title: editingId ? 'Company Updated Successfully!' : 'Company Added Successfully!',
-                    showConfirmButton: false,
-                    timer: 1500,
-                    background: '#f0fdf4',
-                    color: '#166534'
-                });
+                showToast(editingId ? 'Company updated successfully!' : 'Company added successfully!', 'success');
 
                 // Reset form & Close it
                 setFormData({
@@ -172,6 +225,7 @@ const Company = () => {
 
     // Handle Delete with SweetAlert
     const handleDelete = (id) => {
+        setOpenDropdownId(null);
         Swal.fire({
             title: "Are you sure?",
             text: "You won't be able to revert this!",
@@ -188,13 +242,7 @@ const Company = () => {
                     });
                     const data = await res.json();
                     if (data.deletedCount > 0) {
-                        Swal.fire({
-                            title: "Deleted!",
-                            text: "Your company has been deleted.",
-                            icon: "success",
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        showToast('Company deleted successfully!', 'success');
                         fetchCompanies();
                     }
                 } catch (error) {
@@ -206,6 +254,7 @@ const Company = () => {
 
     // Handle Edit (Load data to form & Open form)
     const handleEdit = (company) => {
+        setOpenDropdownId(null);
         setFormData({
             businessName: company.businessName || '',
             contactNumber: company.contactNumber || '',
@@ -297,7 +346,15 @@ const Company = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8 relative">
+
+            {/* Top Right Toast Notification */}
+            {toast.show && (
+                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
+                    <span>{toast.message}</span>
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto">
 
                 {/* Header Title & Add New Button */}
@@ -356,10 +413,10 @@ const Company = () => {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                       {/* Start Date */}
+                        {/* Start Date */}
                         <div>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                            <div 
+                            <div
                                 className="relative w-full cursor-pointer"
                                 onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
                             >
@@ -384,7 +441,7 @@ const Company = () => {
                         {/* End Date */}
                         <div>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                            <div 
+                            <div
                                 className="relative w-full cursor-pointer"
                                 onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
                             >
@@ -495,7 +552,7 @@ const Company = () => {
                         </span>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto overflow-y-visible">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -555,22 +612,52 @@ const Company = () => {
                                                     <span className="text-gray-400 italic text-xs">N/A</span>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
-                                                <div className="flex items-center justify-center gap-2">
+                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium relative">
+                                                <div className="relative inline-block action-dropdown-container">
                                                     <button
-                                                        onClick={() => handleEdit(company)}
-                                                        className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all shadow-sm"
-                                                        title="Edit"
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setDropdownPos({ top: rect.top - 8, left: rect.right });
+                                                            setOpenDropdownId(
+                                                                openDropdownId === company._id ? null : company._id
+                                                            );
+                                                        }}
+                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
                                                     >
-                                                        <FaEdit size={14} />
+                                                        <span>Select</span>
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            strokeWidth={2}
+                                                            stroke="currentColor"
+                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === company._id ? 'rotate-180' : ''}`}
+                                                        >
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                        </svg>
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleDelete(company._id)}
-                                                        className="p-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm"
-                                                        title="Delete"
-                                                    >
-                                                        <FaTrash size={14} />
-                                                    </button>
+
+                                                    {openDropdownId === company._id && (
+                                                        <div
+                                                            style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
+                                                            className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150"
+                                                        >
+                                                            <button
+                                                                onClick={() => handleEdit(company)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaEdit size={12} className="text-indigo-500" />
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(company._id)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaTrash size={12} className="text-rose-500" />
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -597,11 +684,10 @@ const Company = () => {
                                 <button
                                     onClick={() => handlePageChange(currentPage - 1)}
                                     disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                        currentPage === 1
-                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                            : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
-                                    }`}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
+                                        }`}
                                 >
                                     <FaChevronLeft size={10} /> Previous
                                 </button>
@@ -619,11 +705,10 @@ const Company = () => {
                                                 <button
                                                     key={pageNum}
                                                     onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
-                                                        currentPage === pageNum
-                                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                    }`}
+                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${currentPage === pageNum
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                        }`}
                                                 >
                                                     {pageNum}
                                                 </button>
@@ -641,11 +726,10 @@ const Company = () => {
                                 <button
                                     onClick={() => handlePageChange(currentPage + 1)}
                                     disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                        currentPage === totalPages
-                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                            : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
-                                    }`}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
+                                        }`}
                                 >
                                     Next <FaChevronRight size={10} />
                                 </button>

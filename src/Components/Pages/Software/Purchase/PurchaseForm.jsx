@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useDraftState from '../../../../hooks/useDraftState';
 
-const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initialData = null }) => {
+const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initialData = null, onCompanyClear, draftKey = 'purchaseNew' }) => {
     // আজকের ডেট ফরম্যাট করার ফাংশন (যেমন: "06 Sep 2026")
     const getFormattedToday = () => {
         const today = new Date();
@@ -11,7 +12,7 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
         });
     };
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useDraftState(`${draftKey}:form`, {
         company: '',
         companyContact: '',
         companyAddress: '',
@@ -22,12 +23,12 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
     });
 
     const [companies, setCompanies] = useState([]);
-    const [companySearch, setCompanySearch] = useState('');
+    const [companySearch, setCompanySearch] = useDraftState(`${draftKey}:companySearch`, '');
     const [isCompanyOpen, setIsCompanyOpen] = useState(false);
 
     // Category states
     const [categories, setCategories] = useState([]);
-    const [categorySearch, setCategorySearch] = useState('');
+    const [categorySearch, setCategorySearch] = useDraftState(`${draftKey}:categorySearch`, '');
     const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
     // Product states
@@ -172,6 +173,9 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
         setFormData({ ...formData, company: '', companyContact: '', companyAddress: '', product: '' });
         setProductSearch('');
         setIsCompanyOpen(false);
+        if (onCompanyClear) {
+            onCompanyClear();
+        }
     };
 
     // Filter categories based on search typing
@@ -198,7 +202,8 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
     // Filter products based on company, category, isActive, sku presence, typing search, and exclude already added products
     const filteredProducts = products.filter((prod) => {
         if (!formData.company) return false;
-        if (prod.isActive !== true || !prod.sku) return false;
+        if (!prod.productName || !prod.company) return false;
+        if (prod.isActive === false) return false;
         if (prod.company !== formData.company) return false;
         if (formData.category && prod.category !== formData.category) return false;
 
@@ -261,8 +266,8 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
                                     if (!isCompanyLocked) setIsCompanyOpen(true);
                                 }}
                                 className={`w-full px-4 py-3.5 rounded-2xl border text-sm shadow-sm flex items-center justify-between transition-colors ${isCompanyLocked
-                                        ? 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed opacity-75'
-                                        : 'border-slate-200 bg-slate-50/70 text-slate-700 cursor-pointer focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100'
+                                    ? 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed opacity-75'
+                                    : 'border-slate-200 bg-slate-50/70 text-slate-700 cursor-pointer focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100'
                                     }`}
                             >
                                 <input
@@ -453,11 +458,16 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
                                             >
                                                 <div>
                                                     <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
-                                                    <p className="text-xs text-slate-500 mt-0.5">Company: {prod.company} | Category: {prod.category}</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5">
+                                                        Company: {prod.company}
+                                                        {prod.category ? ` | Category: ${prod.category}` : ''}
+                                                    </p>
                                                 </div>
-                                                <span className="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg font-medium border border-amber-100">
-                                                    SKU: {prod.sku}
-                                                </span>
+                                                {prod.sku && (
+                                                    <span className="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg font-medium border border-amber-100">
+                                                        SKU: {prod.sku}
+                                                    </span>
+                                                )}
                                             </div>
                                         ))
                                     ) : (

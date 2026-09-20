@@ -2,15 +2,23 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaBoxOpen, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import ProductForm from './ProductForm';
+import useDraftState from '../../../../hooks/useDraftState';
 
 const ProductAll = () => {
     const [products, setProducts] = useState([]);
-    const [editingId, setEditingId] = useState(null);
+    const [editingId, setEditingId] = useDraftState('productEditingId', null);
     const [categories, setCategories] = useState([]);
     const [companies, setCompanies] = useState([]);
 
+    // Action Dropdown state
+    const [openDropdownId, setOpenDropdownId] = useState(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+
     // Toggle Form State (Default false/off)
-    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useDraftState('productFormOpen', false);
+
+    // Toast State
+    const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
     // Modal State for Description/Note
     const [selectedDescription, setSelectedDescription] = useState('');
@@ -34,7 +42,7 @@ const ProductAll = () => {
     });
 
     // Form state (updated with all properties matching your data structure)
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useDraftState('productFormData', {
         productName: '',
         company: '',
         sku: '',
@@ -46,8 +54,6 @@ const ProductAll = () => {
         unit: '',
         pcsOfUnit: '',
         freeProductQty: '',
-        freeProductName: '',
-        openingStockQty: '',
         note: '',
         isActive: true
     });
@@ -77,6 +83,14 @@ const ProductAll = () => {
         hours = hours ? hours : 12;
 
         return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
+    };
+
+    // Show Toast Notification
+    const showToast = (message, type = 'success') => {
+        setToast({ show: true, message, type });
+        setTimeout(() => {
+            setToast({ show: false, message: '', type: '' });
+        }, 3500);
     };
 
     // Fetch products data
@@ -157,6 +171,28 @@ const ProductAll = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Action dropdown er baire click korle close hobe
+    useEffect(() => {
+        const handleClickOutsideAction = (event) => {
+            if (!event.target.closest('.action-dropdown-container')) {
+                setOpenDropdownId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutsideAction);
+        return () => document.removeEventListener('mousedown', handleClickOutsideAction);
+    }, []);
+
+    // Scroll korle (page ba table container) dropdown auto close hoye jabe
+    useEffect(() => {
+        if (openDropdownId === null) return;
+
+        const handleScroll = () => {
+            setOpenDropdownId(null);
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        return () => window.removeEventListener('scroll', handleScroll, true);
+    }, [openDropdownId]);
     // Filter categories based on search typing
     const filteredCategories = categories.filter((cat) =>
         cat.name?.toLowerCase().includes(filters.category.toLowerCase())
@@ -262,8 +298,6 @@ const ProductAll = () => {
                     unit: '',
                     pcsOfUnit: '',
                     freeProductQty: '',
-                    freeProductName: '',
-                    openingStockQty: '',
                     note: '',
                     isActive: true
                 });
@@ -278,6 +312,7 @@ const ProductAll = () => {
 
     // Handle Delete with SweetAlert
     const handleDelete = (id) => {
+        setOpenDropdownId(null);
         Swal.fire({
             title: "Are you sure?",
             text: "You won't be able to revert this!",
@@ -294,13 +329,7 @@ const ProductAll = () => {
                     });
                     const data = await res.json();
                     if (data.deletedCount > 0 || res.ok) {
-                        Swal.fire({
-                            title: "Deleted!",
-                            text: "Your product has been deleted.",
-                            icon: "success",
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        showToast('Product deleted successfully!', 'success');
                         fetchProducts();
                     }
                 } catch (error) {
@@ -312,6 +341,7 @@ const ProductAll = () => {
 
     // Handle Edit (Load data to form & Open form)
     const handleEdit = (product) => {
+        setOpenDropdownId(null);
         setFormData({
             productName: product.productName || '',
             company: product.company || '',
@@ -324,8 +354,6 @@ const ProductAll = () => {
             unit: product.unit || '',
             pcsOfUnit: product.pcsOfUnit || '',
             freeProductQty: product.freeProductQty || '',
-            freeProductName: product.freeProductName || '',
-            openingStockQty: product.openingStockQty || '',
             note: product.note || '',
             isActive: product.isActive !== undefined ? product.isActive : true
         });
@@ -349,8 +377,6 @@ const ProductAll = () => {
             unit: '',
             pcsOfUnit: '',
             freeProductQty: '',
-            freeProductName: '',
-            openingStockQty: '',
             note: '',
             isActive: true
         });
@@ -425,7 +451,15 @@ const ProductAll = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8 relative">
+
+            {/* Top Right Toast Notification */}
+            {toast.show && (
+                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
+                    <span>{toast.message}</span>
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto">
 
                 {/* Header Title & Add New Button */}
@@ -469,6 +503,9 @@ const ProductAll = () => {
                         setEditingId={setEditingId}
                         handleCancelEdit={handleCancelEdit}
                         fetchProducts={fetchProducts}
+                        setIsFormOpen={setIsFormOpen}
+                        showToast={showToast}
+                        products={products}
                     />
                 </div>
                 {/* Separate Multi-Search Filter Panel */}
@@ -666,7 +703,7 @@ const ProductAll = () => {
                 </div>
 
                 {/* Table Section (Showing all properties from the database) */}
-                <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
+                <div id="product-table-section" className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
                     <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center">
                         <h2 className="text-xl font-bold flex items-center gap-2">
                             <FaBoxOpen /> Product Inventory List
@@ -676,7 +713,7 @@ const ProductAll = () => {
                         </span>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto overflow-y-visible">
                         <table className="min-w-full divide-y divide-gray-200 text-xs">
                             <thead className="bg-gray-50 text-gray-600 font-bold uppercase tracking-wider">
                                 <tr>
@@ -690,11 +727,10 @@ const ProductAll = () => {
                                     <th className="px-3 py-3 text-left">MRP</th>
                                     <th className="px-3 py-3 text-left">Unit / Pcs</th>
                                     <th className="px-3 py-3 text-left">Free Item</th>
-                                    <th className="px-3 py-3 text-center">Stock</th>
                                     <th className="px-3 py-3 text-center">Note</th>
                                     <th className="px-3 py-3 text-center">Status</th>
                                     <th className="px-3 py-3 text-left">Created At</th>
-                                    <th className="px-3 py-3 text-center">Actions</th>
+                                    <th className="px-3 py-3 text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
@@ -731,14 +767,9 @@ const ProductAll = () => {
                                                 {product.unit || 'N/A'} ({product.pcsOfUnit || '0'} pcs)
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {product.freeProductQty ? `${product.freeProductQty}x ${product.freeProductName || ''}` : 'None'}
+                                                {product.freeProductQty ? `${product.freeProductQty}x` : 'None'}
                                             </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-center">
-                                                <span className={`px-2 py-0.5 rounded-full font-bold ${Number(product.openingStockQty) > 5 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                                                    }`}>
-                                                    {product.openingStockQty || '0'}
-                                                </span>
-                                            </td>
+
                                             <td className="px-3 py-3 whitespace-nowrap text-center">
                                                 <button
                                                     onClick={() => handleOpenModal(product.note)}
@@ -753,36 +784,71 @@ const ProductAll = () => {
                                                     {product.isActive ? 'Active' : 'Inactive'}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-gray-500">
+                                            <td className="px-3 py-2 whitespace-nowrap text-gray-500">
                                                 {product.createdAt ? (
-                                                    <span className="inline-flex items-center gap-1 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                                        <FaClock className="text-indigo-400" size={10} /> {product.createdAt}
-                                                    </span>
+                                                    <div className="inline-flex flex-col items-start gap-0.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                                        <span className="flex items-center gap-1 text-[11px]">
+                                                            <FaClock className="text-indigo-400" size={9} /> {product.createdAt.split(',')[0]}
+                                                        </span>
+                                                        <span className="text-[11px] text-gray-400 pl-3.5">
+                                                            {product.createdAt.split(',')[1]?.trim()}
+                                                        </span>
+                                                    </div>
                                                 ) : 'N/A'}
                                             </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-center font-medium">
-                                                <div className="flex items-center justify-center gap-1.5">
+                                            <td className="px-3 py-3 whitespace-nowrap text-center font-medium relative">
+                                                <div className="relative inline-block action-dropdown-container">
                                                     <button
-                                                        onClick={() => handleEdit(product)}
-                                                        className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded transition-all shadow-sm"
-                                                        title="Edit"
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setDropdownPos({ top: rect.top - 8, left: rect.right });
+                                                            setOpenDropdownId(
+                                                                openDropdownId === product._id ? null : product._id
+                                                            );
+                                                        }}
+                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
                                                     >
-                                                        <FaEdit size={13} />
+                                                        <span>Select</span>
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            strokeWidth={2}
+                                                            stroke="currentColor"
+                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === product._id ? 'rotate-180' : ''}`}
+                                                        >
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                        </svg>
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleDelete(product._id)}
-                                                        className="p-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded transition-all shadow-sm"
-                                                        title="Delete"
-                                                    >
-                                                        <FaTrash size={13} />
-                                                    </button>
+
+                                                    {openDropdownId === product._id && (
+                                                        <div
+                                                            style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
+                                                            className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150"
+                                                        >
+                                                            <button
+                                                                onClick={() => handleEdit(product)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaEdit size={12} className="text-indigo-500" />
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(product._id)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaTrash size={12} className="text-rose-500" />
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="15" className="text-center py-10 text-gray-400 text-sm">
+                                        <td colSpan="14" className="text-center py-10 text-gray-400 text-sm">
                                             No matching products found!
                                         </td>
                                     </tr>

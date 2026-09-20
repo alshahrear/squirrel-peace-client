@@ -148,7 +148,15 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                         name="openingBalance"
                         placeholder="0.00"
                         value={formData.openingBalance}
-                        onChange={handleChange}
+                        onChange={(e) => {
+                            const value = e.target.value;
+
+                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                handleChange(e);
+                            }
+                        }}
+                        step="0.01"
+                        min="0"
                         className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                     />
                 </div>
@@ -162,13 +170,21 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                         type="number"
                         name="creditLimit"
                         placeholder="0.00"
-                        value={formData.creditLimit || ''}
-                        onChange={handleChange}
+                        value={formData.creditLimit}
+                        onChange={(e) => {
+                            const value = e.target.value;
+
+                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                handleChange(e);
+                            }
+                        }}
+                        step="0.01"
+                        min="0"
                         className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                     />
                 </div>
 
-              {/* Route (Conditional: Searchable Select for Wholesale Customer) */}
+                {/* Route (Conditional: Searchable Select for Wholesale Customer) */}
                 {formData.customerType === 'Wholesale Customer' && (
                     <div className="relative" ref={dropdownRef}>
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">

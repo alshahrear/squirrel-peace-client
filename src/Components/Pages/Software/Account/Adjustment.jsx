@@ -8,7 +8,7 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
         amount: '',
         note: '',
     });
-        const [adjustmentLoading, setAdjustmentLoading] = useState(false);
+    const [adjustmentLoading, setAdjustmentLoading] = useState(false);
     const [localToast, setLocalToast] = useState({ show: false, message: '' });
     const adjDateInputRef = useRef(null);
 
@@ -31,7 +31,7 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
         }
     }, [editingAdjustment]);
 
-        const handleAdjustmentSubmit = async (e) => {
+    const handleAdjustmentSubmit = async (e) => {
         e.preventDefault();
 
         if (adjustmentData.mode === 'Withdraw' && Number(adjustmentData.amount) > baseAvailableAmount) {
@@ -78,7 +78,7 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
         }
     };
 
-        return (
+    return (
         <form onSubmit={handleAdjustmentSubmit} className="space-y-4">
 
             {/* Local Toast - Modal এর উপরে দেখানোর জন্য */}
@@ -157,9 +157,20 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
                         type="number"
                         name="amount"
                         value={adjustmentData.amount}
-                        onChange={(e) => setAdjustmentData({ ...adjustmentData, amount: e.target.value })}
+                        onChange={(e) => {
+                            const value = e.target.value;
+
+                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                setAdjustmentData({
+                                    ...adjustmentData,
+                                    amount: value
+                                });
+                            }
+                        }}
                         required
                         placeholder="Enter amount"
+                        step="0.01"
+                        min="0"
                         className="w-full px-3.5 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                     />
                 </div>

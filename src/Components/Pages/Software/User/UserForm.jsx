@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
-const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        role: '',
-        address: '',
-        password: '',
-        isActive: true,
-    });
+
+const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved }) => {
+    const draftKey = editingUser ? `userForm:${editingUser._id}` : 'userForm:new';
+    const [formData, setFormData] = useDraftState(draftKey, () => ({
+        name: editingUser?.name || '',
+        email: editingUser?.email || '',
+        phone: editingUser?.phone || '',
+        role: editingUser?.role || '',
+        address: editingUser?.address || '',
+        isActive: editingUser?.isActive ?? true,
+    }));
+    const [password, setPassword] = useState('');
 
     const [roles, setRoles] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -25,20 +28,7 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
             .catch((error) => console.error('Error fetching roles:', error));
     }, []);
 
-    // Handle Edit Mode Data Load
-    useEffect(() => {
-        if (editingUser) {
-            setFormData({
-                name: editingUser.name || '',
-                email: editingUser.email || '',
-                phone: editingUser.phone || '',
-                role: editingUser.role || '',
-                address: editingUser.address || '',
-                password: '', 
-                isActive: editingUser.isActive ?? true,
-            });
-        }
-    }, [editingUser]);
+
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -50,6 +40,28 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        const emailInput = formData.email.trim().toLowerCase();
+        const phoneInput = formData.phone.trim();
+
+        const emailExists = users.some(
+            (u) => u.email?.trim().toLowerCase() === emailInput && u._id !== editingUser?._id
+        );
+        if (emailExists) {
+            showToast('This email already exists!', 'error');
+            return;
+        }
+
+        if (phoneInput) {
+            const phoneExists = users.some(
+                (u) => u.phone?.trim() === phoneInput && u._id !== editingUser?._id
+            );
+            if (phoneExists) {
+                showToast('This phone number already exists!', 'error');
+                return;
+            }
+        }
+
         setLoading(true);
 
         const now = new Date();
@@ -63,14 +75,15 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
             hour12: true,
         }).toLowerCase().replace(',', ',');
 
-        const url = editingUser 
-            ? `http://localhost:5000/user/${editingUser._id}` 
+        const url = editingUser
+            ? `http://localhost:5000/user/${editingUser._id}`
             : 'http://localhost:5000/user';
-        
+
         const method = editingUser ? 'PUT' : 'POST';
 
         const finalData = {
             ...formData,
+            password,
             createdAt: editingUser ? editingUser.createdAt : formattedDate,
         };
 
@@ -85,9 +98,9 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
 
             if (response.ok) {
                 const resultData = await response.json();
-                
+
                 showToast(editingUser ? 'User updated successfully!' : 'User created successfully!', 'success');
-                
+
                 if (editingUser && onUserSaved) {
                     // এডিট করার পর আপডেট ডাটা প্যারেন্ট কম্পোনেন্টে পাঠানো
                     const updatedUserObj = {
@@ -106,16 +119,9 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
                     onUserAdded(createdUserObj);
                 }
 
-                // ফর্ম রিসেট
-                setFormData({
-                    name: '',
-                    email: '',
-                    phone: '',
-                    role: '',
-                    address: '',
-                    password: '',
-                    isActive: true,
-                });
+                // ফর্ম রিসেট (draft মুছে ফেলা)
+                clearDraft(draftKey);
+                setPassword('');
             } else {
                 showToast('Something went wrong, please try again.', 'error');
             }
@@ -144,41 +150,41 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
                     </div>
                 </div>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Name <span className="text-red-500">*</span></label>
-                        <input 
-                            type="text" 
-                            name="name" 
-                            value={formData.name} 
-                            onChange={handleChange} 
-                            required 
-                            placeholder="Enter name" 
+                        <input
+                            type="text"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            required
+                            placeholder="Enter name"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address <span className="text-red-500">*</span></label>
-                        <input 
-                            type="email" 
-                            name="email" 
-                            value={formData.email} 
-                            onChange={handleChange} 
-                            required 
-                            placeholder="example@email.com" 
+                        <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                            placeholder="example@email.com"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-                        <input 
-                            type="tel" 
-                            name="phone" 
-                            value={formData.phone} 
-                            onChange={handleChange} 
-                            placeholder="Enter phone number" 
+                        <input
+                            type="tel"
+                            name="phone"
+                            value={formData.phone}
+                            onChange={handleChange}
+                            placeholder="Enter phone number"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
@@ -187,10 +193,10 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Role <span className="text-red-500">*</span></label>
-                        <select 
-                            name="role" 
-                            value={formData.role} 
-                            onChange={handleChange} 
+                        <select
+                            name="role"
+                            value={formData.role}
+                            onChange={handleChange}
                             required
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
                         >
@@ -204,12 +210,12 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
-                        <input 
-                            type="text" 
-                            name="address" 
-                            value={formData.address} 
-                            onChange={handleChange} 
-                            placeholder="Enter address" 
+                        <input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleChange}
+                            placeholder="Enter address"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
@@ -218,17 +224,17 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
                             Password {!editingUser && <span className="text-red-500">*</span>}
                         </label>
                         <div className="relative">
-                            <input 
-                                type={showPassword ? "text" : "password"} 
-                                name="password" 
-                                value={formData.password} 
-                                onChange={handleChange} 
-                                required={!editingUser} 
-                                placeholder="••••••••" 
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                name="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required={!editingUser}
+                                placeholder="••••••••"
                                 className="w-full px-4 py-3.5 pr-12 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                             />
-                            <button 
-                                type="button" 
+                            <button
+                                type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-600 focus:outline-none transition-colors cursor-pointer"
                             >
@@ -254,11 +260,11 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
                             <span className="text-xs text-gray-400">Active status enables user permissions</span>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                name="isActive" 
-                                checked={formData.isActive} 
-                                onChange={handleChange} 
+                            <input
+                                type="checkbox"
+                                name="isActive"
+                                checked={formData.isActive}
+                                onChange={handleChange}
                                 className="sr-only peer"
                             />
                             <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-indigo-600 peer-checked:to-pink-600"></div>
@@ -266,8 +272,8 @@ const UserForm = ({ showToast, editingUser, onUserAdded, onUserSaved }) => {
                     </div>
 
                     <div>
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             disabled={loading}
                             className="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                         >

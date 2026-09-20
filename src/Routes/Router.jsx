@@ -9,20 +9,14 @@ import Register from "../Components/Pages/Register/Register";
 import Users from "../Components/Pages/Users/Users";
 import AdminPages from "../Components/Pages/Admin/AdminPages";
 import AdminRoute from "../Components/Layout/Privet/AdminRoute";
-import Pdf from "../Components/Pages/Receipt/Pdf";
-import ProductPage from "../Components/Pages/Receipt/ProductPage";
-import Units from "../Components/Pages/Receipt/Units";
-import PdfProducts from "../Components/Pages/Receipt/PdfProducts";
 import Software from "../Components/Pages/Software/Software";
-import Client from "../Components/Pages/Software/Client";
-import LoginClient from "../Components/Pages/Software/LoginClient";
+import Client from "../Components/Pages/Software/Client/Client";
+import LoginClient from "../Components/Pages/Software/Client/LoginClient";
 import Dashboard from "../Components/Pages/Software/Dashboard/Dashboard";
 import ClientRoute from "../Components/Layout/Privet/ClientRoute";
-import Route from "../Components/Pages/Receipt/Route";
-import Category from "../Components/Pages/Receipt/Category";
-import Company from "../Components/Pages/Software/Company";
-import Customers from "../Components/Pages/Software/Customers";
-import ProductAll from "../Components/Pages/Software/ProductAll";
+import Route from "../Components/Pages/Software/Contact/Route";
+import Company from "../Components/Pages/Software/Contact/Company";
+import Customers from "../Components/Pages/Software/Contact/Customers";
 import UserRole from "../Components/Pages/Software/User/UserRole";
 import User from "../Components/Pages/Software/User/User";
 import OpeningInvestment from "../Components/Pages/Software/Account/OpeningInvestment";
@@ -38,6 +32,15 @@ import PurchaseDetails from "../Components/Pages/Software/Purchase/PurchaseDetai
 import PurchaseReturn from "../Components/Pages/Software/Purchase/PurchaseReturn";
 import PurchaseReturnDetails from "../Components/Pages/Software/Purchase/PurchaseReturnDetails";
 import PurchaseReturnView from "../Components/Pages/Software/Purchase/PurchaseReturnView";
+import ProductAll from "../Components/Pages/Software/Product/ProductAll";
+import Category from "../Components/Pages/Software/Product/Category";
+import Units from "../Components/Pages/Software/Product/Units";
+import StockList from "../Components/Pages/Software/Inventory/StockList";
+import StockAlert from "../Components/Pages/Software/Inventory/StockAlert";
+import PurchaseBulkReturn from "../Components/Pages/Software/Purchase/PurchaseBulkReturn";
+import OrderAdd from "../Components/Pages/Software/Order/OrderAdd";
+import Wholesale from "../Components/Pages/Software/Sales/Wholesale";
+import Feature from "../Components/Pages/Software/Settings/Feature";
 
 
 export const router = createBrowserRouter([
@@ -91,8 +94,16 @@ export const router = createBrowserRouter([
         element: <ClientRoute><PurchaseReturnView></PurchaseReturnView></ClientRoute>
       },
       {
-        path: "/products",
-        element: <ClientRoute><ProductPage></ProductPage></ClientRoute>
+        path: "/purchase-bulk-return",
+        element: <ClientRoute><PurchaseBulkReturn></PurchaseBulkReturn></ClientRoute>
+      },
+      {
+        path: "/create-order",
+        element: <ClientRoute><OrderAdd></OrderAdd></ClientRoute>
+      },
+      {
+        path: "/wholesale",
+        element: <ClientRoute><Wholesale></Wholesale></ClientRoute>
       },
       {
         path: "/units",
@@ -100,7 +111,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/category",
-        element: <ClientRoute><Category></Category> </ClientRoute>
+        element: <ClientRoute><Category></Category></ClientRoute>
       },
       {
         path: "/company",
@@ -111,12 +122,16 @@ export const router = createBrowserRouter([
         element: <ClientRoute><Customers></Customers></ClientRoute>
       },
       {
-        path: "/productAll",
+        path: "/product",
         element: <ClientRoute><ProductAll></ProductAll></ClientRoute>
       },
       {
-        path: "/pdfProducts",
-        element: <PdfProducts></PdfProducts>
+        path: "/stock-alert",
+        element: <ClientRoute><StockAlert></StockAlert></ClientRoute>
+      },
+      {
+        path: "/stock-list",
+        element: <ClientRoute><StockList></StockList></ClientRoute>
       },
       {
         path: "/software",
@@ -174,13 +189,11 @@ export const router = createBrowserRouter([
       {
         path: "/routes",
         element: <ClientRoute><Route></Route></ClientRoute>
+      },
+      {
+        path: "/features",
+        element: <ClientRoute><Feature></Feature></ClientRoute>
       }
-    ]
+  ]
   },
-  // Pdf রুটটিকে Main এর বাইরে আলাদাভাবে রাখা হয়েছে
-  {
-    path: "/pdf",
-    element: <Pdf></Pdf>
-  },
-
 ]);

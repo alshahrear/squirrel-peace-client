@@ -166,6 +166,7 @@ const PurchaseDetails = () => {
                                     <th className="py-3 px-3.5">Company</th>
                                     <th className="py-3 px-3.5">Unit Qty</th>
                                     <th className="py-3 px-3.5">Pcs</th>
+                                    <th className="py-3 px-3.5">Total Pcs</th>
                                     <th className="py-3 px-3.5">Free Qty</th>
                                     <th className="py-3 px-3.5 text-right">Total Cost Price</th>
                                     <th className="py-3 px-3.5 text-right">Total Sell Price</th>
@@ -179,20 +180,46 @@ const PurchaseDetails = () => {
                                         <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
                                         <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
                                         <td className="py-4 px-3.5 text-slate-600">{selectedInvoice.company}</td>
-                                        <td className="py-4 px-3.5">{item.qty} {item.unit}</td>
-                                        <td className="py-4 px-3.5">{item.pcs}</td>
+                                        <td className="py-4 px-3.5">{item.unitQty} {item.unit}</td>
+                                        <td className="py-4 px-3.5">{item.pcsQty}</td>
+                                        <td className="py-4 px-3.5 font-semibold text-indigo-600">{item.totalPcs}</td>
                                         <td className="py-4 px-3.5 font-medium text-emerald-600">
-                                            {item.freeQty > 0 ? `${item.freeQty} (${item.freeProduct})` : '0'}
+                                            {item.freeQty > 0 ? `${item.freeQty}` : '0'}
                                         </td>
                                         <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                            ৳{(Number(item.buyPrice) * Number(item.pcs)).toFixed(2)}
+                                            ৳{(Number(item.buyPrice) * Number(item.totalPcs)).toFixed(2)}
                                             <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.buyPrice).toFixed(2)})</span>
                                         </td>
                                         <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                            ৳{(Number(item.sellPrice) * Number(item.pcs)).toFixed(2)}
+                                            ৳{(Number(item.sellPrice) * Number(item.totalPcs)).toFixed(2)}
                                             <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.sellPrice).toFixed(2)})</span>
                                         </td>
-                                        <td className="py-4 px-3.5 text-right text-rose-500 font-medium">৳{Number(item.discount).toFixed(2)}</td>
+                                        <td className="py-4 px-3.5 text-right font-medium">
+                                            {(() => {
+                                                const rowGrossTotal = Number(item.buyPrice) * Number(item.totalPcs);
+                                                const discountAmt = Number(
+                                                    item.discountAmount ??
+                                                    (item.discountType === 'percent'
+                                                        ? (rowGrossTotal * Number(item.discount)) / 100
+                                                        : Number(item.discount))
+                                                );
+                                                const discountPct =
+                                                    item.discountType === 'percent'
+                                                        ? Number(item.discount) || 0
+                                                        : (rowGrossTotal > 0 ? (discountAmt / rowGrossTotal) * 100 : 0);
+                                                return (
+                                                    <>
+                                                        <span className={item.discountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                            ৳{discountAmt.toFixed(2)}
+                                                        </span>
+                                                        {' '}
+                                                        <span className={item.discountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                            ({discountPct.toFixed(2)}%)
+                                                        </span>
+                                                    </>
+                                                );
+                                            })()}
+                                        </td>
                                         <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal).toFixed(2)}</td>
                                     </tr>
                                 ))}
@@ -220,14 +247,57 @@ const PurchaseDetails = () => {
                             </div>
                             <div className="flex justify-between py-1 text-slate-600">
                                 <span>Product Wise Discount:</span>
-                                <span className="font-semibold text-rose-600">- ৳{Number(selectedInvoice.productWiseDiscount).toFixed(2)}</span>
+                                <span className="font-semibold text-rose-600">
+                                    - ৳{Number(selectedInvoice.productWiseDiscount).toFixed(2)}
+                                    <span className="text-[10px] text-slate-400 ml-1">
+                                        ({(
+                                            selectedInvoice.productWiseDiscountPercent ??
+                                            (Number(selectedInvoice.grandTotal) > 0
+                                                ? (Number(selectedInvoice.productWiseDiscount) / Number(selectedInvoice.grandTotal)) * 100
+                                                : 0)
+                                        ).toFixed(2)}%)
+                                    </span>
+                                </span>
                             </div>
+                            {Number(selectedInvoice.overallDiscount) > 0 && (
+                                <div className="flex justify-between py-1 text-slate-600">
+                                    <span>Overall Discount:</span>
+                                    <span className="font-semibold">
+                                        {(() => {
+                                            const afterProductDiscount = Number(selectedInvoice.grandTotal) - Number(selectedInvoice.productWiseDiscount);
+                                            const overallAmt = Number(
+                                                selectedInvoice.overallDiscountValue ??
+                                                (selectedInvoice.overallDiscountType === 'percent'
+                                                    ? (afterProductDiscount * Number(selectedInvoice.overallDiscount)) / 100
+                                                    : Number(selectedInvoice.overallDiscount))
+                                            );
+                                            const overallPct =
+                                                selectedInvoice.overallDiscountType === 'percent'
+                                                    ? Number(selectedInvoice.overallDiscount) || 0
+                                                    : (afterProductDiscount > 0 ? (overallAmt / afterProductDiscount) * 100 : 0);
+                                            return (
+                                                <>
+                                                    <span className={selectedInvoice.overallDiscountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                        - ৳{overallAmt.toFixed(2)}
+                                                    </span>
+                                                    {' '}
+                                                    <span className={selectedInvoice.overallDiscountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                        ({overallPct.toFixed(2)}%)
+                                                    </span>
+                                                </>
+                                            );
+                                        })()}
+                                    </span>
+                                </div>
+                            )}
                             {selectedInvoice.adjustment && Number(selectedInvoice.adjustment.amount) > 0 && (
                                 <div className="flex justify-between py-1 text-slate-600">
                                     <span className="truncate pr-2">
                                         {selectedInvoice.adjustment.text || 'Adjustment'} ({selectedInvoice.adjustment.type}):
                                     </span>
-                                    <span className="font-semibold text-slate-800 shrink-0">৳{Number(selectedInvoice.adjustment.amount).toFixed(2)}</span>
+                                    <span className={`font-semibold shrink-0 ${selectedInvoice.adjustment.type === '-' ? 'text-rose-600' : 'text-slate-800'}`}>
+                                        {selectedInvoice.adjustment.type === '-' ? '- ' : '+ '}৳{Number(selectedInvoice.adjustment.amount).toFixed(2)}
+                                    </span>
                                 </div>
                             )}
                             <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
@@ -244,6 +314,13 @@ const PurchaseDetails = () => {
                                     ৳{(Number(selectedInvoice.payableAmount) - Number(selectedInvoice.paidAmount || 0)).toFixed(2)}
                                 </span>
                             </div>
+
+                            {selectedInvoice.paymentNote && (
+                                <div className="pt-2 mt-1 border-t border-slate-200">
+                                    <h4 className="text-[11px] font-bold text-slate-500 uppercase mb-1">Payment Note:</h4>
+                                    <p className="text-xs text-slate-600 italic leading-relaxed">{selectedInvoice.paymentNote}</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

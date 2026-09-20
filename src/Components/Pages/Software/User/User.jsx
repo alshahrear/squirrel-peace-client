@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import UserForm from './UserForm';
+import useDraftState from '../../../../hooks/useDraftState';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const User = () => {
     const [users, setUsers] = useState([]);
@@ -14,11 +16,17 @@ const User = () => {
 
     // Search, Form & Edit Modal States
     const [searchTerm, setSearchTerm] = useState('');
-    const [showForm, setShowForm] = useState(false);
-    const [editingUser, setEditingUser] = useState(null);
+    const [showForm, setShowForm] = useDraftState('userFormOpen', false);
+    const [editingUserId, setEditingUserId] = useDraftState('userEditingId', null);
+    const editingUser = users.find((u) => u._id === editingUserId) || null;
+    const setEditingUser = (u) => setEditingUserId(u ? u._id : null);
+
+    // Active Action Dropdown State
+    const [activeDropdownId, setActiveDropdownId] = useState(null);
 
     // Table section ref for auto scrolling
     const tableSectionRef = useRef(null);
+    const formSectionRef = useRef(null);
 
     // Fetch Users
     const fetchUsers = async () => {
@@ -38,6 +46,17 @@ const User = () => {
         fetchUsers();
     }, []);
 
+    // বাইরে কোথাও ক্লিক করলে ড্রপডাউন বন্ধ করার জন্য
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!event.target.closest('.action-dropdown-container')) {
+                setActiveDropdownId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
         setTimeout(() => {
@@ -47,6 +66,7 @@ const User = () => {
 
     // Delete User Handler with SweetAlert2
     const handleDelete = async (id) => {
+        setActiveDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
@@ -146,33 +166,37 @@ const User = () => {
                 </div>
 
                 {/* Collapsible Form Component */}
-                {showForm && (
-                    <UserForm
-                        showToast={showToast}
-                        editingUser={editingUser}
-                        onUserAdded={(newUser) => {
-                            // নতুন ইউজার সাথে সাথে স্টেটে যোগ করা (রিফ্রেশ ছাড়া)
-                            setUsers(prevUsers => [newUser, ...prevUsers]);
-                            setShowForm(false);
-                            setEditingUser(null);
-                            setTimeout(() => {
-                                tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-                            }, 100);
-                        }}
-                        onUserSaved={(updatedUser) => {
-                            // এডিট করা ইউজার সাথে সাথে স্টেটে আপডেট করা (রিফ্রেশ ছাড়া)
-                            setUsers(prevUsers => prevUsers.map(u => u._id === updatedUser._id ? updatedUser : u));
-                            setShowForm(false);
-                            setEditingUser(null);
-                            setTimeout(() => {
-                                tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-                            }, 100);
-                        }}
-                    />
+                {showForm && !loading && (
+                    <div ref={formSectionRef}>
+                        <UserForm
+                            key={editingUser?._id || 'new'}
+                            showToast={showToast}
+                            users={users}
+                            editingUser={editingUser}
+                            onUserAdded={(newUser) => {
+                                // নতুন ইউজার সাথে সাথে স্টেটে যোগ করা (রিফ্রেশ ছাড়া)
+                                setUsers(prevUsers => [newUser, ...prevUsers]);
+                                setShowForm(false);
+                                setEditingUser(null);
+                                setTimeout(() => {
+                                    tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
+                            }}
+                            onUserSaved={(updatedUser) => {
+                                // এডিট করা ইউজার সাথে সাথে স্টেটে আপডেট করা (রিফ্রেশ ছাড়া)
+                                setUsers(prevUsers => prevUsers.map(u => u._id === updatedUser._id ? updatedUser : u));
+                                setShowForm(false);
+                                setEditingUser(null);
+                                setTimeout(() => {
+                                    tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
+                            }}
+                        />
+                    </div>
                 )}
 
                 {/* Table Card Section */}
-                <div ref={tableSectionRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl overflow-hidden p-6 md:p-8 border border-white space-y-6">
+                <div ref={tableSectionRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-6">
 
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-3">
@@ -204,7 +228,7 @@ const User = () => {
                     ) : filteredUsers.length === 0 ? (
                         <div className="text-center py-20 text-gray-400 font-medium">No users found!</div>
                     ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm p-1">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
@@ -238,30 +262,41 @@ const User = () => {
                                                 </span>
                                             </td>
                                             <td className="py-4 px-5 text-xs text-gray-500">{user.createdAt}</td>
-                                            <td className="py-4 px-5 text-center">
-                                                <div className="flex items-center justify-center gap-2">
+                                            <td className="py-4 px-5 text-center relative">
+                                                <div className="relative inline-block action-dropdown-container">
                                                     <button
-                                                        onClick={() => {
-                                                            setEditingUser(user);
-                                                            setShowForm(true);
-                                                        }}
-                                                        className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 shadow-sm cursor-pointer"
-                                                        title="Edit User"
+                                                        onClick={() => setActiveDropdownId(activeDropdownId === user._id ? null : user._id)}
+                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
                                                     >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                                                        </svg>
+                                                        <span>Select</span>
+                                                        <FiChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdownId === user._id ? 'rotate-180' : ''}`} />
                                                     </button>
 
-                                                    <button
-                                                        onClick={() => handleDelete(user._id)}
-                                                        className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl transition duration-200 shadow-sm cursor-pointer"
-                                                        title="Delete User"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                                        </svg>
-                                                    </button>
+                                                    {activeDropdownId === user._id && (
+                                                        <div className="absolute right-0 bottom-full mb-2 w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setActiveDropdownId(null);
+                                                                    setEditingUser(user);
+                                                                    setShowForm(true);
+                                                                    setTimeout(() => {
+                                                                        formSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                                                    }, 100);
+                                                                }}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FiEdit3 className="w-3.5 h-3.5 text-indigo-500" />
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(user._id)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FiTrash2 className="w-3.5 h-3.5 text-rose-500" />
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

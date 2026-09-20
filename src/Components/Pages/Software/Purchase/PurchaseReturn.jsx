@@ -1,18 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const PurchaseReturn = () => {
     const [returns, setReturns] = useState([]);
+    const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
-    const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
+
+    // Separate Filter States
+    const [filters, setFilters] = useState({
+        startDate: '',
+        endDate: '',
+        company: '',
+        invoiceNo: ''
+    });
+
+    // Refs for triggering date pickers
+    const startDateRef = useRef(null);
+    const endDateRef = useRef(null);
+
+    // Company searchable-select state
+    const [isCompanyOpen, setIsCompanyOpen] = useState(false);
+    const companyDropdownRef = useRef(null);
 
     // Action Dropdown state
     const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -29,6 +45,17 @@ const PurchaseReturn = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    // Fetch Companies data for filter dropdown
+    const fetchCompanies = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/company');
+            const data = await res.json();
+            setCompanies(data);
+        } catch (error) {
+            console.error('Error fetching companies:', error);
+        }
+    };
 
     // Fetch Purchases -> proti order er returnHistory theke each entry ke alada row banaia flatten kora
     const fetchReturns = async () => {
@@ -62,7 +89,84 @@ const PurchaseReturn = () => {
 
     useEffect(() => {
         fetchReturns();
+        fetchCompanies();
     }, []);
+
+    // Close Company dropdown on outside click
+    useEffect(() => {
+        const handleClickOutsideCompany = (event) => {
+            if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target)) {
+                setIsCompanyOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutsideCompany);
+        return () => document.removeEventListener('mousedown', handleClickOutsideCompany);
+    }, []);
+
+    // Filter companies based on search typing
+    const filteredCompanies = companies.filter((comp) =>
+        comp.businessName?.toLowerCase().includes(filters.company.toLowerCase())
+    );
+
+    const handleSelectCompany = (comp) => {
+        setFilters({ ...filters, company: comp.businessName });
+        setIsCompanyOpen(false);
+    };
+
+    const handleClearCompany = (e) => {
+        e.stopPropagation();
+        setFilters({ ...filters, company: '' });
+        setIsCompanyOpen(false);
+    };
+
+    // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
+    const displayFormattedDate = (dateString) => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        if (!year || !month || !day) return dateString;
+
+        const dateObj = new Date(year, month - 1, day);
+        const options = { day: '2-digit', month: 'short', year: 'numeric' };
+        return dateObj.toLocaleDateString('en-GB', options);
+    };
+
+    // Helper function to parse any date string into a timezone-safe LOCAL date (time stripped)
+    // Handles: DD/MM/YYYY (with optional ", time" suffix), YYYY-MM-DD (from <input type="date">), and ISO strings
+    const parseToLocalDate = (dateStr) => {
+        if (!dateStr) return null;
+        const datePart = dateStr.split(',')[0].trim();
+
+        if (datePart.includes('/')) {
+            const [d, m, y] = datePart.split('/');
+            if (!d || !m || !y) return null;
+            return new Date(Number(y), Number(m) - 1, Number(d));
+        }
+
+        if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
+            const [y, m, d] = datePart.split('-');
+            return new Date(Number(y), Number(m) - 1, Number(d));
+        }
+
+        const parsed = new Date(datePart);
+        return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    };
+
+    // Handle Filter input change
+    const handleFilterChange = (e) => {
+        setFilters({ ...filters, [e.target.name]: e.target.value });
+        setCurrentPage(1);
+    };
+
+    // Clear all filters
+    const handleClearFilters = () => {
+        setFilters({
+            startDate: '',
+            endDate: '',
+            company: '',
+            invoiceNo: ''
+        });
+        setCurrentPage(1);
+    };
 
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
@@ -75,6 +179,12 @@ const PurchaseReturn = () => {
     const handleViewReturn = (item) => {
         setOpenDropdownId(null);
         navigate(`/purchase-return-view/${item.orderId}?returnId=${item.returnId}`);
+    };
+
+    // Edit Return Handler -> return form a existing value prefill kore edit kora jabe
+    const handleEditReturn = (item) => {
+        setOpenDropdownId(null);
+        navigate(`/purchase-return-details/${item.orderId}?returnId=${item.returnId}`);
     };
 
     // Delete Return Handler -> shudhu ei nirdishto return entry ta returnHistory theke muche jabe, order thakbe
@@ -118,12 +228,34 @@ const PurchaseReturn = () => {
         });
     };
 
-    // Filtered Returns based on Search
+    // Advanced Multi-field & Date Range Filtering Logic
     const filteredReturns = returns.filter((item) => {
-        const search = searchTerm.toLowerCase();
-        const invoiceMatch = item.invoiceNo?.toLowerCase().includes(search);
-        const companyMatch = item.company?.toLowerCase().includes(search);
-        return invoiceMatch || companyMatch;
+        // Date Range Filter (returnDate)
+        if (filters.startDate || filters.endDate) {
+            const returnDateObj = parseToLocalDate(item.returnDate);
+            if (!returnDateObj) return false;
+
+            if (filters.startDate) {
+                const startDateObj = parseToLocalDate(filters.startDate);
+                if (startDateObj && returnDateObj < startDateObj) return false;
+            }
+
+            if (filters.endDate) {
+                const endDateObj = parseToLocalDate(filters.endDate);
+                if (endDateObj && returnDateObj > endDateObj) return false;
+            }
+        }
+
+        // Company Filter
+        if (filters.company && !item.company?.toLowerCase().includes(filters.company.toLowerCase())) {
+            return false;
+        }
+        // Invoice No Filter
+        if (filters.invoiceNo && !item.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) {
+            return false;
+        }
+
+        return true;
     });
 
     // Pagination Calculations
@@ -159,32 +291,144 @@ const PurchaseReturn = () => {
                         </h2>
                         <p className="text-gray-500 text-sm mt-1">Manage and track all purchase return records</p>
                     </div>
+                    <button
+                        onClick={() => navigate('/purchase')}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
+                    >
+                        New Return
+                    </button>
                 </div>
 
                 {/* Table Card Section */}
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-6">
 
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <h3 className="text-xl font-bold text-gray-800">Return Directory</h3>
-                            <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                                Showing: {filteredReturns.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredReturns.length)}` : 0} of {filteredReturns.length} ({returns.length} total)
-                            </span>
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-xl font-bold text-gray-800">Return Directory</h3>
+                        <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
+                            Showing: {filteredReturns.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredReturns.length)}` : 0} of {filteredReturns.length} ({returns.length} total)
+                        </span>
+                    </div>
+
+                    {/* Filter & Search Panel */}
+                    <div className="bg-white shadow-lg rounded-2xl p-5 border border-indigo-100">
+                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                <FaFilter className="text-indigo-600" /> Filter & Search Panel
+                            </h3>
+                            <button
+                                onClick={handleClearFilters}
+                                className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+                            >
+                                <FaRedo size={11} /> Clear All Filters
+                            </button>
                         </div>
 
-                        <div className="relative w-full md:w-80">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                                </svg>
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Search by invoice, company..."
-                                value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
-                            />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                            {/* Start Date */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
+                                <div
+                                    className="relative w-full cursor-pointer"
+                                    onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
+                                >
+                                    <input
+                                        ref={startDateRef}
+                                        type="date"
+                                        name="startDate"
+                                        value={filters.startDate}
+                                        onChange={handleFilterChange}
+                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                                    />
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        placeholder="Select start date"
+                                        value={displayFormattedDate(filters.startDate)}
+                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* End Date */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
+                                <div
+                                    className="relative w-full cursor-pointer"
+                                    onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
+                                >
+                                    <input
+                                        ref={endDateRef}
+                                        type="date"
+                                        name="endDate"
+                                        value={filters.endDate}
+                                        onChange={handleFilterChange}
+                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                                    />
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        placeholder="Select end date"
+                                        value={displayFormattedDate(filters.endDate)}
+                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Company Searchable Dropdown */}
+                            <div className="relative" ref={companyDropdownRef}>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
+                                <div
+                                    onClick={() => setIsCompanyOpen(true)}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+                                >
+                                    <input
+                                        type="text"
+                                        placeholder="Search or select company..."
+                                        value={filters.company}
+                                        onChange={(e) => {
+                                            handleFilterChange({ target: { name: 'company', value: e.target.value } });
+                                            setIsCompanyOpen(true);
+                                        }}
+                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
+                                    />
+                                    {filters.company && (
+                                        <button type="button" onClick={handleClearCompany} className="text-gray-400 hover:text-red-500 pl-1">
+                                            <FaTimes size={10} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isCompanyOpen && (
+                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                                        {filteredCompanies.length > 0 ? (
+                                            filteredCompanies.map((comp) => (
+                                                <div
+                                                    key={comp._id}
+                                                    onClick={() => handleSelectCompany(comp)}
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                >
+                                                    {comp.businessName}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Invoice Number Search */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
+                                <input
+                                    type="text"
+                                    name="invoiceNo"
+                                    placeholder="Search invoice..."
+                                    value={filters.invoiceNo}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -265,6 +509,27 @@ const PurchaseReturn = () => {
                                                                     />
                                                                 </svg>
                                                                 View Return
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => handleEditReturn(item)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <svg
+                                                                    xmlns="http://www.w3.org/2000/svg"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    strokeWidth={1.8}
+                                                                    stroke="currentColor"
+                                                                    className="w-3.5 h-3.5 text-indigo-500"
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                                                                    />
+                                                                </svg>
+                                                                Edit Return
                                                             </button>
 
                                                             <button

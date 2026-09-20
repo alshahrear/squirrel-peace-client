@@ -9,7 +9,9 @@ import {
     FileText,
     Building2,
     ArrowLeft,
-    PackageX
+    PackageX,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 
 const PurchaseReturnView = () => {
@@ -21,6 +23,7 @@ const PurchaseReturnView = () => {
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [returnEntry, setReturnEntry] = useState(null);
     const [notFound, setNotFound] = useState(false);
+    const [showDetails, setShowDetails] = useState(false); // Unit Qty theke Subtotal porjonto collapse thakbe
 
     useEffect(() => {
         setLoading(true);
@@ -46,12 +49,15 @@ const PurchaseReturnView = () => {
             });
     }, [id, returnId]);
 
-    // Nirdishto return entry theke item-wise returnPcs/returnAmount ber kora
+    // Nirdishto return entry theke item-wise return info ber kora
     const getReturnItemInfo = (productId) => {
         const found = returnEntry?.items?.find((it) => it.productId === productId);
         return {
-            returnPcs: found ? found.returnPcs : 0,
-            returnAmount: found ? found.returnAmount : 0,
+            returnUnitQty: found ? Number(found.returnUnitQty) || 0 : 0,
+            returnPcsQty: found ? Number(found.returnPcsQty) || 0 : 0,
+            returnTotalQty: found ? Number(found.returnTotalQty) || 0 : 0,
+            returnFreeQty: found ? Number(found.returnFreeQty) || 0 : 0,
+            returnAmount: found ? Number(found.returnAmount) || 0 : 0,
         };
     };
 
@@ -188,41 +194,100 @@ const PurchaseReturnView = () => {
                                     <th className="py-3 px-3.5 rounded-l-xl">SL</th>
                                     <th className="py-3 px-3.5">Product Name</th>
                                     <th className="py-3 px-3.5">Company</th>
-                                    <th className="py-3 px-3.5">Unit Qty</th>
-                                    <th className="py-3 px-3.5">Pcs</th>
-                                    <th className="py-3 px-3.5">Free Qty</th>
-                                    <th className="py-3 px-3.5 text-right">Total Cost Price</th>
-                                    <th className="py-3 px-3.5 text-right">Total Sell Price</th>
-                                    <th className="py-3 px-3.5 text-right">Discount</th>
-                                    <th className="py-3 px-3.5 text-right">Subtotal</th>
-                                    <th className="py-3 px-3.5 text-center">Return Qty</th>
+                                    {showDetails ? (
+                                        <>
+                                            <th className="py-3 px-3.5">
+                                                <button type="button" onClick={() => setShowDetails(false)} className="flex items-center gap-1 hover:text-indigo-100 transition cursor-pointer print:hidden">
+                                                    <ChevronLeft className="w-3.5 h-3.5" /> Unit Qty
+                                                </button>
+                                                <span className="hidden print:inline">Unit Qty</span>
+                                            </th>
+                                            <th className="py-3 px-3.5">Pcs</th>
+                                            <th className="py-3 px-3.5">Total Pcs</th>
+                                            <th className="py-3 px-3.5">Free Qty</th>
+                                            <th className="py-3 px-3.5 text-right">Total Cost Price</th>
+                                            <th className="py-3 px-3.5 text-right">Total Sell Price</th>
+                                            <th className="py-3 px-3.5 text-right">Discount</th>
+                                            <th className="py-3 px-3.5 text-right">Subtotal</th>
+                                        </>
+                                    ) : (
+                                        <th className="py-3 px-3.5 print:hidden">
+                                            <button type="button" onClick={() => setShowDetails(true)} className="flex items-center gap-1 hover:text-indigo-100 transition cursor-pointer">
+                                                Details <ChevronRight className="w-3.5 h-3.5" />
+                                            </button>
+                                        </th>
+                                    )}
+                                    <th className="py-3 px-3.5 text-right">Purchase Price</th>
+                                    <th className="py-3 px-3.5 text-center">RT Unit Qty</th>
+                                    <th className="py-3 px-3.5 text-center">RT Pcs Qty</th>
+                                    <th className="py-3 px-3.5 text-center">Total RT Qty</th>
+                                    <th className="py-3 px-3.5 text-center">RT Free Qty</th>
                                     <th className="py-3 px-3.5 text-right rounded-r-xl">Return Amount</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
                                 {selectedInvoice.items.map((item, index) => {
-                                    const { returnPcs, returnAmount } = getReturnItemInfo(item.productId);
+                                    const { returnUnitQty, returnPcsQty, returnTotalQty, returnFreeQty, returnAmount } = getReturnItemInfo(item.productId);
                                     return (
                                         <tr key={index} className="hover:bg-indigo-50/40 transition-colors">
                                             <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
                                             <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
                                             <td className="py-4 px-3.5 text-slate-600">{selectedInvoice.company}</td>
-                                            <td className="py-4 px-3.5">{item.qty} {item.unit}</td>
-                                            <td className="py-4 px-3.5">{item.pcs}</td>
-                                            <td className="py-4 px-3.5 font-medium text-emerald-600">
-                                                {item.freeQty > 0 ? `${item.freeQty} (${item.freeProduct})` : '0'}
+                                            {showDetails ? (
+                                                <>
+                                                    <td className="py-4 px-3.5">{item.unitQty} {item.unit}</td>
+                                                    <td className="py-4 px-3.5">{item.pcsQty}</td>
+                                                    <td className="py-4 px-3.5 font-semibold text-indigo-600">{item.totalPcs}</td>
+                                                    <td className="py-4 px-3.5 font-medium text-emerald-600">
+                                                        {item.freeQty > 0 ? `${item.freeQty} ` : '0'}
+                                                    </td>
+                                                    <td className="py-4 px-3.5 text-center font-medium text-slate-600">
+                                                        ৳{(Number(item.buyPrice) * Number(item.totalPcs)).toFixed(2)}
+                                                        <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.buyPrice).toFixed(2)})</span>
+                                                    </td>
+                                                    <td className="py-4 px-3.5 text-center font-medium text-slate-600">
+                                                        ৳{(Number(item.sellPrice) * Number(item.totalPcs)).toFixed(2)}
+                                                        <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.sellPrice).toFixed(2)})</span>
+                                                    </td>
+                                                    <td className="py-4 px-3.5 text-right font-medium">
+                                                        {(() => {
+                                                            const rowGrossTotal = Number(item.buyPrice) * Number(item.totalPcs);
+                                                            const discountAmt = Number(
+                                                                item.discountAmount ??
+                                                                (item.discountType === 'percent'
+                                                                    ? (rowGrossTotal * Number(item.discount)) / 100
+                                                                    : Number(item.discount))
+                                                            );
+                                                            const discountPct =
+                                                                item.discountType === 'percent'
+                                                                    ? Number(item.discount) || 0
+                                                                    : (rowGrossTotal > 0 ? (discountAmt / rowGrossTotal) * 100 : 0);
+                                                            return (
+                                                                <>
+                                                                    <span className={item.discountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                                        ৳{discountAmt.toFixed(2)}
+                                                                    </span>
+                                                                    {' '}
+                                                                    <span className={item.discountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                                        ({discountPct.toFixed(2)}%)
+                                                                    </span>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                    <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal).toFixed(2)}</td>
+                                                </>
+                                            ) : (
+                                                <td className="py-4 px-3.5 text-center text-slate-300 print:hidden">•••</td>
+                                            )}
+                                            <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.buyPrice).toFixed(2)}</td>
+                                            <td className="py-4 px-3.5 text-center">
+                                                <div className="font-semibold text-orange-600">{returnUnitQty}</div>
+                                                <div className="text-[10px] text-slate-400">{item.unit}</div>
                                             </td>
-                                            <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                                ৳{(Number(item.buyPrice) * Number(item.pcs)).toFixed(2)}
-                                                <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.buyPrice).toFixed(2)})</span>
-                                            </td>
-                                            <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                                ৳{(Number(item.sellPrice) * Number(item.pcs)).toFixed(2)}
-                                                <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.sellPrice).toFixed(2)})</span>
-                                            </td>
-                                            <td className="py-4 px-3.5 text-right text-rose-500 font-medium">৳{Number(item.discount).toFixed(2)}</td>
-                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal).toFixed(2)}</td>
-                                            <td className="py-4 px-3.5 text-center font-semibold text-orange-600">{returnPcs}</td>
+                                            <td className="py-4 px-3.5 text-center font-semibold text-orange-600">{returnPcsQty}</td>
+                                            <td className="py-4 px-3.5 text-center font-bold text-orange-600">{returnTotalQty}</td>
+                                            <td className="py-4 px-3.5 text-center font-semibold text-emerald-600">{returnFreeQty}</td>
                                             <td className="py-4 px-3.5 text-right font-bold text-orange-600">৳{Number(returnAmount).toFixed(2)}</td>
                                         </tr>
                                     );
@@ -253,12 +318,45 @@ const PurchaseReturnView = () => {
                                 <span>Product Wise Discount:</span>
                                 <span className="font-semibold text-rose-600">- ৳{Number(selectedInvoice.productWiseDiscount).toFixed(2)}</span>
                             </div>
+                            {Number(selectedInvoice.overallDiscount) > 0 && (
+                                <div className="flex justify-between py-1 text-slate-600">
+                                    <span>Overall Discount:</span>
+                                    <span className="font-semibold">
+                                        {(() => {
+                                            const afterProductDiscount = Number(selectedInvoice.grandTotal) - Number(selectedInvoice.productWiseDiscount);
+                                            const overallAmt = Number(
+                                                selectedInvoice.overallDiscountValue ??
+                                                (selectedInvoice.overallDiscountType === 'percent'
+                                                    ? (afterProductDiscount * Number(selectedInvoice.overallDiscount)) / 100
+                                                    : Number(selectedInvoice.overallDiscount))
+                                            );
+                                            const overallPct =
+                                                selectedInvoice.overallDiscountType === 'percent'
+                                                    ? Number(selectedInvoice.overallDiscount) || 0
+                                                    : (afterProductDiscount > 0 ? (overallAmt / afterProductDiscount) * 100 : 0);
+                                            return (
+                                                <>
+                                                    <span className={selectedInvoice.overallDiscountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                        - ৳{overallAmt.toFixed(2)}
+                                                    </span>
+                                                    {' '}
+                                                    <span className={selectedInvoice.overallDiscountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                        ({overallPct.toFixed(2)}%)
+                                                    </span>
+                                                </>
+                                            );
+                                        })()}
+                                    </span>
+                                </div>
+                            )}
                             {selectedInvoice.adjustment && Number(selectedInvoice.adjustment.amount) > 0 && (
                                 <div className="flex justify-between py-1 text-slate-600">
                                     <span className="truncate pr-2">
                                         {selectedInvoice.adjustment.text || 'Adjustment'} ({selectedInvoice.adjustment.type}):
                                     </span>
-                                    <span className="font-semibold text-slate-800 shrink-0">৳{Number(selectedInvoice.adjustment.amount).toFixed(2)}</span>
+                                    <span className={`font-semibold shrink-0 ${selectedInvoice.adjustment.type === '-' ? 'text-rose-600' : 'text-slate-800'}`}>
+                                        {selectedInvoice.adjustment.type === '-' ? '- ' : '+ '}৳{Number(selectedInvoice.adjustment.amount).toFixed(2)}
+                                    </span>
                                 </div>
                             )}
                             <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
@@ -275,11 +373,23 @@ const PurchaseReturnView = () => {
                                     ৳{(Number(selectedInvoice.payableAmount) - Number(selectedInvoice.paidAmount || 0)).toFixed(2)}
                                 </span>
                             </div>
-                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-orange-700 border-t border-orange-200 bg-orange-50 -mx-5 px-5 rounded-b-xl mt-2">
-                                <span>Total Return Pcs:</span>
+
+                            {selectedInvoice.paymentNote && (
+                                <div className="pt-2 mt-1 border-t border-slate-200">
+                                    <h4 className="text-[11px] font-bold text-slate-500 uppercase mb-1">Payment Note:</h4>
+                                    <p className="text-xs text-slate-600 italic leading-relaxed">{selectedInvoice.paymentNote}</p>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-orange-700 border-t border-orange-200 bg-orange-50 -mx-5 px-5 rounded-t-xl mt-2">
+                                <span>Total Return Qty:</span>
                                 <span>{returnEntry?.totalReturnPcs || 0}</span>
                             </div>
-                            <div className="flex justify-between py-1 text-sm font-bold text-orange-700 bg-orange-50 -mx-5 px-5 pb-3">
+                            <div className="flex justify-between py-1 text-sm font-bold text-orange-700 bg-orange-50 -mx-5 px-5">
+                                <span>Total Return Free Qty:</span>
+                                <span>{returnEntry?.totalReturnFreeQty || 0}</span>
+                            </div>
+                            <div className="flex justify-between py-1 text-sm font-bold text-orange-700 bg-orange-50 -mx-5 px-5 pb-3 rounded-b-xl">
                                 <span>Total Return Amount:</span>
                                 <span>৳{Number(returnEntry?.totalReturnAmount || 0).toFixed(2)}</span>
                             </div>

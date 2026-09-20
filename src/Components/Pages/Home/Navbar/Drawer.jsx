@@ -1,11 +1,98 @@
 import { useEffect, useState, useRef } from "react";
 import { NavLink } from "react-router-dom";
-import { FaTimes, FaChevronDown } from "react-icons/fa";
+import {
+  FaTimes,
+  FaChevronDown,
+  FaHome,
+  FaShoppingCart,
+  FaTruck,
+  FaBoxOpen,
+  FaAddressBook,
+  FaWarehouse,
+  FaWallet,
+  FaUsers,
+  FaFileInvoiceDollar,
+  FaCog,
+} from "react-icons/fa";
 import fav from "../../../../assets/squirrelpeacelogo.png";
+
+// প্রতিটা মেনু ক্যাটাগরির জন্য আলাদা প্যাস্টেল কালার থিম (Tailwind JIT-এর জন্য class গুলো পূর্ণ লেখা আছে)
+const colorMap = {
+  home: {
+    icon: FaHome,
+    iconWrap: "bg-blue-50 text-blue-600",
+    active: "bg-blue-50 text-blue-700 before:bg-blue-600",
+    childActive: "bg-blue-50 text-blue-700",
+    chevronOpen: "text-blue-600",
+  },
+  sale: {
+    icon: FaShoppingCart,
+    iconWrap: "bg-emerald-50 text-emerald-600",
+    active: "bg-emerald-50 text-emerald-700 before:bg-emerald-600",
+    childActive: "bg-emerald-50 text-emerald-700",
+    chevronOpen: "text-emerald-600",
+  },
+  purchase: {
+    icon: FaTruck,
+    iconWrap: "bg-amber-50 text-amber-600",
+    active: "bg-amber-50 text-amber-700 before:bg-amber-600",
+    childActive: "bg-amber-50 text-amber-700",
+    chevronOpen: "text-amber-600",
+  },
+  products: {
+    icon: FaBoxOpen,
+    iconWrap: "bg-violet-50 text-violet-600",
+    active: "bg-violet-50 text-violet-700 before:bg-violet-600",
+    childActive: "bg-violet-50 text-violet-700",
+    chevronOpen: "text-violet-600",
+  },
+  contact: {
+    icon: FaAddressBook,
+    iconWrap: "bg-rose-50 text-rose-600",
+    active: "bg-rose-50 text-rose-700 before:bg-rose-600",
+    childActive: "bg-rose-50 text-rose-700",
+    chevronOpen: "text-rose-600",
+  },
+  inventory: {
+    icon: FaWarehouse,
+    iconWrap: "bg-cyan-50 text-cyan-600",
+    active: "bg-cyan-50 text-cyan-700 before:bg-cyan-600",
+    childActive: "bg-cyan-50 text-cyan-700",
+    chevronOpen: "text-cyan-600",
+  },
+  account: {
+    icon: FaWallet,
+    iconWrap: "bg-indigo-50 text-indigo-600",
+    active: "bg-indigo-50 text-indigo-700 before:bg-indigo-600",
+    childActive: "bg-indigo-50 text-indigo-700",
+    chevronOpen: "text-indigo-600",
+  },
+  users: {
+    icon: FaUsers,
+    iconWrap: "bg-fuchsia-50 text-fuchsia-600",
+    active: "bg-fuchsia-50 text-fuchsia-700 before:bg-fuchsia-600",
+    childActive: "bg-fuchsia-50 text-fuchsia-700",
+    chevronOpen: "text-fuchsia-600",
+  },
+  billing: {
+    icon: FaFileInvoiceDollar,
+    iconWrap: "bg-teal-50 text-teal-600",
+    active: "bg-teal-50 text-teal-700 before:bg-teal-600",
+    childActive: "bg-teal-50 text-teal-700",
+    chevronOpen: "text-teal-600",
+  },
+  settings: {
+    icon: FaCog,
+    iconWrap: "bg-slate-100 text-slate-500",
+    active: "bg-slate-100 text-slate-700 before:bg-slate-500",
+    childActive: "bg-slate-100 text-slate-700",
+    chevronOpen: "text-slate-500",
+  },
+};
 
 const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
   const [drawerHeight, setDrawerHeight] = useState("100%");
-  const baseDelay = 80;
+  const baseDelay = 60;
   const [animatedItems, setAnimatedItems] = useState([]);
   const drawerPanelRef = useRef(null);
 
@@ -60,8 +147,17 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
 
   // ড্রয়ারের আইটেমগুলোর অ্যানিমেশন লিস্ট
   const menuItems = [
-    { type: "link", to: clientUser ? "/dashboard" : "/", label: clientUser ? "Dashboard" : "Home" },
-    clientUser && {
+    { type: "link", key: "home", to: clientUser ? "/dashboard" : "/", label: clientUser ? "Dashboard" : "Home" },
+    clientUser &&
+    {
+      type: "dropdown",
+      key: "sale",
+      label: "Sale",
+      children: [
+        { to: "/wholesale", label: "Wholesale" },
+      ],
+    },
+    {
       type: "dropdown",
       key: "purchase",
       label: "Purchase",
@@ -69,6 +165,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/add-purchase", label: "Add Purchase" },
         { to: "/purchase", label: "All Purchase" },
         { to: "/purchase-return", label: "Purchase Return" },
+        { to: "/purchase-bulk-return", label: "Bulk Return" },
       ],
     },
     clientUser && {
@@ -76,11 +173,9 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       key: "products",
       label: "Products",
       children: [
-
-        { to: "/productAll", label: "All Products" },
+        { to: "/product", label: "All Products" },
         { to: "/category", label: "Category" },
         { to: "/units", label: "Units" },
-
       ],
     },
     {
@@ -95,6 +190,15 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
     },
     {
       type: "dropdown",
+      key: "inventory",
+      label: "Inventory",
+      children: [
+        { to: "/stock-alert", label: "Stock Alert" },
+        { to: "/stock-list", label: "All Stock" },
+      ],
+    },
+    {
+      type: "dropdown",
       key: "account",
       label: "Account",
       children: [
@@ -105,7 +209,6 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/route-expense", label: "Route Expense" },
         { to: "/transfer", label: "Transfer" },
         { to: "/account-heads", label: "Account Heads" },
-
       ],
     },
     {
@@ -115,12 +218,25 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       children: [
         { to: "/user", label: "All User" },
         { to: "/user-role", label: "All Role" },
+      ],
+    },
+    {
+      type: "dropdown",
+      key: "billing",
+      label: "Payment & Billing",
+      children: [
+       
+      ],
+    },
+    {
+      type: "dropdown",
+      key: "settings",
+      label: "Settings",
+      children: [
+        { to: "/features", label: "Features" },
 
       ],
     },
-    // { type: "link", to: "/receipt", label: "Receipt" },
-
-
   ].filter(Boolean); // কোনো ভ্যালু ফলসি হলে ফিল্টার করে বাদ দিবে
 
   useEffect(() => {
@@ -141,43 +257,47 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
 
   return (
     <div
-      className={`fixed inset-x-0 bottom-0 z-40 pointer-events-none transition-all duration-300 ${drawerOpen ? "bg-black/20 pointer-events-auto" : "bg-transparent"
+      className={`fixed inset-x-0 bottom-0 z-40 pointer-events-none transition-all duration-300 ${drawerOpen ? "bg-slate-900/25 pointer-events-auto" : "bg-transparent"
         } ${scrolled ? "top-0" : "top-[65px] lg:top-[73px]"}`}
       onClick={() => setDrawerOpen(false)}
     >
       <div
         ref={drawerPanelRef}
-        className={`absolute left-0 top-0 w-64 max-w-[80vw] bg-white shadow-2xl flex flex-col p-5 transition-transform duration-300 ease-in-out pointer-events-auto ${drawerOpen ? "translate-x-0" : "-translate-x-full"
+        className={`absolute left-0 top-0 w-64 max-w-[80vw] bg-white shadow-xl flex flex-col transition-transform duration-300 ease-in-out pointer-events-auto ${drawerOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         style={{ height: drawerHeight }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ড্রয়ার হেডার */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-200">
-          <div className="flex items-center space-x-2">
-            <img src={fav} alt="Favicon" className="h-6 w-6 object-cover rounded-md" />
-            <span className="font-bold text-base text-gray-800">Menu</span>
+        {/* ড্রয়ার হেডার — gradient banner */}
+        <div className="flex items-center justify-between px-4 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-md bg-white/95 flex items-center justify-center overflow-hidden">
+              <img src={fav} alt="Favicon" className="h-5 w-5 object-cover rounded-sm" />
+            </div>
+            <span className="font-semibold text-[14px] text-white tracking-tight">Menu</span>
           </div>
           <button
             onClick={() => setDrawerOpen(false)}
-            className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded-full transition"
+            className="p-1.5 text-white/80 hover:text-white hover:bg-white/15 rounded-md transition-colors"
           >
-            <FaTimes className="text-lg" />
+            <FaTimes className="text-[13px]" />
           </button>
         </div>
 
         {/* ড্রয়ারের বডি / ডায়নামিক লিংকসমূহ */}
-        <div className="flex-1 py-4 space-y-2 overflow-y-auto">
+        <div className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {menuItems.map((item, index) => {
             const isAnimated = animatedItems.includes(index);
+            const theme = colorMap[item.key] || colorMap.settings;
+            const Icon = theme.icon;
 
             return (
               <div
                 key={index}
                 style={{
                   opacity: isAnimated ? 1 : 0,
-                  transform: isAnimated ? 'translateX(0)' : 'translateX(-20px)',
-                  transition: 'opacity 0.3s ease, transform 0.3s ease'
+                  transform: isAnimated ? 'translateX(0)' : 'translateX(-10px)',
+                  transition: 'opacity 0.25s ease, transform 0.25s ease'
                 }}
               >
                 {item.type === "link" ? (
@@ -185,34 +305,45 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
                     to={item.to}
                     onClick={() => setDrawerOpen(false)}
                     className={({ isActive }) =>
-                      `block text-base font-medium px-3 py-2.5 rounded-lg transition ${isActive ? "bg-green-50 text-[#2acb35]" : "text-gray-700 hover:bg-gray-100"
+                      `relative flex items-center gap-2.5 text-[14.5px] font-medium pl-2.5 pr-3 py-2 rounded-md transition-colors before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full ${isActive ? theme.active : "text-slate-600 hover:bg-slate-50 before:bg-transparent"
                       }`
                     }
                   >
+                    <span className={`h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[12px] ${theme.iconWrap}`}>
+                      <Icon />
+                    </span>
                     {item.label}
                   </NavLink>
                 ) : (
                   <div>
                     <button
                       onClick={() => toggleDropdown(item.key)}
-                      className="w-full flex items-center justify-between text-base font-medium px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition group"
+                      className="w-full flex items-center justify-between pl-2.5 pr-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 transition-colors group"
                     >
-                      <span className="group-hover:text-[#2acb35] transition-colors">{item.label}</span>
-                      <FaChevronDown className={`text-xs transition-transform duration-300 ease-in-out ${openDropdowns[item.key] ? "rotate-180 text-[#2acb35]" : "text-gray-400"}`} />
+                      <span className="flex items-center gap-2.5 text-[14.5px] font-medium">
+                        <span className={`h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[12px] ${theme.iconWrap}`}>
+                          <Icon />
+                        </span>
+                        {item.label}
+                      </span>
+                      <FaChevronDown
+                        className={`text-[10px] transition-transform duration-200 ease-in-out ${openDropdowns[item.key] ? `rotate-180 ${theme.chevronOpen}` : "text-slate-400 group-hover:text-slate-500"
+                          }`}
+                      />
                     </button>
 
                     <div
-                      className={`grid transition-all duration-300 ease-in-out overflow-hidden pl-3 ml-3 border-l-2 border-[#2acb35]/40 ${openDropdowns[item.key] ? "grid-rows-[1fr] opacity-100 mt-1 space-y-1" : "grid-rows-[0fr] opacity-0 mt-0 space-y-0"
+                      className={`grid transition-all duration-200 ease-in-out overflow-hidden pl-[34px] ${openDropdowns[item.key] ? "grid-rows-[1fr] opacity-100 mt-0.5 mb-1" : "grid-rows-[0fr] opacity-0"
                         }`}
                     >
-                      <div className="overflow-hidden space-y-1">
+                      <div className="overflow-hidden space-y-0.5 border-l border-slate-200 pl-3">
                         {item.children.map((child, cIndex) => (
                           <NavLink
                             key={cIndex}
                             to={child.to}
                             onClick={() => setDrawerOpen(false)}
                             className={({ isActive }) =>
-                              `block text-sm font-medium px-3 py-2 rounded-md transition ${isActive ? "bg-green-50 text-[#2acb35]" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                              `block text-[13.5px] font-medium px-2.5 py-1.5 rounded-md transition-colors ${isActive ? theme.childActive : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
                               }`
                             }
                           >
@@ -229,7 +360,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         </div>
 
         {/* ড্রয়ার ফুটার */}
-        <div className="pt-3 border-t border-gray-200 text-center text-xs text-gray-500">
+        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 text-center text-[10.5px] text-slate-400">
           Squirrel Peace &copy; 2026
         </div>
       </div>

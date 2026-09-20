@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
 const IncomeForm = ({
     fetchIncomes,
@@ -31,7 +32,23 @@ const IncomeForm = ({
         note: '',
     };
 
-    const [formData, setFormData] = useState(emptyForm);
+    const draftKey = editingIncome?._id ? `incomeForm:${editingIncome._id}` : 'incomeForm:new';
+    const [formData, setFormData] = useDraftState(draftKey, () =>
+        editingIncome
+            ? {
+                incomeCategory: editingIncome.incomeCategory || '',
+                name: editingIncome.name || '',
+                date: editingIncome.date || getFormattedToday(),
+                accountType: editingIncome.accountType || '',
+                bankName: editingIncome.bankName || '',
+                accountNumber: editingIncome.accountNumber || '',
+                accountBranch: editingIncome.accountBranch || '',
+                accountName: editingIncome.accountName || '',
+                amount: editingIncome.amount ?? '',
+                note: editingIncome.note || '',
+            }
+            : emptyForm
+    );
     const [loading, setLoading] = useState(false);
     const [incomeHeads, setIncomeHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
@@ -71,29 +88,6 @@ const IncomeForm = ({
         fetchInvestments();
     }, []);
 
-    // এডিট মোডে গেলে ফর্মটা editingIncome এর ডাটা দিয়ে ভরে দেওয়া
-    useEffect(() => {
-        if (editingIncome) {
-            setFormData({
-                incomeCategory: editingIncome.incomeCategory || '',
-                name: editingIncome.name || '',
-                date: editingIncome.date || getFormattedToday(),
-                accountType: editingIncome.accountType || '',
-                bankName: editingIncome.bankName || '',
-                accountNumber: editingIncome.accountNumber || '',
-                accountBranch: editingIncome.accountBranch || '',
-                accountName: editingIncome.accountName || '',
-                amount: editingIncome.amount ?? '',
-                note: editingIncome.note || '',
-            });
-        } else {
-            setFormData({
-                ...emptyForm,
-                date: getFormattedToday(),
-            });
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editingIncome]);
 
     // ইউনিক ইনভয়েস নম্বর তৈরির ফাংশন (যেমন: 260901035526)
     const generateInvoiceNumber = () => {
@@ -187,9 +181,12 @@ const IncomeForm = ({
     };
 
     const handleCancel = () => {
-        setFormData(emptyForm);
+        clearDraft(draftKey);
         setEditingIncome(null);
         setShowForm(false);
+        if (scrollToTable) {
+            scrollToTable();
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -252,10 +249,7 @@ const IncomeForm = ({
                     await fetchIncomes();
                 }
 
-                setFormData({
-                    ...emptyForm,
-                    date: getFormattedToday(),
-                });
+                clearDraft(draftKey);
                 setEditingIncome(null);
                 setShowForm(false);
 
@@ -298,9 +292,9 @@ const IncomeForm = ({
                         <h3 className="text-xl font-extrabold text-gray-800">
                             {isEditing ? 'Edit Income Record' : 'New Income Record'}
                         </h3>
-                       
+
                     </div>
-                </div>       
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -396,9 +390,17 @@ const IncomeForm = ({
                                 Select Bank Account <span className="text-red-500">*</span>
                             </label>
                             <select
+                                value={
+                                    bankInvestments.find(
+                                        (inv) =>
+                                            inv.bankName === formData.bankName &&
+                                            inv.accountNumber === formData.accountNumber &&
+                                            inv.accountBranch === formData.accountBranch
+                                    )?._id || ''
+                                }
                                 onChange={handleBankSelectChange}
+                                required
                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
-                                defaultValue=""
                             >
                                 <option value="" disabled>Select saved bank account</option>
                                 {bankInvestments.map((inv) => (
@@ -418,7 +420,7 @@ const IncomeForm = ({
                                     type="text"
                                     name="bankName"
                                     value={formData.bankName}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. City Bank"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -432,7 +434,7 @@ const IncomeForm = ({
                                     type="text"
                                     name="accountNumber"
                                     value={formData.accountNumber}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="Enter account no"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -446,7 +448,7 @@ const IncomeForm = ({
                                     type="text"
                                     name="accountBranch"
                                     value={formData.accountBranch}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. Gulshan Branch"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -465,9 +467,16 @@ const IncomeForm = ({
                                 Select Mobile Account <span className="text-red-500">*</span>
                             </label>
                             <select
+                                value={
+                                    mobileInvestments.find(
+                                        (inv) =>
+                                            inv.accountName === formData.accountName &&
+                                            inv.accountNumber === formData.accountNumber
+                                    )?._id || ''
+                                }
                                 onChange={handleMobileBankingSelectChange}
+                                required
                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
-                                defaultValue=""
                             >
                                 <option value="" disabled>Select saved mobile account</option>
                                 {mobileInvestments.map((inv) => (
@@ -487,7 +496,7 @@ const IncomeForm = ({
                                     type="text"
                                     name="accountName"
                                     value={formData.accountName}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. bKash / Nagad"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -501,7 +510,7 @@ const IncomeForm = ({
                                     type="text"
                                     name="accountNumber"
                                     value={formData.accountNumber}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="Enter mobile number"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -521,9 +530,17 @@ const IncomeForm = ({
                             type="number"
                             name="amount"
                             value={formData.amount}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
                             required
                             placeholder="Enter amount"
+                            step="0.01"
+                            min="0"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>

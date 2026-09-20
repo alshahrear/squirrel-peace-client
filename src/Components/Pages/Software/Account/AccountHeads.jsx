@@ -1,15 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { FaFilter, FaRedo, FaEdit, FaTrash, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaFilter, FaRedo, FaEdit, FaTrash, FaChevronLeft, FaChevronRight, FaChevronDown } from 'react-icons/fa';
 import AccountHeadForm from './HeadsForm';
+import useDraftState from '../../../../hooks/useDraftState';
 
 const AccountHeads = () => {
     const [accountHeads, setAccountHeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
-    const [showForm, setShowForm] = useState(false);
-    const [editingHead, setEditingHead] = useState(null);
+        const [showForm, setShowForm] = useDraftState('headFormOpen', false);
+    const [editingHeadId, setEditingHeadId] = useDraftState('headEditingId', null);
+    const editingHead = accountHeads.find((h) => h._id === editingHeadId) || null;
+    const setEditingHead = (h) => setEditingHeadId(h ? h._id : null);
+
+    // Action Dropdown state
+    const [openDropdownId, setOpenDropdownId] = useState(null);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -58,6 +64,17 @@ const AccountHeads = () => {
         fetchAccountHeads();
     }, []);
 
+    // Action dropdown er baire click korle close hobe
+    useEffect(() => {
+        const handleClickOutsideAction = (event) => {
+            if (!event.target.closest('.action-dropdown-container')) {
+                setOpenDropdownId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutsideAction);
+        return () => document.removeEventListener('mousedown', handleClickOutsideAction);
+    }, []);
+
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
         setTimeout(() => {
@@ -83,6 +100,7 @@ const AccountHeads = () => {
     };
 
     const handleDelete = async (id) => {
+        setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
@@ -203,9 +221,10 @@ const AccountHeads = () => {
                     </button>
                 </div>
 
-                {showForm && (
+                               {showForm && !loading && (
                     <div ref={formSectionRef}>
                         <AccountHeadForm
+                            key={editingHead?._id || 'new'}
                             showToast={showToast}
                             editingHead={editingHead}
                             onHeadAdded={(newHead) => {
@@ -324,7 +343,7 @@ const AccountHeads = () => {
                 </div>
 
                 {/* Table Card Section */}
-                <div ref={tableSectionRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl overflow-hidden p-6 md:p-8 border border-white space-y-6">
+                <div ref={tableSectionRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-6">
 
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-3">
@@ -340,7 +359,7 @@ const AccountHeads = () => {
                     ) : filteredHeads.length === 0 ? (
                         <div className="text-center py-20 text-gray-400 font-medium">No account heads found!</div>
                     ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+                        <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm p-1">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
@@ -368,29 +387,41 @@ const AccountHeads = () => {
                                                 </span>
                                             </td>
                                             <td className="py-4 px-5 text-xs text-gray-500">{head.createdAt}</td>
-                                            <td className="py-4 px-5 text-center">
-                                                <div className="flex items-center justify-center gap-2">
+                                            <td className="py-4 px-5 text-center relative">
+                                                <div className="relative inline-block action-dropdown-container">
                                                     <button
-                                                        onClick={() => {
-                                                            setEditingHead(head);
-                                                            setShowForm(true);
-                                                            setTimeout(() => {
-                                                                formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                            }, 100);
-                                                        }}
-                                                        className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 shadow-sm cursor-pointer"
-                                                        title="Edit Head"
+                                                        onClick={() => setOpenDropdownId(openDropdownId === head._id ? null : head._id)}
+                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
                                                     >
-                                                        <FaEdit size={14} />
+                                                        <span>Select</span>
+                                                        <FaChevronDown className={`w-3 h-3 transition-transform duration-200 ${openDropdownId === head._id ? 'rotate-180' : ''}`} />
                                                     </button>
 
-                                                    <button
-                                                        onClick={() => handleDelete(head._id)}
-                                                        className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-xl transition duration-200 shadow-sm cursor-pointer"
-                                                        title="Delete Head"
-                                                    >
-                                                        <FaTrash size={14} />
-                                                    </button>
+                                                    {openDropdownId === head._id && (
+                                                        <div className="absolute right-0 bottom-full mb-2 w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setOpenDropdownId(null);
+                                                                    setEditingHead(head);
+                                                                    setShowForm(true);
+                                                                    setTimeout(() => {
+                                                                        formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                                    }, 100);
+                                                                }}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaEdit size={12} className="text-indigo-500" />
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(head._id)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaTrash size={12} className="text-rose-500" />
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

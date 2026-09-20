@@ -4,14 +4,61 @@ import { FaUserCircle, FaBars } from "react-icons/fa";
 import { RiAdminFill } from "react-icons/ri";
 import useAuth from "../../../Layout/useAuth";
 import useAdmin from "../../../../hooks/useAdmin";
+import { isDraftEnabled, setDraftEnabled } from "../../../../hooks/useDraftState";
 import { useClientAuth } from "../../../Provider/ClientAuthContext";
 import log from "../../../../assets/squirrel-peace-logo.png";
 import fav from "../../../../assets/squirrelpeacelogo.png";
-import Drawer from "./Drawer"; // ড্রয়ার কম্পোনেন্ট ইম্পোর্ট করা হলো
+import Drawer from "./Drawer"; // ড্রয়ার কম্পোনেন্ট ইম্পোর্ট করা হলো
+
+// Draft Save Toggle (ডিফল্ট OFF)
+const DraftToggle = ({ compact = false }) => {
+  const [on, setOn] = useState(isDraftEnabled());
+
+  useEffect(() => {
+    const handler = () => setOn(isDraftEnabled());
+    window.addEventListener("draft-toggle-change", handler);
+    return () => window.removeEventListener("draft-toggle-change", handler);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onClick={() => setDraftEnabled(!on)}
+      title={on ? "Draft Save ON (৩ ঘণ্টা)" : "Draft Save OFF"}
+      className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
+    >
+      <span className={`relative inline-block w-9 h-5 rounded-full transition-colors duration-200 ${on ? "bg-[#2acb35]" : "bg-gray-300"}`}>
+        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${on ? "translate-x-4" : ""}`} />
+      </span>
+      {!compact && <span className="text-xs font-semibold text-gray-600">Save Draft</span>}
+    </button>
+  );
+};
 
 const Navbar = () => {
   const { user } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Feature settings (database থেকে)
+  const [draftFeatureOn, setDraftFeatureOn] = useState(false);
+
+  useEffect(() => {
+    const loadFeatures = () => {
+      fetch("http://localhost:5000/feature")
+        .then((res) => res.json())
+        .then((data) => {
+          const on = data?.saveDraft === true;
+          setDraftFeatureOn(on);
+          // Feature বন্ধ হলে draft save ও বন্ধ + সব draft মুছে যাবে
+          if (!on && isDraftEnabled()) setDraftEnabled(false);
+        })
+        .catch((error) => console.error("Error fetching features:", error));
+    };
+
+    loadFeatures();
+    window.addEventListener("feature-change", loadFeatures);
+    return () => window.removeEventListener("feature-change", loadFeatures);
+  }, []);
   const [isAdmin] = useAdmin();
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,10 +120,13 @@ const Navbar = () => {
             </div>
 
             <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* Draft Save Toggle (Create Order এর বামে) */}
+              {draftFeatureOn && clientUser && location.pathname !== '/login-client' && <DraftToggle compact />}
+
               {/* ক্লায়েন্ট লগইন করা থাকলে Create Order বাটন দেখাবে */}
               {clientUser && location.pathname !== '/login-client' && (
                 <NavLink
-                  to="/receipt"
+                  to="/create-order"
                   className="bg-[#2acb35] hover:bg-green-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1"
                 >
                   <span>Create Order</span>
@@ -165,10 +215,13 @@ const Navbar = () => {
 
           {/* Desktop Right Side: Profile or Login Button */}
           <div className="navbar-end hidden lg:flex items-center space-x-3">
+            {/* Draft Save Toggle (Create Order এর বামে) */}
+            {draftFeatureOn && clientUser && location.pathname !== '/login-client' && <DraftToggle />}
+
             {/* ক্লায়েন্ট লগইন করা থাকলে Create Order বাটন দেখাবে */}
             {clientUser && location.pathname !== '/login-client' && (
               <NavLink
-                to="/receipt"
+                to="/create-order"
                 className="bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-3.5 py-2 rounded-lg shadow-sm transition duration-200 text-sm flex items-center gap-1"
               >
                 <span>Create Order</span>
@@ -229,7 +282,7 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* --- আলাদা করা Drawer কম্পোনেন্ট এখানে কল করা হয়েছে --- */}
+      {/* --- আলাদা করা Drawer কম্পোনেন্ট এখানে কল করা হয়েছে --- */}
       <Drawer
         drawerOpen={drawerOpen}
         setDrawerOpen={setDrawerOpen}

@@ -2,19 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import CustomerForm from './CustomersFrom';
+import useDraftState from '../../../../hooks/useDraftState';
 
 const Customers = () => {
     const [customers, setCustomers] = useState([]);
     const [routes, setRoutes] = useState([]); // Routes state
-    const [editingId, setEditingId] = useState(null);
+    const [editingId, setEditingId] = useDraftState('customerEditingId', null);
+    // Action Dropdown state
+    const [openDropdownId, setOpenDropdownId] = useState(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
 
     // Toggle Form State (Default false/off)
-    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useDraftState('customerFormOpen', false);
 
     // Modal State for Note
     const [selectedNote, setSelectedNote] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
 
+    // Toast State
+    const [toast, setToast] = useState({ show: false, message: '', type: '' });
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
@@ -34,7 +40,7 @@ const Customers = () => {
     });
 
     // Form state with new fields and default customerType
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useDraftState('customerFormData', {
         customerType: 'Wholesale Customer',
         businessName: '',
         contactNumber: '',
@@ -55,6 +61,14 @@ const Customers = () => {
     // Route searchable-select state
     const [isRouteOpen, setIsRouteOpen] = useState(false);
     const routeDropdownRef = useRef(null);
+
+    // Show Toast Notification
+    const showToast = (message, type = 'success') => {
+        setToast({ show: true, message, type });
+        setTimeout(() => {
+            setToast({ show: false, message: '', type: '' });
+        }, 3500);
+    };
 
     // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
     const formatDateTime = (date = new Date()) => {
@@ -99,6 +113,29 @@ const Customers = () => {
         fetchCustomers();
         fetchRoutes();
     }, []);
+
+    // Action dropdown er baire click korle close hobe
+    useEffect(() => {
+        const handleClickOutsideAction = (event) => {
+            if (!event.target.closest('.action-dropdown-container')) {
+                setOpenDropdownId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutsideAction);
+        return () => document.removeEventListener('mousedown', handleClickOutsideAction);
+    }, []);
+
+    // Scroll korle dropdown auto close hoye jabe
+    useEffect(() => {
+        if (openDropdownId === null) return;
+
+        const handleScroll = () => {
+            setOpenDropdownId(null);
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        return () => window.removeEventListener('scroll', handleScroll, true);
+    }, [openDropdownId]);
 
     // Close Route dropdown on outside click
     useEffect(() => {
@@ -183,6 +220,27 @@ const Customers = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        const contactInput = formData.contactNumber.trim();
+        const businessNoInput = formData.businessNumber.trim().toLowerCase();
+
+        const contactExists = customers.some(
+            (c) => c.contactNumber?.trim() === contactInput && c._id !== editingId
+        );
+        if (contactExists) {
+            showToast('This contact number already exists!', 'error');
+            return;
+        }
+
+        if (businessNoInput) {
+            const businessNoExists = customers.some(
+                (c) => c.businessNumber?.trim().toLowerCase() === businessNoInput && c._id !== editingId
+            );
+            if (businessNoExists) {
+                showToast('This business number already exists!', 'error');
+                return;
+            }
+        }
+
         const submissionData = editingId
             ? formData
             : { ...formData, createdAt: formatDateTime(new Date()) };
@@ -204,14 +262,7 @@ const Customers = () => {
 
             const data = await res.json();
             if (data.insertedId || data.modifiedCount > 0) {
-                Swal.fire({
-                    icon: 'success',
-                    title: editingId ? 'Customer Updated Successfully!' : 'Customer Added Successfully!',
-                    showConfirmButton: false,
-                    timer: 1500,
-                    background: '#f0fdf4',
-                    color: '#166534'
-                });
+                showToast(editingId ? 'Customer updated successfully!' : 'Customer added successfully!', 'success');
 
                 // Reset form & Close it
                 setFormData({
@@ -238,6 +289,7 @@ const Customers = () => {
 
     // Handle Delete with SweetAlert
     const handleDelete = (id) => {
+        setOpenDropdownId(null);
         Swal.fire({
             title: "Are you sure?",
             text: "You won't be able to revert this!",
@@ -254,13 +306,7 @@ const Customers = () => {
                     });
                     const data = await res.json();
                     if (data.deletedCount > 0) {
-                        Swal.fire({
-                            title: "Deleted!",
-                            text: "Your customer has been deleted.",
-                            icon: "success",
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        showToast('Customer deleted successfully!', 'success');
                         fetchCustomers();
                     }
                 } catch (error) {
@@ -272,6 +318,7 @@ const Customers = () => {
 
     // Handle Edit (Load data to form & Open form)
     const handleEdit = (customer) => {
+        setOpenDropdownId(null);
         setFormData({
             customerType: customer.customerType || 'Wholesale Customer',
             businessName: customer.businessName || '',
@@ -376,9 +423,16 @@ const Customers = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8 relative">
 
+            {/* Top Right Toast Notification */}
+            {toast.show && (
+                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
+                    <span>{toast.message}</span>
+                </div>
+            )}
+
+            <div className="max-w-7xl mx-auto">
                 {/* Header Title & Add New Button */}
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
                     <div>
@@ -718,22 +772,52 @@ const Customers = () => {
                                                     <span className="text-gray-400 italic text-xs">N/A</span>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
-                                                <div className="flex items-center justify-center gap-2">
+                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium relative">
+                                                <div className="relative inline-block action-dropdown-container">
                                                     <button
-                                                        onClick={() => handleEdit(customer)}
-                                                        className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all shadow-sm"
-                                                        title="Edit"
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setDropdownPos({ top: rect.top - 8, left: rect.right });
+                                                            setOpenDropdownId(
+                                                                openDropdownId === customer._id ? null : customer._id
+                                                            );
+                                                        }}
+                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
                                                     >
-                                                        <FaEdit size={14} />
+                                                        <span>Select</span>
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            strokeWidth={2}
+                                                            stroke="currentColor"
+                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === customer._id ? 'rotate-180' : ''}`}
+                                                        >
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                        </svg>
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleDelete(customer._id)}
-                                                        className="p-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm"
-                                                        title="Delete"
-                                                    >
-                                                        <FaTrash size={14} />
-                                                    </button>
+
+                                                    {openDropdownId === customer._id && (
+                                                        <div
+                                                            style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
+                                                            className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150"
+                                                        >
+                                                            <button
+                                                                onClick={() => handleEdit(customer)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaEdit size={12} className="text-indigo-500" />
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(customer._id)}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaTrash size={12} className="text-rose-500" />
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

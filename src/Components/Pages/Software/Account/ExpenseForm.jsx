@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
 const ExpenseForm = ({
     fetchExpenses,
@@ -31,7 +32,23 @@ const ExpenseForm = ({
         note: '',
     };
 
-        const [formData, setFormData] = useState(emptyForm);
+    const draftKey = editingExpense?._id ? `expenseForm:${editingExpense._id}` : 'expenseForm:new';
+    const [formData, setFormData] = useDraftState(draftKey, () =>
+        editingExpense
+            ? {
+                expenseCategory: editingExpense.expenseCategory || '',
+                name: editingExpense.name || '',
+                date: editingExpense.date || getFormattedToday(),
+                accountType: editingExpense.accountType || '',
+                bankName: editingExpense.bankName || '',
+                accountNumber: editingExpense.accountNumber || '',
+                accountBranch: editingExpense.accountBranch || '',
+                accountName: editingExpense.accountName || '',
+                amount: editingExpense.amount ?? '',
+                note: editingExpense.note || '',
+            }
+            : emptyForm
+    );
     const [loading, setLoading] = useState(false);
     const [expenseHeads, setExpenseHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
@@ -61,7 +78,7 @@ const ExpenseForm = ({
         fetchExpenseHeads();
     }, []);
 
-        // Investment + Balance সংক্রান্ত সব ডেটা ফেচ করা (Account Balance check করার জন্য)
+    // Investment + Balance সংক্রান্ত সব ডেটা ফেচ করা (Account Balance check করার জন্য)
     useEffect(() => {
         const fetchInvestments = async () => {
             try {
@@ -94,29 +111,7 @@ const ExpenseForm = ({
         fetchInvestments();
     }, []);
 
-    // এডিট মোডে গেলে ফর্মটা editingExpense এর ডাটা দিয়ে ভরে দেওয়া
-    useEffect(() => {
-        if (editingExpense) {
-            setFormData({
-                expenseCategory: editingExpense.expenseCategory || '',
-                name: editingExpense.name || '',
-                date: editingExpense.date || getFormattedToday(),
-                accountType: editingExpense.accountType || '',
-                bankName: editingExpense.bankName || '',
-                accountNumber: editingExpense.accountNumber || '',
-                accountBranch: editingExpense.accountBranch || '',
-                accountName: editingExpense.accountName || '',
-                amount: editingExpense.amount ?? '',
-                note: editingExpense.note || '',
-            });
-        } else {
-            setFormData({
-                ...emptyForm,
-                date: getFormattedToday(),
-            });
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editingExpense]);
+
 
     // ইউনিক ইনভয়েস নম্বর তৈরির ফাংশন (যেমন: 260901035526)
     const generateInvoiceNumber = () => {
@@ -190,7 +185,7 @@ const ExpenseForm = ({
         }
     };
 
-        // মোবাইল ব্যাংকিং সিলেক্ট করলে অটো ফিলআপ করার হ্যান্ডলার
+    // মোবাইল ব্যাংকিং সিলেক্ট করলে অটো ফিলআপ করার হ্যান্ডলার
     const handleMobileBankingSelectChange = (e) => {
         const selectedId = e.target.value;
         const matched = investments.find((item) => item._id === selectedId);
@@ -313,12 +308,15 @@ const ExpenseForm = ({
     };
 
     const handleCancel = () => {
-        setFormData(emptyForm);
+        clearDraft(draftKey);
         setEditingExpense(null);
         setShowForm(false);
+        if (scrollToTable) {
+            scrollToTable();
+        }
     };
 
-        const handleSubmit = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // সিলেক্ট করা account এ পর্যাপ্ত ব্যালেন্স আছে কিনা চেক করা হচ্ছে
@@ -387,10 +385,7 @@ const ExpenseForm = ({
                     await fetchExpenses();
                 }
 
-                setFormData({
-                    ...emptyForm,
-                    date: getFormattedToday(),
-                });
+                clearDraft(draftKey);
                 setEditingExpense(null);
                 setShowForm(false);
 
@@ -433,9 +428,9 @@ const ExpenseForm = ({
                         <h3 className="text-xl font-extrabold text-gray-800">
                             {isEditing ? 'Edit Expense Record' : 'New Expense Record'}
                         </h3>
-                       
+
                     </div>
-                </div>       
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -531,9 +526,17 @@ const ExpenseForm = ({
                                 Select Bank Account <span className="text-red-500">*</span>
                             </label>
                             <select
+                                value={
+                                    bankInvestments.find(
+                                        (inv) =>
+                                            inv.bankName === formData.bankName &&
+                                            inv.accountNumber === formData.accountNumber &&
+                                            inv.accountBranch === formData.accountBranch
+                                    )?._id || ''
+                                }
                                 onChange={handleBankSelectChange}
+                                required
                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
-                                defaultValue=""
                             >
                                 <option value="" disabled>Select saved bank account</option>
                                 {bankInvestments.map((inv) => (
@@ -553,7 +556,7 @@ const ExpenseForm = ({
                                     type="text"
                                     name="bankName"
                                     value={formData.bankName}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. City Bank"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -567,7 +570,7 @@ const ExpenseForm = ({
                                     type="text"
                                     name="accountNumber"
                                     value={formData.accountNumber}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="Enter account no"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -581,7 +584,7 @@ const ExpenseForm = ({
                                     type="text"
                                     name="accountBranch"
                                     value={formData.accountBranch}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. Gulshan Branch"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -600,9 +603,16 @@ const ExpenseForm = ({
                                 Select Mobile Account <span className="text-red-500">*</span>
                             </label>
                             <select
+                                value={
+                                    mobileInvestments.find(
+                                        (inv) =>
+                                            inv.accountName === formData.accountName &&
+                                            inv.accountNumber === formData.accountNumber
+                                    )?._id || ''
+                                }
                                 onChange={handleMobileBankingSelectChange}
+                                required
                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
-                                defaultValue=""
                             >
                                 <option value="" disabled>Select saved mobile account</option>
                                 {mobileInvestments.map((inv) => (
@@ -622,7 +632,7 @@ const ExpenseForm = ({
                                     type="text"
                                     name="accountName"
                                     value={formData.accountName}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="e.g. bKash / Nagad"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -636,7 +646,7 @@ const ExpenseForm = ({
                                     type="text"
                                     name="accountNumber"
                                     value={formData.accountNumber}
-                                    onChange={handleChange}
+                                    readOnly
                                     required
                                     placeholder="Enter mobile number"
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
@@ -656,9 +666,17 @@ const ExpenseForm = ({
                             type="number"
                             name="amount"
                             value={formData.amount}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
                             required
                             placeholder="Enter amount"
+                            step="0.01"
+                            min="0"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
 const InvestmentForm = ({
     fetchInvestments,
@@ -31,15 +32,11 @@ const InvestmentForm = ({
         note: '',
     };
 
-    const [formData, setFormData] = useState(emptyForm);
-    const [loading, setLoading] = useState(false);
-
-    const dateInputRef = useRef(null);
-
-    // এডিট মোডে গেলে ফর্মটা editingInvestment এর ডাটা দিয়ে ভরে দেওয়া
-    useEffect(() => {
-        if (editingInvestment) {
-            setFormData({
+      const draftKey = editingInvestment?._id ? `investmentForm:${editingInvestment._id}` : 'investmentForm:new';
+      
+    const [formData, setFormData] = useDraftState(draftKey, () =>
+        editingInvestment
+            ? {
                 date: editingInvestment.date || getFormattedToday(),
                 accountType: editingInvestment.accountType || '',
                 bankName: editingInvestment.bankName || '',
@@ -48,12 +45,13 @@ const InvestmentForm = ({
                 accountName: editingInvestment.accountName || '',
                 amount: editingInvestment.amount ?? '',
                 note: editingInvestment.note || '',
-            });
-        } else {
-            setFormData(emptyForm);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editingInvestment]);
+            }
+            : emptyForm
+    );
+    const [loading, setLoading] = useState(false);
+
+    const dateInputRef = useRef(null);
+
 
     // ক্যালেন্ডার থেকে ডেট সিলেক্ট করলে সেটি ফরম্যাট হয়ে যাবে
     const handleDateChange = (e) => {
@@ -95,7 +93,7 @@ const InvestmentForm = ({
     };
 
     const handleCancel = () => {
-        setFormData(emptyForm);
+        clearDraft(draftKey);
         setEditingInvestment(null);
         setShowForm(false);
     };
@@ -188,8 +186,8 @@ const InvestmentForm = ({
                     await fetchInvestments();
                 }
 
-                // ফর্ম রিসেট ও ক্লোজ
-                setFormData(emptyForm);
+                // ফর্ম রিসেট ও ক্লোজ (draft মুছে ফেলা)
+                clearDraft(draftKey);
                 setEditingInvestment(null);
                 setShowForm(false);
 
@@ -386,9 +384,17 @@ const InvestmentForm = ({
                             type="number"
                             name="amount"
                             value={formData.amount}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
                             required
                             placeholder="Enter amount"
+                            step="0.01"
+                            min="0"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>

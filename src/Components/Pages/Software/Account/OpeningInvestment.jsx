@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import InvestmentForm from './InvestmentForm';
+import useDraftState from '../../../../hooks/useDraftState';
 import AdjustmentForm from './Adjustment';
 import HistoryAdjustment from './HistoryAdjustment'; // HistoryAdjustment কম্পোনেন্ট ইম্পোর্ট করা হলো
 import {
@@ -36,8 +37,10 @@ const OpeningInvestment = () => {
     const [searchBranch, setSearchBranch] = useState('');
 
     // Form & Edit Modal States
-    const [showForm, setShowForm] = useState(false);
-    const [editingInvestment, setEditingInvestment] = useState(null);
+    const [showForm, setShowForm] = useDraftState('investmentFormOpen', false);
+    const [editingInvestmentId, setEditingInvestmentId] = useDraftState('investmentEditingId', null);
+    const editingInvestment = investments.find((inv) => inv._id === editingInvestmentId) || null;
+    const setEditingInvestment = (inv) => setEditingInvestmentId(inv ? inv._id : null);
 
     // Adjustment Modal State & Selected Item
     const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
@@ -395,9 +398,10 @@ const OpeningInvestment = () => {
                     </button>
                 </div>
 
-                {showForm && (
+                {showForm && !loading && (
                     <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white transition-all duration-300">
                         <InvestmentForm
+                            key={editingInvestment?._id || 'new'}
                             fetchInvestments={fetchInvestments}
                             setShowForm={setShowForm}
                             editingInvestment={editingInvestment}
