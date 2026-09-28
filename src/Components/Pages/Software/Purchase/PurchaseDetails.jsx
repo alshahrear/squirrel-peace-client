@@ -164,10 +164,8 @@ const PurchaseDetails = () => {
                                     <th className="py-3 px-3.5 rounded-l-xl">SL</th>
                                     <th className="py-3 px-3.5">Product Name</th>
                                     <th className="py-3 px-3.5">Company</th>
-                                    <th className="py-3 px-3.5">Unit Qty</th>
-                                    <th className="py-3 px-3.5">Pcs</th>
-                                    <th className="py-3 px-3.5">Total Pcs</th>
-                                    <th className="py-3 px-3.5">Free Qty</th>
+                                    <th className="py-3 px-3.5">Quantity</th>
+                                    <th className="py-3 px-3.5">Free Quantity</th>
                                     <th className="py-3 px-3.5 text-right">Total Cost Price</th>
                                     <th className="py-3 px-3.5 text-right">Total Sell Price</th>
                                     <th className="py-3 px-3.5 text-right">Discount</th>
@@ -180,11 +178,13 @@ const PurchaseDetails = () => {
                                         <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
                                         <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
                                         <td className="py-4 px-3.5 text-slate-600">{selectedInvoice.company}</td>
-                                        <td className="py-4 px-3.5">{item.unitQty} {item.unit}</td>
-                                        <td className="py-4 px-3.5">{item.pcsQty}</td>
-                                        <td className="py-4 px-3.5 font-semibold text-indigo-600">{item.totalPcs}</td>
-                                        <td className="py-4 px-3.5 font-medium text-emerald-600">
-                                            {item.freeQty > 0 ? `${item.freeQty}` : '0'}
+                                        <td className="py-4 px-3.5 font-semibold text-orange-600">
+                                            {item.unitQty} {item.unit} {item.pcsQty} Pcs
+                                            <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalPcs})</span>
+                                        </td>
+                                        <td className="py-4 px-3.5 font-semibold text-emerald-600">
+                                            {item.freeUnitQty || 0} {item.unit} {item.freePcsQty || 0} Pcs
+                                            <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeTotalQty ?? item.freeQty ?? 0})</span>
                                         </td>
                                         <td className="py-4 px-3.5 text-center font-medium text-slate-600">
                                             ৳{(Number(item.buyPrice) * Number(item.totalPcs)).toFixed(2)}

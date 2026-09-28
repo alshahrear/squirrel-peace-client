@@ -90,8 +90,12 @@ const PurchaseAdd = () => {
                             : qtyNum + pcsQtyNum;
                 const pcsPerUnit =
                     qtyNum > 0 ? (totalQtyNum - pcsQtyNum) / qtyNum : 1;
-                const baseFreeQty =
-                    qtyNum > 0 ? (Number(item.freeQty) || 0) / qtyNum : 0;
+                const freeUnitQtyNum = Number(item.freeUnitQty) || 0;
+                const freePcsQtyNum = Number(item.freePcsQty) || 0;
+                const baseFreeUnitQty =
+                    qtyNum > 0 ? freeUnitQtyNum / qtyNum : 0;
+                const baseFreePcsQty =
+                    qtyNum > 0 ? freePcsQtyNum / qtyNum : 0;
 
                 return {
                     _id: item.productId,
@@ -106,8 +110,11 @@ const PurchaseAdd = () => {
                     pcsQty: pcsQtyNum === 0 ? '' : pcsQtyNum,
                     pcsPerUnit: pcsPerUnit || 1,
                     totalQty: totalQtyNum,
-                    freeQty: Number(item.freeQty) || 0,
-                    baseFreeQty,
+                    freeUnitQty: item.freeUnitQty !== undefined && item.freeUnitQty !== null ? (Number(item.freeUnitQty) || '') : '',
+                    freePcsQty: item.freePcsQty !== undefined && item.freePcsQty !== null ? (Number(item.freePcsQty) || '') : (Number(item.freeTotalQty ?? item.freeQty) || ''),
+                    freeQty: Number(item.freeTotalQty ?? item.freeQty) || 0,
+                    baseFreeUnitQty,
+                    baseFreePcsQty,
                     discount: Number(item.discount) || 0,
                     discountType: item.discountType || 'amount',
                 };
@@ -182,7 +189,8 @@ const PurchaseAdd = () => {
     const handleAddProduct = (product) => {
         const initialUnitQty = '';
         const initialPcsQty = '';
-        const baseFreeQty = Number(product.freeProductQty) || 0;
+        const baseFreeUnitQty = Number(product.freeProductUnitQty) || 0;
+        const baseFreePcsQty = Number(product.freeProductPcsQty) || 0;
         const pcsPerUnit = Number(product.pcsOfUnit) || 1;
 
         const newItem = {
@@ -207,10 +215,13 @@ const PurchaseAdd = () => {
 
             totalQty: (Number(initialUnitQty) || 0) * pcsPerUnit + (Number(initialPcsQty) || 0),
 
-            freeQty: baseFreeQty * (Number(initialUnitQty) || 0),
+            freeUnitQty: '',
+            freePcsQty: '',
+            freeQty: 0,
 
-            // মূল Free Qty
-            baseFreeQty: baseFreeQty,
+            // মূল Free Qty (per unit multiplier)
+            baseFreeUnitQty: baseFreeUnitQty,
+            baseFreePcsQty: baseFreePcsQty,
 
             // Product Discount
             discount: 0,
@@ -251,13 +262,53 @@ const PurchaseAdd = () => {
                     const newTotalQty =
                         numVal * (Number(item.pcsPerUnit) || 1) + pcsQtyVal;
 
+                    const newFreeUnitQty =
+                        numVal * (Number(item.baseFreeUnitQty) || 0);
+                    const newFreePcsQty =
+                        numVal * (Number(item.baseFreePcsQty) || 0);
                     const newFreeQty =
-                        numVal * (Number(item.baseFreeQty) || 0);
+                        newFreeUnitQty * (Number(item.pcsPerUnit) || 1) + newFreePcsQty;
 
                     return {
                         ...item,
                         unitQty: value === '' ? '' : numVal,
                         totalQty: newTotalQty,
+                        freeUnitQty: newFreeUnitQty || '',
+                        freePcsQty: newFreePcsQty || '',
+                        freeQty: newFreeQty,
+                    };
+                }
+
+                // ------------------------------------------
+                // Free Unit Qty Change
+                // ------------------------------------------
+                if (field === 'freeUnitQty') {
+                    const numVal = value === '' ? 0 : Number(value) || 0;
+                    const freePcsQtyVal = Number(item.freePcsQty) || 0;
+
+                    const newFreeQty =
+                        numVal * (Number(item.pcsPerUnit) || 1) + freePcsQtyVal;
+
+                    return {
+                        ...item,
+                        freeUnitQty: value === '' ? '' : numVal,
+                        freeQty: newFreeQty,
+                    };
+                }
+
+                // ------------------------------------------
+                // Free PCS Qty Change
+                // ------------------------------------------
+                if (field === 'freePcsQty') {
+                    const numVal = value === '' ? 0 : Number(value) || 0;
+                    const freeUnitQtyVal = Number(item.freeUnitQty) || 0;
+
+                    const newFreeQty =
+                        freeUnitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal;
+
+                    return {
+                        ...item,
+                        freePcsQty: value === '' ? '' : numVal,
                         freeQty: newFreeQty,
                     };
                 }
@@ -503,7 +554,9 @@ const PurchaseAdd = () => {
                 unitQty: Number(item.unitQty) || 0,
                 pcsQty: Number(item.pcsQty) || 0,
                 totalPcs: totalQty,
-                freeQty: item.freeQty,
+                freeUnitQty: Number(item.freeUnitQty) || 0,
+                freePcsQty: Number(item.freePcsQty) || 0,
+                freeTotalQty: item.freeQty,
                 discount: roundTo2(item.discount),
                 discountType: item.discountType || 'amount',
                 discountAmount: effectiveDiscount,
@@ -664,7 +717,9 @@ const PurchaseAdd = () => {
                 unitQty: Number(item.unitQty) || 0,
                 pcsQty: Number(item.pcsQty) || 0,
                 totalPcs: totalQty,
-                freeQty: item.freeQty,
+                freeUnitQty: Number(item.freeUnitQty) || 0,
+                freePcsQty: Number(item.freePcsQty) || 0,
+                freeTotalQty: item.freeQty,
                 discount: roundTo2(item.discount),
                 discountType: item.discountType || 'amount',
                 subtotal: rowSubtotal,
@@ -778,7 +833,7 @@ const PurchaseAdd = () => {
             {/* -----------------------------------------
                 Main Purchase Table
             ----------------------------------------- */}
-            <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 my-6 relative z-0">
+            <div className="w-full px-0 sm:px-1 my-6 relative z-0">
                 <div className="bg-white rounded-3xl shadow-xl shadow-teal-900/5 p-6 md:p-8 border border-teal-100/70">
 
                     <form onSubmit={handleSubmit}>
@@ -789,16 +844,16 @@ const PurchaseAdd = () => {
                         <div className="rounded-2xl border border-teal-100">
                             <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
                                 <colgroup>
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '8%' }} />
-                                    <col style={{ width: '8%' }} />
+                                    <col style={{ width: '10%' }} />
+                                    <col style={{ width: '9%' }} />
+                                    <col style={{ width: '9%' }} />
+                                    <col style={{ width: '9%' }} />
                                     <col style={{ width: '13%' }} />
-                                    <col style={{ width: '8%' }} />
                                     <col style={{ width: '7%' }} />
+                                    <col style={{ width: '13%' }} />
                                     <col style={{ width: '7%' }} />
-                                    <col style={{ width: '16%' }} />
-                                    <col style={{ width: '7%' }} />
+                                    <col style={{ width: '14%' }} />
+                                    <col style={{ width: '5%' }} />
                                     <col style={{ width: '4%' }} />
                                 </colgroup>
 
@@ -829,12 +884,12 @@ const PurchaseAdd = () => {
                                             PCS Qty
                                         </th>
 
-                                        <th className="py-3 px-3">
-                                            Total Qty
+                                        <th className="py-3 pl-4 pr-1">
+                                            Free Unit
                                         </th>
 
-                                        <th className="py-3 px-3">
-                                            Free Qty
+                                        <th className="py-3 pl-3 pr-2">
+                                            Free PCS
                                         </th>
 
                                         <th className="py-3 px-3">
@@ -915,7 +970,7 @@ const PurchaseAdd = () => {
                                                                     );
                                                                 }
                                                             }}
-                                                            className="w-24 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                                                         />
                                                     </td>
 
@@ -937,12 +992,18 @@ const PurchaseAdd = () => {
                                                                     );
                                                                 }
                                                             }}
-                                                            className="w-24 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                                                         />
                                                     </td>
 
                                                     {/* Unit Qty */}
-                                                    <td className="py-3 pl-2 pr-0">
+                                                    <td className="relative py-3 pl-2 pr-0">
+                                                        <div
+                                                            className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
+                                                                }`}
+                                                        >
+                                                            Total: {item.totalQty}
+                                                        </div>
                                                         <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
                                                             <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
 
@@ -1002,41 +1063,85 @@ const PurchaseAdd = () => {
                                                         </div>
                                                     </td>
 
-                                                    {/* Total Qty */}
-                                                    <td className="py-3 px-3">
-                                                        <input
-                                                            type="number"
-                                                            readOnly
-                                                            value={item.totalQty}
-                                                            className="w-20 px-3 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
-                                                        />
+                                                    {/* Free Unit Qty */}
+                                                    <td className="relative py-3 pl-2 pr-0">
+                                                        <div
+                                                            className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                                                                }`}
+                                                        >
+                                                            Total: {item.freeQty}
+                                                        </div>
+                                                        <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                            <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="1"
+                                                                    placeholder="0"
+                                                                    value={item.freeUnitQty}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+
+                                                                        if (/^\d*$/.test(value)) {
+                                                                            handleItemChange(
+                                                                                item.uniqueId,
+                                                                                'freeUnitQty',
+                                                                                value
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                />
+
+                                                                <span
+                                                                    className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                    title="Unit"
+                                                                >
+                                                                    {currentUnitLabel}
+                                                                </span>
+
+                                                            </div>
+                                                        </div>
                                                     </td>
 
-                                                    {/* Free Qty */}
-                                                    <td className="py-3 px-3">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            step="1"
-                                                            placeholder="0"
-                                                            value={item.freeQty === 0 ? '' : item.freeQty}
-                                                            onChange={(e) => {
-                                                                const value = e.target.value;
+                                                    {/* Free PCS Qty */}
+                                                    <td className="py-3 pl-0 pr-2">
+                                                        <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="1"
+                                                                placeholder="0"
+                                                                value={item.freePcsQty}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
 
-                                                                if (/^\d*$/.test(value)) {
-                                                                    handleItemChange(
-                                                                        item.uniqueId,
-                                                                        'freeQty',
-                                                                        value
-                                                                    );
-                                                                }
-                                                            }}
-                                                            className="w-20 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                                                        />
+                                                                    if (/^\d*$/.test(value)) {
+                                                                        handleItemChange(
+                                                                            item.uniqueId,
+                                                                            'freePcsQty',
+                                                                            value
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                className="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                                            />
+                                                        </div>
                                                     </td>
 
                                                     {/* Discount */}
-                                                    <td className="py-3 px-3">
+                                                    <td className="py-3 px-3 relative">
+                                                        <div
+                                                            className={`absolute top-1 left-11 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${(item.discountType === 'percent' ? rowEffectiveDiscount : rowDiscountPercent)
+                                                                ? 'bg-amber-100 text-amber-700'
+                                                                : 'bg-slate-100 text-slate-400'
+                                                                }`}
+                                                        >
+                                                            {item.discountType === 'percent'
+                                                                ? `৳${rowEffectiveDiscount.toFixed(2)}`
+                                                                : `${rowDiscountPercent.toFixed(2)}%`}
+                                                        </div>
                                                         <div className="flex items-center gap-1">
                                                             <button
                                                                 type="button"
@@ -1066,30 +1171,8 @@ const PurchaseAdd = () => {
                                                                         );
                                                                     }
                                                                 }}
-                                                                className="w-16 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                                                                className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                                                             />
-
-                                                            {item.discountType === 'percent' && (
-                                                                <input
-                                                                    type="text"
-                                                                    readOnly
-                                                                    value={rowEffectiveDiscount ? rowEffectiveDiscount.toFixed(2) : ''}
-                                                                    placeholder="৳0.00"
-                                                                    title="Discount amount in Taka"
-                                                                    className="w-16 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
-                                                                />
-                                                            )}
-
-                                                            {item.discountType === 'amount' && (
-                                                                <input
-                                                                    type="text"
-                                                                    readOnly
-                                                                    value={rowDiscountPercent ? `${rowDiscountPercent.toFixed(2)}%` : ''}
-                                                                    placeholder="0%"
-                                                                    title="Discount percentage"
-                                                                    className="w-16 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
-                                                                />
-                                                            )}
                                                         </div>
                                                     </td>
 
@@ -1258,7 +1341,6 @@ const PurchaseAdd = () => {
                                         >
                                             {overallDiscountType === 'percent' ? '%' : '৳'}
                                         </button>
-
                                     </div>
                                 </div>
 

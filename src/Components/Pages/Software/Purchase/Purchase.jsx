@@ -21,7 +21,8 @@ const Purchase = () => {
         endDate: '',
         company: '',
         invoiceNo: '',
-        status: ''
+        status: '',
+        dueStatus: ''
     });
 
     // Refs for triggering date pickers
@@ -34,6 +35,9 @@ const Purchase = () => {
 
     // Action Dropdown state (কোন রো এর ড্রপডাউন ওপেন আছে তা ট্র্যাক করার জন্য)
     const [openDropdownId, setOpenDropdownId] = useState(null);
+
+    // Checkbox selection state
+    const [selectedIds, setSelectedIds] = useState([]);
 
     // Select dropdown er baire click korle dropdown close hobe
     useEffect(() => {
@@ -154,7 +158,8 @@ const Purchase = () => {
             endDate: '',
             company: '',
             invoiceNo: '',
-            status: ''
+            status: '',
+            dueStatus: ''
         });
         setCurrentPage(1);
     };
@@ -253,6 +258,14 @@ const Purchase = () => {
         if (filters.status === 'No' && (item.receiveStatus === 'Received' || item.receiveStatus === 'Yes')) {
             return false;
         }
+        // Due Status Filter
+        const dueAmt = Math.max((Number(item.payableAmount) || 0) - (Number(item.paidAmount) || 0), 0);
+        if (filters.dueStatus === 'Due' && dueAmt <= 0) {
+            return false;
+        }
+        if (filters.dueStatus === 'NoDue' && dueAmt > 0) {
+            return false;
+        }
 
         return true;
     });
@@ -262,6 +275,57 @@ const Purchase = () => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentPurchases = filteredPurchases.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Due Amount helper
+    const getDue = (item) =>
+        Math.max((Number(item.payableAmount) || 0) - (Number(item.paidAmount) || 0), 0);
+
+    // Return Info -> return thakle {qty, amount}, na thakle null
+    const getReturnInfo = (item) => {
+        if (!item.returnHistory || item.returnHistory.length === 0) return null;
+        const qty = item.returnHistory.reduce((s, r) => s + (Number(r.totalReturnPcs) || 0), 0);
+        const amount = item.returnHistory.reduce((s, r) => s + (Number(r.totalReturnAmount) || 0), 0);
+        if (qty <= 0 && amount <= 0) return null;
+        return { qty, amount };
+    };
+
+    // Checkbox handlers (Select All = বর্তমান পেজের সব row)
+    const isAllSelected =
+        currentPurchases.length > 0 &&
+        currentPurchases.every((i) => selectedIds.includes(i._id));
+
+    const handleSelectAll = () => {
+        const ids = currentPurchases.map((i) => i._id);
+        if (isAllSelected) {
+            setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+        } else {
+            setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
+        }
+    };
+
+    const handleSelectRow = (id) => {
+        setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+    };
+
+    // Summary: checkbox select থাকলে selected row এর total, নাহলে filter করা সব row এর total
+    const selectedRows = filteredPurchases.filter((i) => selectedIds.includes(i._id));
+    const isSelectionMode = selectedRows.length > 0;
+    const summaryRows = isSelectionMode ? selectedRows : filteredPurchases;
+
+    const totalPayable = summaryRows.reduce((s, i) => s + (Number(i.payableAmount) || 0), 0);
+    const totalPaid = summaryRows.reduce((s, i) => s + (Number(i.paidAmount) || 0), 0);
+    const totalDue = summaryRows.reduce((s, i) => s + getDue(i), 0);
+    const totalReturnQty = summaryRows.reduce((s, i) => {
+        const r = getReturnInfo(i);
+        return s + (r ? r.qty : 0);
+    }, 0);
+    const totalReturnAmount = summaryRows.reduce((s, i) => {
+        const r = getReturnInfo(i);
+        return s + (r ? r.amount : 0);
+    }, 0);
+    const fmt = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
     // Handle page change
     const handlePageChange = (pageNumber) => {
@@ -280,7 +344,7 @@ const Purchase = () => {
                 </div>
             )}
 
-            <div className="max-w-7xl mx-auto space-y-8">
+            <div className="max-w-[1600px] mx-auto space-y-6">
 
                 {/* Top Section: Title */}
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
@@ -310,7 +374,7 @@ const Purchase = () => {
                 </div>
 
                 {/* Table Card Section */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-6">
+                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
 
                     <div className="flex items-center gap-3">
                         <h3 className="text-xl font-bold text-gray-800">Purchase Directory</h3>
@@ -333,7 +397,7 @@ const Purchase = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                             {/* Start Date */}
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
@@ -454,7 +518,60 @@ const Purchase = () => {
                                     <option value="No">Not Received</option>
                                 </select>
                             </div>
+
+                            {/* Due Status Dropdown */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Due Status</label>
+                                <select
+                                    name="dueStatus"
+                                    value={filters.dueStatus}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">All</option>
+                                    <option value="Due">Has Due</option>
+                                    <option value="NoDue">Fully Paid</option>
+                                </select>
+                            </div>
                         </div>
+                    </div>
+
+                    {/* Summary Bar */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-2.5">
+                        <span className={`px-2.5 py-1 rounded-full font-bold ${isSelectionMode ? 'bg-pink-100 text-pink-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                            {isSelectionMode ? 'Selected' : 'Showing'}
+                        </span>
+                        <span className="font-semibold text-gray-600">
+                            Rows: <b className="text-gray-800">{summaryRows.length}</b>
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="font-semibold text-gray-600">
+                            Total Amount: <b className="text-indigo-600">৳{fmt(totalPayable)}</b>
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="font-semibold text-gray-600">
+                            Paid Amount: <b className="text-emerald-600">৳{fmt(totalPaid)}</b>
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="font-semibold text-gray-600">
+                            Due Amount: <b className="text-rose-600">৳{fmt(totalDue)}</b>
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="font-semibold text-gray-600">
+                            Return Qty: <b className="text-orange-600">{totalReturnQty}</b>
+                        </span>
+                        <span className="text-gray-300">|</span>
+                        <span className="font-semibold text-gray-600">
+                            Return Amount: <b className="text-orange-600">৳{fmt(totalReturnAmount)}</b>
+                        </span>
+                        {isSelectionMode && (
+                            <button
+                                onClick={() => setSelectedIds([])}
+                                className="ml-auto text-[11px] bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 text-gray-600 px-2.5 py-1 rounded-lg font-semibold cursor-pointer"
+                            >
+                                Clear Selection
+                            </button>
+                        )}
                     </div>
 
                     {/* Table Container */}
@@ -464,22 +581,40 @@ const Purchase = () => {
                         <div className="text-center py-20 text-gray-400 font-medium">No purchases found!</div>
                     ) : (
                         <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full text-left border-collapse">
+                            <table className="w-full table-fixed text-left border-collapse [&_th]:px-1.5 [&_th]:py-2.5 [&_th]:text-[11px] [&_td]:px-1.5 [&_td]:py-2.5 [&_td]:text-[12px]">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
+                                        <th className="w-8 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={isAllSelected}
+                                                onChange={handleSelectAll}
+                                                className="w-4 h-4 accent-pink-500 cursor-pointer"
+                                            />
+                                        </th>
                                         <th className="py-4 px-4">Purchase Date</th>
                                         <th className="py-4 px-4">Receive Date</th>
                                         <th className="py-4 px-4">Company Name</th>
                                         <th className="py-4 px-4">Invoice No</th>
                                         <th className="py-4 px-4">Total Amount</th>
                                         <th className="py-4 px-4">Paid Amount</th>
-                                        <th className="py-4 px-4">Receive Status</th>
+                                        <th className="py-3 px-2">Due Amount</th>
+                                        <th className="py-3 px-2">Return</th>
+                                        <th className="py-3 px-2">Receive Status</th>
                                         <th className="py-4 px-4 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
                                     {currentPurchases.map((item, index) => (
-                                        <tr key={item._id || index} className="hover:bg-indigo-50/40 transition duration-150">
+                                        <tr key={item._id || index} className={`transition duration-150 ${selectedIds.includes(item._id) ? 'bg-pink-50/70' : 'hover:bg-indigo-50/40'}`}>
+                                            <td className="text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(item._id)}
+                                                    onChange={() => handleSelectRow(item._id)}
+                                                    className="w-4 h-4 accent-pink-500 cursor-pointer"
+                                                />
+                                            </td>
                                             <td className="py-4 px-4 text-gray-600 font-medium">{item.purchaseDate || 'N/A'}</td>
                                             <td className="py-4 px-4 text-gray-600">
                                                 {item.receiveDate ? (
@@ -502,7 +637,20 @@ const Purchase = () => {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="py-4 px-4">
+                                            <td className="py-3 px-2 font-bold">
+                                                {getDue(item) > 0 ? (
+                                                    <span className="text-rose-600">৳{getDue(item)}</span>
+                                                ) : (
+                                                    <span className="text-emerald-600">৳0</span>
+                                                )}
+                                            </td>
+                                            <td className="py-3 px-2 font-semibold text-orange-600 whitespace-nowrap">
+                                                {(() => {
+                                                    const r = getReturnInfo(item);
+                                                    return r ? `${r.qty}(৳${r.amount})` : 'N/A';
+                                                })()}
+                                            </td>
+                                            <td className="py-3 px-2">
                                                 <span className={`px-3 py-1 rounded-full font-semibold text-xs ${item.receiveStatus === 'Received' || item.receiveStatus === 'Yes' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
                                                     {item.receiveStatus || 'No'}
                                                 </span>

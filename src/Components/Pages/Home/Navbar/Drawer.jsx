@@ -12,6 +12,7 @@ import {
   FaWallet,
   FaUsers,
   FaFileInvoiceDollar,
+  FaChartBar,
   FaCog,
 } from "react-icons/fa";
 import fav from "../../../../assets/squirrelpeacelogo.png";
@@ -66,6 +67,13 @@ const colorMap = {
     active: "bg-indigo-50 text-indigo-700 before:bg-indigo-600",
     childActive: "bg-indigo-50 text-indigo-700",
     chevronOpen: "text-indigo-600",
+  },
+  report: {
+    icon: FaChartBar,
+    iconWrap: "bg-orange-50 text-orange-600",
+    active: "bg-orange-50 text-orange-700 before:bg-orange-600",
+    childActive: "bg-orange-50 text-orange-700",
+    chevronOpen: "text-orange-600",
   },
   users: {
     icon: FaUsers,
@@ -155,6 +163,8 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       label: "Sale",
       children: [
         { to: "/wholesale", label: "Wholesale" },
+        { to: "/sales-return", label: "Sales Return" },
+        { to: "/sales-bulk-return", label: "Bulk Return" },
       ],
     },
     {
@@ -193,11 +203,14 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       key: "inventory",
       label: "Inventory",
       children: [
+        { to: "/free-products", label: "Free Products" },
+        { to: "/damage-products", label: "Damage Products" },
+        { to: "/stock-item", label: "Stock Item" },
         { to: "/stock-alert", label: "Stock Alert" },
         { to: "/stock-list", label: "All Stock" },
       ],
     },
-    {
+   {
       type: "dropdown",
       key: "account",
       label: "Account",
@@ -209,6 +222,14 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/route-expense", label: "Route Expense" },
         { to: "/transfer", label: "Transfer" },
         { to: "/account-heads", label: "Account Heads" },
+      ],
+    },
+    {
+      type: "dropdown",
+      key: "report",
+      label: "Report",
+      children: [
+
       ],
     },
     {

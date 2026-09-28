@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import CustomerForm from './CustomersFrom';
+import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../hooks/useDraftState';
 
 const Customers = () => {
+    const navigate = useNavigate();
     const [customers, setCustomers] = useState([]);
     const [routes, setRoutes] = useState([]); // Routes state
     const [editingId, setEditingId] = useDraftState('customerEditingId', null);
@@ -721,7 +723,12 @@ const Customers = () => {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                                                {customer.businessName}
+                                                <button
+                                                    onClick={() => navigate(`/customer-details/${customer._id}`)}
+                                                    className="text-indigo-700 hover:text-purple-600 hover:underline font-bold text-left cursor-pointer transition-colors"
+                                                >
+                                                    {customer.businessName}
+                                                </button>
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                                 <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">
@@ -802,6 +809,16 @@ const Customers = () => {
                                                             style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
                                                             className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150"
                                                         >
+                                                            <button
+                                                                onClick={() => {
+                                                                    setOpenDropdownId(null);
+                                                                    navigate(`/customer-details/${customer._id}`);
+                                                                }}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaEye size={12} className="text-emerald-500" />
+                                                                View Details
+                                                            </button>
                                                             <button
                                                                 onClick={() => handleEdit(customer)}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"

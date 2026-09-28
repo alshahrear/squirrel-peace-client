@@ -3,9 +3,9 @@ import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
-const PurchaseReturn = () => {
+const SalesReturn = () => {
     const [returns, setReturns] = useState([]);
-    const [companies, setCompanies] = useState([]);
+    const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const navigate = useNavigate();
@@ -18,17 +18,17 @@ const PurchaseReturn = () => {
     const [filters, setFilters] = useState({
         startDate: '',
         endDate: '',
-        company: '',
-        invoiceNo: ''
+        customer: '',
+        orderNo: ''
     });
 
     // Refs for triggering date pickers
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
 
-    // Company searchable-select state
-    const [isCompanyOpen, setIsCompanyOpen] = useState(false);
-    const companyDropdownRef = useRef(null);
+    // Customer searchable-select state
+    const [isCustomerOpen, setIsCustomerOpen] = useState(false);
+    const customerDropdownRef = useRef(null);
 
     // Action Dropdown state
     const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -46,54 +46,81 @@ const PurchaseReturn = () => {
         };
     }, []);
 
-    // Fetch Companies data for filter dropdown
-    const fetchCompanies = async () => {
+    // Fetch Customers data for filter dropdown
+    const fetchCustomers = async () => {
         try {
-            const res = await fetch('http://localhost:5000/company');
+            const res = await fetch('http://localhost:5000/customer');
             const data = await res.json();
-            setCompanies(data);
+            setCustomers(data);
         } catch (error) {
-            console.error('Error fetching companies:', error);
+            console.error('Error fetching customers:', error);
         }
     };
 
-    // Fetch Purchases -> proti order er returnHistory theke each entry ke alada row banaia flatten kora
+    // Fetch Orders -> proti order er returnHistory theke each entry ke alada row banaia flatten kora
     const fetchReturns = async () => {
         try {
-            const response = await fetch('http://localhost:5000/purchase');
+            const response = await fetch('http://localhost:5000/sales');
             const data = await response.json();
 
             const flattenedReturns = [];
             data.forEach((order) => {
                 (order.returnHistory || []).forEach((ret) => {
-                    const retItems = ret.items || [];
+                    const returnUnitQty = (ret.items || []).reduce((sum, it) => sum + (Number(it.returnUnitQty) || 0), 0);
+                    const returnPcsQty = (ret.items || []).reduce((sum, it) => sum + (Number(it.returnPcsQty) || 0), 0);
+                    const sumFreeUnitQty = (ret.items || []).reduce((sum, it) => sum + (Number(it.returnFreeUnitQty) || 0), 0);
+                    const sumFreePcsQty = (ret.items || []).reduce((sum, it) => sum + (Number(it.returnFreePcsQty) || 0), 0);
+                    const unitLabel = (order.items && order.items[0] && order.items[0].unit) || 'Pcs';
+                    const sumOthersFreeUnitQty = (ret.freeItems || []).reduce((sum, it) => sum + (Number(it.returnUnitQty) || 0), 0);
+                    const sumOthersFreePcsQty = (ret.freeItems || []).reduce((sum, it) => sum + (Number(it.returnPcsQty) || 0), 0);
+                    const othersFreeUnitLabel = (order.freeItems && order.freeItems[0] && order.freeItems[0].unit) || 'Pcs';
 
-                    const sumUnitQty = retItems.reduce((s, it) => s + (Number(it.returnUnitQty) || 0), 0);
-                    const sumPcsQty = retItems.reduce((s, it) => s + (Number(it.returnPcsQty) || 0), 0);
-                    const sumFreeUnitQty = retItems.reduce((s, it) => s + (Number(it.returnFreeUnitQty) || 0), 0);
-                    const sumFreePcsQty = retItems.reduce((s, it) => s + (Number(it.returnFreePcsQty) || 0), 0);
-
-                    // Unit label item er original order.items theke khuje ber kora
-                    const firstItem = retItems[0];
-                    const matchedOrderItem = firstItem
-                        ? (order.items || []).find((oi) => oi.productId === firstItem.productId)
-                        : null;
-                    const unitLabel = matchedOrderItem?.unit || 'Unit';
+                    const sumGroup = (list, key) => (list || []).reduce((sum, it) => sum + (Number(it[key]) || 0), 0);
+                    const damageUnitQty = sumGroup(ret.damageItems, 'returnUnitQty');
+                    const damagePcsQty = sumGroup(ret.damageItems, 'returnPcsQty');
+                    const damageFreeUnitQty = sumGroup(ret.damageItems, 'returnFreeUnitQty');
+                    const damageFreePcsQty = sumGroup(ret.damageItems, 'returnFreePcsQty');
+                    const damageUnitLabel = (order.damageItems && order.damageItems[0] && order.damageItems[0].unit) || 'Pcs';
+                    const retItemUnitQty = sumGroup(ret.returnItems, 'returnUnitQty');
+                    const retItemPcsQty = sumGroup(ret.returnItems, 'returnPcsQty');
+                    const retItemFreeUnitQty = sumGroup(ret.returnItems, 'returnFreeUnitQty');
+                    const retItemFreePcsQty = sumGroup(ret.returnItems, 'returnFreePcsQty');
+                    const retItemUnitLabel = (order.returnItems && order.returnItems[0] && order.returnItems[0].unit) || 'Pcs';
 
                     flattenedReturns.push({
                         orderId: order._id,
                         returnId: ret.returnId,
                         returnDate: ret.returnDate,
-                        invoiceNo: order.invoiceNo,
-                        company: order.company,
-                        totalReturnPcs: ret.totalReturnPcs,
-                        totalReturnFreeQty: ret.totalReturnFreeQty,
-                        totalReturnAmount: ret.totalReturnAmount,
-                        sumUnitQty,
-                        sumPcsQty,
+                        orderNo: order.orderNo,
+                        customer: order.customer,
+                        returnUnitQty,
+                        returnPcsQty,
                         sumFreeUnitQty,
                         sumFreePcsQty,
                         unitLabel,
+                        sumOthersFreeUnitQty,
+                        sumOthersFreePcsQty,
+                        othersFreeUnitLabel,
+                        totalReturnPcs: ret.totalReturnPcs,
+                        totalReturnFreeQty: ret.totalReturnFreeQty,
+                        totalReturnFreeItemsQty: ret.totalReturnFreeItemsQty,
+                        totalReturnAmount: ret.totalReturnAmount,
+                        damageUnitQty,
+                        damagePcsQty,
+                        damageFreeUnitQty,
+                        damageFreePcsQty,
+                        damageUnitLabel,
+                        totalReturnDamageItemsQty: ret.totalReturnDamageItemsQty || 0,
+                        totalReturnDamageFreeQty: ret.totalReturnDamageFreeQty || 0,
+                        totalReturnDamageAmount: ret.totalReturnDamageAmount || 0,
+                        retItemUnitQty,
+                        retItemPcsQty,
+                        retItemFreeUnitQty,
+                        retItemFreePcsQty,
+                        retItemUnitLabel,
+                        totalReturnReturnItemsQty: ret.totalReturnReturnItemsQty || 0,
+                        totalReturnReturnFreeQty: ret.totalReturnReturnFreeQty || 0,
+                        totalReturnReturnAmount: ret.totalReturnReturnAmount || 0,
                     });
                 });
             });
@@ -109,34 +136,34 @@ const PurchaseReturn = () => {
 
     useEffect(() => {
         fetchReturns();
-        fetchCompanies();
+        fetchCustomers();
     }, []);
 
-    // Close Company dropdown on outside click
+    // Close Customer dropdown on outside click
     useEffect(() => {
-        const handleClickOutsideCompany = (event) => {
-            if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target)) {
-                setIsCompanyOpen(false);
+        const handleClickOutsideCustomer = (event) => {
+            if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target)) {
+                setIsCustomerOpen(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutsideCompany);
-        return () => document.removeEventListener('mousedown', handleClickOutsideCompany);
+        document.addEventListener('mousedown', handleClickOutsideCustomer);
+        return () => document.removeEventListener('mousedown', handleClickOutsideCustomer);
     }, []);
 
-    // Filter companies based on search typing
-    const filteredCompanies = companies.filter((comp) =>
-        comp.businessName?.toLowerCase().includes(filters.company.toLowerCase())
+    // Filter customers based on search typing
+    const filteredCustomers = customers.filter((c) =>
+        c.name?.toLowerCase().includes(filters.customer.toLowerCase())
     );
 
-    const handleSelectCompany = (comp) => {
-        setFilters({ ...filters, company: comp.businessName });
-        setIsCompanyOpen(false);
+    const handleSelectCustomer = (c) => {
+        setFilters({ ...filters, customer: c.name });
+        setIsCustomerOpen(false);
     };
 
-    const handleClearCompany = (e) => {
+    const handleClearCustomer = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, company: '' });
-        setIsCompanyOpen(false);
+        setFilters({ ...filters, customer: '' });
+        setIsCustomerOpen(false);
     };
 
     // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
@@ -151,7 +178,6 @@ const PurchaseReturn = () => {
     };
 
     // Helper function to parse any date string into a timezone-safe LOCAL date (time stripped)
-    // Handles: DD/MM/YYYY (with optional ", time" suffix), YYYY-MM-DD (from <input type="date">), and ISO strings
     const parseToLocalDate = (dateStr) => {
         if (!dateStr) return null;
         const datePart = dateStr.split(',')[0].trim();
@@ -182,8 +208,8 @@ const PurchaseReturn = () => {
         setFilters({
             startDate: '',
             endDate: '',
-            company: '',
-            invoiceNo: ''
+            customer: '',
+            orderNo: ''
         });
         setCurrentPage(1);
     };
@@ -198,13 +224,13 @@ const PurchaseReturn = () => {
     // View Return Details Handler -> read-only view page (specific return entry)
     const handleViewReturn = (item) => {
         setOpenDropdownId(null);
-        navigate(`/purchase-return-view/${item.orderId}?returnId=${item.returnId}`);
+        navigate(`/sales-return-view/${item.orderId}?returnId=${item.returnId}`);
     };
 
     // Edit Return Handler -> return form a existing value prefill kore edit kora jabe
     const handleEditReturn = (item) => {
         setOpenDropdownId(null);
-        navigate(`/purchase-return-details/${item.orderId}?returnId=${item.returnId}`);
+        navigate(`/sales-return-details/${item.orderId}?returnId=${item.returnId}`);
     };
 
     // Delete Return Handler -> shudhu ei nirdishto return entry ta returnHistory theke muche jabe, order thakbe
@@ -212,7 +238,7 @@ const PurchaseReturn = () => {
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
-            text: "Ei return entry ta delete hoye jabe, kintu purchase order thakbe!",
+            text: "Ei return entry ta delete hoye jabe, kintu order thakbe!",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#4f46e5',
@@ -222,14 +248,14 @@ const PurchaseReturn = () => {
             if (!result.isConfirmed) return;
 
             try {
-                const orderRes = await fetch(`http://localhost:5000/purchase/${item.orderId}`);
+                const orderRes = await fetch(`http://localhost:5000/sales/${item.orderId}`);
                 const order = await orderRes.json();
 
                 const updatedHistory = (order.returnHistory || []).filter(
                     (ret) => ret.returnId !== item.returnId
                 );
 
-                const response = await fetch(`http://localhost:5000/purchase/${item.orderId}`, {
+                const response = await fetch(`http://localhost:5000/sales/${item.orderId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ returnHistory: updatedHistory }),
@@ -266,12 +292,12 @@ const PurchaseReturn = () => {
             }
         }
 
-        // Company Filter
-        if (filters.company && !item.company?.toLowerCase().includes(filters.company.toLowerCase())) {
+        // Customer Filter
+        if (filters.customer && !item.customer?.toLowerCase().includes(filters.customer.toLowerCase())) {
             return false;
         }
-        // Invoice No Filter
-        if (filters.invoiceNo && !item.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) {
+        // Order No Filter
+        if (filters.orderNo && !item.orderNo?.toLowerCase().includes(filters.orderNo.toLowerCase())) {
             return false;
         }
 
@@ -292,7 +318,7 @@ const PurchaseReturn = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 py-6 px-2 md:py-8 md:px-3 relative">
 
             {/* Top Right Toast Notification */}
             {toast.show && (
@@ -301,18 +327,18 @@ const PurchaseReturn = () => {
                 </div>
             )}
 
-            <div className="max-w-7xl mx-auto space-y-8">
+            <div className="max-w-full mx-auto space-y-8">
 
                 {/* Top Section: Title */}
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                            Purchase Return
+                            Sales Return
                         </h2>
-                        <p className="text-gray-500 text-sm mt-1">Manage and track all purchase return records</p>
+                        <p className="text-gray-500 text-sm mt-1">Manage and track all sales return records</p>
                     </div>
                     <button
-                        onClick={() => navigate('/purchase')}
+                        onClick={() => navigate('/wholesale')}
                         className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
                     >
                         New Return
@@ -320,7 +346,7 @@ const PurchaseReturn = () => {
                 </div>
 
                 {/* Table Card Section */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-6">
+                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl py-6 px-3 md:py-8 md:px-4 border border-white space-y-6">
 
                     <div className="flex items-center gap-3">
                         <h3 className="text-xl font-bold text-gray-800">Return Directory</h3>
@@ -394,57 +420,57 @@ const PurchaseReturn = () => {
                                 </div>
                             </div>
 
-                            {/* Company Searchable Dropdown */}
-                            <div className="relative" ref={companyDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
+                            {/* Customer Searchable Dropdown */}
+                            <div className="relative" ref={customerDropdownRef}>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer</label>
                                 <div
-                                    onClick={() => setIsCompanyOpen(true)}
+                                    onClick={() => setIsCustomerOpen(true)}
                                     className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
                                 >
                                     <input
                                         type="text"
-                                        placeholder="Search or select company..."
-                                        value={filters.company}
+                                        placeholder="Search or select customer..."
+                                        value={filters.customer}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'company', value: e.target.value } });
-                                            setIsCompanyOpen(true);
+                                            handleFilterChange({ target: { name: 'customer', value: e.target.value } });
+                                            setIsCustomerOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
                                     />
-                                    {filters.company && (
-                                        <button type="button" onClick={handleClearCompany} className="text-gray-400 hover:text-red-500 pl-1">
+                                    {filters.customer && (
+                                        <button type="button" onClick={handleClearCustomer} className="text-gray-400 hover:text-red-500 pl-1">
                                             <FaTimes size={10} />
                                         </button>
                                     )}
                                 </div>
 
-                                {isCompanyOpen && (
+                                {isCustomerOpen && (
                                     <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredCompanies.length > 0 ? (
-                                            filteredCompanies.map((comp) => (
+                                        {filteredCustomers.length > 0 ? (
+                                            filteredCustomers.map((c) => (
                                                 <div
-                                                    key={comp._id}
-                                                    onClick={() => handleSelectCompany(comp)}
+                                                    key={c._id}
+                                                    onClick={() => handleSelectCustomer(c)}
                                                     className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
                                                 >
-                                                    {comp.businessName}
+                                                    {c.name}
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
+                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
                                         )}
                                     </div>
                                 )}
                             </div>
 
-                            {/* Invoice Number Search */}
+                            {/* Order No Search */}
                             <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Order No</label>
                                 <input
                                     type="text"
-                                    name="invoiceNo"
-                                    placeholder="Search invoice..."
-                                    value={filters.invoiceNo}
+                                    name="orderNo"
+                                    placeholder="Search order no..."
+                                    value={filters.orderNo}
                                     onChange={handleFilterChange}
                                     className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
                                 />
@@ -459,34 +485,121 @@ const PurchaseReturn = () => {
                         <div className="text-center py-20 text-gray-400 font-medium">No returns found!</div>
                     ) : (
                         <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full text-left border-collapse">
+                            <table className="w-full table-fixed text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
-                                        <th className="py-4 px-4">Date</th>
-                                        <th className="py-4 px-4">Invoice</th>
-                                        <th className="py-4 px-4">Company</th>
-                                        <th className="py-4 px-4">Return Quantity</th>
-                                        <th className="py-4 px-4">Return Free Quantity</th>
-                                        <th className="py-4 px-4">Return Amount</th>
-                                        <th className="py-4 px-4 text-center">Action</th>
+                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-xs uppercase tracking-wider">
+                                        <th className="py-3 px-3 w-[150px]">Date / Order / Customer</th>
+                                        <th className="py-3 px-3">Return Details (Main / Others Free / Damage / Return)</th>
+                                        <th className="py-3 px-3 text-center w-[100px]">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+                                <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                                     {currentReturns.map((item, index) => (
                                         <tr key={item.returnId || index} className="hover:bg-indigo-50/40 transition duration-150">
-                                            <td className="py-4 px-4 text-gray-600 font-medium">{item.returnDate || 'N/A'}</td>
-                                            <td className="py-4 px-4 text-gray-600 font-medium">{item.invoiceNo}</td>
-                                            <td className="py-4 px-4 font-bold text-gray-800">{item.company}</td>
-                                                                                        <td className="py-4 px-4 font-semibold text-orange-600">
-                                                {item.sumUnitQty || 0} {item.unitLabel} {item.sumPcsQty || 0} Pcs
-                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalReturnPcs})</span>
+                                            <td className="py-3 px-3 align-top">
+                                                <div className="space-y-5">
+                                                    <div className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">📅 {item.returnDate || 'N/A'}</div>
+                                                    <div className="inline-block px-2 py-0.5 rounded bg-slate-100 text-[11px] font-bold text-indigo-700 whitespace-nowrap">#{item.orderNo}</div>
+                                                    <div className="text-xs font-bold text-gray-800 leading-tight">{item.customer}</div>
+                                                </div>
                                             </td>
-                                            <td className="py-4 px-4 font-semibold text-emerald-600">
-                                                {item.sumFreeUnitQty || 0} {item.unitLabel} {item.sumFreePcsQty || 0} Pcs
-                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.totalReturnFreeQty || 0})</span>
-                                            </td>
-                                            <td className="py-4 px-4 font-bold text-orange-600">৳{Number(item.totalReturnAmount).toFixed(2)}</td>
-                                            <td className="py-4 px-4 text-center relative">
+
+                                            {/* 4 ta box: data thakle full, na thakle half + "No ..." */}
+                                            {(() => {
+                                                const hasMain = Number(item.totalReturnPcs) > 0 || Number(item.totalReturnFreeQty) > 0;
+                                                const hasOthers = Number(item.totalReturnFreeItemsQty) > 0;
+                                                const hasDamage = Number(item.totalReturnDamageItemsQty) > 0 || Number(item.totalReturnDamageFreeQty) > 0;
+                                                const hasReturn = Number(item.totalReturnReturnItemsQty) > 0 || Number(item.totalReturnReturnFreeQty) > 0;
+                                                const visibleCount = [hasMain, hasOthers, hasDamage, hasReturn].filter(Boolean).length || 1;
+
+
+
+                                                return (
+                                                    <td className="py-3 px-2 align-top">
+                                                        <div
+                                                            className="grid gap-2"
+                                                            style={{ gridTemplateColumns: `repeat(${visibleCount}, minmax(0, 1fr))` }}
+                                                        >
+                                                            {/* Main Product */}
+                                                            {hasMain ? (
+                                                                <div className="rounded-xl border border-indigo-200 bg-white shadow-sm overflow-hidden h-[124px] min-w-0">
+                                                                    <div className="bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Main Product</div>
+                                                                    <div className="px-3 py-2 space-y-1.5 whitespace-nowrap">
+                                                                        <div className="flex items-center justify-between gap-3">
+                                                                            <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[9px] font-bold uppercase">Qty</span>
+                                                                            <span className="font-semibold text-slate-700">{item.returnUnitQty || 0} {item.unitLabel} {item.returnPcsQty || 0} Pcs <b className="text-indigo-700">({item.totalReturnPcs || 0})</b></span>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between gap-3">
+                                                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase">Free</span>
+                                                                            <span className="font-semibold text-slate-700">{item.sumFreeUnitQty || 0} {item.unitLabel} {item.sumFreePcsQty || 0} Pcs <b className="text-emerald-700">({item.totalReturnFreeQty || 0})</b></span>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between gap-3 pt-1.5 border-t border-dashed border-indigo-200">
+                                                                            <span className="text-[9px] font-bold uppercase text-slate-400">Amount</span>
+                                                                            <span className="font-extrabold text-indigo-700">৳{Number(item.totalReturnAmount || 0).toFixed(2)}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ) : null}
+
+                                                            {/* Others Free */}
+                                                            {hasOthers ? (
+                                                                <div className="rounded-xl border border-amber-200 bg-white shadow-sm overflow-hidden h-[124px] min-w-0">
+                                                                    <div className="bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Others Free</div>
+                                                                    <div className="px-3 py-2 space-y-1.5 whitespace-nowrap">
+                                                                        <div className="flex items-center justify-between gap-3">
+                                                                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[9px] font-bold uppercase">Free</span>
+                                                                            <span className="font-semibold text-slate-700">{item.sumOthersFreeUnitQty || 0} {item.othersFreeUnitLabel} {item.sumOthersFreePcsQty || 0} Pcs <b className="text-amber-700">({item.totalReturnFreeItemsQty})</b></span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ) : null}
+
+                                                            {/* Damage */}
+                                                            {hasDamage ? (
+                                                                <div className="rounded-xl border border-red-200 bg-white shadow-sm overflow-hidden h-[124px] min-w-0">
+                                                                    <div className="bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Damage</div>
+                                                                    <div className="px-3 py-2 space-y-1.5 whitespace-nowrap">
+                                                                        <div className="flex items-center justify-between gap-3">
+                                                                            <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[9px] font-bold uppercase">Qty</span>
+                                                                            <span className="font-semibold text-slate-700">{item.damageUnitQty || 0} {item.damageUnitLabel} {item.damagePcsQty || 0} Pcs <b className="text-red-600">({item.totalReturnDamageItemsQty})</b></span>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between gap-3">
+                                                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase">Free</span>
+                                                                            <span className="font-semibold text-slate-700">{item.damageFreeUnitQty || 0} {item.damageUnitLabel} {item.damageFreePcsQty || 0} Pcs <b className="text-emerald-700">({item.totalReturnDamageFreeQty})</b></span>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between gap-3 pt-1.5 border-t border-dashed border-red-200">
+                                                                            <span className="text-[9px] font-bold uppercase text-slate-400">Amount</span>
+                                                                            <span className="font-extrabold text-red-600">৳{Number(item.totalReturnDamageAmount || 0).toFixed(2)}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ) : null}
+
+                                                            {/* Return */}
+                                                            {hasReturn ? (
+                                                                <div className="rounded-xl border border-violet-200 bg-white shadow-sm overflow-hidden h-[124px] min-w-0">
+                                                                    <div className="bg-violet-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Return</div>
+                                                                    <div className="px-3 py-2 space-y-1.5 whitespace-nowrap">
+                                                                        <div className="flex items-center justify-between gap-3">
+                                                                            <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[9px] font-bold uppercase">Qty</span>
+                                                                            <span className="font-semibold text-slate-700">{item.retItemUnitQty || 0} {item.retItemUnitLabel} {item.retItemPcsQty || 0} Pcs <b className="text-violet-600">({item.totalReturnReturnItemsQty})</b></span>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between gap-3">
+                                                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase">Free</span>
+                                                                            <span className="font-semibold text-slate-700">{item.retItemFreeUnitQty || 0} {item.retItemUnitLabel} {item.retItemFreePcsQty || 0} Pcs <b className="text-emerald-700">({item.totalReturnReturnFreeQty})</b></span>
+                                                                        </div>
+                                                                        <div className="flex items-center justify-between gap-3 pt-1.5 border-t border-dashed border-violet-200">
+                                                                            <span className="text-[9px] font-bold uppercase text-slate-400">Amount</span>
+                                                                            <span className="font-extrabold text-violet-600">৳{Number(item.totalReturnReturnAmount || 0).toFixed(2)}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    </td>
+                                                );
+                                            })()}
+                                            <td className="py-3 px-3 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
 
                                                     <button
@@ -659,4 +772,4 @@ const PurchaseReturn = () => {
     );
 };
 
-export default PurchaseReturn;
+export default SalesReturn;

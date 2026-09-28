@@ -494,27 +494,53 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                             />
                         </div>
 
-                        {/* Free Product Qty */}
-                        <div>
+                                                {/* Free Product Qty */}
+                        <div className="relative">
                             <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
                                 <FaGift className="text-indigo-500" /> Free Product Qty
                             </label>
-                            <input
-                                type="number"
-                                name="freeProductQty"
-                                placeholder="0"
-                                value={formData.freeProductQty}
-                                onChange={(e) => {
-                                    const value = e.target.value;
+                            <div
+                                className={`absolute -top-1 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${((Number(formData.freeProductUnitQty) || 0) * (Number(formData.pcsOfUnit) || 0) + (Number(formData.freeProductPcsQty) || 0)) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}
+                            >
+                                Total: {(Number(formData.freeProductUnitQty) || 0) * (Number(formData.pcsOfUnit) || 0) + (Number(formData.freeProductPcsQty) || 0)}
+                            </div>
+                            <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50/50 overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200">
+                                <input
+                                    type="number"
+                                    name="freeProductUnitQty"
+                                    placeholder="0"
+                                    value={formData.freeProductUnitQty}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
 
-                                    if (/^\d*$/.test(value)) {
-                                        handleChange(e);
-                                    }
-                                }}
-                                min="0"
-                                step="1"
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                            />
+                                        if (/^\d*$/.test(value)) {
+                                            handleChange(e);
+                                        }
+                                    }}
+                                    min="0"
+                                    step="1"
+                                    className="w-1/3 px-2 py-2 text-sm bg-transparent outline-none text-center"
+                                />
+                                <span className="flex-1 bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate">
+                                    {formData.unit || 'Unit'}
+                                </span>
+                                <input
+                                    type="number"
+                                    name="freeProductPcsQty"
+                                    placeholder="0"
+                                    value={formData.freeProductPcsQty}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+
+                                        if (/^\d*$/.test(value)) {
+                                            handleChange(e);
+                                        }
+                                    }}
+                                    min="0"
+                                    step="1"
+                                    className="w-1/3 px-2 py-2 text-sm bg-transparent outline-none text-center"
+                                />
+                            </div>
                         </div>
 
                     </div>

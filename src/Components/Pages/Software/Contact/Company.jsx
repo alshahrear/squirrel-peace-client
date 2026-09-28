@@ -3,9 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import CompanyForm from './CompanyForm';
+import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../hooks/useDraftState';
 
 const Company = () => {
+    const navigate = useNavigate();
     const [companies, setCompanies] = useState([]);
     const [editingId, setEditingId] = useDraftState('companyEditingId', null);
 
@@ -573,7 +575,12 @@ const Company = () => {
                                     currentCompanies.map((company) => (
                                         <tr key={company._id} className="hover:bg-indigo-50/50 transition-colors">
                                             <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                                                {company.businessName}
+                                                <button
+                                                    onClick={() => navigate(`/company-details/${company._id}`)}
+                                                    className="text-indigo-700 hover:text-purple-600 hover:underline font-bold text-left cursor-pointer transition-colors"
+                                                >
+                                                    {company.businessName}
+                                                </button>
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                                 <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">
@@ -642,6 +649,16 @@ const Company = () => {
                                                             style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
                                                             className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150"
                                                         >
+                                                            <button
+                                                                onClick={() => {
+                                                                    setOpenDropdownId(null);
+                                                                    navigate(`/company-details/${company._id}`);
+                                                                }}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaEye size={12} className="text-emerald-500" />
+                                                                View Details
+                                                            </button>
                                                             <button
                                                                 onClick={() => handleEdit(company)}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"

@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaBoxOpen, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import ProductForm from './ProductForm';
+import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../hooks/useDraftState';
 
 const ProductAll = () => {
+    const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [editingId, setEditingId] = useDraftState('productEditingId', null);
     const [categories, setCategories] = useState([]);
@@ -53,7 +55,8 @@ const ProductAll = () => {
         mrp: '',
         unit: '',
         pcsOfUnit: '',
-        freeProductQty: '',
+        freeProductUnitQty: '',
+        freeProductPcsQty: '',
         note: '',
         isActive: true
     });
@@ -297,7 +300,8 @@ const ProductAll = () => {
                     mrp: '',
                     unit: '',
                     pcsOfUnit: '',
-                    freeProductQty: '',
+                    freeProductUnitQty: '',
+                    freeProductPcsQty: '',
                     note: '',
                     isActive: true
                 });
@@ -353,7 +357,8 @@ const ProductAll = () => {
             mrp: product.mrp || '',
             unit: product.unit || '',
             pcsOfUnit: product.pcsOfUnit || '',
-            freeProductQty: product.freeProductQty || '',
+            freeProductUnitQty: product.freeProductUnitQty || '',
+            freeProductPcsQty: product.freeProductPcsQty || '',
             note: product.note || '',
             isActive: product.isActive !== undefined ? product.isActive : true
         });
@@ -376,7 +381,8 @@ const ProductAll = () => {
             mrp: '',
             unit: '',
             pcsOfUnit: '',
-            freeProductQty: '',
+            freeProductUnitQty: '',
+            freeProductPcsQty: '',
             note: '',
             isActive: true
         });
@@ -738,7 +744,12 @@ const ProductAll = () => {
                                     currentProducts.map((product) => (
                                         <tr key={product._id} className="hover:bg-indigo-50/50 transition-colors">
                                             <td className="px-3 py-3 whitespace-nowrap font-bold text-gray-900">
-                                                {product.productName}
+                                                <button
+                                                    onClick={() => navigate(`/product-details/${product._id}`)}
+                                                    className="text-indigo-700 hover:text-purple-600 hover:underline font-bold text-left cursor-pointer transition-colors"
+                                                >
+                                                    {product.productName}
+                                                </button>
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
                                                 {product.company || 'N/A'}
@@ -767,7 +778,14 @@ const ProductAll = () => {
                                                 {product.unit || 'N/A'} ({product.pcsOfUnit || '0'} pcs)
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {product.freeProductQty ? `${product.freeProductQty}x` : 'None'}
+                                                {(Number(product.freeProductUnitQty) || Number(product.freeProductPcsQty)) ? (
+                                                    <>
+                                                        {product.freeProductUnitQty || 0} {product.unit || 'Pcs'} {product.freeProductPcsQty || 0} Pcs
+                                                        <span className="text-[10px] text-emerald-700 ml-1 font-bold">
+                                                            (Total: {(Number(product.freeProductUnitQty) || 0) * (Number(product.pcsOfUnit) || 0) + (Number(product.freeProductPcsQty) || 0)})
+                                                        </span>
+                                                    </>
+                                                ) : 'None'}
                                             </td>
 
                                             <td className="px-3 py-3 whitespace-nowrap text-center">
@@ -826,6 +844,16 @@ const ProductAll = () => {
                                                             style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
                                                             className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150"
                                                         >
+                                                            <button
+                                                                onClick={() => {
+                                                                    setOpenDropdownId(null);
+                                                                    navigate(`/product-details/${product._id}`);
+                                                                }}
+                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            >
+                                                                <FaEye size={12} className="text-emerald-500" />
+                                                                View Details
+                                                            </button>
                                                             <button
                                                                 onClick={() => handleEdit(product)}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"

@@ -14,7 +14,7 @@ const getFormattedToday = () => {
 };
 
 // টেক্সট সার্চের জন্য helper — যেকোনো একটা field এ মিললেই true
-const matchesSearch = (searchText, fields) => {
+export const matchesSearch = (searchText, fields) => {
     const searchLower = (searchText || '').toLowerCase();
     return fields.some((field) => String(field || '').toLowerCase().includes(searchLower));
 };
@@ -44,7 +44,7 @@ const ChevronIcon = () => (
 // Reusable Search + Select Dropdown
 // (কম্পোনেন্টের বাইরে রাখা হয়েছে, নাহলে টাইপ করার সময় focus হারিয়ে যেত)
 // ------------------------------------------------------------------
-const SearchSelect = ({
+export const SearchSelect = ({
     label,
     required = false,
     hint = '',
@@ -58,6 +58,7 @@ const SearchSelect = ({
     renderItem,
     emptyText = 'No data found',
     disabled = false,
+    checkbox = null,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -75,10 +76,26 @@ const SearchSelect = ({
 
     return (
         <div className="relative" ref={wrapperRef}>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                {label} {required && <span className="text-rose-500">*</span>}{' '}
-                {hint && <span className="text-xs text-amber-500 font-normal">{hint}</span>}
-            </label>
+            <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                    {label} {required && <span className="text-rose-500">*</span>}{' '}
+                    {hint && <span className="text-xs text-amber-500 font-normal">{hint}</span>}
+                </label>
+                {checkbox && (
+                    <label
+                        className={`flex items-center gap-1.5 text-xs font-medium select-none ${checkbox.disabled ? 'text-slate-300 cursor-not-allowed' : 'text-teal-700 cursor-pointer'}`}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={checkbox.checked}
+                            disabled={checkbox.disabled}
+                            onChange={(e) => checkbox.onChange(e.target.checked)}
+                            className="w-3.5 h-3.5 accent-teal-600"
+                        />
+                        {checkbox.label}
+                    </label>
+                )}
+            </div>
 
             <div
                 onClick={() => {
@@ -182,10 +199,54 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
 
     const dateInputRef = useRef(null);
 
+    // Save Route / Save DSR / Save SR checkbox (database এ save থাকবে)
+    const [saveRoute, setSaveRoute] = useState(false);
+    const [saveDsr, setSaveDsr] = useState(false);
+    const [saveSr, setSaveSr] = useState(false);
+
     // Customer আগে সিলেক্ট করলে route auto বসে lock হয়ে যাবে
     const [routeLocked, setRouteLocked] = useDraftState('orderNew:routeLocked', false);
     const updateSearch = (key, value) => setSearch((prev) => ({ ...prev, [key]: value }));
     const updateForm = (fields) => setFormData((prev) => ({ ...prev, ...fields }));
+
+    // feature API তে enabled + value save করা
+    const saveFeature = (key, enabled, value) =>
+        fetch(`${API_BASE}/feature/${key}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled, value }),
+        }).then((res) => {
+            if (!res.ok) throw new Error('Save failed');
+        });
+
+    const handleToggleSaveRoute = (checked) => {
+        if (checked && !formData.route) return;
+        setSaveRoute(checked);
+        if (checked) setRouteLocked(false); // save lock আগের auto-lock এর জায়গা নেবে
+        saveFeature('orderSaveRoute', checked, checked ? formData.route : null).catch(() =>
+            setSaveRoute(!checked)
+        );
+    };
+
+    const handleToggleSaveDsr = (checked) => {
+        if (checked && !formData.deliveredById) return;
+        setSaveDsr(checked);
+        saveFeature(
+            'orderSaveDsr',
+            checked,
+            checked ? { id: formData.deliveredById, name: formData.deliveredBy } : null
+        ).catch(() => setSaveDsr(!checked));
+    };
+
+    const handleToggleSaveSr = (checked) => {
+        if (checked && !formData.srId) return;
+        setSaveSr(checked);
+        saveFeature(
+            'orderSaveSr',
+            checked,
+            checked ? { id: formData.srId, name: formData.sr } : null
+        ).catch(() => setSaveSr(!checked));
+    };
 
     // --------------------------------------------------
     // Fetch all data
@@ -203,6 +264,45 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
         loadList('company', setCompanies);
         loadList('category', setCategories);
         loadList('product', setProducts);
+    }, []);
+
+    // Database এ saved Route ও DSR থাকলে ফর্মে বসিয়ে lock করা (edit mode এ লাগবে না)
+    useEffect(() => {
+        if (initialData) return;
+
+        fetch(`${API_BASE}/feature/orderSaveRoute`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.enabled && data.value) {
+                    updateForm({ route: data.value });
+                    updateSearch('route', data.value);
+                    setSaveRoute(true);
+                }
+            })
+            .catch((error) => console.error('Error fetching saved route:', error));
+
+        fetch(`${API_BASE}/feature/orderSaveDsr`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.enabled && data.value && data.value.id) {
+                    updateForm({ deliveredById: data.value.id, deliveredBy: data.value.name });
+                    updateSearch('deliveredBy', data.value.name);
+                    setSaveDsr(true);
+                }
+            })
+            .catch((error) => console.error('Error fetching saved DSR:', error));
+
+        fetch(`${API_BASE}/feature/orderSaveSr`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.enabled && data.value && data.value.id) {
+                    updateForm({ srId: data.value.id, sr: data.value.name });
+                    updateSearch('sr', data.value.name);
+                    setSaveSr(true);
+                }
+            })
+            .catch((error) => console.error('Error fetching saved SR:', error));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // --------------------------------------------------
@@ -411,6 +511,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
     };
 
     const handleClearSR = () => {
+        if (saveSr) return;
         updateSearch('sr', '');
         updateForm({ srId: '', sr: '' });
     };
@@ -529,7 +630,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                         <SearchSelect
                             label="Route Name"
                             required
-                            hint={routeLocked ? '(Auto-filled from customer)' : ''}
+
                             placeholder="Search or select route..."
                             searchValue={search.route}
                             onSearchChange={(text) => {
@@ -542,7 +643,13 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                             items={routeList}
                             getKey={(r) => r}
                             emptyText="No route found"
-                            disabled={routeLocked}
+                            disabled={routeLocked || saveRoute}
+                            checkbox={initialData ? null : {
+                                label: 'Save Route',
+                                checked: saveRoute,
+                                disabled: !saveRoute && !formData.route,
+                                onChange: handleToggleSaveRoute,
+                            }}
                             renderItem={(r) => (
                                 <div className="flex items-center justify-between gap-2">
                                     <p className="text-sm font-semibold text-slate-800">{r}</p>
@@ -607,6 +714,13 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                             items={filteredSRs}
                             getKey={(u) => u._id}
                             emptyText="No active SR found"
+                            disabled={saveSr}
+                            checkbox={initialData ? null : {
+                                label: 'Save SR',
+                                checked: saveSr,
+                                disabled: !saveSr && !formData.srId,
+                                onChange: handleToggleSaveSr,
+                            }}
                             renderItem={(u) => (
                                 <>
                                     <p className="text-sm font-semibold text-slate-800">{u.name}</p>
@@ -633,6 +747,13 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                             items={filteredDeliveryMen}
                             getKey={(u) => u._id}
                             emptyText="No active delivery man found"
+                            disabled={saveDsr}
+                            checkbox={initialData ? null : {
+                                label: 'Save DSR',
+                                checked: saveDsr,
+                                disabled: !saveDsr && !formData.deliveredById,
+                                onChange: handleToggleSaveDsr,
+                            }}
                             renderItem={(u) => (
                                 <>
                                     <p className="text-sm font-semibold text-slate-800">{u.name}</p>

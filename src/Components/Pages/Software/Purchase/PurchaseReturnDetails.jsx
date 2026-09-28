@@ -62,11 +62,12 @@ const PurchaseReturnDetails = () => {
                                     return {
                                         rtUnitQty: Number(found.returnUnitQty) || 0,
                                         rtPcsQty: Number(found.returnPcsQty) || 0,
-                                        rtFreeQty: Number(found.returnFreeQty) || 0,
+                                        rtFreeUnitQty: Number(found.returnFreeUnitQty) || 0,
+                                        rtFreePcsQty: Number(found.returnFreePcsQty) || 0,
                                     };
                                 }
                             }
-                            return { rtUnitQty: 0, rtPcsQty: 0, rtFreeQty: 0 };
+                            return { rtUnitQty: 0, rtPcsQty: 0, rtFreeUnitQty: 0, rtFreePcsQty: 0 };
                         })
                     );
 
@@ -110,6 +111,20 @@ const PurchaseReturnDetails = () => {
     };
 
     // --------------------------------------------------
+    // 1 Free Unit = koto Free PCS
+    // --------------------------------------------------
+    const getFreePcsPerUnit = (item) => {
+        const freeUnitQtyNum = Number(item.freeUnitQty) || 0;
+        const freePcsQtyNum = Number(item.freePcsQty) || 0;
+        const freeTotalQtyNum = Number(item.freeTotalQty ?? item.freeQty) || 0;
+        if (freeUnitQtyNum > 0) {
+            const perUnit = (freeTotalQtyNum - freePcsQtyNum) / freeUnitQtyNum;
+            return perUnit > 0 ? perUnit : 0;
+        }
+        return 0;
+    };
+
+    // --------------------------------------------------
     // Age koto Total RT Qty return kora hoyeche (returnHistory theke)
     // --------------------------------------------------
     const getReturnedQtyForProduct = (productId) => {
@@ -129,7 +144,7 @@ const PurchaseReturnDetails = () => {
         return selectedInvoice.returnHistory.reduce((sum, ret) => {
             if (isEditMode && ret.returnId === editReturnId) return sum; // nijer entry bad diye hisab hobe
             const found = ret.items?.find((it) => it.productId === productId);
-            return sum + (found ? Number(found.returnFreeQty) || 0 : 0);
+            return sum + (found ? Number(found.returnFreeTotalQty ?? found.returnFreeQty) || 0 : 0);
         }, 0);
     };
     const getRemainingQty = (item) => {
@@ -139,7 +154,7 @@ const PurchaseReturnDetails = () => {
 
     const getFreeRemainingQty = (item) => {
         const returned = getReturnedFreeQtyForProduct(item.productId);
-        return Math.max(Number(item.freeQty || 0) - returned, 0);
+        return Math.max(Number(item.freeTotalQty ?? item.freeQty ?? 0) - returned, 0);
     };
 
     const getTotalRtQty = (index, item) => {
@@ -148,6 +163,14 @@ const PurchaseReturnDetails = () => {
         const rtPcsQty = Number(returnInputs[index]?.rtPcsQty) || 0;
         return rtUnitQty * pcsPerUnit + rtPcsQty;
     };
+
+    const getTotalRtFreeQty = (index, item) => {
+        const freePcsPerUnit = getFreePcsPerUnit(item);
+        const rtFreeUnitQty = Number(returnInputs[index]?.rtFreeUnitQty) || 0;
+        const rtFreePcsQty = Number(returnInputs[index]?.rtFreePcsQty) || 0;
+        return rtFreeUnitQty * freePcsPerUnit + rtFreePcsQty;
+    };
+
 
     const getReturnAmount = (index, item) => {
         const totalRtQty = getTotalRtQty(index, item);
@@ -215,17 +238,44 @@ const PurchaseReturnDetails = () => {
     // --------------------------------------------------
     // RT Free Qty Change
     // --------------------------------------------------
-    const handleRtFreeQtyChange = (index, value, item) => {
+    const handleRtFreeUnitQtyChange = (index, value, item) => {
         if (value !== '' && !/^\d*$/.test(value)) return; // ঘরে শুধু পূর্ণসংখ্যা, দশমিক নেওয়া হবে না
+        const freePcsPerUnit = getFreePcsPerUnit(item);
         let val = value === '' ? 0 : Number(value);
         if (isNaN(val) || val < 0) val = 0;
 
         const freeRemaining = getFreeRemainingQty(item);
-        if (val > freeRemaining) val = freeRemaining;
+        const currentFreePcsQty = Number(returnInputs[index]?.rtFreePcsQty) || 0;
+        const total = val * freePcsPerUnit + currentFreePcsQty;
+
+        if (total > freeRemaining) {
+            const maxVal = freePcsPerUnit > 0 ? Math.floor((freeRemaining - currentFreePcsQty) / freePcsPerUnit) : 0;
+            val = Math.max(0, maxVal);
+        }
 
         setReturnInputs((prev) => {
             const updated = [...prev];
-            updated[index] = { ...updated[index], rtFreeQty: val };
+            updated[index] = { ...updated[index], rtFreeUnitQty: val };
+            return updated;
+        });
+    };
+
+    const handleRtFreePcsQtyChange = (index, value, item) => {
+        if (value !== '' && !/^\d*$/.test(value)) return; // ঘরে শুধু পূর্ণসংখ্যা, দশমিক নেওয়া হবে না
+        const freePcsPerUnit = getFreePcsPerUnit(item);
+        let val = value === '' ? 0 : Number(value);
+        if (isNaN(val) || val < 0) val = 0;
+
+        const freeRemaining = getFreeRemainingQty(item);
+        const currentFreeUnitQty = Number(returnInputs[index]?.rtFreeUnitQty) || 0;
+        const unitPortion = currentFreeUnitQty * freePcsPerUnit;
+        const maxPcs = Math.max(0, freeRemaining - unitPortion);
+
+        if (val > maxPcs) val = maxPcs;
+
+        setReturnInputs((prev) => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], rtFreePcsQty: val };
             return updated;
         });
     };
@@ -275,7 +325,9 @@ const PurchaseReturnDetails = () => {
         ? selectedInvoice.items.reduce((sum, item, index) => sum + getTotalRtQty(index, item), 0)
         : 0;
 
-    const totalReturnFreeQty = returnInputs.reduce((sum, r) => sum + (Number(r?.rtFreeQty) || 0), 0);
+    const totalReturnFreeQty = selectedInvoice
+        ? selectedInvoice.items.reduce((sum, item, index) => sum + getTotalRtFreeQty(index, item), 0)
+        : 0;
 
     const totalReturnAmount = selectedInvoice
         ? selectedInvoice.items.reduce((sum, item, index) => sum + getReturnAmount(index, item), 0)
@@ -313,18 +365,20 @@ const PurchaseReturnDetails = () => {
             const returnedItems = selectedInvoice.items
                 .map((item, index) => {
                     const totalRtQty = getTotalRtQty(index, item);
-                    const rtFreeQty = Number(returnInputs[index]?.rtFreeQty) || 0;
+                    const totalRtFreeQty = getTotalRtFreeQty(index, item);
                     return {
                         productId: item.productId,
                         productName: item.productName,
                         returnUnitQty: Number(returnInputs[index]?.rtUnitQty) || 0,
                         returnPcsQty: Number(returnInputs[index]?.rtPcsQty) || 0,
                         returnTotalQty: totalRtQty,
-                        returnFreeQty: rtFreeQty,
+                        returnFreeUnitQty: Number(returnInputs[index]?.rtFreeUnitQty) || 0,
+                        returnFreePcsQty: Number(returnInputs[index]?.rtFreePcsQty) || 0,
+                        returnFreeTotalQty: totalRtFreeQty,
                         returnAmount: getReturnAmount(index, item),
                     };
                 })
-                .filter((it) => it.returnTotalQty > 0 || it.returnFreeQty > 0);
+                .filter((it) => it.returnTotalQty > 0 || it.returnFreeTotalQty > 0);
 
             let updatedReturnHistory;
 
@@ -557,13 +611,13 @@ const PurchaseReturnDetails = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[11px] font-bold uppercase tracking-wider">
-                                                                       <th className="py-3 px-3.5 rounded-l-xl">Product Name</th>
+                                    <th className="py-3 px-3.5 rounded-l-xl">Product Name</th>
                                     <th className="py-3 px-3.5">Company</th>
                                     <th className="py-3 px-3.5 text-center">RT Qty</th>
                                     <th className="py-3 px-3.5 text-center">PCS Qty</th>
-                                    <th className="py-3 px-3.5 text-center">Total RT Qty</th>
                                     <th className="py-3 px-3.5 text-center">Remaining Quantity</th>
-                                    <th className="py-3 px-3.5 text-center">RT Free Qty</th>
+                                    <th className="py-3 px-3.5 text-center">RT Free Unit</th>
+                                    <th className="py-3 px-3.5 text-center">RT Free PCS</th>
                                     <th className="py-3 px-3.5 text-center">Remaining Free Qty</th>
                                     <th className="py-3 px-3.5 text-right">Purchase Price</th>
                                     <th className="py-3 px-3.5 text-right">Discount</th>
@@ -573,20 +627,28 @@ const PurchaseReturnDetails = () => {
                             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
                                 {selectedInvoice.items.map((item, index) => {
                                     const pcsPerUnit = getPcsPerUnit(item);
+                                    const freePcsPerUnit = getFreePcsPerUnit(item);
                                     const remainingQty = getRemainingQty(item);
                                     const freeRemainingQty = getFreeRemainingQty(item);
                                     const totalRtQty = getTotalRtQty(index, item);
+                                    const totalRtFreeQty = getTotalRtFreeQty(index, item);
                                     const rtUnitDisabled = pcsPerUnit <= 0 || remainingQty <= 0;
                                     const rtPcsDisabled = remainingQty <= 0;
-                                    const rtFreeDisabled = Number(item.freeQty || 0) <= 0 || freeRemainingQty <= 0;
+                                    const rtFreeUnitDisabled = freePcsPerUnit <= 0 || freeRemainingQty <= 0;
+                                    const rtFreePcsDisabled = freeRemainingQty <= 0;
 
                                     return (
                                         <tr key={index} className="hover:bg-indigo-50/40 transition-colors">
                                             <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
                                             <td className="py-4 px-3.5 text-slate-600">{selectedInvoice.company}</td>
 
-                                                                                       {/* RT Qty (Unit) */}
-                                            <td className="py-4 pl-3.5 pr-0">
+                                            {/* RT Qty (Unit) */}
+                                            <td className="relative py-4 pl-3.5 pr-0">
+                                                <div
+                                                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${totalRtQty > 0 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'}`}
+                                                >
+                                                    Total: {totalRtQty}
+                                                </div>
                                                 <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
                                                     <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
 
@@ -624,27 +686,56 @@ const PurchaseReturnDetails = () => {
                                                 </div>
                                             </td>
 
-                                            {/* Total RT Qty */}
-                                            <td className="py-4 px-3.5 text-center font-semibold text-orange-600">{totalRtQty}</td>
-
                                             {/* Remaining Quantity */}
                                             <td className="py-4 px-3.5 text-center font-semibold text-indigo-600">{remainingQty}</td>
 
-                                            {/* RT Free Qty */}
-                                            <td className="py-4 px-3.5 text-center">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    disabled={rtFreeDisabled}
-                                                    value={returnInputs[index]?.rtFreeQty === 0 ? '' : returnInputs[index]?.rtFreeQty ?? ''}
-                                                    onChange={(e) => handleRtFreeQtyChange(index, e.target.value, item)}
-                                                    className="w-16 text-center px-2 py-1.5 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                />
+                                            {/* RT Free Unit Qty */}
+                                            <td className="relative py-4 pl-3.5 pr-0">
+                                                <div
+                                                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${totalRtFreeQty > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}
+                                                >
+                                                    Total: {totalRtFreeQty}
+                                                </div>
+                                                <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                    <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            disabled={rtFreeUnitDisabled}
+                                                            value={returnInputs[index]?.rtFreeUnitQty === 0 ? '' : returnInputs[index]?.rtFreeUnitQty ?? ''}
+                                                            onChange={(e) => handleRtFreeUnitQtyChange(index, e.target.value, item)}
+                                                            className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                        />
+
+                                                        <span
+                                                            className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                            title="Unit"
+                                                        >
+                                                            {item.unit || 'Pcs'}
+                                                        </span>
+
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            {/* RT Free PCS Qty */}
+                                            <td className="py-4 pl-0 pr-3.5">
+                                                <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        disabled={rtFreePcsDisabled}
+                                                        value={returnInputs[index]?.rtFreePcsQty === 0 ? '' : returnInputs[index]?.rtFreePcsQty ?? ''}
+                                                        onChange={(e) => handleRtFreePcsQtyChange(index, e.target.value, item)}
+                                                        className="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                    />
+                                                </div>
                                             </td>
 
                                             {/* Remaining Free Qty */}
                                             <td className="py-4 px-3.5 text-center font-medium text-emerald-600">
-                                                {freeRemainingQty}{item.freeProduct && Number(item.freeQty) > 0 ? ` (${item.freeProduct})` : ''}
+                                                {freeRemainingQty}
                                             </td>
 
                                             {/* Purchase Price */}
@@ -660,7 +751,23 @@ const PurchaseReturnDetails = () => {
                                             </td>
 
                                             {/* Discount */}
-                                            <td className="py-4 px-3.5">
+                                            <td className="relative py-4 px-3.5">
+                                                {(() => {
+                                                    const rowGrossTotal = (Number(item.buyPrice) || 0) * (Number(item.totalPcs) || 0);
+                                                    const discountAmt = getItemDiscountAmount(index, item);
+                                                    const discountPct =
+                                                        itemDiscounts[index]?.discountType === 'percent'
+                                                            ? Number(itemDiscounts[index]?.discount) || 0
+                                                            : (rowGrossTotal > 0 ? (discountAmt / rowGrossTotal) * 100 : 0);
+                                                    const isPercentActive = itemDiscounts[index]?.discountType === 'percent';
+                                                    return (
+                                                        <div
+                                                            className={`absolute top-1 right-3.5 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${(isPercentActive ? discountAmt : discountPct) ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-400'}`}
+                                                        >
+                                                            {isPercentActive ? `৳${discountAmt.toFixed(2)}` : `${discountPct.toFixed(2)}%`}
+                                                        </div>
+                                                    );
+                                                })()}
                                                 <div className="flex items-center justify-end gap-1">
                                                     <button
                                                         type="button"
@@ -676,29 +783,8 @@ const PurchaseReturnDetails = () => {
                                                         step="0.01"
                                                         value={itemDiscounts[index]?.discount === 0 ? '' : itemDiscounts[index]?.discount ?? ''}
                                                         onChange={(e) => handleItemDiscountChange(index, e.target.value)}
-                                                        className={`w-16 text-right px-2 py-1.5 rounded-lg border outline-none text-sm ${itemDiscounts[index]?.discountType === 'amount' ? 'border-rose-400 ring-2 ring-rose-100 font-bold text-rose-600' : 'border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200'}`}
+                                                        className="w-20 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none text-sm"
                                                     />
-                                                    {(() => {
-                                                        const rowGrossTotal = (Number(item.buyPrice) || 0) * (Number(item.totalPcs) || 0);
-                                                        const discountAmt = getItemDiscountAmount(index, item);
-                                                        const discountPct =
-                                                            itemDiscounts[index]?.discountType === 'percent'
-                                                                ? Number(itemDiscounts[index]?.discount) || 0
-                                                                : (rowGrossTotal > 0 ? (discountAmt / rowGrossTotal) * 100 : 0);
-                                                        const isPercentActive = itemDiscounts[index]?.discountType === 'percent';
-                                                        return (
-                                                            <>
-                                                                <input
-                                                                    type="text"
-                                                                    readOnly
-                                                                    value={!isPercentActive ? (discountPct ? `${discountPct.toFixed(2)}%` : '') : (discountAmt ? `৳${discountAmt.toFixed(2)}` : '')}
-                                                                    placeholder={!isPercentActive ? '0%' : '৳0.00'}
-                                                                    title={!isPercentActive ? 'Discount percentage' : 'Discount amount in Taka'}
-                                                                    className={`w-16 text-right px-2 py-1.5 rounded-lg border text-sm outline-none cursor-not-allowed ${isPercentActive ? 'border-rose-400 ring-2 ring-rose-100 bg-rose-50 font-bold text-rose-600' : 'border-gray-200 bg-gray-100 text-slate-600'}`}
-                                                                />
-                                                            </>
-                                                        );
-                                                    })()}
                                                 </div>
                                             </td>
 

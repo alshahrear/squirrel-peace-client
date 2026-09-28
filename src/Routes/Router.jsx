@@ -41,6 +41,15 @@ import PurchaseBulkReturn from "../Components/Pages/Software/Purchase/PurchaseBu
 import OrderAdd from "../Components/Pages/Software/Order/OrderAdd";
 import Wholesale from "../Components/Pages/Software/Sales/Wholesale";
 import Feature from "../Components/Pages/Software/Settings/Feature";
+import SalesDetails from "../Components/Pages/Software/Sales/SalesDetails";
+import StockItem from "../Components/Pages/Software/Inventory/StockItem";
+import SalesReturn from "../Components/Pages/Software/Sales/SalesReturn";
+import SalesReturnDetails from "../Components/Pages/Software/Sales/SalesReturnDetails";
+import SalesReturnView from "../Components/Pages/Software/Sales/SalesReturnView";
+import CompanyDetails from "../Components/Pages/Software/Contact/CompanyDetails";
+import CustomersDetails from "../Components/Pages/Software/Contact/CustomersDetails";
+import ProductDetails from "../Components/Pages/Software/Product/ProductDetails";
+import FreeProducts from "../Components/Pages/Software/Inventory/FreeProducts";
 
 
 export const router = createBrowserRouter([
@@ -106,6 +115,22 @@ export const router = createBrowserRouter([
         element: <ClientRoute><Wholesale></Wholesale></ClientRoute>
       },
       {
+        path: "/sales-details/:id",
+        element: <ClientRoute><SalesDetails></SalesDetails></ClientRoute>
+      },
+      {
+        path: "/sales-return",
+        element: <ClientRoute><SalesReturn></SalesReturn></ClientRoute>
+      },
+      {
+        path: "/sales-return-details/:id",
+        element: <ClientRoute><SalesReturnDetails></SalesReturnDetails></ClientRoute>
+      },
+      {
+        path: "/sales-return-view/:id",
+        element: <ClientRoute><SalesReturnView></SalesReturnView></ClientRoute>
+      },
+      {
         path: "/units",
         element: <ClientRoute><Units></Units></ClientRoute>
       },
@@ -118,12 +143,28 @@ export const router = createBrowserRouter([
         element: <ClientRoute><Company></Company></ClientRoute>
       },
       {
+        path: "/company-details/:id",
+        element: <ClientRoute><CompanyDetails></CompanyDetails></ClientRoute>
+      },
+      {
         path: "/customers",
         element: <ClientRoute><Customers></Customers></ClientRoute>
       },
       {
+        path: "/customer-details/:id",
+        element: <ClientRoute><CustomersDetails></CustomersDetails></ClientRoute>
+      },
+       {
         path: "/product",
         element: <ClientRoute><ProductAll></ProductAll></ClientRoute>
+      },
+      {
+        path: "/product-details/:id",
+        element: <ClientRoute><ProductDetails></ProductDetails></ClientRoute>
+      },
+      {
+        path: "/free-products",
+        element: <ClientRoute><FreeProducts></FreeProducts></ClientRoute>
       },
       {
         path: "/stock-alert",
@@ -132,6 +173,10 @@ export const router = createBrowserRouter([
       {
         path: "/stock-list",
         element: <ClientRoute><StockList></StockList></ClientRoute>
+      },
+      {
+        path: "/stock-item",
+        element: <ClientRoute><StockItem></StockItem></ClientRoute>
       },
       {
         path: "/software",
@@ -194,6 +239,6 @@ export const router = createBrowserRouter([
         path: "/features",
         element: <ClientRoute><Feature></Feature></ClientRoute>
       }
-  ]
+    ]
   },
 ]);
