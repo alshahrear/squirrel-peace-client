@@ -22,12 +22,6 @@ const SalesReturnDetails = () => {
     const [notFound, setNotFound] = useState(false);
     const [returnInputs, setReturnInputs] = useState([]); // [{ rtUnitQty, rtPcsQty, rtFreeUnitQty, rtFreePcsQty }, ...]
     const [freeReturnInputs, setFreeReturnInputs] = useState([]); // Others Free Product return: [{ rtUnitQty, rtPcsQty }, ...]
-    const [damageReturnInputs, setDamageReturnInputs] = useState([]); // Damage Product return
-    const [returnReturnInputs, setReturnReturnInputs] = useState([]); // Return Product return
-    const [damagePricesUnit, setDamagePricesUnit] = useState([]);
-    const [damagePricesPcs, setDamagePricesPcs] = useState([]);
-    const [retItemPricesUnit, setRetItemPricesUnit] = useState([]);
-    const [retItemPricesPcs, setRetItemPricesPcs] = useState([]);
     const [itemDiscounts, setItemDiscounts] = useState([]); // [{ discount, discountType }, ...]
     const [returnPricesUnit, setReturnPricesUnit] = useState([]); // Unit er return price, editable
     const [returnPricesPcs, setReturnPricesPcs] = useState([]); // PCS er return price, editable
@@ -108,29 +102,6 @@ const SalesReturnDetails = () => {
                         (data.items || []).map((item) => Number(item.sellPricePcs) || 0)
                     );
 
-                    const buildGroupInputs = (groupKey) =>
-                        (data[groupKey] || []).map((item) => {
-                            if (editingEntry) {
-                                const found = editingEntry[groupKey]?.find((it) => it.productId === item.productId);
-                                if (found) {
-                                    return {
-                                        rtUnitQty: Number(found.returnUnitQty) || 0,
-                                        rtPcsQty: Number(found.returnPcsQty) || 0,
-                                        rtFreeUnitQty: Number(found.returnFreeUnitQty) || 0,
-                                        rtFreePcsQty: Number(found.returnFreePcsQty) || 0,
-                                    };
-                                }
-                            }
-                            return { rtUnitQty: 0, rtPcsQty: 0, rtFreeUnitQty: 0, rtFreePcsQty: 0 };
-                        });
-                    setDamageReturnInputs(buildGroupInputs('damageItems'));
-                    setReturnReturnInputs(buildGroupInputs('returnItems'));
-
-                    setDamagePricesUnit((data.damageItems || []).map((item) => Number(item.sellPriceUnit) || 0));
-                    setDamagePricesPcs((data.damageItems || []).map((item) => Number(item.sellPricePcs) || 0));
-                    setRetItemPricesUnit((data.returnItems || []).map((item) => Number(item.sellPriceUnit) || 0));
-                    setRetItemPricesPcs((data.returnItems || []).map((item) => Number(item.sellPricePcs) || 0));
-
                     setOverallDiscountAmount(Number(data.overallDiscount) || 0);
                     setOverallDiscountType(data.overallDiscountType || 'amount');
                 } else {
@@ -143,7 +114,7 @@ const SalesReturnDetails = () => {
                 setNotFound(true);
                 setLoading(false);
             });
-       }, [id, editReturnId]);
+    }, [id, editReturnId]);
 
     // --------------------------------------------------
     // 1 Unit = koto PCS, item er original order data theke ber kora
@@ -231,7 +202,7 @@ const SalesReturnDetails = () => {
         return selectedOrder.returnHistory.reduce((sum, ret) => {
             if (isEditMode && ret.returnId === editReturnId) return sum; // nijer entry bad diye hisab hobe
             const found = ret.items?.find((it) => it.productId === productId);
-                       return sum + (found ? Number(found.returnFreeTotalQty) || 0 : 0);
+            return sum + (found ? Number(found.returnFreeTotalQty) || 0 : 0);
         }, 0);
     };
 
@@ -491,297 +462,6 @@ const SalesReturnDetails = () => {
         });
     };
 
-    // --------------------------------------------------
-    // Damage / Return Product — Return helpers (generic)
-    // --------------------------------------------------
-    // 1 Unit = koto PCS (damage / return item er jonno)
-    const getGroupPcsPerUnit = (item) => {
-        const unitQtyNum = Number(item.unitQty) || 0;
-        const pcsQtyNum = Number(item.pcsQty) || 0;
-        const totalQtyNum = Number(item.totalQty) || 0;
-        if (unitQtyNum > 0) {
-            const perUnit = (totalQtyNum - pcsQtyNum) / unitQtyNum;
-            return perUnit > 0 ? perUnit : 0;
-        }
-        return 0;
-    };
-
-    // Age koto return hoyeche (returnHistory theke), field = returnTotalQty / returnFreeTotalQty
-    const getGroupReturnedQty = (groupKey, productId, field) =>
-        (selectedOrder?.returnHistory || []).reduce((sum, ret) => {
-            if (isEditMode && ret.returnId === editReturnId) return sum;
-            const found = ret[groupKey]?.find((it) => it.productId === productId);
-            return sum + (found ? Number(found[field]) || 0 : 0);
-        }, 0);
-
-    const getGroupRemainingQty = (groupKey, item) =>
-        Math.max(Number(item.totalQty || 0) - getGroupReturnedQty(groupKey, item.productId, 'returnTotalQty'), 0);
-
-    const getGroupFreeRemainingQty = (groupKey, item) =>
-        Math.max(Number(item.freeQty || 0) - getGroupReturnedQty(groupKey, item.productId, 'returnFreeTotalQty'), 0);
-
-    const getGroupTotalRt = (inputs, index, item) =>
-        (Number(inputs[index]?.rtUnitQty) || 0) * getGroupPcsPerUnit(item) + (Number(inputs[index]?.rtPcsQty) || 0);
-
-    const getGroupFreeTotalRt = (inputs, index, item) =>
-        (Number(inputs[index]?.rtFreeUnitQty) || 0) * getItemFreePcsPerUnit(item) + (Number(inputs[index]?.rtFreePcsQty) || 0);
-
-    const getGroupAmount = (inputs, pricesUnit, pricesPcs, index, item) => {
-        const priceUnit = pricesUnit[index] !== undefined ? Number(pricesUnit[index]) || 0 : Number(item.sellPriceUnit) || 0;
-        const pricePcs = pricesPcs[index] !== undefined ? Number(pricesPcs[index]) || 0 : Number(item.sellPricePcs) || 0;
-        return (Number(inputs[index]?.rtUnitQty) || 0) * priceUnit + (Number(inputs[index]?.rtPcsQty) || 0) * pricePcs;
-    };
-
-    // field = rtUnitQty | rtPcsQty | rtFreeUnitQty | rtFreePcsQty
-    const handleGroupRtChange = (setter, inputs, groupKey, index, field, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return;
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const isFree = field === 'rtFreeUnitQty' || field === 'rtFreePcsQty';
-        const unitField = isFree ? 'rtFreeUnitQty' : 'rtUnitQty';
-        const pcsField = isFree ? 'rtFreePcsQty' : 'rtPcsQty';
-        const pcsPerUnit = isFree ? getItemFreePcsPerUnit(item) : getGroupPcsPerUnit(item);
-        const remaining = isFree ? getGroupFreeRemainingQty(groupKey, item) : getGroupRemainingQty(groupKey, item);
-
-        if (field === unitField) {
-            const currentPcs = Number(inputs[index]?.[pcsField]) || 0;
-            if (val * pcsPerUnit + currentPcs > remaining) {
-                const maxVal = pcsPerUnit > 0 ? Math.floor((remaining - currentPcs) / pcsPerUnit) : 0;
-                val = Math.max(0, maxVal);
-            }
-        } else {
-            const currentUnit = Number(inputs[index]?.[unitField]) || 0;
-            const maxPcs = Math.max(0, remaining - currentUnit * pcsPerUnit);
-            if (val > maxPcs) val = maxPcs;
-        }
-
-        setter((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], [field]: val };
-            return updated;
-        });
-    };
-
-    const handleGroupPriceChange = (setter, index, value) => {
-        if (value !== '' && !/^\d*\.?\d{0,2}$/.test(value)) return;
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-        setter((prev) => {
-            const updated = [...prev];
-            updated[index] = val;
-            return updated;
-        });
-    };
-
-    const renderGroupReturnTable = (title, groupKey, inputs, setter, pricesUnit, setPricesUnit, pricesPcs, setPricesPcs) => {
-        const items = selectedOrder?.[groupKey] || [];
-        if (items.length === 0) return null;
-
-        const t = groupKey === 'damageItems'
-            ? {
-                h4: 'text-red-700',
-                thead: 'bg-red-100/70 text-red-800',
-                divide: 'divide-red-100',
-                tr: 'hover:bg-red-50/40',
-                wrapL: 'p-1.5 bg-red-50 border border-r-0 border-red-200 rounded-l-2xl',
-                wrapR: 'p-1.5 bg-red-50 border border-l-0 border-red-200 rounded-r-2xl',
-                inner: 'border-red-200',
-                span: 'from-red-500 to-rose-500',
-                pcsInput: 'border-red-200 focus:border-red-500 focus:ring-red-100',
-                badgeOn: 'bg-red-100 text-red-700',
-                remaining: 'text-red-600',
-                amount: 'text-red-600',
-            }
-            : {
-                h4: 'text-violet-700',
-                thead: 'bg-violet-100/70 text-violet-800',
-                divide: 'divide-violet-100',
-                tr: 'hover:bg-violet-50/40',
-                wrapL: 'p-1.5 bg-violet-50 border border-r-0 border-violet-200 rounded-l-2xl',
-                wrapR: 'p-1.5 bg-violet-50 border border-l-0 border-violet-200 rounded-r-2xl',
-                inner: 'border-violet-200',
-                span: 'from-violet-500 to-purple-500',
-                pcsInput: 'border-violet-200 focus:border-violet-500 focus:ring-violet-100',
-                badgeOn: 'bg-violet-100 text-violet-700',
-                remaining: 'text-violet-600',
-                amount: 'text-violet-600',
-            };
-
-        return (
-            <div className="px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
-                <h4 className={`text-xs font-bold uppercase mb-3 ${t.h4}`}>{title}</h4>
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className={`${t.thead} text-[11px] font-bold uppercase tracking-wider`}>
-                            <th className="py-3 px-3.5 rounded-l-xl">Product Name</th>
-                            <th className="py-3 px-3.5">Company</th>
-                            <th className="py-3 px-3.5 text-center">RT Qty</th>
-                            <th className="py-3 px-3.5 text-center">PCS Qty</th>
-                            <th className="py-3 px-3.5 text-center">Remaining Quantity</th>
-                            <th className="py-3 px-3.5 text-center">RT Free Unit</th>
-                            <th className="py-3 px-3.5 text-center">RT Free PCS</th>
-                            <th className="py-3 px-3.5 text-center">Remaining Free Qty</th>
-                            <th className="py-3 px-3.5 text-right">Sell Price (Unit)</th>
-                            <th className="py-3 px-3.5 text-right">Sell Price (PCS)</th>
-                            <th className="py-3 px-3.5 text-right rounded-r-xl">Return Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody className={`divide-y ${t.divide} text-xs sm:text-sm text-slate-700`}>
-                        {items.map((item, index) => {
-                            const pcsPerUnit = getGroupPcsPerUnit(item);
-                            const freePcsPerUnit = getItemFreePcsPerUnit(item);
-                            const remainingQty = getGroupRemainingQty(groupKey, item);
-                            const freeRemainingQty = getGroupFreeRemainingQty(groupKey, item);
-                            const totalRtQty = getGroupTotalRt(inputs, index, item);
-                            const totalRtFreeQty = getGroupFreeTotalRt(inputs, index, item);
-                            const rtUnitDisabled = pcsPerUnit <= 0 || remainingQty <= 0;
-                            const rtPcsDisabled = remainingQty <= 0;
-                            const rtFreeUnitDisabled = freePcsPerUnit <= 0 || freeRemainingQty <= 0;
-                            const rtFreePcsDisabled = freeRemainingQty <= 0;
-                            const rowAmount = getGroupAmount(inputs, pricesUnit, pricesPcs, index, item);
-
-                            return (
-                                <tr key={index} className={`${t.tr} transition-colors`}>
-                                    <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                    <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
-
-                                    {/* RT Qty (Unit) */}
-                                    <td className="relative py-4 pl-3.5 pr-0 min-w-[110px]">
-                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${totalRtQty > 0 ? t.badgeOn : 'bg-slate-100 text-slate-400'}`}>
-                                            Total: {totalRtQty}
-                                        </div>
-                                        <div className={t.wrapL}>
-                                            <div className={`flex items-center border ${t.inner} rounded-xl bg-white overflow-hidden w-full shadow-sm`}>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    disabled={rtUnitDisabled}
-                                                    value={inputs[index]?.rtUnitQty === 0 ? '' : inputs[index]?.rtUnitQty ?? ''}
-                                                    onChange={(e) => handleGroupRtChange(setter, inputs, groupKey, index, 'rtUnitQty', e.target.value, item)}
-                                                    className="w-14 min-w-[3.5rem] px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                />
-                                                <span className={`flex-1 bg-gradient-to-br ${t.span} text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate`} title="Unit">
-                                                    {item.unit || 'Pcs'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    {/* PCS Qty */}
-                                    <td className="py-4 pl-0 pr-3.5 min-w-[100px]">
-                                        <div className={t.wrapR}>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                disabled={rtPcsDisabled}
-                                                value={inputs[index]?.rtPcsQty === 0 ? '' : inputs[index]?.rtPcsQty ?? ''}
-                                                onChange={(e) => handleGroupRtChange(setter, inputs, groupKey, index, 'rtPcsQty', e.target.value, item)}
-                                                className={`w-full min-w-[70px] px-3 py-2 rounded-xl border ${t.pcsInput} bg-white text-sm outline-none shadow-sm focus:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed`}
-                                            />
-                                        </div>
-                                    </td>
-
-                                    {/* Remaining Quantity */}
-                                    <td className={`py-4 px-3.5 text-center font-semibold ${t.remaining}`}>{remainingQty}</td>
-
-                                    {/* RT Free Unit */}
-                                    <td className="relative py-4 pl-3.5 pr-0 min-w-[110px]">
-                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${totalRtFreeQty > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                                            Total: {totalRtFreeQty}
-                                        </div>
-                                        <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
-                                            <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    disabled={rtFreeUnitDisabled}
-                                                    value={inputs[index]?.rtFreeUnitQty === 0 ? '' : inputs[index]?.rtFreeUnitQty ?? ''}
-                                                    onChange={(e) => handleGroupRtChange(setter, inputs, groupKey, index, 'rtFreeUnitQty', e.target.value, item)}
-                                                    className="w-14 min-w-[3.5rem] px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                />
-                                                <span className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Unit">
-                                                    {item.unit || 'Pcs'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    {/* RT Free PCS */}
-                                    <td className="py-4 pl-0 pr-3.5 min-w-[100px]">
-                                        <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                disabled={rtFreePcsDisabled}
-                                                value={inputs[index]?.rtFreePcsQty === 0 ? '' : inputs[index]?.rtFreePcsQty ?? ''}
-                                                onChange={(e) => handleGroupRtChange(setter, inputs, groupKey, index, 'rtFreePcsQty', e.target.value, item)}
-                                                className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                            />
-                                        </div>
-                                    </td>
-
-                                    {/* Remaining Free Qty */}
-                                    <td className="py-4 px-3.5 text-center font-medium text-emerald-600">{freeRemainingQty}</td>
-
-                                    {/* Sell Price (Unit) */}
-                                    <td className="py-4 px-3.5 text-right">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            disabled={rtUnitDisabled}
-                                            value={pricesUnit[index] === 0 ? '' : pricesUnit[index] ?? ''}
-                                            onChange={(e) => handleGroupPriceChange(setPricesUnit, index, e.target.value)}
-                                            className="w-20 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                        />
-                                    </td>
-
-                                    {/* Sell Price (PCS) */}
-                                    <td className="py-4 px-3.5 text-right">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            disabled={rtPcsDisabled}
-                                            value={pricesPcs[index] === 0 ? '' : pricesPcs[index] ?? ''}
-                                            onChange={(e) => handleGroupPriceChange(setPricesPcs, index, e.target.value)}
-                                            className="w-20 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                        />
-                                    </td>
-
-                                    {/* Return Amount */}
-                                    <td className={`py-4 px-3.5 text-right font-bold ${t.amount}`}>৳{rowAmount.toFixed(2)}</td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        );
-    };
-
-    const totalReturnDamageItemsQty = selectedOrder
-        ? (selectedOrder.damageItems || []).reduce((sum, item, index) => sum + getGroupTotalRt(damageReturnInputs, index, item), 0)
-        : 0;
-    const totalReturnDamageFreeQty = selectedOrder
-        ? (selectedOrder.damageItems || []).reduce((sum, item, index) => sum + getGroupFreeTotalRt(damageReturnInputs, index, item), 0)
-        : 0;
-    const totalReturnDamageAmount = selectedOrder
-        ? (selectedOrder.damageItems || []).reduce((sum, item, index) => sum + getGroupAmount(damageReturnInputs, damagePricesUnit, damagePricesPcs, index, item), 0)
-        : 0;
-
-    const totalReturnReturnItemsQty = selectedOrder
-        ? (selectedOrder.returnItems || []).reduce((sum, item, index) => sum + getGroupTotalRt(returnReturnInputs, index, item), 0)
-        : 0;
-    const totalReturnReturnFreeQty = selectedOrder
-        ? (selectedOrder.returnItems || []).reduce((sum, item, index) => sum + getGroupFreeTotalRt(returnReturnInputs, index, item), 0)
-        : 0;
-    const totalReturnReturnAmount = selectedOrder
-        ? (selectedOrder.returnItems || []).reduce((sum, item, index) => sum + getGroupAmount(returnReturnInputs, retItemPricesUnit, retItemPricesPcs, index, item), 0)
-        : 0;
-
-
     const totalReturnPcs = selectedOrder
         ? selectedOrder.items.reduce((sum, item, index) => sum + getTotalRtQty(index, item), 0)
         : 0;
@@ -811,7 +491,7 @@ const SalesReturnDetails = () => {
         : 0;
 
     const handleConfirmReturn = async () => {
-        if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0 && totalReturnFreeItemsQty <= 0 && totalReturnDamageItemsQty <= 0 && totalReturnDamageFreeQty <= 0 && totalReturnReturnItemsQty <= 0 && totalReturnReturnFreeQty <= 0) {
+        if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0 && totalReturnFreeItemsQty <= 0) {
             showToast('Return korar jonno kompokkhe 1 ta product a quantity din!', 'error');
             return;
         }
@@ -858,23 +538,7 @@ const SalesReturnDetails = () => {
                 })
                 .filter((it) => it.returnTotalQty > 0);
 
-            const buildGroupReturned = (groupKey, inputs, pricesUnit, pricesPcs) =>
-                (selectedOrder[groupKey] || [])
-                    .map((item, index) => ({
-                        productId: item.productId,
-                        productName: item.productName,
-                        returnUnitQty: Number(inputs[index]?.rtUnitQty) || 0,
-                        returnPcsQty: Number(inputs[index]?.rtPcsQty) || 0,
-                        returnTotalQty: getGroupTotalRt(inputs, index, item),
-                        returnFreeUnitQty: Number(inputs[index]?.rtFreeUnitQty) || 0,
-                        returnFreePcsQty: Number(inputs[index]?.rtFreePcsQty) || 0,
-                        returnFreeTotalQty: getGroupFreeTotalRt(inputs, index, item),
-                        returnAmount: getGroupAmount(inputs, pricesUnit, pricesPcs, index, item),
-                    }))
-                    .filter((it) => it.returnTotalQty > 0 || it.returnFreeTotalQty > 0);
 
-            const damageReturnedItems = buildGroupReturned('damageItems', damageReturnInputs, damagePricesUnit, damagePricesPcs);
-            const returnReturnedItems = buildGroupReturned('returnItems', returnReturnInputs, retItemPricesUnit, retItemPricesPcs);
 
             let updatedReturnHistory;
 
@@ -882,22 +546,25 @@ const SalesReturnDetails = () => {
                 // Existing return entry ke update korbe, ID o original date thakbe
                 updatedReturnHistory = (selectedOrder.returnHistory || []).map((ret) => {
                     if (ret.returnId !== editReturnId) return ret;
+                    const {
+                        damageItems: _damageItems,
+                        returnItems: _returnItems,
+                        totalReturnDamageItemsQty: _tdq,
+                        totalReturnDamageFreeQty: _tdfq,
+                        totalReturnDamageAmount: _tda,
+                        totalReturnReturnItemsQty: _trq,
+                        totalReturnReturnFreeQty: _trfq,
+                        totalReturnReturnAmount: _tra,
+                        ...cleanRet
+                    } = ret;
                     return {
-                        ...ret,
-                        damageItems: damageReturnedItems,
-                        returnItems: returnReturnedItems,
+                        ...cleanRet,
                         items: returnedItems,
                         freeItems: freeReturnedItems,
                         totalReturnPcs,
                         totalReturnFreeQty,
                         totalReturnFreeItemsQty,
                         totalReturnAmount,
-                        totalReturnDamageItemsQty,
-                        totalReturnDamageFreeQty,
-                        totalReturnDamageAmount,
-                        totalReturnReturnItemsQty,
-                        totalReturnReturnFreeQty,
-                        totalReturnReturnAmount,
                     };
                 });
             } else {
@@ -905,8 +572,6 @@ const SalesReturnDetails = () => {
                 const newReturnEntry = {
                     returnId,
                     returnDate,
-                    damageItems: damageReturnedItems,
-                    returnItems: returnReturnedItems,
                     items: returnedItems,
                     freeItems: freeReturnedItems,
                     totalReturnPcs,
@@ -916,15 +581,7 @@ const SalesReturnDetails = () => {
                 };
                 updatedReturnHistory = [
                     ...(selectedOrder.returnHistory || []),
-                    {
-                        ...newReturnEntry,
-                        totalReturnDamageItemsQty,
-                        totalReturnDamageFreeQty,
-                        totalReturnDamageAmount,
-                        totalReturnReturnItemsQty,
-                        totalReturnReturnFreeQty,
-                        totalReturnReturnAmount,
-                    },
+                    newReturnEntry,
                 ];
             }
 
@@ -1412,12 +1069,6 @@ const SalesReturnDetails = () => {
                         </div>
                     )}
 
-                    {/* Damage Product Return Table */}
-                    {renderGroupReturnTable('Damage Product Return', 'damageItems', damageReturnInputs, setDamageReturnInputs, damagePricesUnit, setDamagePricesUnit, damagePricesPcs, setDamagePricesPcs)}
-
-                    {/* Return Product Return Table */}
-                    {renderGroupReturnTable('Return Product Return', 'returnItems', returnReturnInputs, setReturnReturnInputs, retItemPricesUnit, setRetItemPricesUnit, retItemPricesPcs, setRetItemPricesPcs)}
-
                     {/* Totals + Confirm Return */}
                     <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6">
                         <div className="flex flex-wrap items-start gap-6 flex-1 w-full [&>div]:flex-1 [&>div]:basis-0 [&>div]:min-w-[150px] [&>div>p:first-child]:min-h-[2rem]">
@@ -1482,24 +1133,7 @@ const SalesReturnDetails = () => {
                                     <p className="text-lg font-bold text-amber-600">{totalReturnFreeItemsQty}</p>
                                 </div>
                             )}
-                            {(selectedOrder.damageItems || []).length > 0 && (
-                                <div>
-                                    <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Damage Qty</p>
-                                    <p className="text-lg font-bold text-red-600">{totalReturnDamageItemsQty}</p>
-                                    <p className="text-[11px] font-semibold text-emerald-600">Free: {totalReturnDamageFreeQty}</p>
-                                    <p className="text-[11px] font-semibold text-red-500">৳{totalReturnDamageAmount.toFixed(2)}</p>
-                                </div>
-                            )}
-                            {(selectedOrder.returnItems || []).length > 0 && (
-                                <div>
-                                    <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Return Qty</p>
-                                    <p className="text-lg font-bold text-violet-600">{totalReturnReturnItemsQty}</p>
-                                    <p className="text-[11px] font-semibold text-emerald-600">Free: {totalReturnReturnFreeQty}</p>
-                                    <p className="text-[11px] font-semibold text-violet-500">৳{totalReturnReturnAmount.toFixed(2)}</p>
-                                </div>
-                            )}
                         </div>
-
                         <button
                             onClick={handleConfirmReturn}
                             disabled={submitting}

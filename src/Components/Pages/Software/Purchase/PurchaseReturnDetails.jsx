@@ -23,6 +23,8 @@ const PurchaseReturnDetails = () => {
     const [returnInputs, setReturnInputs] = useState([]); // [{ rtUnitQty, rtPcsQty, rtFreeQty }, ...]
     const [itemDiscounts, setItemDiscounts] = useState([]); // [{ discount, discountType }, ...]
     const [returnPrices, setReturnPrices] = useState([]); // [buyPrice per item, editable for calc only]
+    const [freeReturnInputs, setFreeReturnInputs] = useState([]); // Others Free Product return: [{ rtUnitQty, rtPcsQty }, ...]
+
     const [overallDiscountAmount, setOverallDiscountAmount] = useState(0);
     const [overallDiscountType, setOverallDiscountType] = useState('amount');
     const [submitting, setSubmitting] = useState(false);
@@ -82,6 +84,22 @@ const PurchaseReturnDetails = () => {
                         (data.items || []).map((item) => Number(item.buyPrice) || 0)
                     );
 
+                    setFreeReturnInputs(
+                        (data.freeItems || []).map((item) => {
+                            if (editingEntry) {
+                                const found = editingEntry.freeItems?.find((it) => it.productId === item.productId);
+                                if (found) {
+                                    return {
+                                        rtUnitQty: Number(found.returnUnitQty) || 0,
+                                        rtPcsQty: Number(found.returnPcsQty) || 0,
+                                    };
+                                }
+                            }
+                            return { rtUnitQty: 0, rtPcsQty: 0 };
+                        })
+                    );
+
+
                     setOverallDiscountAmount(Number(data.overallDiscount) || 0);
                     setOverallDiscountType(data.overallDiscountType || 'amount');
                 } else {
@@ -94,7 +112,7 @@ const PurchaseReturnDetails = () => {
                 setNotFound(true);
                 setLoading(false);
             });
-    }, [id]);
+    }, [id, editReturnId]);
 
     // --------------------------------------------------
     // 1 Unit = koto PCS, item er original purchase data theke ber kora
@@ -170,6 +188,45 @@ const PurchaseReturnDetails = () => {
         const rtFreePcsQty = Number(returnInputs[index]?.rtFreePcsQty) || 0;
         return rtFreeUnitQty * freePcsPerUnit + rtFreePcsQty;
     };
+
+
+    // --------------------------------------------------
+    // Others Free Product — 1 Unit = koto PCS
+    // --------------------------------------------------
+    const getFreeItemPcsPerUnit = (item) => {
+        if (Number(item.pcsPerUnit) > 0) return Number(item.pcsPerUnit);
+        const unitQtyNum = Number(item.unitQty) || 0;
+        const pcsQtyNum = Number(item.pcsQty) || 0;
+        const totalQtyNum = Number(item.totalQty) || 0;
+        if (unitQtyNum > 0) {
+            const perUnit = (totalQtyNum - pcsQtyNum) / unitQtyNum;
+            return perUnit > 0 ? perUnit : 0;
+        }
+        return 0;
+    };
+
+    // Others Free Product — age koto Total RT Qty return kora hoyeche
+    const getReturnedFreeItemQtyForProduct = (productId) => {
+        if (!selectedInvoice?.returnHistory) return 0;
+        return selectedInvoice.returnHistory.reduce((sum, ret) => {
+            if (isEditMode && ret.returnId === editReturnId) return sum;
+            const found = ret.freeItems?.find((it) => it.productId === productId);
+            return sum + (found ? Number(found.returnTotalQty) || 0 : 0);
+        }, 0);
+    };
+
+    const getFreeItemRemainingQty = (item) => {
+        const returned = getReturnedFreeItemQtyForProduct(item.productId);
+        return Math.max(Number(item.totalQty || 0) - returned, 0);
+    };
+
+    const getFreeItemTotalRtQty = (index, item) => {
+        const pcsPerUnit = getFreeItemPcsPerUnit(item);
+        const rtUnitQty = Number(freeReturnInputs[index]?.rtUnitQty) || 0;
+        const rtPcsQty = Number(freeReturnInputs[index]?.rtPcsQty) || 0;
+        return rtUnitQty * pcsPerUnit + rtPcsQty;
+    };
+
 
 
     const getReturnAmount = (index, item) => {
@@ -283,6 +340,54 @@ const PurchaseReturnDetails = () => {
     // --------------------------------------------------
     // Item Discount Change
     // --------------------------------------------------
+    // --------------------------------------------------
+    // Others Free Product — RT Qty (Unit) Change
+    // --------------------------------------------------
+    const handleFreeRtUnitQtyChange = (index, value, item) => {
+        if (value !== '' && !/^\d*$/.test(value)) return;
+        const pcsPerUnit = getFreeItemPcsPerUnit(item);
+        let val = value === '' ? 0 : Number(value);
+        if (isNaN(val) || val < 0) val = 0;
+
+        const remaining = getFreeItemRemainingQty(item);
+        const currentPcsQty = Number(freeReturnInputs[index]?.rtPcsQty) || 0;
+        const total = val * pcsPerUnit + currentPcsQty;
+
+        if (total > remaining) {
+            const maxVal = pcsPerUnit > 0 ? Math.floor((remaining - currentPcsQty) / pcsPerUnit) : 0;
+            val = Math.max(0, maxVal);
+        }
+
+        setFreeReturnInputs((prev) => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], rtUnitQty: val };
+            return updated;
+        });
+    };
+
+    // Others Free Product — RT PCS Qty Change
+    const handleFreeRtPcsQtyChange = (index, value, item) => {
+        if (value !== '' && !/^\d*$/.test(value)) return;
+        const pcsPerUnit = getFreeItemPcsPerUnit(item);
+        let val = value === '' ? 0 : Number(value);
+        if (isNaN(val) || val < 0) val = 0;
+
+        const remaining = getFreeItemRemainingQty(item);
+        const currentUnitQty = Number(freeReturnInputs[index]?.rtUnitQty) || 0;
+        const unitPortion = currentUnitQty * pcsPerUnit;
+        const maxPcs = Math.max(0, remaining - unitPortion);
+
+        if (val > maxPcs) val = maxPcs;
+
+        setFreeReturnInputs((prev) => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], rtPcsQty: val };
+            return updated;
+        });
+    };
+
+
+
     const handleReturnPriceChange = (index, value) => {
         if (value !== '' && !/^\d*\.?\d{0,2}$/.test(value)) return; // পয়েন্টের পর সর্বোচ্চ ২ ডিজিট
         let val = value === '' ? 0 : Number(value);
@@ -333,6 +438,12 @@ const PurchaseReturnDetails = () => {
         ? selectedInvoice.items.reduce((sum, item, index) => sum + getReturnAmount(index, item), 0)
         : 0;
 
+    const totalReturnFreeItemsQty = selectedInvoice
+        ? (selectedInvoice.freeItems || []).reduce((sum, item, index) => sum + getFreeItemTotalRtQty(index, item), 0)
+        : 0;
+
+
+
     const liveProductWiseDiscount = selectedInvoice
         ? roundTo2(selectedInvoice.items.reduce((sum, item, index) => sum + getItemDiscountAmount(index, item), 0))
         : 0;
@@ -346,7 +457,7 @@ const PurchaseReturnDetails = () => {
         : 0;
 
     const handleConfirmReturn = async () => {
-        if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0) {
+        if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0 && totalReturnFreeItemsQty <= 0) {
             showToast('Return korar jonno kompokkhe 1 ta product a quantity din!', 'error');
             return;
         }
@@ -380,6 +491,19 @@ const PurchaseReturnDetails = () => {
                 })
                 .filter((it) => it.returnTotalQty > 0 || it.returnFreeTotalQty > 0);
 
+            const freeReturnedItems = (selectedInvoice.freeItems || [])
+                .map((item, index) => {
+                    const totalRtQty = getFreeItemTotalRtQty(index, item);
+                    return {
+                        productId: item.productId,
+                        productName: item.productName,
+                        returnUnitQty: Number(freeReturnInputs[index]?.rtUnitQty) || 0,
+                        returnPcsQty: Number(freeReturnInputs[index]?.rtPcsQty) || 0,
+                        returnTotalQty: totalRtQty,
+                    };
+                })
+                .filter((it) => it.returnTotalQty > 0);
+
             let updatedReturnHistory;
 
             if (isEditMode) {
@@ -389,6 +513,8 @@ const PurchaseReturnDetails = () => {
                     return {
                         ...ret,
                         items: returnedItems,
+                        freeItems: freeReturnedItems,
+                        totalReturnFreeItemsQty,
                         totalReturnPcs,
                         totalReturnFreeQty,
                         totalReturnAmount,
@@ -400,6 +526,8 @@ const PurchaseReturnDetails = () => {
                     returnId,
                     returnDate,
                     items: returnedItems,
+                    freeItems: freeReturnedItems,
+                    totalReturnFreeItemsQty,
                     totalReturnPcs,
                     totalReturnFreeQty,
                     totalReturnAmount,
@@ -673,7 +801,7 @@ const PurchaseReturnDetails = () => {
                                             </td>
 
                                             {/* PCS Qty */}
-                                            <td className="py-4 pl-0 pr-3.5">
+                                            <td className="py-4 pl-0 pr-3.5 min-w-[100px]">
                                                 <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
                                                     <input
                                                         type="number"
@@ -681,7 +809,7 @@ const PurchaseReturnDetails = () => {
                                                         disabled={rtPcsDisabled}
                                                         value={returnInputs[index]?.rtPcsQty === 0 ? '' : returnInputs[index]?.rtPcsQty ?? ''}
                                                         onChange={(e) => handleRtPcsQtyChange(index, e.target.value, item)}
-                                                        className="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                        className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                                     />
                                                 </div>
                                             </td>
@@ -720,7 +848,7 @@ const PurchaseReturnDetails = () => {
                                             </td>
 
                                             {/* RT Free PCS Qty */}
-                                            <td className="py-4 pl-0 pr-3.5">
+                                            <td className="py-4 pl-0 pr-3.5 min-w-[100px]">
                                                 <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
                                                     <input
                                                         type="number"
@@ -728,7 +856,7 @@ const PurchaseReturnDetails = () => {
                                                         disabled={rtFreePcsDisabled}
                                                         value={returnInputs[index]?.rtFreePcsQty === 0 ? '' : returnInputs[index]?.rtFreePcsQty ?? ''}
                                                         onChange={(e) => handleRtFreePcsQtyChange(index, e.target.value, item)}
-                                                        className="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                        className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                                     />
                                                 </div>
                                             </td>
@@ -799,9 +927,86 @@ const PurchaseReturnDetails = () => {
                         </table>
                     </div>
 
+                    {/* Others Free Product Return Table */}
+                    {selectedInvoice.freeItems && selectedInvoice.freeItems.length > 0 && (
+                        <div className="px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
+                            <h4 className="text-xs font-bold text-amber-700 uppercase mb-3">Others Free Product Return</h4>
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-amber-100/70 text-amber-800 text-[11px] font-bold uppercase tracking-wider">
+                                        <th className="py-3 px-3.5 rounded-l-xl">Product Name</th>
+                                        <th className="py-3 px-3.5">Company</th>
+                                        <th className="py-3 px-3.5 text-center">RT Qty</th>
+                                        <th className="py-3 px-3.5 text-center">PCS Qty</th>
+                                        <th className="py-3 px-3.5 text-center">Total RT Qty</th>
+                                        <th className="py-3 px-3.5 text-center rounded-r-xl">Remaining Quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
+                                    {selectedInvoice.freeItems.map((item, index) => {
+                                        const pcsPerUnit = getFreeItemPcsPerUnit(item);
+                                        const remainingQty = getFreeItemRemainingQty(item);
+                                        const totalRtQty = getFreeItemTotalRtQty(index, item);
+                                        const rtUnitDisabled = pcsPerUnit <= 0 || remainingQty <= 0;
+                                        const rtPcsDisabled = remainingQty <= 0;
+
+                                        return (
+                                            <tr key={index} className="hover:bg-amber-50/40 transition-colors">
+                                                <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
+                                                <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
+
+                                                {/* RT Qty (Unit) */}
+                                                <td className="py-4 pl-3.5 pr-0 min-w-[110px]">
+                                                    <div className="p-1.5 bg-amber-50 border border-r-0 border-amber-200 rounded-l-2xl">
+                                                        <div className="flex items-center border border-amber-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                disabled={rtUnitDisabled}
+                                                                value={freeReturnInputs[index]?.rtUnitQty === 0 ? '' : freeReturnInputs[index]?.rtUnitQty ?? ''}
+                                                                onChange={(e) => handleFreeRtUnitQtyChange(index, e.target.value, item)}
+                                                                className="w-14 min-w-[3.5rem] px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                            />
+                                                            <span
+                                                                className="flex-1 bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                title="Unit"
+                                                            >
+                                                                {item.unit || 'Pcs'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                {/* PCS Qty */}
+                                                <td className="py-4 pl-0 pr-3.5 min-w-[90px]">
+                                                    <div className="p-1.5 bg-amber-50 border border-l-0 border-amber-200 rounded-r-2xl">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            disabled={rtPcsDisabled}
+                                                            value={freeReturnInputs[index]?.rtPcsQty === 0 ? '' : freeReturnInputs[index]?.rtPcsQty ?? ''}
+                                                            onChange={(e) => handleFreeRtPcsQtyChange(index, e.target.value, item)}
+                                                            className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-amber-200 bg-white text-sm outline-none shadow-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                </td>
+
+                                                {/* Total RT Qty */}
+                                                <td className="py-4 px-3.5 text-center font-semibold text-orange-600">{totalRtQty}</td>
+
+                                                {/* Remaining Quantity */}
+                                                <td className="py-4 px-3.5 text-center font-semibold text-indigo-600">{remainingQty}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
                     {/* Totals + Confirm Return */}
-                    <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col sm:flex-row justify-end items-center gap-6">
-                        <div className="flex items-center gap-6">
+                    <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6">
+                        <div className="flex flex-wrap items-start gap-6 flex-1 w-full [&>div]:flex-1 [&>div]:basis-0 [&>div]:min-w-[150px] [&>div>p:first-child]:min-h-[2rem]">
                             <div>
                                 <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Overall Discount</p>
                                 <div className="flex items-center rounded-lg overflow-hidden border border-slate-200">
@@ -850,29 +1055,29 @@ const PurchaseReturnDetails = () => {
                             <div>
                                 <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Qty</p>
                                 <p className="text-lg font-bold text-slate-800">{totalReturnPcs}</p>
+                                <p className="text-[11px] font-semibold text-emerald-600">Free: {totalReturnFreeQty}</p>
+                                <p className="text-[11px] font-semibold text-orange-600">৳{totalReturnAmount.toFixed(2)}</p>
                             </div>
-                            <div>
-                                <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Free Qty</p>
-                                <p className="text-lg font-bold text-emerald-600">{totalReturnFreeQty}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-500 uppercase font-semibold">Total Return Amount</p>
-                                <p className="text-lg font-bold text-orange-600">৳{totalReturnAmount.toFixed(2)}</p>
-                            </div>
+                            {(selectedInvoice.freeItems || []).length > 0 && (
+                                <div>
+                                    <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Others Free Qty</p>
+                                    <p className="text-lg font-bold text-amber-600">{totalReturnFreeItemsQty}</p>
+                                </div>
+                            )}
                         </div>
 
                         <button
                             onClick={handleConfirmReturn}
                             disabled={submitting}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <RotateCcw className="w-4 h-4" />
                             {submitting ? 'Processing...' : isEditMode ? 'Update Return' : 'Confirm Return'}
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

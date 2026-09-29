@@ -3,6 +3,68 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import PurchaseForm from "./PurchaseForm";
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
+const matchesSearch = (text, fields) => {
+    const q = (text || '').toString().trim().toLowerCase();
+    if (!q) return true;
+    return fields.some((f) => (f || '').toString().toLowerCase().includes(q));
+};
+
+const SearchSelect = ({ label, placeholder, searchValue, onSearchChange, onClear, onSelect, items, getKey, emptyText, renderItem }) => {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="relative">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
+            <div className="relative">
+                <input
+                    type="text"
+                    value={searchValue}
+                    placeholder={placeholder}
+                    onFocus={() => setOpen(true)}
+                    onChange={(e) => {
+                        onSearchChange(e.target.value);
+                        setOpen(true);
+                    }}
+                    onBlur={() => setTimeout(() => setOpen(false), 150)}
+                    className="w-full px-4 py-3.5 pr-10 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                />
+                {searchValue && (
+                    <button
+                        type="button"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            onClear();
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 text-sm cursor-pointer"
+                    >
+                        ✕
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-lg">
+                    {items.length === 0 ? (
+                        <p className="px-4 py-3 text-sm text-slate-400">{emptyText}</p>
+                    ) : (
+                        items.map((item) => (
+                            <div
+                                key={getKey(item)}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    onSelect(item);
+                                    setOpen(false);
+                                }}
+                                className="px-4 py-2.5 cursor-pointer hover:bg-emerald-50 border-b border-slate-100 last:border-b-0"
+                            >
+                                {renderItem(item)}
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const PurchaseAdd = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -14,7 +76,7 @@ const PurchaseAdd = () => {
     // Draft key: নতুন Purchase আর Edit/Receive এর draft আলাদা থাকবে
     const draftPrefix = editingPurchase ? `purchaseEdit:${editingPurchase._id}` : 'purchaseNew';
     const clearPurchaseDrafts = () => {
-        ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'companySearch', 'categorySearch']
+        ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'companySearch', 'categorySearch', 'freeItems', 'freeFilter', 'freeSearch']
             .forEach((k) => clearDraft(`${draftPrefix}:${k}`));
     };
 
@@ -56,6 +118,14 @@ const PurchaseAdd = () => {
 
     // Order Note
     const [orderNote, setOrderNote] = useDraftState(`${draftPrefix}:note`, '');
+
+    // ---------------- Others Free Product States ----------------
+    const [freeProductOpen, setFreeProductOpen] = useState(false);
+    const [freeProductItems, setFreeProductItems] = useDraftState(`${draftPrefix}:freeItems`, []);
+    const [freeCategories, setFreeCategories] = useState([]);
+    const [freeProducts, setFreeProducts] = useState([]);
+    const [freeFilter, setFreeFilter] = useDraftState(`${draftPrefix}:freeFilter`, { category: '' });
+    const [freeSearch, setFreeSearch] = useDraftState(`${draftPrefix}:freeSearch`, { category: '', product: '' });
 
     // --------------------------------------------------
     // PurchaseForm-কে দেওয়ার জন্য stable initialData (re-render এ যেন
@@ -127,6 +197,34 @@ const PurchaseAdd = () => {
             setAdjustmentAmount(editingPurchase.adjustment?.amount || 0);
             setAdjustmentType(editingPurchase.adjustment?.type || '+');
             setOrderNote(editingPurchase.orderNote || '');
+
+            const restoredFreeItems = (editingPurchase.freeItems || []).map((item, index) => {
+                const unitQty = Number(item.unitQty) || 0;
+                const pcsQty = Number(item.pcsQty) || 0;
+                const totalQty = Number(item.totalQty) || 0;
+                const pcsPerUnit =
+                    Number(item.pcsPerUnit) > 0
+                        ? Number(item.pcsPerUnit)
+                        : unitQty > 0
+                            ? ((totalQty - pcsQty) / unitQty) || 1
+                            : 1;
+
+                return {
+                    ...item,
+                    uniqueId: `${item.productId || 'free'}-${index}-${Date.now()}`,
+                    _id: item.productId,
+                    unitQty: unitQty || '',
+                    pcsQty: pcsQty || '',
+                    pcsPerUnit,
+                    totalQty,
+                    sellPriceBundle: Number(item.sellPriceBundle) > 0 ? item.sellPriceBundle : '',
+                    sellPricePcs: Number(item.sellPricePcs) > 0 ? item.sellPricePcs : '',
+                };
+            });
+            setFreeProductItems(restoredFreeItems);
+            if (restoredFreeItems.length > 0) {
+                setFreeProductOpen(true);
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -149,6 +247,154 @@ const PurchaseAdd = () => {
     // (floating point error যেমন 22.339999999 এড়ানোর জন্য)
     // --------------------------------------------------
     const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
+
+    // --------------------------------------------------
+    // Others Free Product — Category / Product fetch
+    // --------------------------------------------------
+    useEffect(() => {
+        fetch('http://localhost:5000/category')
+            .then((res) => res.json())
+            .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching categories:', error));
+
+        fetch('http://localhost:5000/product')
+            .then((res) => res.json())
+            .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching products:', error));
+    }, []);
+
+    // Main table এ product add হলে Free list থেকে auto remove
+    useEffect(() => {
+        setFreeProductItems((prev) =>
+            prev.filter(
+                (item) =>
+                    !purchaseItems.some(
+                        (pi) =>
+                            (pi._id && pi._id === item._id) ||
+                            (pi.productName && pi.productName === item.productName)
+                    )
+            )
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [purchaseItems]);
+
+    // --------------------------------------------------
+    // Others Free Product — Add / Remove / Change
+    // --------------------------------------------------
+    const getFreeUnitTotal = (item) =>
+        (Number(item.unitQty) || 0) * (Number(item.sellPriceBundle) || 0);
+    const getFreePcsTotal = (item) =>
+        (Number(item.pcsQty) || 0) * (Number(item.sellPricePcs) || 0);
+    const getFreeRowTotal = (item) => getFreeUnitTotal(item) + getFreePcsTotal(item);
+
+    const handleAddFreeProduct = (product) => {
+        const newItem = {
+            uniqueId: Date.now() + Math.random(),
+            _id: product._id,
+            productName: product.productName || '',
+            company: product.company || '',
+            unit: product.unit || 'Pcs',
+            unitQty: '',
+            pcsQty: '',
+            pcsPerUnit: Number(product.pcsOfUnit) || 1,
+            totalQty: 0,
+            sellPriceBundle: roundTo2((Number(product.sellingPrice) || 0) * (Number(product.pcsOfUnit) || 1)),
+            sellPricePcs: Number(product.sellingPrice) || 0,
+        };
+        setFreeProductItems((prev) => [...prev, newItem]);
+        setFreeSearch((prev) => ({ ...prev, product: '' }));
+    };
+
+    const handleRemoveFreeItem = (uniqueId) => {
+        setFreeProductItems((prev) => prev.filter((item) => item.uniqueId !== uniqueId));
+    };
+
+    const handleFreeItemChange = (uniqueId, field, value) => {
+        if (value !== '' && Number(value) < 0) return;
+
+        setFreeProductItems((prev) =>
+            prev.map((item) => {
+                if (item.uniqueId !== uniqueId) return item;
+
+                if (field === 'unitQty') {
+                    const numVal = value === '' ? 0 : Number(value) || 0;
+                    const pcsQtyVal = Number(item.pcsQty) || 0;
+                    return {
+                        ...item,
+                        unitQty: value === '' ? '' : numVal,
+                        totalQty: numVal * (Number(item.pcsPerUnit) || 1) + pcsQtyVal,
+                    };
+                }
+
+                if (field === 'pcsQty') {
+                    const numVal = value === '' ? 0 : Number(value) || 0;
+                    const unitQtyVal = Number(item.unitQty) || 0;
+                    return {
+                        ...item,
+                        pcsQty: value === '' ? '' : numVal,
+                        totalQty: unitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal,
+                    };
+                }
+
+                if (field === 'sellPriceBundle') {
+                    const bundlePriceVal = value === '' ? 0 : Number(value) || 0;
+                    return {
+                        ...item,
+                        sellPriceBundle: value,
+                        sellPricePcs: roundTo2(bundlePriceVal / (Number(item.pcsPerUnit) || 1)),
+                    };
+                }
+
+                return { ...item, [field]: value };
+            })
+        );
+    };
+
+    const handleSelectFreeCategory = (cat) => {
+        setFreeFilter({ category: cat.name });
+        setFreeSearch((prev) => ({ ...prev, category: cat.name, product: '' }));
+    };
+
+    const handleClearFreeCategory = () => {
+        setFreeFilter({ category: '' });
+        setFreeSearch((prev) => ({ ...prev, category: '', product: '' }));
+    };
+
+    const addedMainProductIds = purchaseItems.map((item) => item.productName || item._id);
+    const addedFreeProductIds = freeProductItems.map((item) => item.productName || item._id);
+
+    const filteredFreeCategories = freeCategories
+        .filter((cat) => cat.isActive === true)
+        .filter((cat) => matchesSearch(freeSearch.category, [cat.name]));
+
+    const filteredFreeProducts = freeProducts.filter((prod) => {
+        if (!prod.productName) return false;
+        if (prod.isActive !== true) return false;
+        if (freeFilter.category && prod.category !== freeFilter.category) return false;
+
+        const isAlreadyAdded =
+            addedMainProductIds.includes(prod._id) ||
+            addedMainProductIds.includes(prod.productName) ||
+            addedFreeProductIds.includes(prod._id) ||
+            addedFreeProductIds.includes(prod.productName);
+        if (isAlreadyAdded) return false;
+
+        return matchesSearch(freeSearch.product, [prod.productName, prod.sku]);
+    });
+
+    const freeItemsPayload = freeProductItems.map((item) => ({
+        productId: item._id,
+        productName: item.productName,
+        company: item.company,
+        unit: item.unit || 'Pcs',
+        unitQty: Number(item.unitQty) || 0,
+        pcsQty: Number(item.pcsQty) || 0,
+        pcsPerUnit: Number(item.pcsPerUnit) || 1,
+        totalQty: Number(item.totalQty) || 0,
+        sellPriceBundle: roundTo2(item.sellPriceBundle),
+        sellPricePcs: roundTo2(item.sellPricePcs),
+        subtotal: roundTo2(getFreeRowTotal(item)),
+    }));
 
     // --------------------------------------------------
     // Invoice Number Generate (YYMMDDHHMMSS - 24hr, no separators)
@@ -517,18 +763,27 @@ const PurchaseAdd = () => {
             return;
         }
 
-        if (purchaseItems.length === 0) {
+        if (purchaseItems.length === 0 && freeProductItems.length === 0) {
             setToast({ show: true, message: 'Please add at least one product!', isError: true });
             setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
             return;
         }
 
         const hasInvalidQty = purchaseItems.some(
-            (item) => !item.totalQty || Number(item.totalQty) <= 0
+            (item) =>
+                (Number(item.totalQty) || 0) <= 0 && (Number(item.freeQty) || 0) <= 0
         );
 
         if (hasInvalidQty) {
-            setToast({ show: true, message: 'Each product must have a valid quantity (greater than 0)!', isError: true });
+            setToast({ show: true, message: 'Each product must have a valid quantity (Unit/PCS/Free)!', isError: true });
+            setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+            return;
+        }
+        const hasInvalidFreeQty = freeProductItems.some(
+            (item) => (Number(item.totalQty) || 0) <= 0
+        );
+        if (hasInvalidFreeQty) {
+            setToast({ show: true, message: 'Each free product must have a valid quantity (greater than 0)!', isError: true });
             setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
             return;
         }
@@ -582,6 +837,8 @@ const PurchaseAdd = () => {
             overallDiscount: roundTo2(overallDiscountAmount),
             overallDiscountType: overallDiscountType,
             overallDiscountValue: overallDiscountValue,
+
+            freeItems: freeItemsPayload,
 
             adjustment: {
                 text: adjustmentText,
@@ -751,6 +1008,8 @@ const PurchaseAdd = () => {
 
             payableAmount: payableAmount,
             orderNote: orderNote,
+
+            freeItems: freeItemsPayload,
 
             paidAmount: roundTo2(paymentAmount),
             receiveDate: receiveDate,
@@ -1417,8 +1676,243 @@ const PurchaseAdd = () => {
 
 
                         {/* =================================
-                            ORDER NOTE
+                            OTHERS FREE PRODUCT
                         ================================= */}
+                        <div className="mt-8">
+                            <button
+                                type="button"
+                                onClick={() => setFreeProductOpen((prev) => !prev)}
+                                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition cursor-pointer"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                Others Free Product
+                                {freeProductItems.length > 0 && (
+                                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs font-bold">
+                                        {freeProductItems.length}
+                                    </span>
+                                )}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={2}
+                                    stroke="currentColor"
+                                    className={`w-4 h-4 transition-transform duration-200 ${freeProductOpen ? 'rotate-180' : ''}`}
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </button>
+
+                            {freeProductOpen && (
+                                <div className="mt-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
+                                    <h3 className="text-base font-bold text-emerald-800 mb-4">Others Free Product</h3>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <SearchSelect
+                                            label="Filter by Category"
+                                            placeholder="Search or select category..."
+                                            searchValue={freeSearch.category}
+                                            onSearchChange={(text) => setFreeSearch((prev) => ({ ...prev, category: text }))}
+                                            onClear={handleClearFreeCategory}
+                                            onSelect={handleSelectFreeCategory}
+                                            items={filteredFreeCategories}
+                                            getKey={(cat) => cat._id}
+                                            emptyText="No active category found"
+                                            renderItem={(cat) => (
+                                                <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
+                                            )}
+                                        />
+
+                                        <SearchSelect
+                                            label="Select Free Product"
+                                            placeholder="Search or select product..."
+                                            searchValue={freeSearch.product}
+                                            onSearchChange={(text) => setFreeSearch((prev) => ({ ...prev, product: text }))}
+                                            onClear={() => setFreeSearch((prev) => ({ ...prev, product: '' }))}
+                                            onSelect={handleAddFreeProduct}
+                                            items={filteredFreeProducts}
+                                            getKey={(prod) => prod._id}
+                                            emptyText="No matching product found"
+                                            renderItem={(prod) => (
+                                                <div className="flex justify-between items-center gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
+                                                        <p className="text-xs text-slate-500 mt-0.5">
+                                                            Company: {prod.company}
+                                                            {prod.category ? ` | Category: ${prod.category}` : ''}
+                                                        </p>
+                                                    </div>
+                                                    {prod.sku && (
+                                                        <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg font-medium border border-emerald-100 shrink-0">
+                                                            SKU: {prod.sku}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        />
+                                    </div>
+
+                                    {freeProductItems.length > 0 && (
+                                        <div className="mt-6 overflow-x-auto rounded-2xl border border-emerald-200">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className="bg-emerald-100/70 border-b-2 border-emerald-200 text-xs font-semibold text-emerald-800">
+                                                        <th className="py-3 px-3">Product Name</th>
+                                                        <th className="py-3 px-3">Company</th>
+                                                        <th className="py-3 px-3">Unit Qty</th>
+                                                        <th className="py-3 px-3">PCS Qty</th>
+                                                        <th className="py-3 px-3">Total Qty</th>
+                                                        <th className="py-3 px-3">Sell Price (Bundle)</th>
+                                                        <th className="py-3 px-3">Sell Price (PCS)</th>
+                                                        <th className="py-3 px-3">Subtotal</th>
+                                                        <th className="py-3 px-3 text-center">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-emerald-100 text-sm">
+                                                    {freeProductItems.map((item) => (
+                                                        <tr key={item.uniqueId} className="hover:bg-emerald-50/50 transition">
+                                                            <td className="py-3 px-2 font-semibold text-slate-800">{item.productName}</td>
+                                                            <td className="py-3 px-2 text-slate-600 text-xs">{item.company}</td>
+
+                                                            <td className="py-3 pl-1 pr-0 w-40">
+                                                                <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                                    <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            placeholder="0"
+                                                                            value={item.unitQty}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*$/.test(value)) {
+                                                                                    handleFreeItemChange(item.uniqueId, 'unitQty', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                        />
+                                                                        <span
+                                                                            className="flex-1 bg-gradient-to-br from-emerald-500 to-green-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate"
+                                                                            title="Unit"
+                                                                        >
+                                                                            {item.unit || 'Pcs'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+
+                                                            <td className="py-3 pl-0 pr-1 w-32">
+                                                                <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder="0"
+                                                                        value={item.pcsQty}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (/^\d*$/.test(value)) {
+                                                                                handleFreeItemChange(item.uniqueId, 'pcsQty', value);
+                                                                            }
+                                                                        }}
+                                                                        className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                                                    />
+                                                                </div>
+                                                            </td>
+
+                                                            <td className="py-3 px-2">
+                                                                <input
+                                                                    type="number"
+                                                                    readOnly
+                                                                    value={item.totalQty}
+                                                                    className="w-14 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                                                />
+                                                            </td>
+
+                                                            <td className="relative py-3 px-2">
+                                                                <div
+                                                                    className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getFreeUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                >
+                                                                    ৳{getFreeUnitTotal(item).toFixed(2)}
+                                                                </div>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    placeholder="0"
+                                                                    disabled={!(Number(item.unitQty) > 0)}
+                                                                    value={item.sellPriceBundle}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                            handleFreeItemChange(item.uniqueId, 'sellPriceBundle', value);
+                                                                        }
+                                                                    }}
+                                                                    className="w-24 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                />
+                                                            </td>
+
+                                                            <td className="relative py-3 px-2">
+                                                                <div
+                                                                    className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getFreePcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                >
+                                                                    ৳{getFreePcsTotal(item).toFixed(2)}
+                                                                </div>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    placeholder="0"
+                                                                    disabled={!(Number(item.pcsQty) > 0)}
+                                                                    value={item.sellPricePcs}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                            handleFreeItemChange(item.uniqueId, 'sellPricePcs', value);
+                                                                        }
+                                                                    }}
+                                                                    className="w-24 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                                />
+                                                            </td>
+
+                                                            <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
+                                                                {getFreeRowTotal(item).toFixed(2)}
+                                                            </td>
+
+                                                            <td className="py-3 px-1 text-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveFreeItem(item.uniqueId)}
+                                                                    className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
+                                                                >
+                                                                    <svg
+                                                                        xmlns="http://www.w3.org/2000/svg"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        strokeWidth={1.5}
+                                                                        stroke="currentColor"
+                                                                        className="w-5 h-5"
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="mt-8">
 
                             <label className="block text-sm font-semibold text-slate-700 mb-2">

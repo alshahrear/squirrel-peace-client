@@ -112,7 +112,7 @@ const SalesDetails = () => {
                 </div>
 
                 {/* Invoice Card */}
-                <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-white overflow-hidden print:shadow-none print:border-none print:rounded-none">
+                <div className="flex flex-col bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-white overflow-hidden print:shadow-none print:border-none print:rounded-none">
 
                     {/* Header */}
                     <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-6 sm:p-10 print:bg-none print:text-black print:border-b-2 print:border-slate-200">
@@ -279,146 +279,149 @@ const SalesDetails = () => {
                         </table>
                     </div>
 
-                    {/* Free Products Table */}
-                    {selectedOrder.freeItems && selectedOrder.freeItems.length > 0 && (
-                        <div className="px-3 sm:px-4 pb-3 sm:pb-4 overflow-x-auto">
-                            <h4 className="text-xs font-bold text-amber-700 uppercase mb-3 flex items-center gap-1.5">
-                                <PackageX className="w-3.5 h-3.5 text-amber-600" /> Others Free Products
-                            </h4>
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-amber-100/70 text-amber-800 text-[10px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
-                                        <th className="py-2.5 px-2 rounded-l-xl whitespace-nowrap">SL</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Product</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Company</th>
-                                        <th className="py-2.5 px-2 rounded-r-xl whitespace-nowrap">Quantity</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
-                                    {selectedOrder.freeItems.map((item, index) => (
-                                        <tr key={index} className="hover:bg-amber-50/40 transition-colors">
-                                            <td className="py-3 px-2 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
-                                            <td className="py-3 px-2 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
-                                            <td className="py-3 px-2 text-slate-600 whitespace-nowrap">{item.company}</td>
-                                            <td className="py-3 px-2 font-semibold text-emerald-600 whitespace-nowrap">
-                                                {item.unitQty} {item.unit} {item.pcsQty} Pcs
-                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.totalQty})</span>
-                                            </td>
+                    {/* Others Free + Damage + Return (Payment box er niche) */}
+                    <div className="order-2 pt-8 print:pt-4">
+                        {selectedOrder.freeItems && selectedOrder.freeItems.length > 0 && (
+                            <div className="px-3 sm:px-4 pb-3 sm:pb-4 overflow-x-auto">
+                                <h4 className="text-xs font-bold text-amber-700 uppercase mb-3 flex items-center gap-1.5">
+                                    <PackageX className="w-3.5 h-3.5 text-amber-600" /> Others Free Products
+                                </h4>
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-amber-100/70 text-amber-800 text-[10px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
+                                            <th className="py-2.5 px-2 rounded-l-xl whitespace-nowrap">SL</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Product</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Company</th>
+                                            <th className="py-2.5 px-2 rounded-r-xl whitespace-nowrap">Quantity</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                    </thead>
+                                    <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
+                                        {selectedOrder.freeItems.map((item, index) => (
+                                            <tr key={index} className="hover:bg-amber-50/40 transition-colors">
+                                                <td className="py-3 px-2 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
+                                                <td className="py-3 px-2 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
+                                                <td className="py-3 px-2 text-slate-600 whitespace-nowrap">{item.company}</td>
+                                                <td className="py-3 px-2 font-semibold text-emerald-600 whitespace-nowrap">
+                                                    {item.unitQty} {item.unit} {item.pcsQty} Pcs
+                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.totalQty})</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
 
-                    {/* Damage Products Table */}
-                    {selectedOrder.damageItems && selectedOrder.damageItems.length > 0 && (
-                        <div className="px-3 sm:px-4 pb-3 sm:pb-4 overflow-x-auto">
-                            <h4 className="text-xs font-bold text-red-700 uppercase mb-3 flex items-center gap-1.5">
-                                <AlertTriangle className="w-3.5 h-3.5 text-red-600" /> Damage Products
-                            </h4>
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-red-100/70 text-red-800 text-[10px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
-                                        <th className="py-2.5 px-2 rounded-l-xl whitespace-nowrap">SL</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Product</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Company</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Quantity</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Free Quantity</th>
-                                        <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (Unit)</th>
-                                        <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (PCS)</th>
-                                        <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-red-100 text-xs sm:text-sm text-slate-700">
-                                    {selectedOrder.damageItems.map((item, index) => (
-                                        <tr key={index} className="hover:bg-red-50/40 transition-colors">
-                                            <td className="py-3 px-2 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
-                                            <td className="py-3 px-2 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
-                                            <td className="py-3 px-2 text-slate-600 whitespace-nowrap">{item.company}</td>
-                                            <td className="py-3 px-2 font-semibold text-orange-600 whitespace-nowrap">
-                                                {item.unitQty} {item.unit} {item.pcsQty} Pcs
-                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalQty})</span>
-                                            </td>
-                                            <td className="py-3 px-2 font-semibold text-emerald-600 whitespace-nowrap">
-                                                {item.freeUnitQty || 0} {item.unit} {item.freePcsQty || 0} Pcs
-                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
-                                            </td>
-                                            <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
-                                                ৳{getUnitTotal(item).toFixed(2)}
-                                                <span className="text-[10px] text-slate-400 ml-1">
-                                                    (৳{Number(item.sellPriceUnit || 0).toFixed(2)}/{item.unit || 'unit'})
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
-                                                ৳{getPcsTotal(item).toFixed(2)}
-                                                <span className="text-[10px] text-slate-400 ml-1">
-                                                    (৳{Number(item.sellPricePcs || 0).toFixed(2)}/pcs)
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-2 text-right font-bold text-slate-900 whitespace-nowrap">৳{Number(item.subtotal).toFixed(2)}</td>
+                        {/* Damage Products Table */}
+                        {selectedOrder.damageItems && selectedOrder.damageItems.length > 0 && (
+                            <div className="px-3 sm:px-4 pb-3 sm:pb-4 overflow-x-auto">
+                                <h4 className="text-xs font-bold text-red-700 uppercase mb-3 flex items-center gap-1.5">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-red-600" /> Damage Products
+                                </h4>
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-red-100/70 text-red-800 text-[10px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
+                                            <th className="py-2.5 px-2 rounded-l-xl whitespace-nowrap">SL</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Product</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Company</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Quantity</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Free Quantity</th>
+                                            <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (Unit)</th>
+                                            <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (PCS)</th>
+                                            <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                    </thead>
+                                    <tbody className="divide-y divide-red-100 text-xs sm:text-sm text-slate-700">
+                                        {selectedOrder.damageItems.map((item, index) => (
+                                            <tr key={index} className="hover:bg-red-50/40 transition-colors">
+                                                <td className="py-3 px-2 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
+                                                <td className="py-3 px-2 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
+                                                <td className="py-3 px-2 text-slate-600 whitespace-nowrap">{item.company}</td>
+                                                <td className="py-3 px-2 font-semibold text-orange-600 whitespace-nowrap">
+                                                    {item.unitQty} {item.unit} {item.pcsQty} Pcs
+                                                    <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalQty})</span>
+                                                </td>
+                                                <td className="py-3 px-2 font-semibold text-emerald-600 whitespace-nowrap">
+                                                    {item.freeUnitQty || 0} {item.unit} {item.freePcsQty || 0} Pcs
+                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
+                                                </td>
+                                                <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
+                                                    ৳{getUnitTotal(item).toFixed(2)}
+                                                    <span className="text-[10px] text-slate-400 ml-1">
+                                                        (৳{Number(item.sellPriceUnit || 0).toFixed(2)}/{item.unit || 'unit'})
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
+                                                    ৳{getPcsTotal(item).toFixed(2)}
+                                                    <span className="text-[10px] text-slate-400 ml-1">
+                                                        (৳{Number(item.sellPricePcs || 0).toFixed(2)}/pcs)
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-2 text-right font-bold text-slate-900 whitespace-nowrap">৳{Number(item.subtotal).toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
 
-                    {/* Return Products Table */}
-                    {selectedOrder.returnItems && selectedOrder.returnItems.length > 0 && (
-                        <div className="px-3 sm:px-4 pb-3 sm:pb-4 overflow-x-auto">
-                            <h4 className="text-xs font-bold text-violet-700 uppercase mb-3 flex items-center gap-1.5">
-                                <Undo2 className="w-3.5 h-3.5 text-violet-600" /> Return Products
-                            </h4>
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-violet-100/70 text-violet-800 text-[10px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
-                                        <th className="py-2.5 px-2 rounded-l-xl whitespace-nowrap">SL</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Product</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Company</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Quantity</th>
-                                        <th className="py-2.5 px-2 whitespace-nowrap">Free Quantity</th>
-                                        <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (Unit)</th>
-                                        <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (PCS)</th>
-                                        <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-violet-100 text-xs sm:text-sm text-slate-700">
-                                    {selectedOrder.returnItems.map((item, index) => (
-                                        <tr key={index} className="hover:bg-violet-50/40 transition-colors">
-                                            <td className="py-3 px-2 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
-                                            <td className="py-3 px-2 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
-                                            <td className="py-3 px-2 text-slate-600 whitespace-nowrap">{item.company}</td>
-                                            <td className="py-3 px-2 font-semibold text-orange-600 whitespace-nowrap">
-                                                {item.unitQty} {item.unit} {item.pcsQty} Pcs
-                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalQty})</span>
-                                            </td>
-                                            <td className="py-3 px-2 font-semibold text-emerald-600 whitespace-nowrap">
-                                                {item.freeUnitQty || 0} {item.unit} {item.freePcsQty || 0} Pcs
-                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
-                                            </td>
-                                            <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
-                                                ৳{getUnitTotal(item).toFixed(2)}
-                                                <span className="text-[10px] text-slate-400 ml-1">
-                                                    (৳{Number(item.sellPriceUnit || 0).toFixed(2)}/{item.unit || 'unit'})
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
-                                                ৳{getPcsTotal(item).toFixed(2)}
-                                                <span className="text-[10px] text-slate-400 ml-1">
-                                                    (৳{Number(item.sellPricePcs || 0).toFixed(2)}/pcs)
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-2 text-right font-bold text-slate-900 whitespace-nowrap">৳{Number(item.subtotal).toFixed(2)}</td>
+                        {/* Return Products Table */}
+                        {selectedOrder.returnItems && selectedOrder.returnItems.length > 0 && (
+                            <div className="px-3 sm:px-4 pb-3 sm:pb-4 overflow-x-auto">
+                                <h4 className="text-xs font-bold text-violet-700 uppercase mb-3 flex items-center gap-1.5">
+                                    <Undo2 className="w-3.5 h-3.5 text-violet-600" /> Return Products
+                                </h4>
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-violet-100/70 text-violet-800 text-[10px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
+                                            <th className="py-2.5 px-2 rounded-l-xl whitespace-nowrap">SL</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Product</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Company</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Quantity</th>
+                                            <th className="py-2.5 px-2 whitespace-nowrap">Free Quantity</th>
+                                            <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (Unit)</th>
+                                            <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (PCS)</th>
+                                            <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                    </thead>
+                                    <tbody className="divide-y divide-violet-100 text-xs sm:text-sm text-slate-700">
+                                        {selectedOrder.returnItems.map((item, index) => (
+                                            <tr key={index} className="hover:bg-violet-50/40 transition-colors">
+                                                <td className="py-3 px-2 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
+                                                <td className="py-3 px-2 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
+                                                <td className="py-3 px-2 text-slate-600 whitespace-nowrap">{item.company}</td>
+                                                <td className="py-3 px-2 font-semibold text-orange-600 whitespace-nowrap">
+                                                    {item.unitQty} {item.unit} {item.pcsQty} Pcs
+                                                    <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalQty})</span>
+                                                </td>
+                                                <td className="py-3 px-2 font-semibold text-emerald-600 whitespace-nowrap">
+                                                    {item.freeUnitQty || 0} {item.unit} {item.freePcsQty || 0} Pcs
+                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
+                                                </td>
+                                                <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
+                                                    ৳{getUnitTotal(item).toFixed(2)}
+                                                    <span className="text-[10px] text-slate-400 ml-1">
+                                                        (৳{Number(item.sellPriceUnit || 0).toFixed(2)}/{item.unit || 'unit'})
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
+                                                    ৳{getPcsTotal(item).toFixed(2)}
+                                                    <span className="text-[10px] text-slate-400 ml-1">
+                                                        (৳{Number(item.sellPricePcs || 0).toFixed(2)}/pcs)
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-2 text-right font-bold text-slate-900 whitespace-nowrap">৳{Number(item.subtotal).toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                    </div>
 
                     {/* Totals + Note */}
-                    <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col sm:flex-row justify-between items-start gap-6 print:bg-white">
+                    <div className="order-1 p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col sm:flex-row justify-between items-start gap-6 print:bg-white">
                         <div className="w-full sm:w-1/2">
                             {selectedOrder.orderNote && (
                                 <div className="bg-emerald-50/60 border border-emerald-200/70 p-4 rounded-2xl shadow-sm">

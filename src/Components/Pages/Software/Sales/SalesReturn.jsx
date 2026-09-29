@@ -75,17 +75,6 @@ const SalesReturn = () => {
                     const sumOthersFreePcsQty = (ret.freeItems || []).reduce((sum, it) => sum + (Number(it.returnPcsQty) || 0), 0);
                     const othersFreeUnitLabel = (order.freeItems && order.freeItems[0] && order.freeItems[0].unit) || 'Pcs';
 
-                    const sumGroup = (list, key) => (list || []).reduce((sum, it) => sum + (Number(it[key]) || 0), 0);
-                    const damageUnitQty = sumGroup(ret.damageItems, 'returnUnitQty');
-                    const damagePcsQty = sumGroup(ret.damageItems, 'returnPcsQty');
-                    const damageFreeUnitQty = sumGroup(ret.damageItems, 'returnFreeUnitQty');
-                    const damageFreePcsQty = sumGroup(ret.damageItems, 'returnFreePcsQty');
-                    const damageUnitLabel = (order.damageItems && order.damageItems[0] && order.damageItems[0].unit) || 'Pcs';
-                    const retItemUnitQty = sumGroup(ret.returnItems, 'returnUnitQty');
-                    const retItemPcsQty = sumGroup(ret.returnItems, 'returnPcsQty');
-                    const retItemFreeUnitQty = sumGroup(ret.returnItems, 'returnFreeUnitQty');
-                    const retItemFreePcsQty = sumGroup(ret.returnItems, 'returnFreePcsQty');
-                    const retItemUnitLabel = (order.returnItems && order.returnItems[0] && order.returnItems[0].unit) || 'Pcs';
 
                     flattenedReturns.push({
                         orderId: order._id,
@@ -105,22 +94,7 @@ const SalesReturn = () => {
                         totalReturnFreeQty: ret.totalReturnFreeQty,
                         totalReturnFreeItemsQty: ret.totalReturnFreeItemsQty,
                         totalReturnAmount: ret.totalReturnAmount,
-                        damageUnitQty,
-                        damagePcsQty,
-                        damageFreeUnitQty,
-                        damageFreePcsQty,
-                        damageUnitLabel,
-                        totalReturnDamageItemsQty: ret.totalReturnDamageItemsQty || 0,
-                        totalReturnDamageFreeQty: ret.totalReturnDamageFreeQty || 0,
-                        totalReturnDamageAmount: ret.totalReturnDamageAmount || 0,
-                        retItemUnitQty,
-                        retItemPcsQty,
-                        retItemFreeUnitQty,
-                        retItemFreePcsQty,
-                        retItemUnitLabel,
-                        totalReturnReturnItemsQty: ret.totalReturnReturnItemsQty || 0,
-                        totalReturnReturnFreeQty: ret.totalReturnReturnFreeQty || 0,
-                        totalReturnReturnAmount: ret.totalReturnReturnAmount || 0,
+
                     });
                 });
             });
@@ -488,8 +462,10 @@ const SalesReturn = () => {
                             <table className="w-full table-fixed text-left border-collapse">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-xs uppercase tracking-wider">
-                                        <th className="py-3 px-3 w-[150px]">Date / Order / Customer</th>
-                                        <th className="py-3 px-3">Return Details (Main / Others Free / Damage / Return)</th>
+                                        <th className="py-3 px-3 w-[130px]">Date</th>
+                                        <th className="py-3 px-3 w-[110px]">Order</th>
+                                        <th className="py-3 px-3 w-[170px]">Customer</th>
+                                        <th className="py-3 px-3">Return Details (Main / Others Free)</th>
                                         <th className="py-3 px-3 text-center w-[100px]">Action</th>
                                     </tr>
                                 </thead>
@@ -497,20 +473,20 @@ const SalesReturn = () => {
                                     {currentReturns.map((item, index) => (
                                         <tr key={item.returnId || index} className="hover:bg-indigo-50/40 transition duration-150">
                                             <td className="py-3 px-3 align-top">
-                                                <div className="space-y-5">
-                                                    <div className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">📅 {item.returnDate || 'N/A'}</div>
-                                                    <div className="inline-block px-2 py-0.5 rounded bg-slate-100 text-[11px] font-bold text-indigo-700 whitespace-nowrap">#{item.orderNo}</div>
-                                                    <div className="text-xs font-bold text-gray-800 leading-tight">{item.customer}</div>
-                                                </div>
+                                                <div className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">📅 {item.returnDate || 'N/A'}</div>
+                                            </td>
+                                            <td className="py-3 px-3 align-top">
+                                                <div className="inline-block px-2 py-0.5 rounded bg-slate-100 text-[11px] font-bold text-indigo-700 whitespace-nowrap">#{item.orderNo}</div>
+                                            </td>
+                                            <td className="py-3 px-3 align-top">
+                                                <div className="text-xs font-bold text-gray-800 leading-tight">{item.customer}</div>
                                             </td>
 
                                             {/* 4 ta box: data thakle full, na thakle half + "No ..." */}
                                             {(() => {
                                                 const hasMain = Number(item.totalReturnPcs) > 0 || Number(item.totalReturnFreeQty) > 0;
                                                 const hasOthers = Number(item.totalReturnFreeItemsQty) > 0;
-                                                const hasDamage = Number(item.totalReturnDamageItemsQty) > 0 || Number(item.totalReturnDamageFreeQty) > 0;
-                                                const hasReturn = Number(item.totalReturnReturnItemsQty) > 0 || Number(item.totalReturnReturnFreeQty) > 0;
-                                                const visibleCount = [hasMain, hasOthers, hasDamage, hasReturn].filter(Boolean).length || 1;
+                                                const visibleCount = [hasMain, hasOthers].filter(Boolean).length || 1;
 
 
 
@@ -549,48 +525,6 @@ const SalesReturn = () => {
                                                                         <div className="flex items-center justify-between gap-3">
                                                                             <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[9px] font-bold uppercase">Free</span>
                                                                             <span className="font-semibold text-slate-700">{item.sumOthersFreeUnitQty || 0} {item.othersFreeUnitLabel} {item.sumOthersFreePcsQty || 0} Pcs <b className="text-amber-700">({item.totalReturnFreeItemsQty})</b></span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ) : null}
-
-                                                            {/* Damage */}
-                                                            {hasDamage ? (
-                                                                <div className="rounded-xl border border-red-200 bg-white shadow-sm overflow-hidden h-[124px] min-w-0">
-                                                                    <div className="bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Damage</div>
-                                                                    <div className="px-3 py-2 space-y-1.5 whitespace-nowrap">
-                                                                        <div className="flex items-center justify-between gap-3">
-                                                                            <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[9px] font-bold uppercase">Qty</span>
-                                                                            <span className="font-semibold text-slate-700">{item.damageUnitQty || 0} {item.damageUnitLabel} {item.damagePcsQty || 0} Pcs <b className="text-red-600">({item.totalReturnDamageItemsQty})</b></span>
-                                                                        </div>
-                                                                        <div className="flex items-center justify-between gap-3">
-                                                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase">Free</span>
-                                                                            <span className="font-semibold text-slate-700">{item.damageFreeUnitQty || 0} {item.damageUnitLabel} {item.damageFreePcsQty || 0} Pcs <b className="text-emerald-700">({item.totalReturnDamageFreeQty})</b></span>
-                                                                        </div>
-                                                                        <div className="flex items-center justify-between gap-3 pt-1.5 border-t border-dashed border-red-200">
-                                                                            <span className="text-[9px] font-bold uppercase text-slate-400">Amount</span>
-                                                                            <span className="font-extrabold text-red-600">৳{Number(item.totalReturnDamageAmount || 0).toFixed(2)}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ) : null}
-
-                                                            {/* Return */}
-                                                            {hasReturn ? (
-                                                                <div className="rounded-xl border border-violet-200 bg-white shadow-sm overflow-hidden h-[124px] min-w-0">
-                                                                    <div className="bg-violet-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Return</div>
-                                                                    <div className="px-3 py-2 space-y-1.5 whitespace-nowrap">
-                                                                        <div className="flex items-center justify-between gap-3">
-                                                                            <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[9px] font-bold uppercase">Qty</span>
-                                                                            <span className="font-semibold text-slate-700">{item.retItemUnitQty || 0} {item.retItemUnitLabel} {item.retItemPcsQty || 0} Pcs <b className="text-violet-600">({item.totalReturnReturnItemsQty})</b></span>
-                                                                        </div>
-                                                                        <div className="flex items-center justify-between gap-3">
-                                                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase">Free</span>
-                                                                            <span className="font-semibold text-slate-700">{item.retItemFreeUnitQty || 0} {item.retItemUnitLabel} {item.retItemFreePcsQty || 0} Pcs <b className="text-emerald-700">({item.totalReturnReturnFreeQty})</b></span>
-                                                                        </div>
-                                                                        <div className="flex items-center justify-between gap-3 pt-1.5 border-t border-dashed border-violet-200">
-                                                                            <span className="text-[9px] font-bold uppercase text-slate-400">Amount</span>
-                                                                            <span className="font-extrabold text-violet-600">৳{Number(item.totalReturnReturnAmount || 0).toFixed(2)}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>

@@ -73,6 +73,16 @@ const PurchaseReturn = () => {
                     const sumFreeUnitQty = retItems.reduce((s, it) => s + (Number(it.returnFreeUnitQty) || 0), 0);
                     const sumFreePcsQty = retItems.reduce((s, it) => s + (Number(it.returnFreePcsQty) || 0), 0);
 
+                    // Others Free Product return er sum
+                    const retFreeItems = ret.freeItems || [];
+                    const sumOtherFreeUnitQty = retFreeItems.reduce((s, it) => s + (Number(it.returnUnitQty) || 0), 0);
+                    const sumOtherFreePcsQty = retFreeItems.reduce((s, it) => s + (Number(it.returnPcsQty) || 0), 0);
+                    const otherFreeFirst = retFreeItems[0];
+                    const matchedOtherFreeItem = otherFreeFirst
+                        ? (order.freeItems || []).find((fi) => fi.productId === otherFreeFirst.productId)
+                        : null;
+                    const otherFreeUnitLabel = matchedOtherFreeItem?.unit || 'Unit';
+
                     // Unit label item er original order.items theke khuje ber kora
                     const firstItem = retItems[0];
                     const matchedOrderItem = firstItem
@@ -89,6 +99,10 @@ const PurchaseReturn = () => {
                         totalReturnPcs: ret.totalReturnPcs,
                         totalReturnFreeQty: ret.totalReturnFreeQty,
                         totalReturnAmount: ret.totalReturnAmount,
+                        totalReturnFreeItemsQty: ret.totalReturnFreeItemsQty,
+                        sumOtherFreeUnitQty,
+                        sumOtherFreePcsQty,
+                        otherFreeUnitLabel,
                         sumUnitQty,
                         sumPcsQty,
                         sumFreeUnitQty,
@@ -461,23 +475,24 @@ const PurchaseReturn = () => {
                         <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
+                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-xs uppercase tracking-wide">
                                         <th className="py-4 px-4">Date</th>
                                         <th className="py-4 px-4">Invoice</th>
                                         <th className="py-4 px-4">Company</th>
                                         <th className="py-4 px-4">Return Quantity</th>
                                         <th className="py-4 px-4">Return Free Quantity</th>
                                         <th className="py-4 px-4">Return Amount</th>
+                                        <th className="py-4 px-4">Others Free Product</th>
                                         <th className="py-4 px-4 text-center">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+                                <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                                     {currentReturns.map((item, index) => (
                                         <tr key={item.returnId || index} className="hover:bg-indigo-50/40 transition duration-150">
                                             <td className="py-4 px-4 text-gray-600 font-medium">{item.returnDate || 'N/A'}</td>
                                             <td className="py-4 px-4 text-gray-600 font-medium">{item.invoiceNo}</td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{item.company}</td>
-                                                                                        <td className="py-4 px-4 font-semibold text-orange-600">
+                                            <td className="py-4 px-4 font-semibold text-orange-600">
                                                 {item.sumUnitQty || 0} {item.unitLabel} {item.sumPcsQty || 0} Pcs
                                                 <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalReturnPcs})</span>
                                             </td>
@@ -486,7 +501,11 @@ const PurchaseReturn = () => {
                                                 <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.totalReturnFreeQty || 0})</span>
                                             </td>
                                             <td className="py-4 px-4 font-bold text-orange-600">৳{Number(item.totalReturnAmount).toFixed(2)}</td>
-                                            <td className="py-4 px-4 text-center relative">
+                                            <td className="py-4 px-4 font-semibold text-amber-600">
+                                                {item.sumOtherFreeUnitQty || 0} {item.otherFreeUnitLabel} {item.sumOtherFreePcsQty || 0} Pcs
+                                                <span className="text-xs text-amber-700 ml-1 font-bold">(Total: {item.totalReturnFreeItemsQty || 0})</span>
+                                            </td>
+                                            <td className="py-3 px-2.5 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
 
                                                     <button

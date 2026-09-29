@@ -34,7 +34,7 @@ const Wholesale = () => {
     const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
     const [isExtraOpen, setIsExtraOpen] = useState(false);
     const extraDropdownRef = useRef(null);
-
+    const [returnFilter, setReturnFilter] = useState('');
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
 
@@ -186,6 +186,7 @@ const Wholesale = () => {
             due: ''
         });
         setExtraFilter([...EXTRA_OPTIONS]);
+        setReturnFilter('');
         setIsExtraOpen(false);
         setCurrentPage(1);
     };
@@ -271,7 +272,18 @@ const Wholesale = () => {
         if (qty <= 0 && amount <= 0) return null;
         return { qty, amount };
     };
+    // Kono product return hoyeche kina (Yes / No)
+    const hasReturned = (item) =>
+        (item.returnHistory || []).some(
+            (r) =>
+                (Number(r.totalReturnPcs) || 0) > 0 ||
+                (Number(r.totalReturnFreeQty) || 0) > 0 ||
+                (Number(r.totalReturnFreeItemsQty) || 0) > 0
+        );
+
     const filteredOrders = orders.filter((item) => {
+        if (returnFilter === 'yes' && !hasReturned(item)) return false;
+        if (returnFilter === 'no' && hasReturned(item)) return false;
         if (filters.startDate || filters.endDate) {
             const orderDateObj = parseToLocalDate(item.orderDate);
             if (!orderDateObj) return false;
@@ -391,12 +403,7 @@ const Wholesale = () => {
     const retMainFree = sumRet(summaryRows, 'totalReturnFreeQty');
     const retMainAmount = sumRet(summaryRows, 'totalReturnAmount');
     const retOthersQty = sumRet(summaryRows, 'totalReturnFreeItemsQty');
-    const retDamageQty = sumRet(summaryRows, 'totalReturnDamageItemsQty');
-    const retDamageFree = sumRet(summaryRows, 'totalReturnDamageFreeQty');
-    const retDamageAmount = sumRet(summaryRows, 'totalReturnDamageAmount');
-    const retRetProdQty = sumRet(summaryRows, 'totalReturnReturnItemsQty');
-    const retRetProdFree = sumRet(summaryRows, 'totalReturnReturnFreeQty');
-    const retRetProdAmount = sumRet(summaryRows, 'totalReturnReturnAmount');
+
     const fmt = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
     const handlePageChange = (pageNumber) => {
@@ -457,7 +464,7 @@ const Wholesale = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
                                 <div
@@ -636,6 +643,19 @@ const Wholesale = () => {
                                 </select>
                             </div>
 
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Return</label>
+                                <select
+                                    value={returnFilter}
+                                    onChange={(e) => { setReturnFilter(e.target.value); setCurrentPage(1); }}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">All</option>
+                                    <option value="yes">Yes</option>
+                                    <option value="no">No</option>
+                                </select>
+                            </div>
+
                             <div className="relative" ref={extraDropdownRef}>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Extra</label>
                                 <div
@@ -771,18 +791,7 @@ const Wholesale = () => {
                                                 Amount: <b className="text-red-600">৳{fmt(totalDamageAmount)}</b>
                                             </span>
                                         </div>
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[110px] bg-orange-50 border-l-2 border-dashed border-orange-300">
-                                            <span className="text-[9px] font-bold uppercase text-orange-500">↩ Returned</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-orange-600">{fmt(retDamageQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Free Qty: <b className="text-emerald-600">{fmt(retDamageFree)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Amount: <b className="text-orange-600">৳{fmt(retDamageAmount)}</b>
-                                            </span>
-                                        </div>
+
                                     </div>
                                 </div>
 
@@ -802,18 +811,7 @@ const Wholesale = () => {
                                                 Amount: <b className="text-violet-600">৳{fmt(totalRetProdAmount)}</b>
                                             </span>
                                         </div>
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[110px] bg-orange-50 border-l-2 border-dashed border-orange-300">
-                                            <span className="text-[9px] font-bold uppercase text-orange-500">↩ Returned</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-orange-600">{fmt(retRetProdQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Free Qty: <b className="text-emerald-600">{fmt(retRetProdFree)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Amount: <b className="text-orange-600">৳{fmt(retRetProdAmount)}</b>
-                                            </span>
-                                        </div>
+
                                     </div>
                                 </div>
                             </>
@@ -877,7 +875,7 @@ const Wholesale = () => {
                                                     <div className="font-medium">Order : {item.orderDate || 'N/A'}</div>
                                                     <div className="mt-0.5">
                                                         {item.deliveryDate ? (
-                                                            <span>Delivery: {item.deliveryDate}</span>
+                                                            <span>Delivered: {item.deliveryDate}</span>
                                                         ) : (
                                                             <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
                                                                 Not Delivered
@@ -897,7 +895,11 @@ const Wholesale = () => {
                                                 <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.deliveredBy || 'N/A'}</td>
                                                 <td className="py-3 px-2.5 font-bold text-indigo-600 whitespace-nowrap">৳{item.payableAmount ?? item.grandTotal}</td>
                                                 <td className="py-3 px-2.5 whitespace-nowrap">
-                                                    {status !== 'Delivered' || !item.paidAmount ? (
+                                                    {(Number(item.payableAmount ?? item.grandTotal) || 0) <= 0 ? (
+                                                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-semibold text-[10px] whitespace-nowrap">
+                                                            No Bill
+                                                        </span>
+                                                    ) : status !== 'Delivered' || !item.paidAmount ? (
                                                         <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
                                                             Not Paid
                                                         </span>
@@ -907,12 +909,18 @@ const Wholesale = () => {
                                                             <b className="text-rose-600">({due})</b>
                                                         </div>
                                                     )}
+                                                    {(item.items || []).some((p) => (Number(p.freeQty) || 0) > 0) && (
+                                                        <div className="mt-0.5 text-[9px] font-bold text-emerald-600">
+                                                            Free - Has
+                                                        </div>
+                                                    )}
                                                 </td>
-                                                <td className="py-3 px-2.5 font-semibold text-orange-600 whitespace-nowrap">
-                                                    {(() => {
-                                                        const r = getReturnInfo(item);
-                                                        return r ? `${r.qty}(৳${r.amount})` : 'N/A';
-                                                    })()}
+                                                <td className="py-3 px-2.5 whitespace-nowrap">
+                                                    {hasReturned(item) ? (
+                                                        <span className="inline-block px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-emerald-100 text-emerald-700">Yes</span>
+                                                    ) : (
+                                                        <span className="inline-block px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-rose-100 text-rose-700">No</span>
+                                                    )}
                                                 </td>
                                                 <td className="py-3 px-2.5 whitespace-nowrap">
                                                     {(() => {

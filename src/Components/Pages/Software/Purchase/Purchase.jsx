@@ -39,6 +39,25 @@ const Purchase = () => {
     // Checkbox selection state
     const [selectedIds, setSelectedIds] = useState([]);
 
+    // Summary Bar collapse state (default: collapsed)
+    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+
+    // Extra filter (multi select) - default: sob select kora
+    const EXTRA_OPTIONS = ['Free', 'Others Free', 'Return'];
+    const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
+    const [isExtraOpen, setIsExtraOpen] = useState(false);
+    const extraDropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutsideExtra = (event) => {
+            if (extraDropdownRef.current && !extraDropdownRef.current.contains(event.target)) {
+                setIsExtraOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutsideExtra);
+        return () => document.removeEventListener('mousedown', handleClickOutsideExtra);
+    }, []);
+
     // Select dropdown er baire click korle dropdown close hobe
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -161,6 +180,8 @@ const Purchase = () => {
             status: '',
             dueStatus: ''
         });
+        setExtraFilter([...EXTRA_OPTIONS]);
+        setIsExtraOpen(false);
         setCurrentPage(1);
     };
     const showToast = (message, type = 'success') => {
@@ -225,6 +246,36 @@ const Purchase = () => {
         });
     };
 
+    const isReceived = (item) => item.receiveStatus === 'Received' || item.receiveStatus === 'Yes';
+
+    // Kono product return hoyeche kina
+    const hasReturned = (item) =>
+        (item.returnHistory || []).some(
+            (r) =>
+                (Number(r.totalReturnPcs) || 0) > 0 ||
+                (Number(r.totalReturnFreeQty) || 0) > 0 ||
+                (Number(r.totalReturnFreeItemsQty) || 0) > 0
+        );
+
+    // Main product e free ase kina
+    const hasFree = (item) =>
+        (item.items || []).some((p) => (Number(p.freeTotalQty ?? p.freeQty) || 0) > 0);
+
+    const getItemExtras = (item) => {
+        const list = [];
+        if (hasFree(item)) list.push('Free');
+        if ((item.freeItems || []).length > 0) list.push('Others Free');
+        if (hasReturned(item)) list.push('Return');
+        return list;
+    };
+
+    const handleToggleExtra = (opt) => {
+        setExtraFilter((prev) =>
+            prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]
+        );
+        setCurrentPage(1);
+    };
+
     // Advanced Multi-field & Date Range Filtering Logic
     const filteredPurchases = purchases.filter((item) => {
         // Date Range Filter (purchaseDate)
@@ -258,13 +309,21 @@ const Purchase = () => {
         if (filters.status === 'No' && (item.receiveStatus === 'Received' || item.receiveStatus === 'Yes')) {
             return false;
         }
-        // Due Status Filter
+        // Due Status Filter (wholesale er moto: Received hole tobei due/paid gonona hobe)
         const dueAmt = Math.max((Number(item.payableAmount) || 0) - (Number(item.paidAmount) || 0), 0);
-        if (filters.dueStatus === 'Due' && dueAmt <= 0) {
+        const receivedNow = item.receiveStatus === 'Received' || item.receiveStatus === 'Yes';
+        if (filters.dueStatus === 'Due' && (!receivedNow || dueAmt <= 0)) {
             return false;
         }
-        if (filters.dueStatus === 'NoDue' && dueAmt > 0) {
+        if (filters.dueStatus === 'NoDue' && (!receivedNow || !item.paidAmount || dueAmt > 0)) {
             return false;
+        }
+
+        // Extra filter: sob select thakle filter apply hobe na, kichu select thakle matching extra thaka purchase dekhabe
+        if (extraFilter.length !== EXTRA_OPTIONS.length) {
+            if (extraFilter.length === 0) return false;
+            const itemExtras = getItemExtras(item);
+            if (!extraFilter.some((opt) => itemExtras.includes(opt))) return false;
         }
 
         return true;
@@ -280,14 +339,7 @@ const Purchase = () => {
     const getDue = (item) =>
         Math.max((Number(item.payableAmount) || 0) - (Number(item.paidAmount) || 0), 0);
 
-    // Return Info -> return thakle {qty, amount}, na thakle null
-    const getReturnInfo = (item) => {
-        if (!item.returnHistory || item.returnHistory.length === 0) return null;
-        const qty = item.returnHistory.reduce((s, r) => s + (Number(r.totalReturnPcs) || 0), 0);
-        const amount = item.returnHistory.reduce((s, r) => s + (Number(r.totalReturnAmount) || 0), 0);
-        if (qty <= 0 && amount <= 0) return null;
-        return { qty, amount };
-    };
+
 
     // Checkbox handlers (Select All = বর্তমান পেজের সব row)
     const isAllSelected =
@@ -317,14 +369,29 @@ const Purchase = () => {
     const totalPayable = summaryRows.reduce((s, i) => s + (Number(i.payableAmount) || 0), 0);
     const totalPaid = summaryRows.reduce((s, i) => s + (Number(i.paidAmount) || 0), 0);
     const totalDue = summaryRows.reduce((s, i) => s + getDue(i), 0);
-    const totalReturnQty = summaryRows.reduce((s, i) => {
-        const r = getReturnInfo(i);
-        return s + (r ? r.qty : 0);
-    }, 0);
-    const totalReturnAmount = summaryRows.reduce((s, i) => {
-        const r = getReturnInfo(i);
-        return s + (r ? r.amount : 0);
-    }, 0);
+
+    // Main product free qty
+    const totalMainFreeQty = summaryRows.reduce(
+        (s, i) => s + (i.items || []).reduce((ss, it) => ss + (Number(it.freeTotalQty ?? it.freeQty) || 0), 0),
+        0
+    );
+    // Others Free Product qty
+    const totalOthersFreeQty = summaryRows.reduce(
+        (s, i) => s + (i.freeItems || []).reduce((ss, it) => ss + (Number(it.totalQty) || 0), 0),
+        0
+    );
+
+    // ---- Returned (returnHistory theke) ----
+    const sumRet = (rows, field) =>
+        rows.reduce(
+            (s, i) => s + (i.returnHistory || []).reduce((ss, r) => ss + (Number(r[field]) || 0), 0),
+            0
+        );
+    const retMainQty = sumRet(summaryRows, 'totalReturnPcs');
+    const retMainFree = sumRet(summaryRows, 'totalReturnFreeQty');
+    const retMainAmount = sumRet(summaryRows, 'totalReturnAmount');
+    const retOthersQty = sumRet(summaryRows, 'totalReturnFreeItemsQty');
+
     const fmt = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
     // Handle page change
@@ -397,7 +464,7 @@ const Purchase = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
                             {/* Start Date */}
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
@@ -533,37 +600,128 @@ const Purchase = () => {
                                     <option value="NoDue">Fully Paid</option>
                                 </select>
                             </div>
+
+                            {/* Extra Multi Select */}
+                            <div className="relative" ref={extraDropdownRef}>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Extra</label>
+                                <div
+                                    onClick={() => setIsExtraOpen((prev) => !prev)}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+                                >
+                                    <span className="truncate">
+                                        {extraFilter.length === EXTRA_OPTIONS.length
+                                            ? 'All'
+                                            : extraFilter.length === 0
+                                                ? 'None'
+                                                : extraFilter.join(', ')}
+                                    </span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-3 h-3 shrink-0 transition-transform ${isExtraOpen ? 'rotate-180' : ''}`}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </div>
+
+                                {isExtraOpen && (
+                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 py-1">
+                                        {EXTRA_OPTIONS.map((opt) => (
+                                            <label
+                                                key={opt}
+                                                className="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer text-xs font-medium text-gray-700"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={extraFilter.includes(opt)}
+                                                    onChange={() => handleToggleExtra(opt)}
+                                                    className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
+                                                />
+                                                {opt}
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     {/* Summary Bar */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-2.5">
-                        <span className={`px-2.5 py-1 rounded-full font-bold ${isSelectionMode ? 'bg-pink-100 text-pink-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                            {isSelectionMode ? 'Selected' : 'Showing'}
-                        </span>
-                        <span className="font-semibold text-gray-600">
-                            Rows: <b className="text-gray-800">{summaryRows.length}</b>
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="font-semibold text-gray-600">
-                            Total Amount: <b className="text-indigo-600">৳{fmt(totalPayable)}</b>
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="font-semibold text-gray-600">
-                            Paid Amount: <b className="text-emerald-600">৳{fmt(totalPaid)}</b>
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="font-semibold text-gray-600">
-                            Due Amount: <b className="text-rose-600">৳{fmt(totalDue)}</b>
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="font-semibold text-gray-600">
-                            Return Qty: <b className="text-orange-600">{totalReturnQty}</b>
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span className="font-semibold text-gray-600">
-                            Return Amount: <b className="text-orange-600">৳{fmt(totalReturnAmount)}</b>
-                        </span>
+                    <div className="flex flex-wrap items-start gap-x-6 gap-y-3 text-xs bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-3">
+                        {/* Showing / Rows */}
+                        <div className="flex flex-col items-start gap-1.5">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold ${isSelectionMode ? 'bg-pink-100 text-pink-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                                {isSelectionMode ? 'Selected' : 'Showing'}
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSummaryOpen((prev) => !prev)}
+                                    title={isSummaryOpen ? 'Hide Details' : 'Show Details'}
+                                    className="flex items-center justify-center w-4 h-4 rounded-full bg-white/70 hover:bg-white transition cursor-pointer"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-2.5 h-2.5 transition-transform duration-200 ${isSummaryOpen ? 'rotate-180' : ''}`}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </button>
+                            </span>
+                            <span className="font-semibold text-gray-600">
+                                Rows: <b className="text-gray-800">{summaryRows.length}</b>
+                            </span>
+                        </div>
+
+                        {isSummaryOpen && (
+                            <>
+                                <div className="w-px self-stretch bg-indigo-200" />
+
+                                {/* ============ 1. MAIN PRODUCT ============ */}
+                                <div className="rounded-xl border border-indigo-200 bg-white overflow-hidden shadow-sm">
+                                    <div className="bg-indigo-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Main Product</div>
+                                    <div className="flex">
+                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[130px]">
+                                            <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
+                                            <span className="font-semibold text-gray-600">
+                                                Total Amount: <b className="text-indigo-600">৳{fmt(totalPayable)}</b>
+                                            </span>
+                                            <span className="font-semibold text-gray-600">
+                                                Paid Amount: <b className="text-emerald-600">৳{fmt(totalPaid)}</b>
+                                            </span>
+                                            <span className="font-semibold text-gray-600">
+                                                Due Amount: <b className="text-rose-600">৳{fmt(totalDue)}</b>
+                                            </span>
+                                            <span className="font-semibold text-gray-600">
+                                                Free Qty: <b className="text-emerald-600">{fmt(totalMainFreeQty)}</b>
+                                            </span>
+                                        </div>
+                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[110px] bg-orange-50 border-l-2 border-dashed border-orange-300">
+                                            <span className="text-[9px] font-bold uppercase text-orange-500">↩ Returned</span>
+                                            <span className="font-semibold text-gray-600">
+                                                Qty: <b className="text-orange-600">{fmt(retMainQty)}</b>
+                                            </span>
+                                            <span className="font-semibold text-gray-600">
+                                                Free Qty: <b className="text-emerald-600">{fmt(retMainFree)}</b>
+                                            </span>
+                                            <span className="font-semibold text-gray-600">
+                                                Amount: <b className="text-orange-600">৳{fmt(retMainAmount)}</b>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ============ 2. OTHERS FREE ============ */}
+                                <div className="rounded-xl border border-amber-200 bg-white overflow-hidden shadow-sm">
+                                    <div className="bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Others Free</div>
+                                    <div className="flex">
+                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[90px]">
+                                            <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
+                                            <span className="font-semibold text-gray-600">
+                                                Qty: <b className="text-amber-600">{fmt(totalOthersFreeQty)}</b>
+                                            </span>
+                                        </div>
+                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[90px] bg-orange-50 border-l-2 border-dashed border-orange-300">
+                                            <span className="text-[9px] font-bold uppercase text-orange-500">↩ Returned</span>
+                                            <span className="font-semibold text-gray-600">
+                                                Qty: <b className="text-orange-600">{fmt(retOthersQty)}</b>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                         {isSelectionMode && (
                             <button
                                 onClick={() => setSelectedIds([])}
@@ -581,9 +739,9 @@ const Purchase = () => {
                         <div className="text-center py-20 text-gray-400 font-medium">No purchases found!</div>
                     ) : (
                         <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full table-fixed text-left border-collapse [&_th]:px-1.5 [&_th]:py-2.5 [&_th]:text-[11px] [&_td]:px-1.5 [&_td]:py-2.5 [&_td]:text-[12px]">
+                            <table className="w-full text-left border-collapse [&_th]:px-1.5 [&_th]:py-2.5 [&_th]:text-[10px] [&_th]:whitespace-normal [&_td]:px-1.5 [&_td]:py-2.5 [&_td]:text-[11px] [&_td]:whitespace-normal [&_td_span]:text-[9px]">
                                 <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
+                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[10px] uppercase tracking-wide whitespace-nowrap">
                                         <th className="w-8 text-center">
                                             <input
                                                 type="checkbox"
@@ -592,16 +750,14 @@ const Purchase = () => {
                                                 className="w-4 h-4 accent-pink-500 cursor-pointer"
                                             />
                                         </th>
-                                        <th className="py-4 px-4">Purchase Date</th>
-                                        <th className="py-4 px-4">Receive Date</th>
-                                        <th className="py-4 px-4">Company Name</th>
-                                        <th className="py-4 px-4">Invoice No</th>
-                                        <th className="py-4 px-4">Total Amount</th>
-                                        <th className="py-4 px-4">Paid Amount</th>
-                                        <th className="py-3 px-2">Due Amount</th>
-                                        <th className="py-3 px-2">Return</th>
-                                        <th className="py-3 px-2">Receive Status</th>
-                                        <th className="py-4 px-4 text-center">Action</th>
+                                        <th className="py-3 px-2.5">Date</th>
+                                        <th className="py-3 px-2.5">Company Name</th>
+                                        <th className="py-3 px-2.5">Invoice No</th>
+                                        <th className="py-3 px-2.5">Total Amount</th>
+                                        <th className="py-3 px-2.5">Paid (Due)</th>
+                                        <th className="py-3 px-2.5">Extra</th>
+                                        <th className="py-3 px-2.5">Receive Status</th>
+                                        <th className="py-3 px-2.5 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
@@ -615,47 +771,59 @@ const Purchase = () => {
                                                     className="w-4 h-4 accent-pink-500 cursor-pointer"
                                                 />
                                             </td>
-                                            <td className="py-4 px-4 text-gray-600 font-medium">{item.purchaseDate || 'N/A'}</td>
-                                            <td className="py-4 px-4 text-gray-600">
-                                                {item.receiveDate ? (
-                                                    item.receiveDate
-                                                ) : (
-                                                    <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full font-semibold text-xs">
-                                                        Not Received
-                                                    </span>
-                                                )}
+                                            <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">
+                                                <div className="font-medium">Purchase : {item.purchaseDate || 'N/A'}</div>
+                                                <div className="mt-0.5">
+                                                    {item.receiveDate ? (
+                                                        <span>Received: {item.receiveDate}</span>
+                                                    ) : (
+                                                        <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
+                                                            Not Received
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
-                                            <td className="py-4 px-4 font-bold text-gray-800">{item.company}</td>
-                                            <td className="py-4 px-4 text-gray-600 font-medium">{item.invoiceNo}</td>
-                                            <td className="py-4 px-4 font-bold text-indigo-600">৳{item.payableAmount}</td>
-                                            <td className="py-4 px-4 text-gray-600">
-                                                {item.paidAmount ? (
-                                                    `৳${item.paidAmount}`
-                                                ) : (
-                                                    <span className="px-2.5 py-1 bg-rose-100 text-rose-700 rounded-full font-semibold text-xs">
+                                            <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">{item.company}</td>
+                                            <td className="py-3 px-2.5 text-gray-600 font-medium whitespace-nowrap">{item.invoiceNo}</td>
+                                            <td className="py-3 px-2.5 font-bold text-indigo-600 whitespace-nowrap">৳{item.payableAmount}</td>
+                                            <td className="py-3 px-2.5 whitespace-nowrap">
+                                                {(Number(item.payableAmount) || 0) <= 0 ? (
+                                                    <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-semibold text-[10px] whitespace-nowrap">
+                                                        No Bill
+                                                    </span>
+                                                ) : !isReceived(item) || !item.paidAmount ? (
+                                                    <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
                                                         Not Paid
                                                     </span>
-                                                )}
-                                            </td>
-                                            <td className="py-3 px-2 font-bold">
-                                                {getDue(item) > 0 ? (
-                                                    <span className="text-rose-600">৳{getDue(item)}</span>
                                                 ) : (
-                                                    <span className="text-emerald-600">৳0</span>
+                                                    <div className="font-bold">
+                                                        <b className="text-emerald-600">৳{item.paidAmount}</b>
+                                                        <b className="text-rose-600">({getDue(item)})</b>
+                                                    </div>
                                                 )}
                                             </td>
-                                            <td className="py-3 px-2 font-semibold text-orange-600 whitespace-nowrap">
+                                            <td className="py-3 px-2.5 whitespace-nowrap">
                                                 {(() => {
-                                                    const r = getReturnInfo(item);
-                                                    return r ? `${r.qty}(৳${r.amount})` : 'N/A';
+                                                    const extras = [];
+                                                    if ((item.freeItems || []).length > 0) extras.push({ label: 'Others Free', color: 'text-amber-600' });
+                                                    if (hasReturned(item)) extras.push({ label: 'Return', color: 'text-violet-600' });
+                                                    if (hasFree(item)) extras.push({ label: 'Free - Has', color: 'text-emerald-600' });
+                                                    if (extras.length === 0) return <div className="text-[9px] text-gray-300">N/A</div>;
+                                                    return (
+                                                        <div className="flex flex-col leading-tight">
+                                                            {extras.map((ex) => (
+                                                                <div key={ex.label} className={`text-[9px] font-bold ${ex.color}`}>{ex.label}</div>
+                                                            ))}
+                                                        </div>
+                                                    );
                                                 })()}
                                             </td>
-                                            <td className="py-3 px-2">
-                                                <span className={`px-3 py-1 rounded-full font-semibold text-xs ${item.receiveStatus === 'Received' || item.receiveStatus === 'Yes' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                            <td className="py-3 px-2.5">
+                                                <span className={`inline-block px-2 py-0.5 rounded-full font-semibold text-[10px] whitespace-nowrap ${item.receiveStatus === 'Received' || item.receiveStatus === 'Yes' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
                                                     {item.receiveStatus || 'No'}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-4 text-center relative">
+                                            <td className="py-3 px-2.5 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
 
                                                     <button
@@ -666,7 +834,7 @@ const Purchase = () => {
                                                                     : item._id
                                                             )
                                                         }
-                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                                        className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-[11px] flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
                                                     >
                                                         <span>Select</span>
 
