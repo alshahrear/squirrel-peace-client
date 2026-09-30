@@ -18,6 +18,96 @@ const PurchaseDetails = () => {
     const [loading, setLoading] = useState(true);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [notFound, setNotFound] = useState(false);
+    const [showRemainingToggle, setShowRemaining] = useState(true); // default ON, refresh দিলে আবার ON
+
+    // কোনো Return হয়েছে কিনা
+    const hasReturn = (selectedInvoice?.returnHistory || []).some(
+        (r) =>
+            (Number(r.totalReturnPcs) || 0) > 0 ||
+            (Number(r.totalReturnFreeQty) || 0) > 0 ||
+            (Number(r.totalReturnFreeItemsQty) || 0) > 0
+    );
+    // Return না থাকলে Remaining feature কাজ করবে না
+    const showRemaining = showRemainingToggle && hasReturn;
+
+    // Return বাদ দিয়ে Remaining Quantity / Free Quantity / Subtotal হিসাব
+    const getRemainingInfo = (item) => {
+        let retQty = 0;
+        let retFree = 0;
+        (selectedInvoice?.returnHistory || []).forEach((ret) => {
+            const found = (ret.items || []).find((it) => it.productId === item.productId);
+            if (found) {
+                retQty += Number(found.returnTotalQty) || 0;
+                retFree += Number(found.returnFreeTotalQty ?? found.returnFreeQty) || 0;
+            }
+        });
+
+        const totalPcs = Number(item.totalPcs) || 0;
+        const freeTotal = Number(item.freeTotalQty ?? item.freeQty) || 0;
+        const remQty = Math.max(totalPcs - retQty, 0);
+        const remFree = Math.max(freeTotal - retFree, 0);
+
+        const unitQty = Number(item.unitQty) || 0;
+        const pcsQty = Number(item.pcsQty) || 0;
+        const perUnit = unitQty > 0 ? (totalPcs - pcsQty) / unitQty : 0;
+
+        const freeUnitQty = Number(item.freeUnitQty) || 0;
+        const freePcsQty = Number(item.freePcsQty) || 0;
+        const freePerUnit = freeUnitQty > 0 ? (freeTotal - freePcsQty) / freeUnitQty : 0;
+
+        const split = (total, per) => {
+            if (per > 0) {
+                const u = Math.floor(total / per);
+                return [u, Math.round((total - u * per) * 100) / 100];
+            }
+            return [0, total];
+        };
+
+        const hasMainReturn = retQty > 0;
+        const hasFreeReturn = retFree > 0;
+
+        const [remUnit, remPcs] = hasMainReturn
+            ? split(remQty, perUnit)
+            : [unitQty, pcsQty];
+        const [remFreeUnit, remFreePcs] = hasFreeReturn
+            ? split(remFree, freePerUnit)
+            : [freeUnitQty, freePcsQty];
+
+
+        const subtotal = Number(item.subtotal) || 0;
+        const remSubtotal = totalPcs > 0 ? (subtotal * remQty) / totalPcs : subtotal;
+
+        return { remQty, remFree, remUnit, remPcs, remFreeUnit, remFreePcs, remSubtotal };
+    };
+
+    // Others Free Product: Return বাদ দিয়ে Remaining হিসাব
+    const getFreeItemRemaining = (item) => {
+        let retTotal = 0;
+        (selectedInvoice?.returnHistory || []).forEach((ret) => {
+            const found = (ret.freeItems || []).find((it) => it.productId === item.productId);
+            if (found) retTotal += Number(found.returnTotalQty) || 0;
+        });
+
+        const total = Number(item.totalQty) || 0;
+        const unitQty = Number(item.unitQty) || 0;
+        const pcsQty = Number(item.pcsQty) || 0;
+        const perUnit =
+            Number(item.pcsPerUnit) > 0
+                ? Number(item.pcsPerUnit)
+                : unitQty > 0
+                    ? (total - pcsQty) / unitQty
+                    : 0;
+
+        const remTotal = Math.max(total - retTotal, 0);
+        if (retTotal <= 0) {
+            return { remTotal, remUnit: unitQty, remPcs: pcsQty };
+        }
+        if (perUnit > 0) {
+            const u = Math.floor(remTotal / perUnit);
+            return { remTotal, remUnit: u, remPcs: Math.round((remTotal - u * perUnit) * 100) / 100 };
+        }
+        return { remTotal, remUnit: 0, remPcs: remTotal };
+    };
 
     useEffect(() => {
         setLoading(true);
@@ -38,6 +128,54 @@ const PurchaseDetails = () => {
                 setLoading(false);
             });
     }, [id]);
+
+    // Return বাদ দিয়ে Grand Total / Discount / Payable / Due হিসাব
+    const getTotals = () => {
+        const inv = selectedInvoice;
+        const paid = Number(inv.paidAmount || 0);
+
+        if (!showRemaining) {
+            const payable = Number(inv.payableAmount) || 0;
+            return { payable, due: payable - paid };
+        }
+
+        let grand = 0;
+        let pwd = 0;
+        (inv.items || []).forEach((item) => {
+            const info = getRemainingInfo(item);
+            const total = Number(item.totalPcs) || 0;
+            const buy = Number(item.buyPrice) || 0;
+            const gross = buy * total;
+            const fullDisc = Number(
+                item.discountAmount ??
+                (item.discountType === 'percent'
+                    ? (gross * Number(item.discount)) / 100
+                    : Number(item.discount))
+            ) || 0;
+            grand += buy * info.remQty;
+            pwd += total > 0 ? (fullDisc * info.remQty) / total : 0;
+        });
+
+        const afterProduct = grand - pwd;
+        const overallAmt =
+            inv.overallDiscountType === 'percent'
+                ? (afterProduct * (Number(inv.overallDiscount) || 0)) / 100
+                : Number(inv.overallDiscountValue ?? inv.overallDiscount) || 0;
+        const adjAmt = Number(inv.adjustment?.amount) || 0;
+        let payable = afterProduct - overallAmt;
+        payable = inv.adjustment?.type === '-' ? payable - adjAmt : payable + adjAmt;
+        if (payable < 0) payable = 0;
+
+        return {
+            grand,
+            pwd,
+            pwdPct: grand > 0 ? (pwd / grand) * 100 : 0,
+            afterProduct,
+            overallAmt,
+            payable,
+            due: payable - paid,
+        };
+    };
 
     const handlePrint = () => {
         window.print();
@@ -156,8 +294,26 @@ const PurchaseDetails = () => {
                         </div>
                     </div>
 
+                    {/* Remaining After Return Toggle */}
+                    <div className={`px-6 sm:px-8 pt-6 sm:pt-8 items-center gap-3 print:hidden ${hasReturn ? 'flex' : 'hidden'}`}>
+                        <span className="text-sm font-bold text-slate-700">Remaining After Return</span>
+                        <button
+                            type="button"
+                            onClick={() => setShowRemaining((prev) => !prev)}
+                            title={showRemaining ? 'ON' : 'OFF'}
+                            className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
+                        >
+                            <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showRemaining ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showRemaining ? 'translate-x-5' : ''}`} />
+                            </span>
+                            <span className={`text-xs font-bold ${showRemaining ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                {showRemaining ? 'ON' : 'OFF'}
+                            </span>
+                        </button>
+                    </div>
+
                     {/* Products Table */}
-                    <div className="p-6 sm:p-8 overflow-x-auto">
+                    <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-4 overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[11px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
@@ -179,30 +335,51 @@ const PurchaseDetails = () => {
                                         <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
                                         <td className="py-4 px-3.5 text-slate-600">{selectedInvoice.company}</td>
                                         <td className="py-4 px-3.5 font-semibold text-orange-600">
-                                            {item.unitQty} {item.unit} {item.pcsQty} Pcs
-                                            <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalPcs})</span>
+                                            {showRemaining ? (
+                                                <>
+                                                    {getRemainingInfo(item).remUnit} {item.unit} {getRemainingInfo(item).remPcs} Pcs
+                                                    <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {getRemainingInfo(item).remQty})</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {item.unitQty} {item.unit} {item.pcsQty} Pcs
+                                                    <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalPcs})</span>
+                                                </>
+                                            )}
                                         </td>
                                         <td className="py-4 px-3.5 font-semibold text-emerald-600">
-                                            {item.freeUnitQty || 0} {item.unit} {item.freePcsQty || 0} Pcs
-                                            <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeTotalQty ?? item.freeQty ?? 0})</span>
+                                            {showRemaining ? (
+                                                <>
+                                                    {getRemainingInfo(item).remFreeUnit} {item.unit} {getRemainingInfo(item).remFreePcs} Pcs
+                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {getRemainingInfo(item).remFree})</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {item.freeUnitQty || 0} {item.unit} {item.freePcsQty || 0} Pcs
+                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeTotalQty ?? item.freeQty ?? 0})</span>
+                                                </>
+                                            )}
                                         </td>
                                         <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                            ৳{(Number(item.buyPrice) * Number(item.totalPcs)).toFixed(2)}
+                                            ৳{(Number(item.buyPrice) * (showRemaining ? getRemainingInfo(item).remQty : Number(item.totalPcs))).toFixed(2)}
                                             <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.buyPrice).toFixed(2)})</span>
                                         </td>
                                         <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                            ৳{(Number(item.sellPrice) * Number(item.totalPcs)).toFixed(2)}
+                                            ৳{(Number(item.sellPrice) * (showRemaining ? getRemainingInfo(item).remQty : Number(item.totalPcs))).toFixed(2)}
                                             <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.sellPrice).toFixed(2)})</span>
                                         </td>
                                         <td className="py-4 px-3.5 text-right font-medium">
                                             {(() => {
                                                 const rowGrossTotal = Number(item.buyPrice) * Number(item.totalPcs);
-                                                const discountAmt = Number(
+                                                const fullDiscountAmt = Number(
                                                     item.discountAmount ??
                                                     (item.discountType === 'percent'
                                                         ? (rowGrossTotal * Number(item.discount)) / 100
                                                         : Number(item.discount))
                                                 );
+                                                const discountAmt = showRemaining && Number(item.totalPcs) > 0
+                                                    ? (fullDiscountAmt * getRemainingInfo(item).remQty) / Number(item.totalPcs)
+                                                    : fullDiscountAmt;
                                                 const discountPct =
                                                     item.discountType === 'percent'
                                                         ? Number(item.discount) || 0
@@ -220,7 +397,9 @@ const PurchaseDetails = () => {
                                                 );
                                             })()}
                                         </td>
-                                        <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal).toFixed(2)}</td>
+                                        <td className="py-4 px-3.5 text-right font-bold text-slate-900">
+                                            ৳{(showRemaining ? getRemainingInfo(item).remSubtotal : Number(item.subtotal)).toFixed(2)}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -240,26 +419,32 @@ const PurchaseDetails = () => {
                                         <th className="py-3 px-3.5 whitespace-nowrap">Product</th>
                                         <th className="py-3 px-3.5 whitespace-nowrap">Company</th>
                                         <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
-                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Price (Bundle)</th>
-                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Price (PCS)</th>
-                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
+                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Sell Price (Bundle)</th>
+                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Sell Price (PCS)</th>
+                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Subtotal (Sell)</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
                                     {selectedInvoice.freeItems.map((item, index) => {
-                                        const bundleTotal = (Number(item.unitQty) || 0) * (Number(item.sellPriceBundle) || 0);
-                                        const pcsTotal = (Number(item.pcsQty) || 0) * (Number(item.sellPricePcs) || 0);
-                                        const rowSubtotal = item.subtotal !== undefined && item.subtotal !== null
-                                            ? Number(item.subtotal)
-                                            : bundleTotal + pcsTotal;
+                                        const freeRem = getFreeItemRemaining(item);
+                                        const dispUnit = showRemaining ? freeRem.remUnit : (Number(item.unitQty) || 0);
+                                        const dispPcs = showRemaining ? freeRem.remPcs : (Number(item.pcsQty) || 0);
+                                        const dispTotal = showRemaining ? freeRem.remTotal : (Number(item.totalQty) || 0);
+                                        const bundleTotal = dispUnit * (Number(item.sellPriceBundle) || 0);
+                                        const pcsTotal = dispPcs * (Number(item.sellPricePcs) || 0);
+                                        const rowSubtotal = showRemaining
+                                            ? bundleTotal + pcsTotal
+                                            : item.subtotal !== undefined && item.subtotal !== null
+                                                ? Number(item.subtotal)
+                                                : bundleTotal + pcsTotal;
                                         return (
                                             <tr key={index} className="hover:bg-amber-50/40 transition-colors">
                                                 <td className="py-4 px-3.5 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
                                                 <td className="py-4 px-3.5 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
                                                 <td className="py-4 px-3.5 text-slate-600 whitespace-nowrap">{item.company}</td>
                                                 <td className="py-4 px-3.5 font-semibold text-emerald-600 whitespace-nowrap">
-                                                    {item.unitQty || 0} {item.unit} {item.pcsQty || 0} Pcs
-                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.totalQty || 0})</span>
+                                                    {dispUnit} {item.unit} {dispPcs} Pcs
+                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {dispTotal})</span>
                                                 </td>
                                                 <td className="py-4 px-3.5 text-right font-medium text-slate-600 whitespace-nowrap">
                                                     ৳{bundleTotal.toFixed(2)}
@@ -300,15 +485,15 @@ const PurchaseDetails = () => {
                         <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
                             <div className="flex justify-between py-1 text-slate-600">
                                 <span>Grand Total:</span>
-                                <span className="font-semibold text-slate-800">৳{Number(selectedInvoice.grandTotal).toFixed(2)}</span>
+                                <span className="font-semibold text-slate-800">৳{(showRemaining ? getTotals().grand : Number(selectedInvoice.grandTotal)).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-slate-600">
                                 <span>Product Wise Discount:</span>
                                 <span className="font-semibold text-rose-600">
-                                    - ৳{Number(selectedInvoice.productWiseDiscount).toFixed(2)}
+                                    - ৳{(showRemaining ? getTotals().pwd : Number(selectedInvoice.productWiseDiscount)).toFixed(2)}
                                     <span className="text-[10px] text-slate-400 ml-1">
                                         ({(
-                                            selectedInvoice.productWiseDiscountPercent ??
+                                            (showRemaining ? getTotals().pwdPct : selectedInvoice.productWiseDiscountPercent) ??
                                             (Number(selectedInvoice.grandTotal) > 0
                                                 ? (Number(selectedInvoice.productWiseDiscount) / Number(selectedInvoice.grandTotal)) * 100
                                                 : 0)
@@ -321,8 +506,8 @@ const PurchaseDetails = () => {
                                     <span>Overall Discount:</span>
                                     <span className="font-semibold">
                                         {(() => {
-                                            const afterProductDiscount = Number(selectedInvoice.grandTotal) - Number(selectedInvoice.productWiseDiscount);
-                                            const overallAmt = Number(
+                                            const afterProductDiscount = showRemaining ? getTotals().afterProduct : Number(selectedInvoice.grandTotal) - Number(selectedInvoice.productWiseDiscount);
+                                            const overallAmt = showRemaining ? getTotals().overallAmt : Number(
                                                 selectedInvoice.overallDiscountValue ??
                                                 (selectedInvoice.overallDiscountType === 'percent'
                                                     ? (afterProductDiscount * Number(selectedInvoice.overallDiscount)) / 100

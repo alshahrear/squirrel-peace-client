@@ -33,6 +33,10 @@ const PurchaseReturn = () => {
     // Action Dropdown state
     const [openDropdownId, setOpenDropdownId] = useState(null);
 
+    // Checkbox selection ও Invoice selection state
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectedInvoices, setSelectedInvoices] = useState([]);
+
     // Dropdown er baire click korle close hobe
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -91,6 +95,9 @@ const PurchaseReturn = () => {
                     const unitLabel = matchedOrderItem?.unit || 'Unit';
 
                     flattenedReturns.push({
+                        seq: flattenedReturns.length,
+                        createdAt: ret.createdAt,
+                        returnIdRaw: ret.returnId,
                         orderId: order._id,
                         returnId: ret.returnId,
                         returnDate: ret.returnDate,
@@ -112,7 +119,57 @@ const PurchaseReturn = () => {
                 });
             });
 
-            setReturns(flattenedReturns.reverse());
+            // Return create howar somoy onujayi sort (newest first)
+            const getTimestamp = (r) => {
+                // 1) Return create howar asol shomoy (shobcheye nirbhorjogyo)
+                if (r.createdAt) {
+                    const c = new Date(r.createdAt).getTime();
+                    if (!isNaN(c)) return c;
+                }
+                // 2) returnId te 13 digit timestamp thakle seta
+                const idMatch = String(r.returnIdRaw || '').match(/\d{13}/);
+                if (idMatch) return Number(idMatch[0]);
+
+                // 3) Fallback: returnDate theke
+                const str = r.returnDate || '';
+                const [datePart, ...rest] = str.split(',');
+                const timePart = rest.join(',').trim();
+                let d = null;
+
+                if (datePart.includes('/')) {
+                    const [dd, mm, yyyy] = datePart.trim().split('/').map(Number);
+                    let h = 0, m = 0, s = 0;
+                    const t = timePart.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?/i);
+                    if (t) {
+                        h = Number(t[1]);
+                        m = Number(t[2]);
+                        s = Number(t[3] || 0);
+                        const ap = t[4]?.toLowerCase();
+                        if (ap === 'pm' && h < 12) h += 12;
+                        if (ap === 'am' && h === 12) h = 0;
+                    }
+                    d = new Date(yyyy, mm - 1, dd, h, m, s);
+                } else if (str) {
+                    d = new Date(str);
+                }
+                return d && !isNaN(d) ? d.getTime() : 0;
+            };
+
+            flattenedReturns.sort((a, b) => {
+                const tb = getTimestamp(b);
+                const ta = getTimestamp(a);
+                if (tb !== ta) return tb - ta;
+
+                // Same time hole returnId (number hole number diye) diye compare
+                const na = Number(a.returnId);
+                const nb = Number(b.returnId);
+                if (!isNaN(na) && !isNaN(nb) && na !== nb) return nb - na;
+
+                // Sheshe jeta pore fetch hoyeche seta age
+                return b.seq - a.seq;
+            });
+
+            setReturns(flattenedReturns);
         } catch (error) {
             console.error('Error fetching returns:', error);
             showToast('Failed to load returns!', 'error');
@@ -296,7 +353,93 @@ const PurchaseReturn = () => {
     const totalPages = Math.ceil(filteredReturns.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentReturns = filteredReturns.slice(indexOfFirstItem, indexOfLastItem);
+    // Invoice mark করলে ওই invoice-এর সব row প্রথম row-এর জায়গায় একসাথে দেখাবে
+    const orderedReturns = (() => {
+        if (selectedInvoices.length === 0) return filteredReturns;
+        const placed = new Set();
+        const out = [];
+        filteredReturns.forEach((r) => {
+            if (!selectedInvoices.includes(r.invoiceNo)) {
+                out.push(r);
+                return;
+            }
+            if (placed.has(r.invoiceNo)) return;
+            placed.add(r.invoiceNo);
+            filteredReturns
+                .filter((x) => x.invoiceNo === r.invoiceNo)
+                .forEach((x) => out.push(x));
+        });
+        return out;
+    })();
+    const currentReturns = orderedReturns.slice(indexOfFirstItem, indexOfLastItem);
+
+
+    const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+    // Checkbox handlers (Select All = বর্তমান পেজের সব row)
+    const isAllSelected =
+        currentReturns.length > 0 &&
+        currentReturns.every((i) => selectedIds.includes(i.returnId));
+
+    const handleSelectAll = () => {
+        const ids = currentReturns.map((i) => i.returnId);
+        if (isAllSelected) {
+            setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+        } else {
+            setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
+        }
+    };
+
+    const handleSelectRow = (id) => {
+        setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+    };
+
+    // Invoice click করলে ওই invoice-এর সব return row mark হবে
+    const handleSelectInvoice = (invoiceNo) => {
+        const ids = returns.filter((r) => r.invoiceNo === invoiceNo).map((r) => r.returnId);
+        const alreadyMarked = selectedInvoices.includes(invoiceNo);
+
+        if (alreadyMarked) {
+            // Invoice unmark: invoice er shob row er checkbox o uthe jabe
+            setSelectedInvoices((prev) => prev.filter((x) => x !== invoiceNo));
+            setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+        } else {
+            // Invoice mark: invoice er shob row er checkbox select hoye jabe
+            setSelectedInvoices((prev) => [...prev, invoiceNo]);
+            setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
+        }
+    };
+
+    // Total shudhu checkbox select kora row gulor (invoice click korle oi invoice er shob row auto checked hoy)
+    const invoiceRows = filteredReturns.filter((i) => selectedInvoices.includes(i.invoiceNo));
+    const checkedRows = filteredReturns.filter((i) => selectedIds.includes(i.returnId));
+    const isInvoiceMode = invoiceRows.length > 0;
+    const isCheckMode = checkedRows.length > 0;
+    const hasSelection = isInvoiceMode || isCheckMode;
+    const summaryRows = hasSelection ? checkedRows : filteredReturns;
+
+    // Table-এর মতোই "X Bundle Y Pcs (Total: N)" আকারে যোগফল
+    const buildQtyInfo = (rows, unitKey, pcsKey, labelKey, totalKey) => {
+        const units = {};
+        let pcs = 0;
+        let total = 0;
+        rows.forEach((r) => {
+            const label = r[labelKey] || 'Unit';
+            const u = Number(r[unitKey]) || 0;
+            if (u > 0) units[label] = (units[label] || 0) + u;
+            pcs += Number(r[pcsKey]) || 0;
+            total += Number(r[totalKey]) || 0;
+        });
+        const unitText = Object.entries(units).map(([l, u]) => `${u} ${l}`).join(' + ') || '0 Unit';
+        return { text: `${unitText} ${pcs} Pcs`, total };
+    };
+
+    const qtyInfo = buildQtyInfo(summaryRows, 'sumUnitQty', 'sumPcsQty', 'unitLabel', 'totalReturnPcs');
+    const freeInfo = buildQtyInfo(summaryRows, 'sumFreeUnitQty', 'sumFreePcsQty', 'unitLabel', 'totalReturnFreeQty');
+    const othersInfo = buildQtyInfo(summaryRows, 'sumOtherFreeUnitQty', 'sumOtherFreePcsQty', 'otherFreeUnitLabel', 'totalReturnFreeItemsQty');
+    const sumAmount = summaryRows.reduce((s, i) => s + (Number(i.totalReturnAmount) || 0), 0);
 
     // Handle page change
     const handlePageChange = (pageNumber) => {
@@ -466,6 +609,61 @@ const PurchaseReturn = () => {
                         </div>
                     </div>
 
+                    {/* Summary Bar */}
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-3">
+                        <div className="flex flex-col items-start gap-1.5">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full font-bold ${isInvoiceMode ? 'bg-amber-100 text-amber-700' : isCheckMode ? 'bg-pink-100 text-pink-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                                {isInvoiceMode ? 'Invoice Selected' : isCheckMode ? 'Selected' : 'Showing'}
+                            </span>
+                            <span className="font-semibold text-gray-600">
+                                Rows: <b className="text-gray-800">{summaryRows.length}</b>
+                                {isInvoiceMode && (
+                                    <> | Invoice: <b className="text-gray-800">{selectedInvoices.length}</b></>
+                                )}
+                            </span>
+                        </div>
+
+                        <div className="w-px self-stretch bg-indigo-200" />
+
+                        <div className="px-3 py-2 rounded-xl bg-white border border-orange-200 shadow-sm">
+                            <div className="text-[9px] font-bold uppercase text-orange-500">Return Quantity</div>
+                            <div className="text-sm font-extrabold text-orange-600">
+                                {qtyInfo.text}
+                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {fmt(qtyInfo.total)})</span>
+                            </div>
+                        </div>
+                        <div className="px-3 py-2 rounded-xl bg-white border border-emerald-200 shadow-sm">
+                            <div className="text-[9px] font-bold uppercase text-emerald-500">Return Free Quantity</div>
+                            <div className="text-sm font-extrabold text-emerald-600">
+                                {freeInfo.text}
+                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {fmt(freeInfo.total)})</span>
+                            </div>
+                        </div>
+                        <div className="px-3 py-2 rounded-xl bg-white border border-amber-200 shadow-sm">
+                            <div className="text-[9px] font-bold uppercase text-amber-500">Others Free Product</div>
+                            <div className="text-sm font-extrabold text-amber-600">
+                                {othersInfo.text}
+                                <span className="text-xs text-amber-700 ml-1 font-bold">(Total: {fmt(othersInfo.total)})</span>
+                            </div>
+                        </div>
+                        <div className="px-3 py-2 rounded-xl bg-white border border-rose-200 shadow-sm">
+                            <div className="text-[9px] font-bold uppercase text-rose-500">Return Amount</div>
+                            <div className="text-sm font-extrabold text-rose-600">৳{fmt(sumAmount)}</div>
+                        </div>
+
+                        {(isInvoiceMode || isCheckMode || selectedIds.length > 0) && (
+                            <button
+                                onClick={() => {
+                                    setSelectedIds([]);
+                                    setSelectedInvoices([]);
+                                }}
+                                className="ml-auto text-[11px] bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 text-gray-600 px-2.5 py-1 rounded-lg font-semibold cursor-pointer"
+                            >
+                                Clear Selection
+                            </button>
+                        )}
+                    </div>
+
                     {/* Table Container */}
                     {loading ? (
                         <div className="text-center py-20 text-gray-500 font-medium">Loading returns...</div>
@@ -476,21 +674,57 @@ const PurchaseReturn = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-xs uppercase tracking-wide">
+                                        <th className="w-10 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={isAllSelected}
+                                                onChange={handleSelectAll}
+                                                className="w-4 h-4 accent-pink-500 cursor-pointer"
+                                            />
+                                        </th>
                                         <th className="py-4 px-4">Date</th>
                                         <th className="py-4 px-4">Invoice</th>
                                         <th className="py-4 px-4">Company</th>
                                         <th className="py-4 px-4">Return Quantity</th>
                                         <th className="py-4 px-4">Return Free Quantity</th>
-                                        <th className="py-4 px-4">Return Amount</th>
                                         <th className="py-4 px-4">Others Free Product</th>
+                                        <th className="py-4 px-4">Return Amount</th>
                                         <th className="py-4 px-4 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                                     {currentReturns.map((item, index) => (
-                                        <tr key={item.returnId || index} className="hover:bg-indigo-50/40 transition duration-150">
+                                        <tr
+                                            key={item.returnId || index}
+                                            className={`transition duration-150 ${selectedIds.includes(item.returnId)
+                                                ? 'bg-pink-50/70'
+                                                : selectedInvoices.includes(item.invoiceNo)
+                                                    ? 'bg-amber-50/60'
+                                                    : 'hover:bg-indigo-50/40'
+                                                }`}
+                                        >
+                                            <td className="text-center px-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(item.returnId)}
+                                                    onChange={() => handleSelectRow(item.returnId)}
+                                                    className="w-4 h-4 accent-pink-500 cursor-pointer"
+                                                />
+                                            </td>
                                             <td className="py-4 px-4 text-gray-600 font-medium">{item.returnDate || 'N/A'}</td>
-                                            <td className="py-4 px-4 text-gray-600 font-medium">{item.invoiceNo}</td>
+                                            <td className="py-4 px-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSelectInvoice(item.invoiceNo)}
+                                                    title="Click to mark all returns of this invoice"
+                                                    className={`font-bold px-2 py-0.5 rounded-lg transition cursor-pointer ${selectedInvoices.includes(item.invoiceNo)
+                                                        ? 'bg-amber-500 text-white'
+                                                        : 'text-indigo-600 hover:bg-indigo-50 hover:underline'
+                                                        }`}
+                                                >
+                                                    {item.invoiceNo}
+                                                </button>
+                                            </td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{item.company}</td>
                                             <td className="py-4 px-4 font-semibold text-orange-600">
                                                 {item.sumUnitQty || 0} {item.unitLabel} {item.sumPcsQty || 0} Pcs
@@ -500,11 +734,11 @@ const PurchaseReturn = () => {
                                                 {item.sumFreeUnitQty || 0} {item.unitLabel} {item.sumFreePcsQty || 0} Pcs
                                                 <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.totalReturnFreeQty || 0})</span>
                                             </td>
-                                            <td className="py-4 px-4 font-bold text-orange-600">৳{Number(item.totalReturnAmount).toFixed(2)}</td>
                                             <td className="py-4 px-4 font-semibold text-amber-600">
                                                 {item.sumOtherFreeUnitQty || 0} {item.otherFreeUnitLabel} {item.sumOtherFreePcsQty || 0} Pcs
                                                 <span className="text-xs text-amber-700 ml-1 font-bold">(Total: {item.totalReturnFreeItemsQty || 0})</span>
                                             </td>
+                                            <td className="py-4 px-4 font-bold text-orange-600">৳{Number(item.totalReturnAmount).toFixed(2)}</td>
                                             <td className="py-3 px-2.5 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
 

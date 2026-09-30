@@ -120,10 +120,34 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
   }, [drawerOpen, setDrawerOpen]);
 
   // ড্রপডাউনগুলোর খোলা/বন্ধ অবস্থা ট্র্যাক করার জন্য ডায়নামিক স্টেট
+  // openDropdowns = click করে খোলা রাখা (pin), hoveredKey = hover করলে সাময়িক খোলা
   const [openDropdowns, setOpenDropdowns] = useState({});
+  const [hoveredKey, setHoveredKey] = useState(null);
+
+  const canHover = () =>
+    typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches;
+
+  // hover intent: mouse কিছুক্ষণ থামলে তবেই খুলবে (দ্রুত পাস করলে খুলবে না)
+  const hoverTimerRef = useRef(null);
+  const HOVER_DELAY = 100;
+
+  const handleMouseEnter = (key) => {
+    if (!canHover()) return;
+    clearTimeout(hoverTimerRef.current);
+    if (openDropdowns[key]) return;
+    hoverTimerRef.current = setTimeout(() => setHoveredKey(key), HOVER_DELAY);
+  };
+  const handleMouseLeave = () => {
+    if (!canHover()) return;
+    clearTimeout(hoverTimerRef.current);
+    setHoveredKey(null);
+  };
 
   const toggleDropdown = (key) => {
     setOpenDropdowns((prev) => ({ ...prev, [key]: !prev[key] }));
+    // click করলে hover state বন্ধ, যাতে pin/unpin সাথে সাথে বোঝা যায়
+    clearTimeout(hoverTimerRef.current);
+    setHoveredKey(null);
   };
 
   // ফুটারের সাথে ড্রয়ারের নিচ দিক মেলানোর লজিক
@@ -205,12 +229,12 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       children: [
         { to: "/free-products", label: "Free Products" },
         { to: "/damage-products", label: "Damage Products" },
-        { to: "/stock-item", label: "Stock Item" },
+        { to: "/stock-purchase", label: "Stock Purchase" },
         { to: "/stock-alert", label: "Stock Alert" },
         { to: "/stock-list", label: "All Stock" },
       ],
     },
-   {
+    {
       type: "dropdown",
       key: "account",
       label: "Account",
@@ -246,7 +270,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       key: "billing",
       label: "Payment & Billing",
       children: [
-       
+
       ],
     },
     {
@@ -273,6 +297,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
     } else {
       setAnimatedItems([]);
       setOpenDropdowns({}); // ড্রয়ার বন্ধ হলে সব ড্রপডাউনও বন্ধ হবে
+      setHoveredKey(null);
     }
   }, [drawerOpen, clientUser]);
 
@@ -284,7 +309,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
     >
       <div
         ref={drawerPanelRef}
-        className={`absolute left-0 top-0 w-64 max-w-[80vw] bg-white shadow-xl flex flex-col transition-transform duration-300 ease-in-out pointer-events-auto ${drawerOpen ? "translate-x-0" : "-translate-x-full"
+        className={`absolute left-0 top-0 w-64 max-w-[80vw] bg-gradient-to-b from-emerald-50 via-slate-50 to-teal-50 border-r border-emerald-100 shadow-xl flex flex-col transition-transform duration-300 ease-in-out pointer-events-auto ${drawerOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         style={{ height: drawerHeight }}
         onClick={(e) => e.stopPropagation()}
@@ -311,6 +336,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
             const isAnimated = animatedItems.includes(index);
             const theme = colorMap[item.key] || colorMap.settings;
             const Icon = theme.icon;
+            const isOpen = !!openDropdowns[item.key] || hoveredKey === item.key;
 
             return (
               <div
@@ -326,7 +352,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
                     to={item.to}
                     onClick={() => setDrawerOpen(false)}
                     className={({ isActive }) =>
-                      `relative flex items-center gap-2.5 text-[14.5px] font-medium pl-2.5 pr-3 py-2 rounded-md transition-colors before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full ${isActive ? theme.active : "text-slate-600 hover:bg-slate-50 before:bg-transparent"
+                      `relative flex items-center gap-2.5 text-[14.5px] font-medium pl-2.5 pr-3 py-2 rounded-md transition-colors before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full ${isActive ? theme.active : "text-slate-600 hover:bg-white/80 before:bg-transparent"
                       }`
                     }
                   >
@@ -336,10 +362,13 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
                     {item.label}
                   </NavLink>
                 ) : (
-                  <div>
+                  <div
+                    onMouseEnter={() => handleMouseEnter(item.key)}
+                    onMouseLeave={handleMouseLeave}
+                  >
                     <button
                       onClick={() => toggleDropdown(item.key)}
-                      className="w-full flex items-center justify-between pl-2.5 pr-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 transition-colors group"
+                      className="w-full flex items-center justify-between pl-2.5 pr-3 py-2 rounded-md text-slate-600 hover:bg-white/80 transition-colors group"
                     >
                       <span className="flex items-center gap-2.5 text-[14.5px] font-medium">
                         <span className={`h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[12px] ${theme.iconWrap}`}>
@@ -348,23 +377,26 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
                         {item.label}
                       </span>
                       <FaChevronDown
-                        className={`text-[10px] transition-transform duration-200 ease-in-out ${openDropdowns[item.key] ? `rotate-180 ${theme.chevronOpen}` : "text-slate-400 group-hover:text-slate-500"
+                        className={`text-[10px] transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${isOpen ? `rotate-180 ${theme.chevronOpen}` : "text-slate-400 group-hover:text-slate-500"
                           }`}
                       />
                     </button>
 
                     <div
-                      className={`grid transition-all duration-200 ease-in-out overflow-hidden pl-[34px] ${openDropdowns[item.key] ? "grid-rows-[1fr] opacity-100 mt-0.5 mb-1" : "grid-rows-[0fr] opacity-0"
+                      className={`grid transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden pl-[34px] ${isOpen ? "grid-rows-[1fr] opacity-100 mt-0.5 mb-1" : "grid-rows-[0fr] opacity-0"
                         }`}
                     >
-                      <div className="overflow-hidden space-y-0.5 border-l border-slate-200 pl-3">
+                      <div
+                        className={`overflow-hidden space-y-0.5 border-l border-slate-200 pl-3 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${isOpen ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
+                          }`}
+                      >
                         {item.children.map((child, cIndex) => (
                           <NavLink
                             key={cIndex}
                             to={child.to}
                             onClick={() => setDrawerOpen(false)}
                             className={({ isActive }) =>
-                              `block text-[13.5px] font-medium px-2.5 py-1.5 rounded-md transition-colors ${isActive ? theme.childActive : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                              `block text-[13.5px] font-medium px-2.5 py-1.5 rounded-md transition-colors ${isActive ? theme.childActive : "text-slate-500 hover:bg-white/80 hover:text-slate-800"
                               }`
                             }
                           >

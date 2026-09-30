@@ -42,7 +42,6 @@ import OrderAdd from "../Components/Pages/Software/Order/OrderAdd";
 import Wholesale from "../Components/Pages/Software/Sales/Wholesale";
 import Feature from "../Components/Pages/Software/Settings/Feature";
 import SalesDetails from "../Components/Pages/Software/Sales/SalesDetails";
-import StockItem from "../Components/Pages/Software/Inventory/StockItem";
 import SalesReturn from "../Components/Pages/Software/Sales/SalesReturn";
 import SalesReturnDetails from "../Components/Pages/Software/Sales/SalesReturnDetails";
 import SalesReturnView from "../Components/Pages/Software/Sales/SalesReturnView";
@@ -50,6 +49,7 @@ import CompanyDetails from "../Components/Pages/Software/Contact/CompanyDetails"
 import CustomersDetails from "../Components/Pages/Software/Contact/CustomersDetails";
 import ProductDetails from "../Components/Pages/Software/Product/ProductDetails";
 import FreeProducts from "../Components/Pages/Software/Inventory/FreeProducts";
+import StockPurchase from "../Components/Pages/Software/Inventory/StockPurchase";
 
 
 export const router = createBrowserRouter([
@@ -175,8 +175,8 @@ export const router = createBrowserRouter([
         element: <ClientRoute><StockList></StockList></ClientRoute>
       },
       {
-        path: "/stock-item",
-        element: <ClientRoute><StockItem></StockItem></ClientRoute>
+        path: "/stock-purchase",
+        element: <ClientRoute><StockPurchase></StockPurchase></ClientRoute>
       },
       {
         path: "/software",

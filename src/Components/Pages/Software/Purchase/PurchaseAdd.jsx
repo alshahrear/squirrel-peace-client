@@ -87,6 +87,7 @@ const PurchaseAdd = () => {
     const [paymentAccountType, setPaymentAccountType] = useState('');
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
     const [paymentNote, setPaymentNote] = useState('');
+    const [isReceiving, setIsReceiving] = useState(false);
 
     // সিলেক্ট করা প্রোডাক্টগুলো রাখার স্টেট
     const [purchaseItems, setPurchaseItems] = useDraftState(`${draftPrefix}:items`, []);
@@ -909,6 +910,7 @@ const PurchaseAdd = () => {
     // Receive Submit
     // --------------------------------------------------
     const handleReceiveSubmit = async () => {
+        if (isReceiving) return;
         // ---------------- Validation ----------------
         if (paymentAmount === '' || paymentAmount === null) {
             setToast({ show: true, message: 'Payment amount is required!', isError: true });
@@ -1020,6 +1022,7 @@ const PurchaseAdd = () => {
         };
 
         try {
+            setIsReceiving(true);
             const res = await fetch(`http://localhost:5000/purchase/${editId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -1044,6 +1047,7 @@ const PurchaseAdd = () => {
             }, 1000);
         } catch (error) {
             console.error('Error receiving purchase:', error);
+            setIsReceiving(false);
             setToast({
                 show: true,
                 message: 'Failed to receive payment. Try again.',
@@ -2040,6 +2044,7 @@ const PurchaseAdd = () => {
                                 <button
                                     type="button"
                                     onClick={handleReceiveSubmit}
+                                    disabled={isReceiving}
                                     className="px-10 py-3 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition cursor-pointer"
                                 >
                                     Receive
