@@ -70,6 +70,11 @@ const PurchaseAdd = () => {
     const location = useLocation();
     const editingPurchase = location.state?.purchase || null;
     const isReceiveMode = location.state?.mode === 'receive';
+    const isReceivedEdit =
+        !!editingPurchase &&
+        location.state?.mode !== 'receive' &&
+        (editingPurchase.receiveStatus === 'Received' || editingPurchase.receiveStatus === 'Yes');
+    const showPayment = isReceiveMode || isReceivedEdit;
     const [isEditMode] = useState(!!editingPurchase);
     const [editId] = useState(editingPurchase?._id || null);
 
@@ -160,13 +165,20 @@ const PurchaseAdd = () => {
                             ? Number(item.pcs) || 0
                             : qtyNum + pcsQtyNum;
                 const pcsPerUnit =
-                    qtyNum > 0 ? (totalQtyNum - pcsQtyNum) / qtyNum : 1;
+                    Number(item.pcsPerUnit) > 0
+                        ? Number(item.pcsPerUnit)
+                        : qtyNum > 0 ? (totalQtyNum - pcsQtyNum) / qtyNum : 1;
+                const freeSubQtyNum = Number(item.freeSubQty) || 0;
+                const isParentItem = item.parentMode === true;
+                const subQtyNum = Number(item.subQty) || 0;
+                const baseFreeSubQty = qtyNum > 0 ? freeSubQtyNum / qtyNum : 0;
                 const freeUnitQtyNum = Number(item.freeUnitQty) || 0;
                 const freePcsQtyNum = Number(item.freePcsQty) || 0;
                 const baseFreeUnitQty =
                     qtyNum > 0 ? freeUnitQtyNum / qtyNum : 0;
-                const baseFreePcsQty =
-                    qtyNum > 0 ? freePcsQtyNum / qtyNum : 0;
+                const baseFreePcsQty = isParentItem
+                    ? ((qtyNum + subQtyNum) > 0 ? freePcsQtyNum / (qtyNum + subQtyNum) : 0)
+                    : (qtyNum > 0 ? freePcsQtyNum / qtyNum : 0);
 
                 return {
                     _id: item.productId,
@@ -177,6 +189,12 @@ const PurchaseAdd = () => {
                     buyPrice: Number(item.buyPrice) || 0,
                     sellPrice: Number(item.sellPrice) || 0,
                     unit: item.unit || 'Pcs',
+                    parentMode: item.parentMode === true,
+                    subUnit: item.subUnit || '',
+                    pcsPerSub: Number(item.pcsPerSub) || 0,
+                    subQty: Number(item.subQty) || '',
+                    freeSubQty: Number(item.freeSubQty) || '',
+                    baseFreeSubQty,
                     unitQty: qtyNum === 0 ? '' : qtyNum,
                     pcsQty: pcsQtyNum === 0 ? '' : pcsQtyNum,
                     pcsPerUnit: pcsPerUnit || 1,
@@ -199,6 +217,21 @@ const PurchaseAdd = () => {
             setAdjustmentType(editingPurchase.adjustment?.type || '+');
             setOrderNote(editingPurchase.orderNote || '');
 
+            if (isReceivedEdit) {
+                setPaymentAmount(editingPurchase.paidAmount ?? '');
+                setPaymentAmountTouched(true);
+                setPaymentAccountType(editingPurchase.paymentMethod || '');
+                setPaymentNote(editingPurchase.paymentNote || '');
+                const pa = editingPurchase.paymentAccount || {};
+                if (editingPurchase.paymentMethod === 'Bank') {
+                    setSelectedAccountKey(`${pa.bankName}-${pa.accountNumber}-${pa.accountBranch}`);
+                } else if (editingPurchase.paymentMethod === 'Mobile Banking') {
+                    setSelectedAccountKey(`${pa.accountName}-${pa.accountNumber}`);
+                } else {
+                    setSelectedAccountKey('cash');
+                }
+            }
+
             const restoredFreeItems = (editingPurchase.freeItems || []).map((item, index) => {
                 const unitQty = Number(item.unitQty) || 0;
                 const pcsQty = Number(item.pcsQty) || 0;
@@ -215,10 +248,13 @@ const PurchaseAdd = () => {
                     uniqueId: `${item.productId || 'free'}-${index}-${Date.now()}`,
                     _id: item.productId,
                     unitQty: unitQty || '',
+                    subQty: Number(item.subQty) || '',
+                    parentMode: item.parentMode === true,
+                    subUnit: item.subUnit || '',
+                    pcsPerSub: Number(item.pcsPerSub) || 0,
                     pcsQty: pcsQty || '',
                     pcsPerUnit,
                     totalQty,
-                    sellPriceBundle: Number(item.sellPriceBundle) > 0 ? item.sellPriceBundle : '',
                     sellPricePcs: Number(item.sellPricePcs) > 0 ? item.sellPricePcs : '',
                 };
             });
@@ -234,7 +270,7 @@ const PurchaseAdd = () => {
     // Receive Mode হলে Investment Accounts fetch করবে
     // --------------------------------------------------
     useEffect(() => {
-        if (isReceiveMode) {
+        if (showPayment) {
             fetch('http://localhost:5000/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
@@ -282,11 +318,9 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
     // Others Free Product — Add / Remove / Change
     // --------------------------------------------------
-    const getFreeUnitTotal = (item) =>
-        (Number(item.unitQty) || 0) * (Number(item.sellPriceBundle) || 0);
     const getFreePcsTotal = (item) =>
-        (Number(item.pcsQty) || 0) * (Number(item.sellPricePcs) || 0);
-    const getFreeRowTotal = (item) => getFreeUnitTotal(item) + getFreePcsTotal(item);
+        (Number(item.totalQty) || 0) * (Number(item.sellPricePcs) || 0);
+    const getFreeRowTotal = (item) => getFreePcsTotal(item);
 
     const handleAddFreeProduct = (product) => {
         const newItem = {
@@ -294,12 +328,15 @@ const PurchaseAdd = () => {
             _id: product._id,
             productName: product.productName || '',
             company: product.company || '',
-            unit: product.unit || 'Pcs',
+            unit: product.parentUnitUse === true ? product.parentUnit : (product.unit || 'Pcs'),
+            parentMode: product.parentUnitUse === true,
+            subUnit: product.parentUnitUse === true ? (product.subUnit || '') : '',
+            pcsPerSub: product.parentUnitUse === true ? (Number(product.subUnitQty) || 1) : 0,
+            subQty: '',
             unitQty: '',
             pcsQty: '',
             pcsPerUnit: Number(product.pcsOfUnit) || 1,
             totalQty: 0,
-            sellPriceBundle: roundTo2((Number(product.sellingPrice) || 0) * (Number(product.pcsOfUnit) || 1)),
             sellPricePcs: Number(product.sellingPrice) || 0,
         };
         setFreeProductItems((prev) => [...prev, newItem]);
@@ -316,6 +353,16 @@ const PurchaseAdd = () => {
         setFreeProductItems((prev) =>
             prev.map((item) => {
                 if (item.uniqueId !== uniqueId) return item;
+
+                if (['unitQty', 'subQty', 'pcsQty'].includes(field)) {
+                    const numVal = value === '' ? '' : Number(value) || 0;
+                    const next = { ...item, [field]: numVal };
+                    next.totalQty =
+                        (Number(next.unitQty) || 0) * (Number(next.pcsPerUnit) || 1) +
+                        (Number(next.subQty) || 0) * (Number(next.pcsPerSub) || 0) +
+                        (Number(next.pcsQty) || 0);
+                    return next;
+                }
 
                 if (field === 'unitQty') {
                     const numVal = value === '' ? 0 : Number(value) || 0;
@@ -337,14 +384,7 @@ const PurchaseAdd = () => {
                     };
                 }
 
-                if (field === 'sellPriceBundle') {
-                    const bundlePriceVal = value === '' ? 0 : Number(value) || 0;
-                    return {
-                        ...item,
-                        sellPriceBundle: value,
-                        sellPricePcs: roundTo2(bundlePriceVal / (Number(item.pcsPerUnit) || 1)),
-                    };
-                }
+
 
                 return { ...item, [field]: value };
             })
@@ -388,11 +428,14 @@ const PurchaseAdd = () => {
         productName: item.productName,
         company: item.company,
         unit: item.unit || 'Pcs',
+        parentMode: item.parentMode === true,
+        subUnit: item.subUnit || '',
+        pcsPerSub: Number(item.pcsPerSub) || 0,
         unitQty: Number(item.unitQty) || 0,
+        subQty: Number(item.subQty) || 0,
         pcsQty: Number(item.pcsQty) || 0,
         pcsPerUnit: Number(item.pcsPerUnit) || 1,
         totalQty: Number(item.totalQty) || 0,
-        sellPriceBundle: roundTo2(item.sellPriceBundle),
         sellPricePcs: roundTo2(item.sellPricePcs),
         subtotal: roundTo2(getFreeRowTotal(item)),
     }));
@@ -436,9 +479,12 @@ const PurchaseAdd = () => {
     const handleAddProduct = (product) => {
         const initialUnitQty = '';
         const initialPcsQty = '';
-        const baseFreeUnitQty = Number(product.freeProductUnitQty) || 0;
+        const isParent = product.parentUnitUse === true;
+        const baseFreeUnitQty = Number(isParent ? product.freeProductParentUnitQty : product.freeProductUnitQty) || 0;
+        const baseFreeSubQty = isParent ? (Number(product.freeProductSubQty) || 0) : 0;
         const baseFreePcsQty = Number(product.freeProductPcsQty) || 0;
         const pcsPerUnit = Number(product.pcsOfUnit) || 1;
+        const pcsPerSub = isParent ? (Number(product.subUnitQty) || 1) : 0;
 
         const newItem = {
             ...product,
@@ -452,7 +498,13 @@ const PurchaseAdd = () => {
             buyPrice: Number(product.purchasePrice) || 0,
             sellPrice: Number(product.sellingPrice) || 0,
 
-            unit: product.unit || 'Pcs',
+            unit: isParent ? product.parentUnit : (product.unit || 'Pcs'),
+            parentMode: isParent,
+            subUnit: isParent ? product.subUnit : '',
+            pcsPerSub: pcsPerSub,
+            subQty: '',
+            freeSubQty: '',
+            baseFreeSubQty: baseFreeSubQty,
 
             unitQty: initialUnitQty,
 
@@ -498,6 +550,37 @@ const PurchaseAdd = () => {
             prev.map((item) => {
                 if (item.uniqueId !== uniqueId) {
                     return item;
+                }
+                if (['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)) {
+                    const numVal = value === '' ? '' : Number(value) || 0;
+                    const next = { ...item, [field]: numVal };
+                    const ppu = Number(next.pcsPerUnit) || 1;
+                    const pps = Number(next.pcsPerSub) || 0;
+                    next.totalQty =
+                        (Number(next.unitQty) || 0) * ppu +
+                        (Number(next.subQty) || 0) * pps +
+                        (Number(next.pcsQty) || 0);
+                    if (item.parentMode) {
+                        // Parent Unit থাকলে:
+                        // Parent Qty (Karton) → Free Sub (Packet) + Free Pcs
+                        // Sub Qty (Packet)    → শুধু Free Pcs
+                        if (field === 'unitQty' || field === 'subQty') {
+                            const u = Number(next.unitQty) || 0;
+                            const s = Number(next.subQty) || 0;
+                            next.freeSubQty = u * (Number(item.baseFreeSubQty) || 0) || '';
+                            next.freePcsQty = (u + s) * (Number(item.baseFreePcsQty) || 0) || '';
+                        }
+                    } else if (field === 'unitQty') {
+                        const n = Number(numVal) || 0;
+                        next.freeUnitQty = n * (Number(item.baseFreeUnitQty) || 0) || '';
+                        next.freeSubQty = n * (Number(item.baseFreeSubQty) || 0) || '';
+                        next.freePcsQty = n * (Number(item.baseFreePcsQty) || 0) || '';
+                    }
+                    next.freeQty =
+                        (Number(next.freeUnitQty) || 0) * ppu +
+                        (Number(next.freeSubQty) || 0) * pps +
+                        (Number(next.freePcsQty) || 0);
+                    return next;
                 }
                 // ------------------------------------------
                 // Unit Qty Change
@@ -788,6 +871,49 @@ const PurchaseAdd = () => {
             setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
             return;
         }
+        let receivedPaymentData = {};
+        if (isReceivedEdit) {
+            if (paymentAmount === '' || paymentAmount === null) {
+                setToast({ show: true, message: 'Payment amount is required!', isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                return;
+            }
+            if (!paymentAccountType) {
+                setToast({ show: true, message: 'Please select a payment method!', isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                return;
+            }
+            if (!selectedAccountInfo) {
+                setToast({ show: true, message: 'Please select an account!', isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                return;
+            }
+
+            let accInfo = {};
+            if (paymentAccountType === 'Bank') {
+                accInfo = {
+                    bankName: selectedAccountInfo.bankName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                    accountBranch: selectedAccountInfo.accountBranch || '',
+                };
+            } else if (paymentAccountType === 'Mobile Banking') {
+                accInfo = {
+                    accountName: selectedAccountInfo.accountName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                };
+            } else {
+                accInfo = { accountName: 'Cash' };
+            }
+
+            receivedPaymentData = {
+                paidAmount: roundTo2(paymentAmount),
+                receiveStatus: 'Received',
+                receiveDate: editingPurchase.receiveDate,
+                paymentMethod: paymentAccountType,
+                paymentAccount: accInfo,
+                paymentNote: paymentNote,
+            };
+        }
         // ---------------- Validation End ----------------
 
         const itemsPayload = purchaseItems.map((item) => {
@@ -807,10 +933,16 @@ const PurchaseAdd = () => {
                 buyPrice: roundTo2(item.buyPrice),
                 sellPrice: roundTo2(item.sellPrice),
                 unit: item.unit || 'Pcs',
+                parentMode: item.parentMode === true,
+                subUnit: item.subUnit || '',
+                pcsPerUnit: Number(item.pcsPerUnit) || 1,
+                pcsPerSub: Number(item.pcsPerSub) || 0,
                 unitQty: Number(item.unitQty) || 0,
+                subQty: Number(item.subQty) || 0,
                 pcsQty: Number(item.pcsQty) || 0,
                 totalPcs: totalQty,
                 freeUnitQty: Number(item.freeUnitQty) || 0,
+                freeSubQty: Number(item.freeSubQty) || 0,
                 freePcsQty: Number(item.freePcsQty) || 0,
                 freeTotalQty: item.freeQty,
                 discount: roundTo2(item.discount),
@@ -850,6 +982,8 @@ const PurchaseAdd = () => {
             payableAmount: payableAmount,
 
             orderNote: orderNote,
+
+            ...receivedPaymentData,
         };
 
         try {
@@ -973,10 +1107,16 @@ const PurchaseAdd = () => {
                 buyPrice: roundTo2(item.buyPrice),
                 sellPrice: roundTo2(item.sellPrice),
                 unit: item.unit || 'Pcs',
+                parentMode: item.parentMode === true,
+                subUnit: item.subUnit || '',
+                pcsPerUnit: Number(item.pcsPerUnit) || 1,
+                pcsPerSub: Number(item.pcsPerSub) || 0,
                 unitQty: Number(item.unitQty) || 0,
+                subQty: Number(item.subQty) || 0,
                 pcsQty: Number(item.pcsQty) || 0,
                 totalPcs: totalQty,
                 freeUnitQty: Number(item.freeUnitQty) || 0,
+                freeSubQty: Number(item.freeSubQty) || 0,
                 freePcsQty: Number(item.freePcsQty) || 0,
                 freeTotalQty: item.freeQty,
                 discount: roundTo2(item.discount),
@@ -1298,6 +1438,30 @@ const PurchaseAdd = () => {
                                                                 </span>
 
                                                             </div>
+                                                            {item.parentMode && (
+                                                                <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder="0"
+                                                                        value={item.subQty ?? ''}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (/^\d*$/.test(value)) {
+                                                                                handleItemChange(item.uniqueId, 'subQty', value);
+                                                                            }
+                                                                        }}
+                                                                        className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                    />
+                                                                    <span
+                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                        title="Sub Unit"
+                                                                    >
+                                                                        {item.subUnit}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
 
@@ -1365,6 +1529,30 @@ const PurchaseAdd = () => {
                                                                 </span>
 
                                                             </div>
+                                                            {item.parentMode && (
+                                                                <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder="0"
+                                                                        value={item.freeSubQty ?? ''}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (/^\d*$/.test(value)) {
+                                                                                handleItemChange(item.uniqueId, 'freeSubQty', value);
+                                                                            }
+                                                                        }}
+                                                                        className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                    />
+                                                                    <span
+                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                        title="Sub Unit"
+                                                                    >
+                                                                        {item.subUnit}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
 
@@ -1768,7 +1956,6 @@ const PurchaseAdd = () => {
                                                         <th className="py-3 px-3">Unit Qty</th>
                                                         <th className="py-3 px-3">PCS Qty</th>
                                                         <th className="py-3 px-3">Total Qty</th>
-                                                        <th className="py-3 px-3">Sell Price (Bundle)</th>
                                                         <th className="py-3 px-3">Sell Price (PCS)</th>
                                                         <th className="py-3 px-3">Subtotal</th>
                                                         <th className="py-3 px-3 text-center">Action</th>
@@ -1804,6 +1991,30 @@ const PurchaseAdd = () => {
                                                                             {item.unit || 'Pcs'}
                                                                         </span>
                                                                     </div>
+                                                                    {item.parentMode && (
+                                                                        <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.subQty ?? ''}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleFreeItemChange(item.uniqueId, 'subQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                            />
+                                                                            <span
+                                                                                className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate"
+                                                                                title="Sub Unit"
+                                                                            >
+                                                                                {item.subUnit}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </td>
 
@@ -1831,30 +2042,7 @@ const PurchaseAdd = () => {
                                                                     type="number"
                                                                     readOnly
                                                                     value={item.totalQty}
-                                                                    className="w-14 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
-                                                                />
-                                                            </td>
-
-                                                            <td className="relative py-3 px-2">
-                                                                <div
-                                                                    className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getFreeUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}
-                                                                >
-                                                                    ৳{getFreeUnitTotal(item).toFixed(2)}
-                                                                </div>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    step="0.01"
-                                                                    placeholder="0"
-                                                                    disabled={!(Number(item.unitQty) > 0)}
-                                                                    value={item.sellPriceBundle}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-                                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                            handleFreeItemChange(item.uniqueId, 'sellPriceBundle', value);
-                                                                        }
-                                                                    }}
-                                                                    className="w-24 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                    className="w-24 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
                                                                 />
                                                             </td>
 
@@ -1869,7 +2057,7 @@ const PurchaseAdd = () => {
                                                                     min="0"
                                                                     step="0.01"
                                                                     placeholder="0"
-                                                                    disabled={!(Number(item.pcsQty) > 0)}
+                                                                    disabled={!(Number(item.totalQty) > 0)}
                                                                     value={item.sellPricePcs}
                                                                     onChange={(e) => {
                                                                         const value = e.target.value;
@@ -1938,7 +2126,7 @@ const PurchaseAdd = () => {
                         {/* =================================
                             PAYMENT (Receive Mode Only)
                         ================================= */}
-                        {isReceiveMode && (
+                        {showPayment && (
                             <div className="mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
                                 <h3 className="text-base font-bold text-emerald-800 mb-4">Payment</h3>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { FaUserCircle, FaBars } from "react-icons/fa";
+import { FaBars, FaSignOutAlt, FaEnvelope } from "react-icons/fa";
 import { RiAdminFill } from "react-icons/ri";
 import useAuth from "../../../Layout/useAuth";
 import useAdmin from "../../../../hooks/useAdmin";
@@ -32,6 +32,65 @@ const DraftToggle = ({ compact = false }) => {
       </span>
       {!compact && <span className="text-xs font-semibold text-gray-600">Save Draft</span>}
     </button>
+  );
+};
+
+// Role অনুযায়ী রঙ
+const ROLE_STYLES = {
+  Admin: { grad: "from-rose-500 to-orange-500", badge: "bg-rose-100 text-rose-700 border-rose-200" },
+  Manager: { grad: "from-indigo-500 to-purple-600", badge: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  SR: { grad: "from-emerald-500 to-teal-600", badge: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  "Delivery Man": { grad: "from-amber-500 to-orange-600", badge: "bg-amber-100 text-amber-700 border-amber-200" },
+};
+const DEFAULT_ROLE_STYLE = { grad: "from-sky-500 to-blue-600", badge: "bg-sky-100 text-sky-700 border-sky-200" };
+
+const getInitials = (name = "") =>
+  name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "U";
+
+// সুন্দর Profile Avatar (নামের অক্ষর + gradient + online dot)
+const ProfileAvatar = ({ name, role, size = "w-10 h-10", text = "text-sm" }) => {
+  const style = ROLE_STYLES[role] || DEFAULT_ROLE_STYLE;
+  return (
+    <span className="relative inline-block">
+      <span className={`${size} ${text} rounded-full bg-gradient-to-br ${style.grad} text-white font-bold flex items-center justify-center ring-2 ring-white shadow-md`}>
+        {getInitials(name)}
+      </span>
+      <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#2acb35] border-2 border-white rounded-full" />
+    </span>
+  );
+};
+
+// Profile dropdown card (Name, Email, Role, Log Out)
+const ProfileCard = ({ clientUser, handleLogout }) => {
+  const style = ROLE_STYLES[clientUser.role] || DEFAULT_ROLE_STYLE;
+  return (
+    <div
+      tabIndex={0}
+      className="dropdown-content mt-3 z-[1] w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+    >
+      <div className={`bg-gradient-to-br ${style.grad} px-5 pt-5 pb-8 flex flex-col items-center`}>
+        <ProfileAvatar name={clientUser.name} role={clientUser.role} size="w-16 h-16" text="text-2xl" />
+      </div>
+      <div className="-mt-4 mx-4 bg-white rounded-xl shadow-md border border-gray-100 px-4 py-3 text-center">
+        <p className="font-bold text-gray-800 text-base truncate">{clientUser.name}</p>
+        <p className="text-gray-500 text-xs flex items-center justify-center gap-1.5 mt-1 truncate">
+          <FaEnvelope className="shrink-0 text-gray-400" /> <span className="truncate">{clientUser.email}</span>
+        </p>
+        {clientUser.role && (
+          <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-[11px] font-bold border ${style.badge}`}>
+            {clientUser.role}
+          </span>
+        )}
+      </div>
+      <div className="p-4">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 hover:opacity-90 text-white font-semibold text-sm py-2 rounded-xl shadow-sm transition"
+        >
+          <FaSignOutAlt /> Log Out
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -148,25 +207,10 @@ const Navbar = () => {
                 <div className="dropdown dropdown-end lg:hidden">
                   <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar">
                     <div className="w-10 rounded-full flex items-center justify-center bg-gray-200 text-gray-700">
-                      <FaUserCircle className="text-3xl" />
+                      <ProfileAvatar name={clientUser.name} role={clientUser.role} size="w-10 h-10" />
                     </div>
                   </div>
-                  <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-3 shadow bg-white rounded-box w-52 space-y-2 border border-gray-100">
-                    <li className="font-bold text-gray-800 text-base px-2 py-1 border-b">
-                      {clientUser.name}
-                    </li>
-                    <li className="text-gray-500 text-xs px-2 truncate">
-                      {clientUser.email}
-                    </li>
-                    <li>
-                      <button
-                        onClick={handleLogout}
-                        className="text-red-600 font-semibold hover:bg-red-50 w-full text-left mt-1"
-                      >
-                        Log Out
-                      </button>
-                    </li>
-                  </ul>
+                  <ProfileCard clientUser={clientUser} handleLogout={handleLogout} />
                 </div>
               ) : (
                 location.pathname !== '/login-client' && (
@@ -243,29 +287,10 @@ const Navbar = () => {
               location.pathname !== '/login-client' && (
                 <div className="dropdown dropdown-end">
                   <div tabIndex={0} role="button" className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-gray-200">
-                    <FaUserCircle className="text-3xl text-gray-700" />
+                    <ProfileAvatar name={clientUser.name} role={clientUser.role} size="w-10 h-10" />
 
                   </div>
-                  <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-4 shadow-lg bg-white rounded-box w-60 space-y-2 border border-gray-100">
-                    <li>
-                      <span className="font-bold text-gray-800 text-base p-0 pb-1 border-b block">
-                        {clientUser.name}
-                      </span>
-                    </li>
-                    <li>
-                      <span className="text-gray-500 text-sm p-0 truncate block">
-                        {clientUser.email}
-                      </span>
-                    </li>
-                    <li className="pt-2">
-                      <button
-                        onClick={handleLogout}
-                        className="text-red-600 font-semibold bg-red-50 hover:bg-red-100 w-full text-center py-2 rounded-md"
-                      >
-                        Log Out
-                      </button>
-                    </li>
-                  </ul>
+                  <ProfileCard clientUser={clientUser} handleLogout={handleLogout} />
                 </div>
               )
             ) : (

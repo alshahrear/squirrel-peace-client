@@ -28,6 +28,8 @@ const PurchaseReturnDetails = () => {
     const [overallDiscountAmount, setOverallDiscountAmount] = useState(0);
     const [overallDiscountType, setOverallDiscountType] = useState('amount');
     const [submitting, setSubmitting] = useState(false);
+    const [stockBatches, setStockBatches] = useState([]);
+    const [salesList, setSalesList] = useState([]);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
     const showToast = (message, type = 'success') => {
@@ -64,12 +66,14 @@ const PurchaseReturnDetails = () => {
                                     return {
                                         rtUnitQty: Number(found.returnUnitQty) || 0,
                                         rtPcsQty: Number(found.returnPcsQty) || 0,
+                                        rtSubQty: Number(found.returnSubQty) || 0,
+                                        rtFreeSubQty: Number(found.returnFreeSubQty) || 0,
                                         rtFreeUnitQty: Number(found.returnFreeUnitQty) || 0,
                                         rtFreePcsQty: Number(found.returnFreePcsQty) || 0,
                                     };
                                 }
                             }
-                            return { rtUnitQty: 0, rtPcsQty: 0, rtFreeUnitQty: 0, rtFreePcsQty: 0 };
+                            return { rtUnitQty: 0, rtSubQty: 0, rtPcsQty: 0, rtFreeUnitQty: 0, rtFreeSubQty: 0, rtFreePcsQty: 0 };
                         })
                     );
 
@@ -91,11 +95,12 @@ const PurchaseReturnDetails = () => {
                                 if (found) {
                                     return {
                                         rtUnitQty: Number(found.returnUnitQty) || 0,
+                                        rtSubQty: Number(found.returnSubQty) || 0,
                                         rtPcsQty: Number(found.returnPcsQty) || 0,
                                     };
                                 }
                             }
-                            return { rtUnitQty: 0, rtPcsQty: 0 };
+                            return { rtUnitQty: 0, rtSubQty: 0, rtPcsQty: 0 };
                         })
                     );
 
@@ -117,7 +122,98 @@ const PurchaseReturnDetails = () => {
     // --------------------------------------------------
     // 1 Unit = koto PCS, item er original purchase data theke ber kora
     // --------------------------------------------------
+    // stock-purchase batch gulo anbe
+    useEffect(() => {
+        fetch('http://localhost:5000/stock-purchase')
+            .then((res) => res.json())
+            .then((data) => setStockBatches(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching stock:', error));
+
+        fetch('http://localhost:5000/sales')
+            .then((res) => res.json())
+            .then((data) => setSalesList(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching sales:', error));
+    }, [id]);
+
+    // Ei purchase er ei product er stock a ekhon koto ache (sales e bikri howa bad diye)
+    // = batch.availableQty - onno return entry gulor qty (nijer edit entry bad)
+    const getStockAvail = (item, isFree = false) => {
+        const batch = stockBatches.find(
+            (b) =>
+                String(b.purchaseId) === String(id) &&
+                String(b.productId) === String(item.productId) &&
+                (b.isFreeProduct === true) === isFree
+        );
+        if (!batch) return Infinity;
+
+        let other = 0;
+        (selectedInvoice?.returnHistory || []).forEach((ret) => {
+            if (isEditMode && ret.returnId === editReturnId) return;
+            if (isFree) {
+                const f = ret.freeItems?.find((it) => it.productId === item.productId);
+                if (f) other += Number(f.returnTotalQty) || 0;
+            } else {
+                const f = ret.items?.find((it) => it.productId === item.productId);
+                if (f) other += (Number(f.returnTotalQty) || 0) + (Number(f.returnFreeTotalQty ?? f.returnFreeQty) || 0);
+            }
+        });
+        return Math.max((Number(batch.availableQty) || 0) - other, 0);
+    };
+
+    // Sales er por ei batch a Main ar Free alada alada koto available ache
+    const getStockSplit = (item, isFree = false) => {
+        const batch = stockBatches.find(
+            (b) =>
+                String(b.purchaseId) === String(id) &&
+                String(b.productId) === String(item.productId) &&
+                (b.isFreeProduct === true) === isFree
+        );
+        if (!batch) return { paid: Infinity, free: Infinity };
+
+        // Onno return entry gulor qty (nijer edit entry bad)
+        let otherPaid = 0;
+        let otherFree = 0;
+        (selectedInvoice?.returnHistory || []).forEach((ret) => {
+            if (isEditMode && ret.returnId === editReturnId) return;
+            if (isFree) {
+                const f = ret.freeItems?.find((it) => it.productId === item.productId);
+                if (f) otherFree += Number(f.returnTotalQty) || 0;
+            } else {
+                const f = ret.items?.find((it) => it.productId === item.productId);
+                if (f) {
+                    otherPaid += Number(f.returnTotalQty) || 0;
+                    otherFree += Number(f.returnFreeTotalQty ?? f.returnFreeQty) || 0;
+                }
+            }
+        });
+
+        // Sales theke ei batch er Main / Free / Others sold (customer return bad diye)
+        const sold = { main: 0, free: 0, others: 0 };
+        salesList.forEach((s) =>
+            (s.stockAllocations || []).forEach((a) => {
+                if (String(a.batchId) !== String(batch._id)) return;
+                const net = Math.max((Number(a.qty) || 0) - (Number(a.returned) || 0), 0);
+                sold[a.kind || 'main'] += net;
+            })
+        );
+
+        const curPaid = Math.max((Number(batch.paidQty) || 0) - otherPaid, 0);
+        const curFree = Math.max((Number(batch.freeQty) || 0) - otherFree, 0);
+
+        if (isFree) {
+            return { paid: 0, free: Math.max(curFree - (sold.main + sold.free + sold.others), 0) };
+        }
+        const overflow = Math.max(sold.main - curPaid, 0);
+        return {
+            paid: Math.max(curPaid - sold.main, 0),
+            free: Math.max(curFree - sold.free - sold.others - overflow, 0),
+        };
+    };
+
+    const getPcsPerSub = (item) => (item.parentMode === true ? Number(item.pcsPerSub) || 0 : 0);
+
     const getPcsPerUnit = (item) => {
+        if (Number(item.pcsPerUnit) > 0) return Number(item.pcsPerUnit);
         const unitQtyNum = Number(item.unitQty) || 0;
         const pcsQtyNum = Number(item.pcsQty) || 0;
         const totalPcsNum = Number(item.totalPcs) || 0;
@@ -132,6 +228,7 @@ const PurchaseReturnDetails = () => {
     // 1 Free Unit = koto Free PCS
     // --------------------------------------------------
     const getFreePcsPerUnit = (item) => {
+        if (Number(item.pcsPerUnit) > 0) return Number(item.pcsPerUnit);
         const freeUnitQtyNum = Number(item.freeUnitQty) || 0;
         const freePcsQtyNum = Number(item.freePcsQty) || 0;
         const freeTotalQtyNum = Number(item.freeTotalQty ?? item.freeQty) || 0;
@@ -167,26 +264,28 @@ const PurchaseReturnDetails = () => {
     };
     const getRemainingQty = (item) => {
         const returned = getReturnedQtyForProduct(item.productId);
-        return Math.max(Number(item.totalPcs || 0) - returned, 0);
+        return Math.min(Math.max(Number(item.totalPcs || 0) - returned, 0), getStockSplit(item, false).paid);
     };
 
     const getFreeRemainingQty = (item) => {
         const returned = getReturnedFreeQtyForProduct(item.productId);
-        return Math.max(Number(item.freeTotalQty ?? item.freeQty ?? 0) - returned, 0);
+        return Math.min(Math.max(Number(item.freeTotalQty ?? item.freeQty ?? 0) - returned, 0), getStockSplit(item, false).free);
     };
 
     const getTotalRtQty = (index, item) => {
         const pcsPerUnit = getPcsPerUnit(item);
         const rtUnitQty = Number(returnInputs[index]?.rtUnitQty) || 0;
+        const rtSubQty = Number(returnInputs[index]?.rtSubQty) || 0;
         const rtPcsQty = Number(returnInputs[index]?.rtPcsQty) || 0;
-        return rtUnitQty * pcsPerUnit + rtPcsQty;
+        return rtUnitQty * pcsPerUnit + rtSubQty * getPcsPerSub(item) + rtPcsQty;
     };
 
     const getTotalRtFreeQty = (index, item) => {
         const freePcsPerUnit = getFreePcsPerUnit(item);
         const rtFreeUnitQty = Number(returnInputs[index]?.rtFreeUnitQty) || 0;
+        const rtFreeSubQty = Number(returnInputs[index]?.rtFreeSubQty) || 0;
         const rtFreePcsQty = Number(returnInputs[index]?.rtFreePcsQty) || 0;
-        return rtFreeUnitQty * freePcsPerUnit + rtFreePcsQty;
+        return rtFreeUnitQty * freePcsPerUnit + rtFreeSubQty * getPcsPerSub(item) + rtFreePcsQty;
     };
 
 
@@ -217,14 +316,15 @@ const PurchaseReturnDetails = () => {
 
     const getFreeItemRemainingQty = (item) => {
         const returned = getReturnedFreeItemQtyForProduct(item.productId);
-        return Math.max(Number(item.totalQty || 0) - returned, 0);
+        return Math.min(Math.max(Number(item.totalQty || 0) - returned, 0), getStockSplit(item, true).free);
     };
 
     const getFreeItemTotalRtQty = (index, item) => {
         const pcsPerUnit = getFreeItemPcsPerUnit(item);
         const rtUnitQty = Number(freeReturnInputs[index]?.rtUnitQty) || 0;
+        const rtSubQty = Number(freeReturnInputs[index]?.rtSubQty) || 0;
         const rtPcsQty = Number(freeReturnInputs[index]?.rtPcsQty) || 0;
-        return rtUnitQty * pcsPerUnit + rtPcsQty;
+        return rtUnitQty * pcsPerUnit + rtSubQty * getPcsPerSub(item) + rtPcsQty;
     };
 
 
@@ -254,7 +354,7 @@ const PurchaseReturnDetails = () => {
         if (isNaN(val) || val < 0) val = 0;
 
         const remaining = getRemainingQty(item);
-        const currentPcsQty = Number(returnInputs[index]?.rtPcsQty) || 0;
+        const currentPcsQty = (Number(returnInputs[index]?.rtPcsQty) || 0) + (Number(returnInputs[index]?.rtSubQty) || 0) * getPcsPerSub(item);
         const total = val * pcsPerUnit + currentPcsQty;
 
         if (total > remaining) {
@@ -272,6 +372,26 @@ const PurchaseReturnDetails = () => {
     // --------------------------------------------------
     // PCS Qty Change
     // --------------------------------------------------
+    const handleRtSubQtyChange = (index, value, item) => {
+        if (value !== '' && !/^\d*$/.test(value)) return;
+        const pcsPerSub = getPcsPerSub(item);
+        let val = value === '' ? 0 : Number(value);
+        if (isNaN(val) || val < 0) val = 0;
+
+        const remaining = getRemainingQty(item);
+        const others =
+            (Number(returnInputs[index]?.rtUnitQty) || 0) * getPcsPerUnit(item) +
+            (Number(returnInputs[index]?.rtPcsQty) || 0);
+        const maxVal = pcsPerSub > 0 ? Math.floor(Math.max(0, remaining - others) / pcsPerSub) : 0;
+        if (val > maxVal) val = maxVal;
+
+        setReturnInputs((prev) => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], rtSubQty: val };
+            return updated;
+        });
+    };
+
     const handleRtPcsQtyChange = (index, value, item) => {
         if (value !== '' && !/^\d*$/.test(value)) return; // ঘরে শুধু পূর্ণসংখ্যা, দশমিক নেওয়া হবে না
         const pcsPerUnit = getPcsPerUnit(item);
@@ -280,7 +400,7 @@ const PurchaseReturnDetails = () => {
 
         const remaining = getRemainingQty(item);
         const currentUnitQty = Number(returnInputs[index]?.rtUnitQty) || 0;
-        const unitPortion = currentUnitQty * pcsPerUnit;
+        const unitPortion = currentUnitQty * pcsPerUnit + (Number(returnInputs[index]?.rtSubQty) || 0) * getPcsPerSub(item);
         const maxPcs = Math.max(0, remaining - unitPortion);
 
         if (val > maxPcs) val = maxPcs;
@@ -302,7 +422,7 @@ const PurchaseReturnDetails = () => {
         if (isNaN(val) || val < 0) val = 0;
 
         const freeRemaining = getFreeRemainingQty(item);
-        const currentFreePcsQty = Number(returnInputs[index]?.rtFreePcsQty) || 0;
+        const currentFreePcsQty = (Number(returnInputs[index]?.rtFreePcsQty) || 0) + (Number(returnInputs[index]?.rtFreeSubQty) || 0) * getPcsPerSub(item);
         const total = val * freePcsPerUnit + currentFreePcsQty;
 
         if (total > freeRemaining) {
@@ -317,6 +437,26 @@ const PurchaseReturnDetails = () => {
         });
     };
 
+    const handleRtFreeSubQtyChange = (index, value, item) => {
+        if (value !== '' && !/^\d*$/.test(value)) return;
+        const pcsPerSub = getPcsPerSub(item);
+        let val = value === '' ? 0 : Number(value);
+        if (isNaN(val) || val < 0) val = 0;
+
+        const freeRemaining = getFreeRemainingQty(item);
+        const others =
+            (Number(returnInputs[index]?.rtFreeUnitQty) || 0) * getFreePcsPerUnit(item) +
+            (Number(returnInputs[index]?.rtFreePcsQty) || 0);
+        const maxVal = pcsPerSub > 0 ? Math.floor(Math.max(0, freeRemaining - others) / pcsPerSub) : 0;
+        if (val > maxVal) val = maxVal;
+
+        setReturnInputs((prev) => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], rtFreeSubQty: val };
+            return updated;
+        });
+    };
+
     const handleRtFreePcsQtyChange = (index, value, item) => {
         if (value !== '' && !/^\d*$/.test(value)) return; // ঘরে শুধু পূর্ণসংখ্যা, দশমিক নেওয়া হবে না
         const freePcsPerUnit = getFreePcsPerUnit(item);
@@ -325,7 +465,7 @@ const PurchaseReturnDetails = () => {
 
         const freeRemaining = getFreeRemainingQty(item);
         const currentFreeUnitQty = Number(returnInputs[index]?.rtFreeUnitQty) || 0;
-        const unitPortion = currentFreeUnitQty * freePcsPerUnit;
+        const unitPortion = currentFreeUnitQty * freePcsPerUnit + (Number(returnInputs[index]?.rtFreeSubQty) || 0) * getPcsPerSub(item);
         const maxPcs = Math.max(0, freeRemaining - unitPortion);
 
         if (val > maxPcs) val = maxPcs;
@@ -350,7 +490,7 @@ const PurchaseReturnDetails = () => {
         if (isNaN(val) || val < 0) val = 0;
 
         const remaining = getFreeItemRemainingQty(item);
-        const currentPcsQty = Number(freeReturnInputs[index]?.rtPcsQty) || 0;
+        const currentPcsQty = (Number(freeReturnInputs[index]?.rtPcsQty) || 0) + (Number(freeReturnInputs[index]?.rtSubQty) || 0) * getPcsPerSub(item);
         const total = val * pcsPerUnit + currentPcsQty;
 
         if (total > remaining) {
@@ -366,6 +506,26 @@ const PurchaseReturnDetails = () => {
     };
 
     // Others Free Product — RT PCS Qty Change
+    const handleFreeRtSubQtyChange = (index, value, item) => {
+        if (value !== '' && !/^\d*$/.test(value)) return;
+        const pcsPerSub = getPcsPerSub(item);
+        let val = value === '' ? 0 : Number(value);
+        if (isNaN(val) || val < 0) val = 0;
+
+        const remaining = getFreeItemRemainingQty(item);
+        const others =
+            (Number(freeReturnInputs[index]?.rtUnitQty) || 0) * getFreeItemPcsPerUnit(item) +
+            (Number(freeReturnInputs[index]?.rtPcsQty) || 0);
+        const maxVal = pcsPerSub > 0 ? Math.floor(Math.max(0, remaining - others) / pcsPerSub) : 0;
+        if (val > maxVal) val = maxVal;
+
+        setFreeReturnInputs((prev) => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], rtSubQty: val };
+            return updated;
+        });
+    };
+
     const handleFreeRtPcsQtyChange = (index, value, item) => {
         if (value !== '' && !/^\d*$/.test(value)) return;
         const pcsPerUnit = getFreeItemPcsPerUnit(item);
@@ -374,7 +534,7 @@ const PurchaseReturnDetails = () => {
 
         const remaining = getFreeItemRemainingQty(item);
         const currentUnitQty = Number(freeReturnInputs[index]?.rtUnitQty) || 0;
-        const unitPortion = currentUnitQty * pcsPerUnit;
+        const unitPortion = currentUnitQty * pcsPerUnit + (Number(freeReturnInputs[index]?.rtSubQty) || 0) * getPcsPerSub(item);
         const maxPcs = Math.max(0, remaining - unitPortion);
 
         if (val > maxPcs) val = maxPcs;
@@ -457,6 +617,18 @@ const PurchaseReturnDetails = () => {
         : 0;
 
     const handleConfirmReturn = async () => {
+        const overStockItem = selectedInvoice.items.find((item, index) => {
+            const split = getStockSplit(item, false);
+            return (
+                (Number.isFinite(split.paid) && getTotalRtQty(index, item) > split.paid) ||
+                (Number.isFinite(split.free) && getTotalRtFreeQty(index, item) > split.free)
+            );
+        });
+        if (overStockItem) {
+            const split = getStockSplit(overStockItem, false);
+            showToast(`${overStockItem.productName}: stock a Main ${split.paid} pcs, Free ${split.free} pcs ache, tar beshi return kora jabe na!`, 'error');
+            return;
+        }
         if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0 && totalReturnFreeItemsQty <= 0) {
             showToast('Return korar jonno kompokkhe 1 ta product a quantity din!', 'error');
             return;
@@ -481,9 +653,11 @@ const PurchaseReturnDetails = () => {
                         productId: item.productId,
                         productName: item.productName,
                         returnUnitQty: Number(returnInputs[index]?.rtUnitQty) || 0,
+                        returnSubQty: Number(returnInputs[index]?.rtSubQty) || 0,
                         returnPcsQty: Number(returnInputs[index]?.rtPcsQty) || 0,
                         returnTotalQty: totalRtQty,
                         returnFreeUnitQty: Number(returnInputs[index]?.rtFreeUnitQty) || 0,
+                        returnFreeSubQty: Number(returnInputs[index]?.rtFreeSubQty) || 0,
                         returnFreePcsQty: Number(returnInputs[index]?.rtFreePcsQty) || 0,
                         returnFreeTotalQty: totalRtFreeQty,
                         returnAmount: getReturnAmount(index, item),
@@ -498,6 +672,7 @@ const PurchaseReturnDetails = () => {
                         productId: item.productId,
                         productName: item.productName,
                         returnUnitQty: Number(freeReturnInputs[index]?.rtUnitQty) || 0,
+                        returnSubQty: Number(freeReturnInputs[index]?.rtSubQty) || 0,
                         returnPcsQty: Number(freeReturnInputs[index]?.rtPcsQty) || 0,
                         returnTotalQty: totalRtQty,
                     };
@@ -777,7 +952,22 @@ const PurchaseReturnDetails = () => {
                                                 >
                                                     Total: {totalRtQty}
                                                 </div>
-                                                <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
+                                                <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
+                                                    {item.parentMode && (
+                                                        <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0}
+                                                                value={returnInputs[index]?.rtSubQty === 0 ? '' : returnInputs[index]?.rtSubQty ?? ''}
+                                                                onChange={(e) => handleRtSubQtyChange(index, e.target.value, item)}
+                                                                className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                            />
+                                                            <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
+                                                                {item.subUnit}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
 
                                                         <input
@@ -824,7 +1014,22 @@ const PurchaseReturnDetails = () => {
                                                 >
                                                     Total: {totalRtFreeQty}
                                                 </div>
-                                                <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
+                                                    {item.parentMode && (
+                                                        <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                disabled={freeRemainingQty <= 0 || getPcsPerSub(item) <= 0}
+                                                                value={returnInputs[index]?.rtFreeSubQty === 0 ? '' : returnInputs[index]?.rtFreeSubQty ?? ''}
+                                                                onChange={(e) => handleRtFreeSubQtyChange(index, e.target.value, item)}
+                                                                className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                            />
+                                                            <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
+                                                                {item.subUnit}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
 
                                                         <input
@@ -957,7 +1162,22 @@ const PurchaseReturnDetails = () => {
 
                                                 {/* RT Qty (Unit) */}
                                                 <td className="py-4 pl-3.5 pr-0 min-w-[110px]">
-                                                    <div className="p-1.5 bg-amber-50 border border-r-0 border-amber-200 rounded-l-2xl">
+                                                    <div className="p-1.5 bg-amber-50 border border-r-0 border-amber-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
+                                                        {item.parentMode && (
+                                                            <div className="flex items-center border border-amber-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0}
+                                                                    value={freeReturnInputs[index]?.rtSubQty === 0 ? '' : freeReturnInputs[index]?.rtSubQty ?? ''}
+                                                                    onChange={(e) => handleFreeRtSubQtyChange(index, e.target.value, item)}
+                                                                    className="w-14 min-w-[3.5rem] px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                                />
+                                                                <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
+                                                                    {item.subUnit}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                         <div className="flex items-center border border-amber-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
                                                             <input
                                                                 type="number"

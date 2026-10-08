@@ -355,9 +355,25 @@ const ProductAll = () => {
             purchasePrice: product.purchasePrice || '',
             sellingPrice: product.sellingPrice || '',
             mrp: product.mrp || '',
-            unit: product.unit || '',
-            pcsOfUnit: product.pcsOfUnit || '',
-            freeProductUnitQty: product.freeProductUnitQty || '',
+            ...(product.parentUnitUse || product.subUnit
+                ? {
+                    hasParent: true,
+                    parentUnit: product.parentUnit || product.unit || '',
+                    parentQty: product.parentQty || '',
+                    unit: product.subUnit || '',
+                    unitQty: product.subUnitQty || '',
+                    pcsOfUnit: product.pcsOfUnit || '',
+                }
+                : {
+                    hasParent: false,
+                    parentUnit: '',
+                    parentQty: '',
+                    unitQty: '',
+                    unit: product.unit || '',
+                    pcsOfUnit: product.pcsOfUnit || '',
+                }),
+
+            freeProductSubQty: product.freeProductSubQty || '',
             freeProductPcsQty: product.freeProductPcsQty || '',
             note: product.note || '',
             isActive: product.isActive !== undefined ? product.isActive : true
@@ -382,7 +398,12 @@ const ProductAll = () => {
             unit: '',
             pcsOfUnit: '',
             freeProductUnitQty: '',
+            freeProductSubQty: '',
             freeProductPcsQty: '',
+            hasParent: false,
+            parentUnit: '',
+            parentQty: '',
+            unitQty: '',
             note: '',
             isActive: true
         });
@@ -775,16 +796,30 @@ const ProductAll = () => {
                                                 ৳ {product.mrp ? Number(product.mrp).toLocaleString() : '0'}
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {product.unit || 'N/A'} ({product.pcsOfUnit || '0'} pcs)
+                                                {product.subUnit ? (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <div>{product.parentUnit || product.unit} ({product.parentQty}pcs)</div>
+                                                        <div>{product.subUnit} ({product.subUnitQty}pcs)</div>
+                                                        <div>PCS ({product.pcsOfUnit}pcs)</div>
+                                                    </div>
+                                                ) : (
+                                                    <div>{product.unit || 'N/A'} ({product.pcsOfUnit || '0'}pcs)</div>
+                                                )}
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {(Number(product.freeProductUnitQty) || Number(product.freeProductPcsQty)) ? (
-                                                    <>
-                                                        {product.freeProductUnitQty || 0} {product.unit || 'Pcs'} {product.freeProductPcsQty || 0} Pcs
-                                                        <span className="text-[10px] text-emerald-700 ml-1 font-bold">
-                                                            (Total: {(Number(product.freeProductUnitQty) || 0) * (Number(product.pcsOfUnit) || 0) + (Number(product.freeProductPcsQty) || 0)})
+                                                {(Number(product.freeProductSubQty) || Number(product.freeProductPcsQty)) ? (
+                                                    <div className="flex flex-col">
+                                                        <div>
+                                                            {product.subUnit && (
+                                                                <>{product.freeProductSubQty || 0} {product.subUnit}{' '}</>
+                                                            )}
+                                                            {product.freeProductPcsQty || 0} Pcs
+                                                        </div>
+                                                        <span className="text-[10px] text-emerald-700 font-bold">
+                                                            (Total: {(Number(product.freeProductSubQty) || 0) * (Number(product.subUnitQty) || 0)
+                                                                + (Number(product.freeProductPcsQty) || 0)})
                                                         </span>
-                                                    </>
+                                                    </div>
                                                 ) : 'None'}
                                             </td>
 

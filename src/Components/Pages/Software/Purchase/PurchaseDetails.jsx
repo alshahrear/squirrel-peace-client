@@ -31,7 +31,66 @@ const PurchaseDetails = () => {
     const showRemaining = showRemainingToggle && hasReturn;
 
     // Return বাদ দিয়ে Remaining Quantity / Free Quantity / Subtotal হিসাব
+    // total pcs কে Parent Unit / Sub Unit / Pcs এ ভাঙার helper
+    const splitQty = (total, perUnit, perSub, parentMode) => {
+        if (perUnit > 0) {
+            const u = Math.floor(total / perUnit);
+            let rest = total - u * perUnit;
+            let s = 0;
+            if (parentMode && perSub > 0) {
+                s = Math.floor(rest / perSub);
+                rest = rest - s * perSub;
+            }
+            return [u, s, Math.round(rest * 100) / 100];
+        }
+        return [0, 0, total];
+    };
+
     const getRemainingInfo = (item) => {
+        let retQty = 0;
+        let retFree = 0;
+        (selectedInvoice?.returnHistory || []).forEach((ret) => {
+            const found = (ret.items || []).find((it) => it.productId === item.productId);
+            if (found) {
+                retQty += Number(found.returnTotalQty) || 0;
+                retFree += Number(found.returnFreeTotalQty ?? found.returnFreeQty) || 0;
+            }
+        });
+
+        const totalPcs = Number(item.totalPcs) || 0;
+        const freeTotal = Number(item.freeTotalQty ?? item.freeQty) || 0;
+        const remQty = Math.max(totalPcs - retQty, 0);
+        const remFree = Math.max(freeTotal - retFree, 0);
+
+        const parentMode = item.parentMode === true;
+        const perSub = Number(item.pcsPerSub) || 0;
+
+        const unitQty = Number(item.unitQty) || 0;
+        const subQty = Number(item.subQty) || 0;
+        const pcsQty = Number(item.pcsQty) || 0;
+        const perUnit = Number(item.pcsPerUnit) > 0
+            ? Number(item.pcsPerUnit)
+            : (unitQty > 0 ? (totalPcs - pcsQty - subQty * perSub) / unitQty : 0);
+
+        const freeUnitQty = Number(item.freeUnitQty) || 0;
+        const freeSubQty = Number(item.freeSubQty) || 0;
+        const freePcsQty = Number(item.freePcsQty) || 0;
+
+        const [remUnit, remSub, remPcs] = retQty > 0
+            ? splitQty(remQty, perUnit, perSub, parentMode)
+            : [unitQty, subQty, pcsQty];
+        const [remFreeUnit, remFreeSub, remFreePcs] = retFree > 0
+            ? splitQty(remFree, perUnit, perSub, parentMode)
+            : [freeUnitQty, freeSubQty, freePcsQty];
+
+        const subtotal = Number(item.subtotal) || 0;
+        const remSubtotal = totalPcs > 0 ? (subtotal * remQty) / totalPcs : subtotal;
+
+        return { remQty, remFree, remUnit, remSub, remPcs, remFreeUnit, remFreeSub, remFreePcs, remSubtotal };
+    };
+
+    // (পুরনো ফাংশন - এটা ডিলিট করে দিতে পারেন)
+    const getRemainingInfoOld = (item) => {
         let retQty = 0;
         let retFree = 0;
         (selectedInvoice?.returnHistory || []).forEach((ret) => {
@@ -82,6 +141,32 @@ const PurchaseDetails = () => {
 
     // Others Free Product: Return বাদ দিয়ে Remaining হিসাব
     const getFreeItemRemaining = (item) => {
+        let retTotal = 0;
+        (selectedInvoice?.returnHistory || []).forEach((ret) => {
+            const found = (ret.freeItems || []).find((it) => it.productId === item.productId);
+            if (found) retTotal += Number(found.returnTotalQty) || 0;
+        });
+
+        const total = Number(item.totalQty) || 0;
+        const unitQty = Number(item.unitQty) || 0;
+        const subQty = Number(item.subQty) || 0;
+        const pcsQty = Number(item.pcsQty) || 0;
+        const parentMode = item.parentMode === true;
+        const perSub = Number(item.pcsPerSub) || 0;
+        const perUnit = Number(item.pcsPerUnit) > 0
+            ? Number(item.pcsPerUnit)
+            : (unitQty > 0 ? (total - pcsQty - subQty * perSub) / unitQty : 0);
+
+        const remTotal = Math.max(total - retTotal, 0);
+        if (retTotal <= 0) {
+            return { remTotal, remUnit: unitQty, remSub: subQty, remPcs: pcsQty };
+        }
+        const [remUnit, remSub, remPcs] = splitQty(remTotal, perUnit, perSub, parentMode);
+        return { remTotal, remUnit, remSub, remPcs };
+    };
+
+    // (পুরনো ফাংশন - এটা ডিলিট করে দিতে পারেন)
+    const getFreeItemRemainingOld = (item) => {
         let retTotal = 0;
         (selectedInvoice?.returnHistory || []).forEach((ret) => {
             const found = (ret.freeItems || []).find((it) => it.productId === item.productId);
@@ -337,12 +422,12 @@ const PurchaseDetails = () => {
                                         <td className="py-4 px-3.5 font-semibold text-orange-600">
                                             {showRemaining ? (
                                                 <>
-                                                    {getRemainingInfo(item).remUnit} {item.unit} {getRemainingInfo(item).remPcs} Pcs
+                                                    {getRemainingInfo(item).remUnit} {item.unit} {item.parentMode && <>{getRemainingInfo(item).remSub} {item.subUnit} </>}{getRemainingInfo(item).remPcs} Pcs
                                                     <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {getRemainingInfo(item).remQty})</span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    {item.unitQty} {item.unit} {item.pcsQty} Pcs
+                                                    {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
                                                     <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalPcs})</span>
                                                 </>
                                             )}
@@ -350,12 +435,12 @@ const PurchaseDetails = () => {
                                         <td className="py-4 px-3.5 font-semibold text-emerald-600">
                                             {showRemaining ? (
                                                 <>
-                                                    {getRemainingInfo(item).remFreeUnit} {item.unit} {getRemainingInfo(item).remFreePcs} Pcs
+                                                    {getRemainingInfo(item).remFreeUnit} {item.unit} {item.parentMode && <>{getRemainingInfo(item).remFreeSub} {item.subUnit} </>}{getRemainingInfo(item).remFreePcs} Pcs
                                                     <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {getRemainingInfo(item).remFree})</span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    {item.freeUnitQty || 0} {item.unit} {item.freePcsQty || 0} Pcs
+                                                    {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
                                                     <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeTotalQty ?? item.freeQty ?? 0})</span>
                                                 </>
                                             )}
@@ -419,9 +504,7 @@ const PurchaseDetails = () => {
                                         <th className="py-3 px-3.5 whitespace-nowrap">Product</th>
                                         <th className="py-3 px-3.5 whitespace-nowrap">Company</th>
                                         <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
-                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Sell Price (Bundle)</th>
-                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Sell Price (PCS)</th>
-                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Subtotal (Sell)</th>
+                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Sell Price (PCS)</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
@@ -430,36 +513,22 @@ const PurchaseDetails = () => {
                                         const dispUnit = showRemaining ? freeRem.remUnit : (Number(item.unitQty) || 0);
                                         const dispPcs = showRemaining ? freeRem.remPcs : (Number(item.pcsQty) || 0);
                                         const dispTotal = showRemaining ? freeRem.remTotal : (Number(item.totalQty) || 0);
-                                        const bundleTotal = dispUnit * (Number(item.sellPriceBundle) || 0);
-                                        const pcsTotal = dispPcs * (Number(item.sellPricePcs) || 0);
-                                        const rowSubtotal = showRemaining
-                                            ? bundleTotal + pcsTotal
-                                            : item.subtotal !== undefined && item.subtotal !== null
-                                                ? Number(item.subtotal)
-                                                : bundleTotal + pcsTotal;
+                                        const dispSub = showRemaining ? (freeRem.remSub || 0) : (Number(item.subQty) || 0);
+                                        const pcsTotal = dispTotal * (Number(item.sellPricePcs) || 0);
                                         return (
                                             <tr key={index} className="hover:bg-amber-50/40 transition-colors">
                                                 <td className="py-4 px-3.5 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
                                                 <td className="py-4 px-3.5 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
                                                 <td className="py-4 px-3.5 text-slate-600 whitespace-nowrap">{item.company}</td>
                                                 <td className="py-4 px-3.5 font-semibold text-emerald-600 whitespace-nowrap">
-                                                    {dispUnit} {item.unit} {dispPcs} Pcs
+                                                    {dispUnit} {item.unit} {item.parentMode && <>{dispSub} {item.subUnit} </>}{dispPcs} Pcs
                                                     <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {dispTotal})</span>
                                                 </td>
                                                 <td className="py-4 px-3.5 text-right font-medium text-slate-600 whitespace-nowrap">
-                                                    ৳{bundleTotal.toFixed(2)}
-                                                    <span className="text-[10px] text-slate-400 ml-1">
-                                                        (৳{Number(item.sellPriceBundle || 0).toFixed(2)}/{item.unit || 'unit'})
-                                                    </span>
-                                                </td>
-                                                <td className="py-4 px-3.5 text-right font-medium text-slate-600 whitespace-nowrap">
                                                     ৳{pcsTotal.toFixed(2)}
-                                                    <span className="text-[10px] text-slate-400 ml-1">
-                                                        (৳{Number(item.sellPricePcs || 0).toFixed(2)}/pcs)
+                                                    <span className="text-[11px] text-slate-700 ml-1">
+                                                        (৳{Number(item.sellPricePcs || 0).toFixed(2)}/<span className="text-xs font-bold">pcs</span>)
                                                     </span>
-                                                </td>
-                                                <td className="py-4 px-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                                                    ৳{rowSubtotal.toFixed(2)}
                                                 </td>
                                             </tr>
                                         );
@@ -539,6 +608,16 @@ const PurchaseDetails = () => {
                                     </span>
                                     <span className={`font-semibold shrink-0 ${selectedInvoice.adjustment.type === '-' ? 'text-rose-600' : 'text-slate-800'}`}>
                                         {selectedInvoice.adjustment.type === '-' ? '- ' : '+ '}৳{Number(selectedInvoice.adjustment.amount).toFixed(2)}
+                                        <span className="text-[10px] text-slate-400 ml-1">
+                                            ({(() => {
+                                                const base = showRemaining
+                                                    ? getTotals().afterProduct - getTotals().overallAmt
+                                                    : Number(selectedInvoice.grandTotal) - Number(selectedInvoice.productWiseDiscount) - Number(selectedInvoice.overallDiscountValue ?? 0);
+                                                return base > 0
+                                                    ? ((Number(selectedInvoice.adjustment.amount) / base) * 100).toFixed(2)
+                                                    : '0.00';
+                                            })()}%)
+                                        </span>
                                     </span>
                                 </div>
                             )}

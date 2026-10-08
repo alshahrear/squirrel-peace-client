@@ -35,8 +35,6 @@ import PurchaseReturnView from "../Components/Pages/Software/Purchase/PurchaseRe
 import ProductAll from "../Components/Pages/Software/Product/ProductAll";
 import Category from "../Components/Pages/Software/Product/Category";
 import Units from "../Components/Pages/Software/Product/Units";
-import StockList from "../Components/Pages/Software/Inventory/StockList";
-import StockAlert from "../Components/Pages/Software/Inventory/StockAlert";
 import PurchaseBulkReturn from "../Components/Pages/Software/Purchase/PurchaseBulkReturn";
 import OrderAdd from "../Components/Pages/Software/Order/OrderAdd";
 import Wholesale from "../Components/Pages/Software/Sales/Wholesale";
@@ -167,19 +165,11 @@ export const router = createBrowserRouter([
         element: <ClientRoute><FreeProducts></FreeProducts></ClientRoute>
       },
       {
-        path: "/stock-alert",
-        element: <ClientRoute><StockAlert></StockAlert></ClientRoute>
-      },
-      {
-        path: "/stock-list",
-        element: <ClientRoute><StockList></StockList></ClientRoute>
-      },
-      {
-        path: "/stock-purchase",
+        path: "/stock-all",
         element: <ClientRoute><StockPurchase></StockPurchase></ClientRoute>
       },
       {
-        path: "/software",
+      path: "/software",
         element: <AdminRoute><Software></Software></AdminRoute>
       },
       {

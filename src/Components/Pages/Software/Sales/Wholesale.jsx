@@ -35,11 +35,19 @@ const Wholesale = () => {
     const [isExtraOpen, setIsExtraOpen] = useState(false);
     const extraDropdownRef = useRef(null);
     const [returnFilter, setReturnFilter] = useState('');
+    const [directOnly, setDirectOnly] = useState(false);
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
 
     const [isCustomerOpen, setIsCustomerOpen] = useState(false);
     const customerDropdownRef = useRef(null);
+
+    // SR ও Delivery Man searchable-select state
+    const [users, setUsers] = useState([]);
+    const [isSrOpen, setIsSrOpen] = useState(false);
+    const srDropdownRef = useRef(null);
+    const [isDeliveryOpen, setIsDeliveryOpen] = useState(false);
+    const deliveryDropdownRef = useRef(null);
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
 
@@ -48,6 +56,15 @@ const Wholesale = () => {
 
     // Summary Bar collapse state (default: collapsed)
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+
+    // Multi Return feature (default OFF)
+    const [multiReturnEnabled, setMultiReturnEnabled] = useState(false);
+    useEffect(() => {
+        fetch('http://localhost:5000/feature')
+            .then((res) => res.json())
+            .then((data) => setMultiReturnEnabled(data?.salesMultiReturn === true))
+            .catch(() => setMultiReturnEnabled(false));
+    }, [location.pathname]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -85,6 +102,10 @@ const Wholesale = () => {
     useEffect(() => {
         fetchOrders();
         fetchCustomers();
+        fetch('http://localhost:5000/user')
+            .then((res) => res.json())
+            .then((data) => setUsers(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching users:', error));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname]);
 
@@ -107,6 +128,53 @@ const Wholesale = () => {
         document.addEventListener('mousedown', handleClickOutsideExtra);
         return () => document.removeEventListener('mousedown', handleClickOutsideExtra);
     }, []);
+
+    // SR / Delivery Man dropdown এর বাইরে ক্লিক করলে বন্ধ হবে
+    useEffect(() => {
+        const handleClickOutsideUsers = (event) => {
+            if (srDropdownRef.current && !srDropdownRef.current.contains(event.target)) {
+                setIsSrOpen(false);
+            }
+            if (deliveryDropdownRef.current && !deliveryDropdownRef.current.contains(event.target)) {
+                setIsDeliveryOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutsideUsers);
+        return () => document.removeEventListener('mousedown', handleClickOutsideUsers);
+    }, []);
+
+    const filteredSRs = users.filter(
+        (u) => u.role === 'SR' && u.name?.toLowerCase().includes(filters.sr.toLowerCase())
+    );
+    const filteredDeliveryMen = users.filter(
+        (u) => u.role === 'Delivery Man' && u.name?.toLowerCase().includes(filters.deliveredBy.toLowerCase())
+    );
+
+    const handleSelectSr = (u) => {
+        setFilters({ ...filters, sr: u.name });
+        setIsSrOpen(false);
+        setCurrentPage(1);
+    };
+
+    const handleClearSr = (e) => {
+        e.stopPropagation();
+        setFilters({ ...filters, sr: '' });
+        setIsSrOpen(false);
+        setCurrentPage(1);
+    };
+
+    const handleSelectDeliveryMan = (u) => {
+        setFilters({ ...filters, deliveredBy: u.name });
+        setIsDeliveryOpen(false);
+        setCurrentPage(1);
+    };
+
+    const handleClearDeliveryMan = (e) => {
+        e.stopPropagation();
+        setFilters({ ...filters, deliveredBy: '' });
+        setIsDeliveryOpen(false);
+        setCurrentPage(1);
+    };
 
     const handleToggleExtra = (opt) => {
         setExtraFilter((prev) =>
@@ -187,6 +255,7 @@ const Wholesale = () => {
         });
         setExtraFilter([...EXTRA_OPTIONS]);
         setReturnFilter('');
+        setDirectOnly(false);
         setIsExtraOpen(false);
         setCurrentPage(1);
     };
@@ -284,6 +353,7 @@ const Wholesale = () => {
     const filteredOrders = orders.filter((item) => {
         if (returnFilter === 'yes' && !hasReturned(item)) return false;
         if (returnFilter === 'no' && hasReturned(item)) return false;
+        if (directOnly && !item.directSales) return false;
         if (filters.startDate || filters.endDate) {
             const orderDateObj = parseToLocalDate(item.orderDate);
             if (!orderDateObj) return false;
@@ -380,6 +450,11 @@ const Wholesale = () => {
             0
         );
 
+    // Main product total qty
+    const totalMainQty = summaryRows.reduce(
+        (s, i) => s + (i.items || []).reduce((ss, it) => ss + (Number(it.totalPcs ?? it.totalQty) || 0), 0),
+        0
+    );
     // Main product free qty
     const totalMainFreeQty = sumBy(summaryRows, 'items', 'freeQty');
     // Others Free Product qty
@@ -464,7 +539,7 @@ const Wholesale = () => {
                             </button>
                         </div>
 
-                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
                                 <div
@@ -556,7 +631,18 @@ const Wholesale = () => {
                             </div>
 
                             <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice / Order No</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-gray-600 text-[11px] font-semibold">Invoice / Order No</label>
+                                    <label className="flex items-center gap-1 text-[10px] font-semibold text-teal-700 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={directOnly}
+                                            onChange={(e) => { setDirectOnly(e.target.checked); setCurrentPage(1); }}
+                                            className="w-3 h-3 accent-teal-600 cursor-pointer"
+                                        />
+                                        Direct Sales
+                                    </label>
+                                </div>
                                 <input
                                     type="text"
                                     name="invoiceNo"
@@ -567,28 +653,88 @@ const Wholesale = () => {
                                 />
                             </div>
 
-                            <div>
+                            <div className="relative" ref={srDropdownRef}>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">SR</label>
-                                <input
-                                    type="text"
-                                    name="sr"
-                                    placeholder="Search SR..."
-                                    value={filters.sr}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
+                                <div
+                                    onClick={() => setIsSrOpen(true)}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+                                >
+                                    <input
+                                        type="text"
+                                        placeholder="Search or select SR..."
+                                        value={filters.sr}
+                                        onChange={(e) => {
+                                            handleFilterChange({ target: { name: 'sr', value: e.target.value } });
+                                            setIsSrOpen(true);
+                                        }}
+                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
+                                    />
+                                    {filters.sr && (
+                                        <button type="button" onClick={handleClearSr} className="text-gray-400 hover:text-red-500 pl-1">
+                                            <FaTimes size={10} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isSrOpen && (
+                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                                        {filteredSRs.length > 0 ? (
+                                            filteredSRs.map((u) => (
+                                                <div
+                                                    key={u._id}
+                                                    onClick={() => handleSelectSr(u)}
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                >
+                                                    {u.name}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No SR found</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
-                            <div>
+                            <div className="relative" ref={deliveryDropdownRef}>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Delivery Man</label>
-                                <input
-                                    type="text"
-                                    name="deliveredBy"
-                                    placeholder="Search delivery man..."
-                                    value={filters.deliveredBy}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
+                                <div
+                                    onClick={() => setIsDeliveryOpen(true)}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+                                >
+                                    <input
+                                        type="text"
+                                        placeholder="Search or select delivery man..."
+                                        value={filters.deliveredBy}
+                                        onChange={(e) => {
+                                            handleFilterChange({ target: { name: 'deliveredBy', value: e.target.value } });
+                                            setIsDeliveryOpen(true);
+                                        }}
+                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
+                                    />
+                                    {filters.deliveredBy && (
+                                        <button type="button" onClick={handleClearDeliveryMan} className="text-gray-400 hover:text-red-500 pl-1">
+                                            <FaTimes size={10} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isDeliveryOpen && (
+                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                                        {filteredDeliveryMen.length > 0 ? (
+                                            filteredDeliveryMen.map((u) => (
+                                                <div
+                                                    key={u._id}
+                                                    onClick={() => handleSelectDeliveryMan(u)}
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                >
+                                                    {u.name}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No delivery man found</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div>
@@ -728,6 +874,9 @@ const Wholesale = () => {
                                     <div className="flex">
                                         <div className="px-3 py-2 flex flex-col gap-1 min-w-[130px]">
                                             <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
+                                            <span className="font-semibold text-gray-600">
+                                                Total Qty: <b className="text-indigo-600">{fmt(totalMainQty)}</b>
+                                            </span>
                                             <span className="font-semibold text-gray-600">
                                                 Total Amount: <b className="text-indigo-600">৳{fmt(totalPayable)}</b>
                                             </span>
@@ -884,7 +1033,14 @@ const Wholesale = () => {
                                                     </div>
                                                 </td>
                                                 <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">{item.customer}</td>
-                                                <td className="py-3 px-2.5 text-gray-600 font-medium whitespace-nowrap">{item.invoiceNo || item.orderNo}</td>
+                                                <td className="py-3 px-2.5 text-gray-600 font-medium whitespace-nowrap">
+                                                    <div>{item.invoiceNo || item.orderNo}</div>
+                                                    {item.directSales && (
+                                                        <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-[9px] leading-none whitespace-nowrap shadow-sm">
+                                                            ⚡ Direct Delivery
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap max-w-[140px] overflow-hidden text-ellipsis">
                                                     <div>{item.shippingAddress || item.address || 'N/A'}</div>
                                                     {item.route && (
@@ -983,17 +1139,18 @@ const Wholesale = () => {
                                                                     View Details
                                                                 </button>
 
-                                                                {status === 'Delivered' && (
-                                                                    <button
-                                                                        onClick={() => handleReturn(item._id)}
-                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                    >
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-orange-500">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-                                                                        </svg>
-                                                                        Return
-                                                                    </button>
-                                                                )}
+                                                                {status === 'Delivered' &&
+                                                                    (multiReturnEnabled || (item.returnHistory || []).length === 0) && (
+                                                                        <button
+                                                                            onClick={() => handleReturn(item._id)}
+                                                                            className="w-full px-4 py-2.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                                        >
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-orange-500">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                                                                            </svg>
+                                                                            Return
+                                                                        </button>
+                                                                    )}
 
                                                                 {status !== 'Delivered' && (
                                                                     <button
@@ -1007,7 +1164,7 @@ const Wholesale = () => {
                                                                     </button>
                                                                 )}
 
-                                                                {status !== 'Delivered' && (
+                                                                {(
                                                                     <button
                                                                         onClick={() => handleEdit(item)}
                                                                         className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"

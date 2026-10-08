@@ -59,6 +59,7 @@ export const SearchSelect = ({
     emptyText = 'No data found',
     disabled = false,
     checkbox = null,
+    hidden = false,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -75,7 +76,7 @@ export const SearchSelect = ({
     }, []);
 
     return (
-        <div className="relative" ref={wrapperRef}>
+        <div className={`relative ${hidden ? 'hidden' : ''}`} ref={wrapperRef}>
             <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-semibold text-slate-700">
                     {label} {required && <span className="text-rose-500">*</span>}{' '}
@@ -162,7 +163,7 @@ export const SearchSelect = ({
 // ------------------------------------------------------------------
 // Order Form
 // ------------------------------------------------------------------
-const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initialData = null }) => {
+const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initialData = null, directSales = false, onDirectSalesChange = null }) => {
     const [formData, setFormData] = useDraftState('orderNew:form', {
         customerId: '',
         customer: '',
@@ -393,7 +394,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
     const filteredCustomers = customers
         .filter((c) => c.customerType === 'Wholesale Customer')
         // Route সিলেক্ট থাকলে শুধু ওই route এর customer দেখাবে
-        .filter((c) => !formData.route || c.route === formData.route)
+        .filter((c) => directSales || !formData.route || c.route === formData.route)
         .filter((c) =>
             matchesSearch(search.customer, [c.businessName, c.contactNumber, c.address, c.route])
         );
@@ -406,10 +407,10 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
     // Select Product enable হওয়ার জন্য যা যা লাগবে (Company ও Category optional)
     const missingFields = [];
     if (!formData.customerId) missingFields.push('Customer');
-    if (!formData.route) missingFields.push('Route');
+    if (!directSales && !formData.route) missingFields.push('Route');
     if (!formData.date) missingFields.push('Date');
-    if (!formData.srId) missingFields.push('SR');
-    if (!formData.deliveredById) missingFields.push('Delivered By');
+    if (!directSales && !formData.srId) missingFields.push('SR');
+    if (!directSales && !formData.deliveredById) missingFields.push('Delivered By');
     const isProductEnabled = missingFields.length === 0;
 
     // শুধু SR role + isActive true
@@ -575,6 +576,20 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
 
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-teal-100">
+                    {!initialData && onDirectSalesChange && (
+                        <div className="order-last flex items-center gap-2.5">
+                            <span className="text-sm font-semibold text-teal-700">Direct Sales</span>
+                            <button
+                                type="button"
+                                onClick={() => onDirectSalesChange(!directSales)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${directSales ? 'bg-teal-500' : 'bg-slate-300'}`}
+                            >
+                                <span
+                                    className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${directSales ? 'translate-x-6' : 'translate-x-1'}`}
+                                />
+                            </button>
+                        </div>
+                    )}
                     <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 flex items-center justify-center text-white shadow-md shadow-teal-200">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -588,10 +603,10 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                     </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className={directSales ? 'grid grid-cols-1 md:grid-cols-4 gap-6' : 'space-y-6'}>
 
                     {/* Row 1 : Customer, Route Name, Date, Shipping Address */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className={directSales ? 'contents' : 'grid grid-cols-1 md:grid-cols-4 gap-6'}>
 
                         {/* Customer */}
                         <SearchSelect
@@ -629,6 +644,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                         {/* Route Name */}
                         <SearchSelect
                             label="Route Name"
+                            hidden={directSales}
                             required
 
                             placeholder="Search or select route..."
@@ -683,7 +699,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                         </div>
 
                         {/* Shipping Address */}
-                        <div>
+                        <div className={directSales ? 'hidden' : ''}>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">Shipping Address</label>
                             <input
                                 type="text"
@@ -697,11 +713,12 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                     </div>
 
                     {/* Row 2 : SR, Delivered By, Filter by Company, Filter by Category */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className={directSales ? 'contents' : 'grid grid-cols-1 md:grid-cols-4 gap-6'}>
 
                         {/* SR */}
                         <SearchSelect
                             label="SR"
+                            hidden={directSales}
                             required
                             placeholder="Search or select SR..."
                             searchValue={search.sr}
@@ -735,6 +752,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                         {/* Delivered By */}
                         <SearchSelect
                             label="Delivered By"
+                            hidden={directSales}
                             required
                             placeholder="Search or select delivery man..."
                             searchValue={search.deliveredBy}
@@ -811,7 +829,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                     </div>
 
                     {/* Row 3 : Select Product */}
-                    <div className="grid grid-cols-1">
+                    <div className={directSales ? 'md:col-span-4' : 'grid grid-cols-1'}>
                         <SearchSelect
                             label="Select Product"
                             required

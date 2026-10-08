@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
 const clearOrderDrafts = () => {
-    ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'search', 'routeLocked', 'freeItems', 'freeFilter', 'freeSearch', 'damageItems', 'damageFilter', 'damageSearch', 'returnItems', 'returnFilter', 'returnSearch']
+    ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'search', 'routeLocked', 'freeItems', 'freeFilter', 'freeSearch', 'damageItems', 'damageFilter', 'damageSearch', 'returnItems', 'returnFilter', 'returnSearch', 'directSales']
         .forEach((k) => clearDraft(`orderNew:${k}`));
 };
 
@@ -18,13 +18,39 @@ const OrderAdd = () => {
     const isEditMode = !!editingOrder;
     const isDeliveryMode = location.state?.mode === 'delivery';
 
+    // Direct Sales toggle (শুধু নতুন order এ, default ON)
+    const [directSalesToggle, setDirectSalesToggle] = useState(false);
+    useEffect(() => {
+        fetch('http://localhost:5000/feature/orderDirectSales')
+            .then((res) => res.json())
+            .then((data) => setDirectSalesToggle(data?.enabled === true))
+            .catch(() => setDirectSalesToggle(false));
+    }, []);
+
+    // Toggle ON/OFF করলে database এ save হবে (যতক্ষণ না আবার বদলানো হয়)
+    const handleDirectSalesChange = (checked) => {
+        setDirectSalesToggle(checked);
+        fetch('http://localhost:5000/feature/orderDirectSales', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: checked }),
+        })
+            .then((res) => {
+                if (!res.ok) throw new Error('Save failed');
+            })
+            .catch(() => setDirectSalesToggle(!checked));
+    };
+    const directSales = !editingOrder && directSalesToggle;
+    const isDeliveredEdit = !!editingOrder && !isDeliveryMode && editingOrder.status === 'Delivered';
+    const showPayment = isDeliveryMode || directSales || isDeliveredEdit;
+
     // সিলেক্ট করা প্রোডাক্টগুলো রাখার স্টেট
     const [orderItems, setOrderItems] = useDraftState('orderNew:items', []);
 
     // ---------------- Payment / Delivery States ----------------
     const [investments, setInvestments] = useState([]);
-    const [paymentAmount, setPaymentAmount] = useState('');
-    const [paymentAmountTouched, setPaymentAmountTouched] = useState(false);
+    const [paymentAmount, setPaymentAmount] = useState(isDeliveredEdit ? (editingOrder.paidAmount ?? '') : '');
+    const [paymentAmountTouched, setPaymentAmountTouched] = useState(isDeliveredEdit);
     const [paymentAccountType, setPaymentAccountType] = useState('');
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
     const [paymentNote, setPaymentNote] = useState('');
@@ -123,10 +149,16 @@ const OrderAdd = () => {
                 pcsQty: item.pcsQty || '',
                 pcsPerUnit,
                 totalQty: Number(item.totalPcs) || 0,
+                pcsPerUnit: Number(item.pcsPerUnit) > 0 ? Number(item.pcsPerUnit) : pcsPerUnit,
+                subQty: Number(item.subQty) || '',
+                freeSubQty: Number(item.freeSubQty) || '',
                 freeUnitQty: item.freeUnitQty !== undefined && item.freeUnitQty !== null ? (Number(item.freeUnitQty) || '') : '',
                 freePcsQty: item.freePcsQty !== undefined && item.freePcsQty !== null ? (Number(item.freePcsQty) || '') : (Number(item.freeQty) || ''),
                 baseFreeUnitQty: unitQty > 0 ? roundTo2(freeUnitQtyNum / unitQty) : 0,
-                baseFreePcsQty: unitQty > 0 ? roundTo2(freePcsQtyNum / unitQty) : 0,
+                baseFreeSubQty: unitQty > 0 ? roundTo2((Number(item.freeSubQty) || 0) / unitQty) : 0,
+                baseFreePcsQty: item.parentMode === true
+                    ? ((unitQty + (Number(item.subQty) || 0)) > 0 ? roundTo2(freePcsQtyNum / (unitQty + (Number(item.subQty) || 0))) : 0)
+                    : (unitQty > 0 ? roundTo2(freePcsQtyNum / unitQty) : 0),
             };
         });
         setOrderItems(restoredItems);
@@ -135,13 +167,21 @@ const OrderAdd = () => {
             const unitQty = Number(item.unitQty) || 0;
             const pcsQty = Number(item.pcsQty) || 0;
             const totalQty = Number(item.totalQty) || 0;
-            const pcsPerUnit = unitQty > 0 ? (roundTo2((totalQty - pcsQty) / unitQty) || 1) : 1;
+            const subQty = Number(item.subQty) || 0;
+            const pcsPerSubVal = Number(item.pcsPerSub) || 0;
+            const pcsPerUnit =
+                Number(item.pcsPerUnit) > 0
+                    ? Number(item.pcsPerUnit)
+                    : unitQty > 0
+                        ? (roundTo2((totalQty - pcsQty - subQty * pcsPerSubVal) / unitQty) || 1)
+                        : 1;
 
             return {
                 ...item,
                 uniqueId: Date.now() + Math.random(),
                 _id: item.productId || item._id,
                 unitQty: unitQty || '',
+                subQty: subQty || '',
                 pcsQty: pcsQty || '',
                 pcsPerUnit,
                 totalQty,
@@ -152,57 +192,13 @@ const OrderAdd = () => {
             setFreeProductOpen(true);
         }
 
-        const restoredDamageItems = (editingOrder.damageItems || []).map((item) => {
-            const unitQty = Number(item.unitQty) || 0;
-            const pcsPerUnit =
-                Number(item.sellPricePcs) > 0
-                    ? roundTo2(Number(item.sellPriceUnit) / Number(item.sellPricePcs)) || 1
-                    : 1;
-            const freeUnitQtyNum = Number(item.freeUnitQty) || 0;
-            const freePcsQtyNum = Number(item.freePcsQty) || 0;
-
-            return {
-                ...item,
-                uniqueId: Date.now() + Math.random(),
-                _id: item.productId,
-                unitQty: unitQty || '',
-                pcsQty: item.pcsQty || '',
-                pcsPerUnit,
-                totalQty: Number(item.totalQty) || 0,
-                freeUnitQty: item.freeUnitQty !== undefined && item.freeUnitQty !== null ? (Number(item.freeUnitQty) || '') : '',
-                freePcsQty: item.freePcsQty !== undefined && item.freePcsQty !== null ? (Number(item.freePcsQty) || '') : (Number(item.freeQty) || ''),
-                baseFreeUnitQty: unitQty > 0 ? roundTo2(freeUnitQtyNum / unitQty) : 0,
-                baseFreePcsQty: unitQty > 0 ? roundTo2(freePcsQtyNum / unitQty) : 0,
-            };
-        });
+        const restoredDamageItems = (editingOrder.damageItems || []).map(restoreAdjItem);
         setDamageItems(restoredDamageItems);
         if (restoredDamageItems.length > 0) {
             setDamageProductOpen(true);
         }
 
-        const restoredReturnItems = (editingOrder.returnItems || []).map((item) => {
-            const unitQty = Number(item.unitQty) || 0;
-            const pcsPerUnit =
-                Number(item.sellPricePcs) > 0
-                    ? roundTo2(Number(item.sellPriceUnit) / Number(item.sellPricePcs)) || 1
-                    : 1;
-            const freeUnitQtyNum = Number(item.freeUnitQty) || 0;
-            const freePcsQtyNum = Number(item.freePcsQty) || 0;
-
-            return {
-                ...item,
-                uniqueId: Date.now() + Math.random(),
-                _id: item.productId,
-                unitQty: unitQty || '',
-                pcsQty: item.pcsQty || '',
-                pcsPerUnit,
-                totalQty: Number(item.totalQty) || 0,
-                freeUnitQty: item.freeUnitQty !== undefined && item.freeUnitQty !== null ? (Number(item.freeUnitQty) || '') : '',
-                freePcsQty: item.freePcsQty !== undefined && item.freePcsQty !== null ? (Number(item.freePcsQty) || '') : (Number(item.freeQty) || ''),
-                baseFreeUnitQty: unitQty > 0 ? roundTo2(freeUnitQtyNum / unitQty) : 0,
-                baseFreePcsQty: unitQty > 0 ? roundTo2(freePcsQtyNum / unitQty) : 0,
-            };
-        });
+        const restoredReturnItems = (editingOrder.returnItems || []).map(restoreAdjItem);
         setReturnItems(restoredReturnItems);
         if (restoredReturnItems.length > 0) {
             setReturnProductOpen(true);
@@ -216,6 +212,21 @@ const OrderAdd = () => {
         setOrderNote(editingOrder.orderNote || '');
         setAddDamageToAdjustment(Number(editingOrder.damageAdjustmentAmount) > 0);
         setAddReturnToAdjustment(Number(editingOrder.returnAdjustmentAmount) > 0);
+
+        if (editingOrder.status === 'Delivered' && !isDeliveryMode) {
+            setPaymentAmount(editingOrder.paidAmount ?? '');
+            setPaymentAmountTouched(true);
+            setPaymentAccountType(editingOrder.paymentMethod || '');
+            setPaymentNote(editingOrder.paymentNote || '');
+            const pa = editingOrder.paymentAccount || {};
+            if (editingOrder.paymentMethod === 'Bank') {
+                setSelectedAccountKey(`${pa.bankName}-${pa.accountNumber}-${pa.accountBranch}`);
+            } else if (editingOrder.paymentMethod === 'Mobile Banking') {
+                setSelectedAccountKey(`${pa.accountName}-${pa.accountNumber}`);
+            } else {
+                setSelectedAccountKey('cash');
+            }
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editingOrder]);
 
@@ -223,14 +234,14 @@ const OrderAdd = () => {
     // Delivery Mode হলে Investment Accounts fetch করবে
     // --------------------------------------------------
     useEffect(() => {
-        if (isDeliveryMode) {
+        if (showPayment) {
             fetch('http://localhost:5000/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [showPayment]);
 
     // --------------------------------------------------
     // Others Free Product ডেটা fetch করা (Company, Category, Product)
@@ -284,12 +295,239 @@ const OrderAdd = () => {
     const getPcsTotal = (item) =>
         (Number(item.pcsQty) || 0) * (Number(item.sellPricePcs) || 0);
 
-    // Row এর মোট দাম = Unit অংশ + PCS অংশ
-    const getRowGross = (item) => getUnitTotal(item) + getPcsTotal(item);
+    // Sub Unit অংশের মোট দাম (Parent Unit থাকলে)
+    const getSubTotal = (item) =>
+        (Number(item.subQty) || 0) * (Number(item.sellPriceSub) || 0);
+
+    // Row এর মোট দাম = Unit অংশ + Sub অংশ + PCS অংশ
+    const getRowGross = (item) => getUnitTotal(item) + getSubTotal(item) + getPcsTotal(item);
+
+    // Damage / Return এর নতুন item বানানো (Parent Unit সহ)
+    const buildAdjItem = (product) => {
+        const isParent = product.parentUnitUse === true;
+        const pcsPerUnit = Number(product.pcsOfUnit) || 1;
+        const pcsPerSub = isParent ? (Number(product.subUnitQty) || 1) : 0;
+        const sellingPrice = Number(product.sellingPrice) || 0;
+
+        return {
+            uniqueId: Date.now() + Math.random(),
+            _id: product._id,
+
+            productName: product.productName || '',
+            company: product.company || '',
+            sku: product.sku || null,
+
+            sellPricePcs: sellingPrice,
+            sellPriceUnit: roundTo2(sellingPrice * pcsPerUnit),
+            sellPriceSub: isParent ? roundTo2(sellingPrice * pcsPerSub) : '',
+
+            unit: isParent ? product.parentUnit : (product.unit || 'Pcs'),
+            parentMode: isParent,
+            subUnit: isParent ? (product.subUnit || '') : '',
+            pcsPerSub: pcsPerSub,
+            subQty: '',
+
+            unitQty: '',
+            pcsQty: '',
+            pcsPerUnit: pcsPerUnit,
+
+            totalQty: 0,
+
+            freeUnitQty: '',
+            freeSubQty: '',
+            freePcsQty: '',
+            freeQty: 0,
+
+            baseFreeUnitQty: isParent ? 0 : (Number(product.freeProductUnitQty) || 0),
+            baseFreeSubQty: isParent ? (Number(product.freeProductSubQty) || 0) : 0,
+            baseFreePcsQty: Number(product.freeProductPcsQty) || 0,
+        };
+    };
+
+    // Damage / Return item Change (Parent Unit সহ)
+    const applyAdjItemChange = (item, field, value) => {
+        // Parent Unit থাকলে: Parent Qty → Free Sub + Free Pcs, Sub Qty → Free Pcs
+        if (item.parentMode && ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)) {
+            const numVal = value === '' ? '' : Number(value) || 0;
+            const next = { ...item, [field]: numVal };
+            const ppu = Number(next.pcsPerUnit) || 1;
+            const pps = Number(next.pcsPerSub) || 0;
+            next.totalQty =
+                (Number(next.unitQty) || 0) * ppu +
+                (Number(next.subQty) || 0) * pps +
+                (Number(next.pcsQty) || 0);
+            if (field === 'unitQty' || field === 'subQty') {
+                const u = Number(next.unitQty) || 0;
+                const s = Number(next.subQty) || 0;
+                next.freeSubQty = u * (Number(item.baseFreeSubQty) || 0) || '';
+                next.freePcsQty = (u + s) * (Number(item.baseFreePcsQty) || 0) || '';
+            }
+            next.freeQty =
+                (Number(next.freeUnitQty) || 0) * ppu +
+                (Number(next.freeSubQty) || 0) * pps +
+                (Number(next.freePcsQty) || 0);
+            return next;
+        }
+
+        if (field === 'unitQty') {
+            const numVal = value === '' ? 0 : Number(value) || 0;
+            const pcsQtyVal = Number(item.pcsQty) || 0;
+
+            const newTotalQty = numVal * (Number(item.pcsPerUnit) || 1) + pcsQtyVal;
+
+            const newFreeUnitQty = numVal * (Number(item.baseFreeUnitQty) || 0);
+            const newFreePcsQty = numVal * (Number(item.baseFreePcsQty) || 0);
+            const newFreeQty = newFreeUnitQty * (Number(item.pcsPerUnit) || 1) + newFreePcsQty;
+
+            return {
+                ...item,
+                unitQty: value === '' ? '' : numVal,
+                totalQty: newTotalQty,
+                freeUnitQty: newFreeUnitQty || '',
+                freePcsQty: newFreePcsQty || '',
+                freeQty: newFreeQty,
+            };
+        }
+
+        // Unit দাম Change → PCS (ও Sub) দাম নিজে থেকে হিসাব হবে
+        if (field === 'sellPriceUnit') {
+            const unitPriceVal = value === '' ? 0 : Number(value) || 0;
+            const ppu = Number(item.pcsPerUnit) || 1;
+            const pps = Number(item.pcsPerSub) || 0;
+            return {
+                ...item,
+                sellPriceUnit: value,
+                sellPricePcs: roundTo2(unitPriceVal / ppu),
+                ...(item.parentMode ? { sellPriceSub: roundTo2((unitPriceVal / ppu) * pps) } : {}),
+            };
+        }
+
+        // Sub Unit দাম Change → শুধু PCS দাম হিসাব হবে (Parent Unit দাম অপরিবর্তিত)
+        if (field === 'sellPriceSub') {
+            const subPriceVal = value === '' ? 0 : Number(value) || 0;
+            const pps = Number(item.pcsPerSub) || 1;
+            return {
+                ...item,
+                sellPriceSub: value,
+                sellPricePcs: value === '' ? '' : roundTo2(subPriceVal / pps),
+            };
+        }
+
+        if (field === 'pcsQty') {
+            const numVal = value === '' ? 0 : Number(value) || 0;
+            const unitQtyVal = Number(item.unitQty) || 0;
+            return {
+                ...item,
+                pcsQty: value === '' ? '' : numVal,
+                totalQty: unitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal,
+            };
+        }
+
+        if (field === 'freeUnitQty') {
+            const numVal = value === '' ? 0 : Number(value) || 0;
+            const freePcsQtyVal = Number(item.freePcsQty) || 0;
+            return {
+                ...item,
+                freeUnitQty: value === '' ? '' : numVal,
+                freeQty: numVal * (Number(item.pcsPerUnit) || 1) + freePcsQtyVal,
+            };
+        }
+
+        if (field === 'freePcsQty') {
+            const numVal = value === '' ? 0 : Number(value) || 0;
+            const freeUnitQtyVal = Number(item.freeUnitQty) || 0;
+            return {
+                ...item,
+                freePcsQty: value === '' ? '' : numVal,
+                freeQty: freeUnitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal,
+            };
+        }
+
+        return {
+            ...item,
+            [field]: value,
+        };
+    };
+
+    // Edit Mode এ Damage / Return item restore (Parent Unit সহ)
+    const restoreAdjItem = (item) => {
+        const unitQty = Number(item.unitQty) || 0;
+        const subQty = Number(item.subQty) || 0;
+        const pcsPerUnit =
+            Number(item.pcsPerUnit) > 0
+                ? Number(item.pcsPerUnit)
+                : Number(item.sellPricePcs) > 0
+                    ? roundTo2(Number(item.sellPriceUnit) / Number(item.sellPricePcs)) || 1
+                    : 1;
+        const freeUnitQtyNum = Number(item.freeUnitQty) || 0;
+        const freeSubQtyNum = Number(item.freeSubQty) || 0;
+        const freePcsQtyNum = Number(item.freePcsQty) || 0;
+
+        return {
+            ...item,
+            uniqueId: Date.now() + Math.random(),
+            _id: item.productId,
+            unitQty: unitQty || '',
+            subQty: subQty || '',
+            pcsQty: item.pcsQty || '',
+            pcsPerUnit,
+            totalQty: Number(item.totalQty) || 0,
+            freeUnitQty: item.freeUnitQty !== undefined && item.freeUnitQty !== null ? (Number(item.freeUnitQty) || '') : '',
+            freeSubQty: freeSubQtyNum || '',
+            freePcsQty: item.freePcsQty !== undefined && item.freePcsQty !== null ? (Number(item.freePcsQty) || '') : (Number(item.freeQty) || ''),
+            baseFreeUnitQty: unitQty > 0 ? roundTo2(freeUnitQtyNum / unitQty) : 0,
+            baseFreeSubQty: unitQty > 0 ? roundTo2(freeSubQtyNum / unitQty) : 0,
+            baseFreePcsQty: item.parentMode === true
+                ? ((unitQty + subQty) > 0 ? roundTo2(freePcsQtyNum / (unitQty + subQty)) : 0)
+                : (unitQty > 0 ? roundTo2(freePcsQtyNum / unitQty) : 0),
+        };
+    };
+
+    // Save করার Payload (Free / Damage / Return)
+    const buildFreeItemsPayload = () =>
+        freeProductItems.map((item) => ({
+            productId: item._id,
+            productName: item.productName,
+            company: item.company,
+            unit: item.unit || 'Pcs',
+            parentMode: item.parentMode === true,
+            subUnit: item.subUnit || '',
+            pcsPerUnit: Number(item.pcsPerUnit) || 1,
+            pcsPerSub: Number(item.pcsPerSub) || 0,
+            unitQty: Number(item.unitQty) || 0,
+            subQty: Number(item.subQty) || 0,
+            pcsQty: Number(item.pcsQty) || 0,
+            totalQty: Number(item.totalQty) || 0,
+        }));
+
+    const buildAdjItemsPayload = (items) =>
+        items.map((item) => ({
+            productId: item._id,
+            productName: item.productName,
+            company: item.company,
+            sku: item.sku,
+            sellPricePcs: roundTo2(item.sellPricePcs),
+            sellPriceUnit: roundTo2(item.sellPriceUnit),
+            sellPriceSub: roundTo2(item.sellPriceSub),
+            unit: item.unit || 'Pcs',
+            parentMode: item.parentMode === true,
+            subUnit: item.subUnit || '',
+            pcsPerUnit: Number(item.pcsPerUnit) || 1,
+            pcsPerSub: Number(item.pcsPerSub) || 0,
+            unitQty: Number(item.unitQty) || 0,
+            subQty: Number(item.subQty) || 0,
+            pcsQty: Number(item.pcsQty) || 0,
+            totalQty: Number(item.totalQty) || 0,
+            freeUnitQty: Number(item.freeUnitQty) || 0,
+            freeSubQty: Number(item.freeSubQty) || 0,
+            freePcsQty: Number(item.freePcsQty) || 0,
+            freeQty: Number(item.freeQty) || 0,
+            subtotal: roundTo2(getRowGross(item)),
+        }));
 
     const showToast = (message, isError = false) => {
         setToast({ show: true, message, isError });
-        setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+        setTimeout(() => setToast({ show: false, message: '', isError: false }), 6000);
     };
 
     // Order Number Generate (YYMMDDHHMMSS - 24hr, no separators)
@@ -317,9 +555,12 @@ const OrderAdd = () => {
     const handleAddProduct = (product) => {
         const initialUnitQty = '';
         const initialPcsQty = '';
-        const baseFreeUnitQty = Number(product.freeProductUnitQty) || 0;
+        const isParent = product.parentUnitUse === true;
+        const baseFreeUnitQty = isParent ? 0 : (Number(product.freeProductUnitQty) || 0);
+        const baseFreeSubQty = isParent ? (Number(product.freeProductSubQty) || 0) : 0;
         const baseFreePcsQty = Number(product.freeProductPcsQty) || 0;
         const pcsPerUnit = Number(product.pcsOfUnit) || 1;
+        const pcsPerSub = isParent ? (Number(product.subUnitQty) || 1) : 0;
 
         const newItem = {
             ...product,
@@ -333,8 +574,15 @@ const OrderAdd = () => {
             buyPrice: Number(product.purchasePrice) || 0,
             sellPricePcs: Number(product.sellingPrice) || 0, // প্রতি PCS এর দাম
             sellPriceUnit: roundTo2((Number(product.sellingPrice) || 0) * pcsPerUnit), // প্রতি Unit এর দাম (edit করা যাবে)
+            sellPriceSub: isParent ? roundTo2((Number(product.sellingPrice) || 0) * pcsPerSub) : '', // প্রতি Sub Unit এর দাম
 
-            unit: product.unit || 'Pcs',
+            unit: isParent ? product.parentUnit : (product.unit || 'Pcs'),
+            parentMode: isParent,
+            subUnit: isParent ? (product.subUnit || '') : '',
+            pcsPerSub: pcsPerSub,
+            subQty: '',
+            freeSubQty: '',
+            baseFreeSubQty: baseFreeSubQty,
 
             unitQty: initialUnitQty,
             pcsQty: initialPcsQty,
@@ -378,6 +626,29 @@ const OrderAdd = () => {
                     return item;
                 }
 
+                // Parent Unit থাকলে: Parent Qty → Free Sub + Free Pcs, Sub Qty → Free Pcs
+                if (item.parentMode && ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)) {
+                    const numVal = value === '' ? '' : Number(value) || 0;
+                    const next = { ...item, [field]: numVal };
+                    const ppu = Number(next.pcsPerUnit) || 1;
+                    const pps = Number(next.pcsPerSub) || 0;
+                    next.totalQty =
+                        (Number(next.unitQty) || 0) * ppu +
+                        (Number(next.subQty) || 0) * pps +
+                        (Number(next.pcsQty) || 0);
+                    if (field === 'unitQty' || field === 'subQty') {
+                        const u = Number(next.unitQty) || 0;
+                        const s = Number(next.subQty) || 0;
+                        next.freeSubQty = u * (Number(item.baseFreeSubQty) || 0) || '';
+                        next.freePcsQty = (u + s) * (Number(item.baseFreePcsQty) || 0) || '';
+                    }
+                    next.freeQty =
+                        (Number(next.freeUnitQty) || 0) * ppu +
+                        (Number(next.freeSubQty) || 0) * pps +
+                        (Number(next.freePcsQty) || 0);
+                    return next;
+                }
+
                 // Unit Qty Change
                 if (field === 'unitQty') {
                     const numVal = value === '' ? 0 : Number(value) || 0;
@@ -399,13 +670,35 @@ const OrderAdd = () => {
                     };
                 }
 
-                // Unit দাম Change → PCS দাম নিজে থেকে হিসাব হবে
+                // Unit দাম Change → PCS (ও Sub) দাম নিজে থেকে হিসাব হবে
                 if (field === 'sellPriceUnit') {
                     const unitPriceVal = value === '' ? 0 : Number(value) || 0;
+                    const ppu = Number(item.pcsPerUnit) || 1;
+                    const pps = Number(item.pcsPerSub) || 0;
                     return {
                         ...item,
                         sellPriceUnit: value,
-                        sellPricePcs: roundTo2(unitPriceVal / (Number(item.pcsPerUnit) || 1)),
+                        sellPricePcs: roundTo2(unitPriceVal / ppu),
+                        ...(item.parentMode ? { sellPriceSub: roundTo2((unitPriceVal / ppu) * pps) } : {}),
+                    };
+                }
+
+                // Sub Unit দাম Change → শুধু PCS দাম হিসাব হবে (Parent Unit দাম অপরিবর্তিত)
+                if (field === 'sellPriceSub') {
+                    const subPriceVal = value === '' ? 0 : Number(value) || 0;
+                    const pps = Number(item.pcsPerSub) || 1;
+                    return {
+                        ...item,
+                        sellPriceSub: value,
+                        sellPricePcs: value === '' ? '' : roundTo2(subPriceVal / pps),
+                    };
+                }
+
+                // PCS দাম Change → শুধু PCS দাম change হবে (Unit ও Sub অপরিবর্তিত)
+                if (field === 'sellPricePcs') {
+                    return {
+                        ...item,
+                        sellPricePcs: value,
                     };
                 }
 
@@ -496,13 +789,18 @@ const OrderAdd = () => {
     // --------------------------------------------------
     const handleAddFreeProduct = (product) => {
         const pcsPerUnit = Number(product.pcsOfUnit) || 1;
+        const isParent = product.parentUnitUse === true;
 
         const newItem = {
             uniqueId: Date.now() + Math.random(),
             _id: product._id,
             productName: product.productName || '',
             company: product.company || '',
-            unit: product.unit || 'Pcs',
+            unit: isParent ? product.parentUnit : (product.unit || 'Pcs'),
+            parentMode: isParent,
+            subUnit: isParent ? (product.subUnit || '') : '',
+            pcsPerSub: isParent ? (Number(product.subUnitQty) || 1) : 0,
+            subQty: '',
             unitQty: '',
             pcsQty: '',
             pcsPerUnit: pcsPerUnit,
@@ -524,18 +822,14 @@ const OrderAdd = () => {
             prev.map((item) => {
                 if (item.uniqueId !== uniqueId) return item;
 
-                if (field === 'unitQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const pcsQtyVal = Number(item.pcsQty) || 0;
-                    const newTotalQty = numVal * (Number(item.pcsPerUnit) || 1) + pcsQtyVal;
-                    return { ...item, unitQty: value === '' ? '' : numVal, totalQty: newTotalQty };
-                }
-
-                if (field === 'pcsQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const unitQtyVal = Number(item.unitQty) || 0;
-                    const newTotalQty = unitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal;
-                    return { ...item, pcsQty: value === '' ? '' : numVal, totalQty: newTotalQty };
+                if (['unitQty', 'subQty', 'pcsQty'].includes(field)) {
+                    const numVal = value === '' ? '' : Number(value) || 0;
+                    const next = { ...item, [field]: numVal };
+                    next.totalQty =
+                        (Number(next.unitQty) || 0) * (Number(next.pcsPerUnit) || 1) +
+                        (Number(next.subQty) || 0) * (Number(next.pcsPerSub) || 0) +
+                        (Number(next.pcsQty) || 0);
+                    return next;
                 }
 
                 return { ...item, [field]: value };
@@ -567,38 +861,7 @@ const OrderAdd = () => {
     // Damage Product — Add / Remove / Change
     // --------------------------------------------------
     const handleAddDamageProduct = (product) => {
-        const baseFreeUnitQty = Number(product.freeProductUnitQty) || 0;
-        const baseFreePcsQty = Number(product.freeProductPcsQty) || 0;
-        const pcsPerUnit = Number(product.pcsOfUnit) || 1;
-
-        const newItem = {
-            uniqueId: Date.now() + Math.random(),
-            _id: product._id,
-
-            productName: product.productName || '',
-            company: product.company || '',
-            sku: product.sku || null,
-
-            sellPricePcs: Number(product.sellingPrice) || 0,
-            sellPriceUnit: roundTo2((Number(product.sellingPrice) || 0) * pcsPerUnit),
-
-            unit: product.unit || 'Pcs',
-
-            unitQty: '',
-            pcsQty: '',
-            pcsPerUnit: pcsPerUnit,
-
-            totalQty: 0,
-
-            freeUnitQty: '',
-            freePcsQty: '',
-            freeQty: 0,
-
-            baseFreeUnitQty: baseFreeUnitQty,
-            baseFreePcsQty: baseFreePcsQty,
-        };
-
-        setDamageItems((prev) => [...prev, newItem]);
+        setDamageItems((prev) => [...prev, buildAdjItem(product)]);
         setDamageSearch((prev) => ({ ...prev, product: '' }));
     };
 
@@ -610,84 +873,7 @@ const OrderAdd = () => {
         if (value !== '' && Number(value) < 0) return;
 
         setDamageItems((prev) =>
-            prev.map((item) => {
-                if (item.uniqueId !== uniqueId) {
-                    return item;
-                }
-
-                if (field === 'unitQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const pcsQtyVal = Number(item.pcsQty) || 0;
-
-                    const newTotalQty = numVal * (Number(item.pcsPerUnit) || 1) + pcsQtyVal;
-
-                    const newFreeUnitQty = numVal * (Number(item.baseFreeUnitQty) || 0);
-                    const newFreePcsQty = numVal * (Number(item.baseFreePcsQty) || 0);
-                    const newFreeQty = newFreeUnitQty * (Number(item.pcsPerUnit) || 1) + newFreePcsQty;
-
-                    return {
-                        ...item,
-                        unitQty: value === '' ? '' : numVal,
-                        totalQty: newTotalQty,
-                        freeUnitQty: newFreeUnitQty || '',
-                        freePcsQty: newFreePcsQty || '',
-                        freeQty: newFreeQty,
-                    };
-                }
-
-                if (field === 'sellPriceUnit') {
-                    const unitPriceVal = value === '' ? 0 : Number(value) || 0;
-                    return {
-                        ...item,
-                        sellPriceUnit: value,
-                        sellPricePcs: roundTo2(unitPriceVal / (Number(item.pcsPerUnit) || 1)),
-                    };
-                }
-
-                if (field === 'pcsQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const unitQtyVal = Number(item.unitQty) || 0;
-
-                    const newTotalQty = unitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal;
-
-                    return {
-                        ...item,
-                        pcsQty: value === '' ? '' : numVal,
-                        totalQty: newTotalQty,
-                    };
-                }
-
-                if (field === 'freeUnitQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const freePcsQtyVal = Number(item.freePcsQty) || 0;
-
-                    const newFreeQty = numVal * (Number(item.pcsPerUnit) || 1) + freePcsQtyVal;
-
-                    return {
-                        ...item,
-                        freeUnitQty: value === '' ? '' : numVal,
-                        freeQty: newFreeQty,
-                    };
-                }
-
-                if (field === 'freePcsQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const freeUnitQtyVal = Number(item.freeUnitQty) || 0;
-
-                    const newFreeQty = freeUnitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal;
-
-                    return {
-                        ...item,
-                        freePcsQty: value === '' ? '' : numVal,
-                        freeQty: newFreeQty,
-                    };
-                }
-
-                return {
-                    ...item,
-                    [field]: value,
-                };
-            })
+            prev.map((item) => (item.uniqueId === uniqueId ? applyAdjItemChange(item, field, value) : item))
         );
     };
 
@@ -715,38 +901,7 @@ const OrderAdd = () => {
     // Return Product — Add / Remove / Change
     // --------------------------------------------------
     const handleAddReturnProduct = (product) => {
-        const baseFreeUnitQty = Number(product.freeProductUnitQty) || 0;
-        const baseFreePcsQty = Number(product.freeProductPcsQty) || 0;
-        const pcsPerUnit = Number(product.pcsOfUnit) || 1;
-
-        const newItem = {
-            uniqueId: Date.now() + Math.random(),
-            _id: product._id,
-
-            productName: product.productName || '',
-            company: product.company || '',
-            sku: product.sku || null,
-
-            sellPricePcs: Number(product.sellingPrice) || 0,
-            sellPriceUnit: roundTo2((Number(product.sellingPrice) || 0) * pcsPerUnit),
-
-            unit: product.unit || 'Pcs',
-
-            unitQty: '',
-            pcsQty: '',
-            pcsPerUnit: pcsPerUnit,
-
-            totalQty: 0,
-
-            freeUnitQty: '',
-            freePcsQty: '',
-            freeQty: 0,
-
-            baseFreeUnitQty: baseFreeUnitQty,
-            baseFreePcsQty: baseFreePcsQty,
-        };
-
-        setReturnItems((prev) => [...prev, newItem]);
+        setReturnItems((prev) => [...prev, buildAdjItem(product)]);
         setReturnSearch((prev) => ({ ...prev, product: '' }));
     };
 
@@ -758,84 +913,7 @@ const OrderAdd = () => {
         if (value !== '' && Number(value) < 0) return;
 
         setReturnItems((prev) =>
-            prev.map((item) => {
-                if (item.uniqueId !== uniqueId) {
-                    return item;
-                }
-
-                if (field === 'unitQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const pcsQtyVal = Number(item.pcsQty) || 0;
-
-                    const newTotalQty = numVal * (Number(item.pcsPerUnit) || 1) + pcsQtyVal;
-
-                    const newFreeUnitQty = numVal * (Number(item.baseFreeUnitQty) || 0);
-                    const newFreePcsQty = numVal * (Number(item.baseFreePcsQty) || 0);
-                    const newFreeQty = newFreeUnitQty * (Number(item.pcsPerUnit) || 1) + newFreePcsQty;
-
-                    return {
-                        ...item,
-                        unitQty: value === '' ? '' : numVal,
-                        totalQty: newTotalQty,
-                        freeUnitQty: newFreeUnitQty || '',
-                        freePcsQty: newFreePcsQty || '',
-                        freeQty: newFreeQty,
-                    };
-                }
-
-                if (field === 'sellPriceUnit') {
-                    const unitPriceVal = value === '' ? 0 : Number(value) || 0;
-                    return {
-                        ...item,
-                        sellPriceUnit: value,
-                        sellPricePcs: roundTo2(unitPriceVal / (Number(item.pcsPerUnit) || 1)),
-                    };
-                }
-
-                if (field === 'pcsQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const unitQtyVal = Number(item.unitQty) || 0;
-
-                    const newTotalQty = unitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal;
-
-                    return {
-                        ...item,
-                        pcsQty: value === '' ? '' : numVal,
-                        totalQty: newTotalQty,
-                    };
-                }
-
-                if (field === 'freeUnitQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const freePcsQtyVal = Number(item.freePcsQty) || 0;
-
-                    const newFreeQty = numVal * (Number(item.pcsPerUnit) || 1) + freePcsQtyVal;
-
-                    return {
-                        ...item,
-                        freeUnitQty: value === '' ? '' : numVal,
-                        freeQty: newFreeQty,
-                    };
-                }
-
-                if (field === 'freePcsQty') {
-                    const numVal = value === '' ? 0 : Number(value) || 0;
-                    const freeUnitQtyVal = Number(item.freeUnitQty) || 0;
-
-                    const newFreeQty = freeUnitQtyVal * (Number(item.pcsPerUnit) || 1) + numVal;
-
-                    return {
-                        ...item,
-                        freePcsQty: value === '' ? '' : numVal,
-                        freeQty: newFreeQty,
-                    };
-                }
-
-                return {
-                    ...item,
-                    [field]: value,
-                };
-            })
+            prev.map((item) => (item.uniqueId === uniqueId ? applyAdjItemChange(item, field, value) : item))
         );
     };
 
@@ -1065,17 +1143,23 @@ const OrderAdd = () => {
     // sync থাকবে, যতক্ষণ না ইউজার নিজে হাতে সেটা edit করছে
     // --------------------------------------------------
     useEffect(() => {
-        if (isDeliveryMode && !paymentAmountTouched) {
+        if (showPayment && !isDeliveredEdit && !paymentAmountTouched) {
             setPaymentAmount(payableAmount);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [payableAmount, isDeliveryMode, paymentAmountTouched]);
+    }, [payableAmount, showPayment, paymentAmountTouched]);
 
     // --------------------------------------------------
     // Submit (এখন শুধু Frontend — Backend পরে যোগ হবে)
     // --------------------------------------------------
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Direct Sales হলে সরাসরি delivery সহ save হবে
+        if (directSales) {
+            handleDeliverySubmit();
+            return;
+        }
 
         // ---------------- Validation ----------------
         if (!orderFormData.customerId) {
@@ -1139,6 +1223,44 @@ const OrderAdd = () => {
             showToast('Each return product must have a valid quantity (Unit/PCS/Free)!', true);
             return;
         }
+        let deliveredPaymentData = {};
+        if (isDeliveredEdit) {
+            if (paymentAmount === '' || paymentAmount === null) {
+                showToast('Payment amount is required!', true);
+                return;
+            }
+            if (!paymentAccountType) {
+                showToast('Please select a payment method!', true);
+                return;
+            }
+            if (!selectedAccountInfo) {
+                showToast('Please select an account!', true);
+                return;
+            }
+
+            let accInfo = {};
+            if (paymentAccountType === 'Bank') {
+                accInfo = {
+                    bankName: selectedAccountInfo.bankName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                    accountBranch: selectedAccountInfo.accountBranch || '',
+                };
+            } else if (paymentAccountType === 'Mobile Banking') {
+                accInfo = {
+                    accountName: selectedAccountInfo.accountName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                };
+            } else {
+                accInfo = { accountName: 'Cash' };
+            }
+
+            deliveredPaymentData = {
+                paidAmount: roundTo2(paymentAmount),
+                paymentMethod: paymentAccountType,
+                paymentAccount: accInfo,
+                paymentNote: paymentNote,
+            };
+        }
         // ---------------- Validation End ----------------
 
 
@@ -1161,6 +1283,13 @@ const OrderAdd = () => {
                 unit: item.unit || 'Pcs',
                 unitQty: Number(item.unitQty) || 0,
                 pcsQty: Number(item.pcsQty) || 0,
+                parentMode: item.parentMode === true,
+                subUnit: item.subUnit || '',
+                pcsPerUnit: Number(item.pcsPerUnit) || 1,
+                pcsPerSub: Number(item.pcsPerSub) || 0,
+                sellPriceSub: roundTo2(item.sellPriceSub),
+                subQty: Number(item.subQty) || 0,
+                freeSubQty: Number(item.freeSubQty) || 0,
                 totalPcs: totalQty,
                 freeUnitQty: Number(item.freeUnitQty) || 0,
                 freePcsQty: Number(item.freePcsQty) || 0,
@@ -1172,49 +1301,9 @@ const OrderAdd = () => {
             };
         });
 
-        const freeItemsPayload = freeProductItems.map((item) => ({
-            productId: item._id,
-            productName: item.productName,
-            company: item.company,
-            unit: item.unit || 'Pcs',
-            unitQty: Number(item.unitQty) || 0,
-            pcsQty: Number(item.pcsQty) || 0,
-            totalQty: Number(item.totalQty) || 0,
-        }));
-
-        const damageItemsPayload = damageItems.map((item) => ({
-            productId: item._id,
-            productName: item.productName,
-            company: item.company,
-            sku: item.sku,
-            sellPricePcs: roundTo2(item.sellPricePcs),
-            sellPriceUnit: roundTo2(item.sellPriceUnit),
-            unit: item.unit || 'Pcs',
-            unitQty: Number(item.unitQty) || 0,
-            pcsQty: Number(item.pcsQty) || 0,
-            totalQty: Number(item.totalQty) || 0,
-            freeUnitQty: Number(item.freeUnitQty) || 0,
-            freePcsQty: Number(item.freePcsQty) || 0,
-            freeQty: Number(item.freeQty) || 0,
-            subtotal: roundTo2(getRowGross(item)),
-        }));
-
-        const returnItemsPayload = returnItems.map((item) => ({
-            productId: item._id,
-            productName: item.productName,
-            company: item.company,
-            sku: item.sku,
-            sellPricePcs: roundTo2(item.sellPricePcs),
-            sellPriceUnit: roundTo2(item.sellPriceUnit),
-            unit: item.unit || 'Pcs',
-            unitQty: Number(item.unitQty) || 0,
-            pcsQty: Number(item.pcsQty) || 0,
-            totalQty: Number(item.totalQty) || 0,
-            freeUnitQty: Number(item.freeUnitQty) || 0,
-            freePcsQty: Number(item.freePcsQty) || 0,
-            freeQty: Number(item.freeQty) || 0,
-            subtotal: roundTo2(getRowGross(item)),
-        }));
+        const freeItemsPayload = buildFreeItemsPayload();
+        const damageItemsPayload = buildAdjItemsPayload(damageItems);
+        const returnItemsPayload = buildAdjItemsPayload(returnItems);
 
         const orderData = {
             orderNo: isEditMode ? editingOrder.orderNo : generateOrderNo(),
@@ -1254,6 +1343,8 @@ const OrderAdd = () => {
             payableAmount: payableAmount,
 
             orderNote: orderNote,
+
+            ...deliveredPaymentData,
 
             ...(isEditMode
                 ? {
@@ -1331,7 +1422,7 @@ const OrderAdd = () => {
             return;
         }
 
-        if (!orderFormData.route) {
+        if (!directSales && !orderFormData.route) {
             showToast('Route is required!', true);
             return;
         }
@@ -1341,15 +1432,16 @@ const OrderAdd = () => {
             return;
         }
 
-        if (!orderFormData.srId) {
+        if (!directSales && !orderFormData.srId) {
             showToast('SR is required!', true);
             return;
         }
 
-        if (!orderFormData.deliveredById) {
+        if (!directSales && !orderFormData.deliveredById) {
             showToast('Delivered By is required!', true);
             return;
         }
+
 
         if (orderItems.length === 0 && freeProductItems.length === 0 && damageItems.length === 0 && returnItems.length === 0) {
             showToast('Please add at least one product!', true);
@@ -1447,6 +1539,13 @@ const OrderAdd = () => {
                 unit: item.unit || 'Pcs',
                 unitQty: Number(item.unitQty) || 0,
                 pcsQty: Number(item.pcsQty) || 0,
+                parentMode: item.parentMode === true,
+                subUnit: item.subUnit || '',
+                pcsPerUnit: Number(item.pcsPerUnit) || 1,
+                pcsPerSub: Number(item.pcsPerSub) || 0,
+                sellPriceSub: roundTo2(item.sellPriceSub),
+                subQty: Number(item.subQty) || 0,
+                freeSubQty: Number(item.freeSubQty) || 0,
                 totalPcs: totalQty,
                 freeUnitQty: Number(item.freeUnitQty) || 0,
                 freePcsQty: Number(item.freePcsQty) || 0,
@@ -1457,63 +1556,27 @@ const OrderAdd = () => {
             };
         });
 
-        const freeItemsPayload = freeProductItems.map((item) => ({
-            productId: item._id,
-            productName: item.productName,
-            company: item.company,
-            unit: item.unit || 'Pcs',
-            unitQty: Number(item.unitQty) || 0,
-            pcsQty: Number(item.pcsQty) || 0,
-            totalQty: Number(item.totalQty) || 0,
-        }));
-
-        const damageItemsPayload = damageItems.map((item) => ({
-            productId: item._id,
-            productName: item.productName,
-            company: item.company,
-            sku: item.sku,
-            sellPricePcs: roundTo2(item.sellPricePcs),
-            sellPriceUnit: roundTo2(item.sellPriceUnit),
-            unit: item.unit || 'Pcs',
-            unitQty: Number(item.unitQty) || 0,
-            pcsQty: Number(item.pcsQty) || 0,
-            totalQty: Number(item.totalQty) || 0,
-            freeUnitQty: Number(item.freeUnitQty) || 0,
-            freePcsQty: Number(item.freePcsQty) || 0,
-            freeQty: Number(item.freeQty) || 0,
-            subtotal: roundTo2(getRowGross(item)),
-        }));
-
-        const returnItemsPayload = returnItems.map((item) => ({
-            productId: item._id,
-            productName: item.productName,
-            company: item.company,
-            sku: item.sku,
-            sellPricePcs: roundTo2(item.sellPricePcs),
-            sellPriceUnit: roundTo2(item.sellPriceUnit),
-            unit: item.unit || 'Pcs',
-            unitQty: Number(item.unitQty) || 0,
-            pcsQty: Number(item.pcsQty) || 0,
-            totalQty: Number(item.totalQty) || 0,
-            freeUnitQty: Number(item.freeUnitQty) || 0,
-            freePcsQty: Number(item.freePcsQty) || 0,
-            freeQty: Number(item.freeQty) || 0,
-            subtotal: roundTo2(getRowGross(item)),
-        }));
+        const freeItemsPayload = buildFreeItemsPayload();
+        const damageItemsPayload = buildAdjItemsPayload(damageItems);
+        const returnItemsPayload = buildAdjItemsPayload(returnItems);
 
         const deliveryData = {
             customerId: orderFormData.customerId,
             customer: orderFormData.customer,
             phone: orderFormData.customerContact,
             address: orderFormData.customerAddress,
-            route: orderFormData.route,
-            shippingAddress: orderFormData.shippingAddress,
             orderDate: orderFormData.date,
 
-            srId: orderFormData.srId,
-            sr: orderFormData.sr,
-            deliveredById: orderFormData.deliveredById,
-            deliveredBy: orderFormData.deliveredBy,
+            ...(directSales
+                ? { directSales: true }
+                : {
+                    route: orderFormData.route,
+                    shippingAddress: orderFormData.shippingAddress,
+                    srId: orderFormData.srId,
+                    sr: orderFormData.sr,
+                    deliveredById: orderFormData.deliveredById,
+                    deliveredBy: orderFormData.deliveredBy,
+                }),
 
             items: itemsPayload,
 
@@ -1558,14 +1621,33 @@ const OrderAdd = () => {
         };
 
         try {
-            const res = await fetch(`http://localhost:5000/sales/${editingOrder._id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(deliveryData),
-            });
+            const { unsetFields: _unsetFields, ...deliveryCreateData } = deliveryData;
+            const res = await fetch(
+                directSales
+                    ? 'http://localhost:5000/sales'
+                    : `http://localhost:5000/sales/${editingOrder._id}`,
+                {
+                    method: directSales ? 'POST' : 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(
+                        directSales
+                            ? { ...deliveryCreateData, orderNo: generateOrderNo() }
+                            : deliveryData
+                    ),
+                }
+            );
 
             if (!res.ok) {
-                throw new Error('Failed to deliver order');
+                const errData = await res.json().catch(() => ({}));
+                if (errData?.shortages?.length) {
+                    const msg = errData.shortages
+                        .map((s) => `${s.productName} (Need: ${s.need}, Stock: ${s.available})`)
+                        .join(', ');
+                    showToast(`Stock a product nai! ${msg}`, true);
+                    return;
+                }
+                showToast(errData?.error || errData?.message || `Server error (${res.status})`, true);
+                return;
             }
 
             await res.json();
@@ -1612,6 +1694,8 @@ const OrderAdd = () => {
                 addedProductIds={addedProductIds}
                 onFormDataChange={handleFormDataChange}
                 initialData={editingOrder}
+                directSales={directSales}
+                onDirectSalesChange={handleDirectSalesChange}
             />
 
             {/* -----------------------------------------
@@ -1707,7 +1791,6 @@ const OrderAdd = () => {
                                                         </div>
                                                         <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
                                                             <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-
                                                                 <input
                                                                     type="number"
                                                                     min="0"
@@ -1722,15 +1805,37 @@ const OrderAdd = () => {
                                                                     }}
                                                                     className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
                                                                 />
-
                                                                 <span
                                                                     className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
                                                                     title={currentUnitLabel}
                                                                 >
                                                                     {currentUnitLabel}
                                                                 </span>
-
                                                             </div>
+                                                            {item.parentMode && (
+                                                                <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder="0"
+                                                                        value={item.subQty ?? ''}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (/^\d*$/.test(value)) {
+                                                                                handleItemChange(item.uniqueId, 'subQty', value);
+                                                                            }
+                                                                        }}
+                                                                        className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                    />
+                                                                    <span
+                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                        title="Sub Unit"
+                                                                    >
+                                                                        {item.subUnit}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
 
@@ -1788,6 +1893,30 @@ const OrderAdd = () => {
                                                                 </span>
 
                                                             </div>
+                                                            {item.parentMode && (
+                                                                <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder="0"
+                                                                        value={item.freeSubQty ?? ''}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (/^\d*$/.test(value)) {
+                                                                                handleItemChange(item.uniqueId, 'freeSubQty', value);
+                                                                            }
+                                                                        }}
+                                                                        className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                    />
+                                                                    <span
+                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                        title="Sub Unit"
+                                                                    >
+                                                                        {item.subUnit}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
 
@@ -1835,6 +1964,31 @@ const OrderAdd = () => {
                                                             }}
                                                             className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
                                                         />
+                                                        {item.parentMode && (
+                                                            <div className="relative mt-6">
+                                                                <div
+                                                                    className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                >
+                                                                    {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
+                                                                </div>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    placeholder="0"
+                                                                    title="প্রতি Sub Unit এর দাম (edit করা যাবে)"
+                                                                    disabled={!(Number(item.subQty) > 0)}
+                                                                    value={item.sellPriceSub}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                            handleItemChange(item.uniqueId, 'sellPriceSub', value);
+                                                                        }
+                                                                    }}
+                                                                    className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </td>
 
                                                     {/* Sell Price (PCS) */}
@@ -2298,6 +2452,30 @@ const OrderAdd = () => {
                                                                             {item.unit || 'Pcs'}
                                                                         </span>
                                                                     </div>
+                                                                    {item.parentMode && (
+                                                                        <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.subQty ?? ''}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleFreeItemChange(item.uniqueId, 'subQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                            />
+                                                                            <span
+                                                                                className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate"
+                                                                                title="Sub Unit"
+                                                                            >
+                                                                                {item.subUnit}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </td>
 
@@ -2557,6 +2735,30 @@ const OrderAdd = () => {
                                                                                 {currentUnitLabel}
                                                                             </span>
                                                                         </div>
+                                                                        {item.parentMode && (
+                                                                            <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.subQty ?? ''}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleDamageItemChange(item.uniqueId, 'subQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title="Sub Unit"
+                                                                                >
+                                                                                    {item.subUnit}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </td>
 
@@ -2609,6 +2811,30 @@ const OrderAdd = () => {
                                                                                 {currentUnitLabel}
                                                                             </span>
                                                                         </div>
+                                                                        {item.parentMode && (
+                                                                            <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.freeSubQty ?? ''}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleDamageItemChange(item.uniqueId, 'freeSubQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title="Sub Unit"
+                                                                                >
+                                                                                    {item.subUnit}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </td>
 
@@ -2653,6 +2879,31 @@ const OrderAdd = () => {
                                                                         }}
                                                                         className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
                                                                     />
+                                                                    {item.parentMode && (
+                                                                        <div className="relative mt-6">
+                                                                            <div
+                                                                                className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                            >
+                                                                                {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
+                                                                            </div>
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="0.01"
+                                                                                placeholder="0"
+                                                                                title="প্রতি Sub Unit এর দাম (edit করা যাবে)"
+                                                                                disabled={!(Number(item.subQty) > 0)}
+                                                                                value={item.sellPriceSub}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                        handleDamageItemChange(item.uniqueId, 'sellPriceSub', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                            />
+                                                                        </div>
+                                                                    )}
                                                                 </td>
 
                                                                 <td className="relative py-3 px-2">
@@ -2910,6 +3161,30 @@ const OrderAdd = () => {
                                                                                 {currentUnitLabel}
                                                                             </span>
                                                                         </div>
+                                                                        {item.parentMode && (
+                                                                            <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.subQty ?? ''}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleReturnItemChange(item.uniqueId, 'subQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title="Sub Unit"
+                                                                                >
+                                                                                    {item.subUnit}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </td>
 
@@ -2962,6 +3237,30 @@ const OrderAdd = () => {
                                                                                 {currentUnitLabel}
                                                                             </span>
                                                                         </div>
+                                                                        {item.parentMode && (
+                                                                            <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.freeSubQty ?? ''}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleReturnItemChange(item.uniqueId, 'freeSubQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title="Sub Unit"
+                                                                                >
+                                                                                    {item.subUnit}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </td>
 
@@ -3006,6 +3305,31 @@ const OrderAdd = () => {
                                                                         }}
                                                                         className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
                                                                     />
+                                                                    {item.parentMode && (
+                                                                        <div className="relative mt-6">
+                                                                            <div
+                                                                                className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                            >
+                                                                                {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
+                                                                            </div>
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="0.01"
+                                                                                placeholder="0"
+                                                                                title="প্রতি Sub Unit এর দাম (edit করা যাবে)"
+                                                                                disabled={!(Number(item.subQty) > 0)}
+                                                                                value={item.sellPriceSub}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                        handleReturnItemChange(item.uniqueId, 'sellPriceSub', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                            />
+                                                                        </div>
+                                                                    )}
                                                                 </td>
 
                                                                 <td className="relative py-3 px-2">
@@ -3089,7 +3413,7 @@ const OrderAdd = () => {
                         {/* =================================
                             PAYMENT (Delivery Mode Only)
                         ================================= */}
-                        {isDeliveryMode && (
+                        {showPayment && (
                             <div className="mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
                                 <h3 className="text-base font-bold text-emerald-800 mb-4">Payment</h3>
 
@@ -3186,13 +3510,13 @@ const OrderAdd = () => {
                         ================================= */}
                         <div className="mt-6 flex justify-end">
 
-                            {isDeliveryMode ? (
+                            {(isDeliveryMode || directSales) ? (
                                 <button
                                     type="button"
                                     onClick={handleDeliverySubmit}
                                     className="px-10 py-3 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition cursor-pointer"
                                 >
-                                    Delivery
+                                    {directSales ? 'Direct Delivery' : 'Delivery'}
                                 </button>
                             ) : (
                                 <button
@@ -3205,8 +3529,8 @@ const OrderAdd = () => {
                         </div>
                     </form>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

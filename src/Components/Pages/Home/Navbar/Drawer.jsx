@@ -229,9 +229,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       children: [
         { to: "/free-products", label: "Free Products" },
         { to: "/damage-products", label: "Damage Products" },
-        { to: "/stock-purchase", label: "Stock Purchase" },
-        { to: "/stock-alert", label: "Stock Alert" },
-        { to: "/stock-list", label: "All Stock" },
+        { to: "/stock-all", label: "Stock All" },
       ],
     },
     {

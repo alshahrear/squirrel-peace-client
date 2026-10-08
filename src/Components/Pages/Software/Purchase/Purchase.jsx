@@ -42,6 +42,15 @@ const Purchase = () => {
     // Summary Bar collapse state (default: collapsed)
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
+    // Multi Return feature (default OFF)
+    const [multiReturnEnabled, setMultiReturnEnabled] = useState(false);
+    useEffect(() => {
+        fetch('http://localhost:5000/feature')
+            .then((res) => res.json())
+            .then((data) => setMultiReturnEnabled(data?.purchaseMultiReturn === true))
+            .catch(() => setMultiReturnEnabled(false));
+    }, [location.pathname]);
+
     // Extra filter (multi select) - default: sob select kora
     const EXTRA_OPTIONS = ['Free', 'Others Free', 'Return'];
     const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
@@ -98,6 +107,37 @@ const Purchase = () => {
             console.error('Error fetching companies:', error);
         }
     };
+
+    // Je purchase er product bikri hoyeche tar id set
+    const [soldPurchaseIds, setSoldPurchaseIds] = useState(new Set());
+    useEffect(() => {
+        const loadSold = async () => {
+            try {
+                const [stockRes, salesRes] = await Promise.all([
+                    fetch('http://localhost:5000/stock-purchase'),
+                    fetch('http://localhost:5000/sales'),
+                ]);
+                const stock = await stockRes.json();
+                const sales = await salesRes.json();
+                const batchToPurchase = new Map(
+                    (Array.isArray(stock) ? stock : []).map((b) => [String(b._id), String(b.purchaseId)])
+                );
+                const ids = new Set();
+                (Array.isArray(sales) ? sales : []).forEach((s) => {
+                    (s.stockAllocations || []).forEach((a) => {
+                        const net = (Number(a.qty) || 0) - (Number(a.returned) || 0);
+                        const pid = batchToPurchase.get(String(a.batchId));
+                        if (pid && net > 0) ids.add(pid);
+                    });
+                });
+                setSoldPurchaseIds(ids);
+            } catch (error) {
+                console.error('Error checking sold purchases:', error);
+            }
+        };
+        loadSold();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.pathname]);
 
     useEffect(() => {
         fetchPurchases();
@@ -373,6 +413,11 @@ const Purchase = () => {
     // Main product free qty
     const totalMainFreeQty = summaryRows.reduce(
         (s, i) => s + (i.items || []).reduce((ss, it) => ss + (Number(it.freeTotalQty ?? it.freeQty) || 0), 0),
+        0
+    );
+    // Main product total qty
+    const totalMainQty = summaryRows.reduce(
+        (s, i) => s + (i.items || []).reduce((ss, it) => ss + (Number(it.totalPcs ?? it.totalQty) || 0), 0),
         0
     );
     // Others Free Product qty
@@ -675,6 +720,9 @@ const Purchase = () => {
                                         <div className="px-3 py-2 flex flex-col gap-1 min-w-[130px]">
                                             <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
                                             <span className="font-semibold text-gray-600">
+                                                Total Qty: <b className="text-indigo-600">{fmt(totalMainQty)}</b>
+                                            </span>
+                                            <span className="font-semibold text-gray-600">
                                                 Total Amount: <b className="text-indigo-600">৳{fmt(totalPayable)}</b>
                                             </span>
                                             <span className="font-semibold text-gray-600">
@@ -886,10 +934,34 @@ const Purchase = () => {
                                                                 View Details
                                                             </button>
 
-                                                            {(item.receiveStatus === 'Received' || item.receiveStatus === 'Yes') && (
+                                                            {(item.receiveStatus === 'Received' || item.receiveStatus === 'Yes') &&
+                                                                (multiReturnEnabled || (item.returnHistory || []).length === 0) && (
+                                                                    <button
+                                                                        onClick={() => handleReturn(item._id)}
+                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                                    >
+                                                                        <svg
+                                                                            xmlns="http://www.w3.org/2000/svg"
+                                                                            fill="none"
+                                                                            viewBox="0 0 24 24"
+                                                                            strokeWidth={1.8}
+                                                                            stroke="currentColor"
+                                                                            className="w-3.5 h-3.5 text-orange-500"
+                                                                        >
+                                                                            <path
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                                d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"
+                                                                            />
+                                                                        </svg>
+                                                                        Return
+                                                                    </button>
+                                                                )}
+
+                                                            {item.receiveStatus !== 'Received' && (
                                                                 <button
-                                                                    onClick={() => handleReturn(item._id)}
-                                                                    className="w-full px-4 py-2.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                                    onClick={() => handleReceive(item)}
+                                                                    className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
                                                                 >
                                                                     <svg
                                                                         xmlns="http://www.w3.org/2000/svg"
@@ -897,64 +969,40 @@ const Purchase = () => {
                                                                         viewBox="0 0 24 24"
                                                                         strokeWidth={1.8}
                                                                         stroke="currentColor"
-                                                                        className="w-3.5 h-3.5 text-orange-500"
+                                                                        className="w-3.5 h-3.5 text-emerald-500"
                                                                     >
                                                                         <path
                                                                             strokeLinecap="round"
                                                                             strokeLinejoin="round"
-                                                                            d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"
+                                                                            d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z"
                                                                         />
                                                                     </svg>
-                                                                    Return
+                                                                    Receive
                                                                 </button>
                                                             )}
 
-                                                            {item.receiveStatus !== 'Received' && (
-                                                                <>
-                                                                    <button
-                                                                        onClick={() => handleReceive(item)}
-                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                            {!soldPurchaseIds.has(String(item._id)) && (
+                                                                <button
+                                                                    onClick={() => handleEdit(item)}
+                                                                    className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                                >
+                                                                    <svg
+                                                                        xmlns="http://www.w3.org/2000/svg"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        strokeWidth={1.8}
+                                                                        stroke="currentColor"
+                                                                        className="w-3.5 h-3.5 text-indigo-500"
                                                                     >
-                                                                        <svg
-                                                                            xmlns="http://www.w3.org/2000/svg"
-                                                                            fill="none"
-                                                                            viewBox="0 0 24 24"
-                                                                            strokeWidth={1.8}
-                                                                            stroke="currentColor"
-                                                                            className="w-3.5 h-3.5 text-emerald-500"
-                                                                        >
-                                                                            <path
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                                d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z"
-                                                                            />
-                                                                        </svg>
-                                                                        Receive
-                                                                    </button>
-
-                                                                    <button
-                                                                        onClick={() => handleEdit(item)}
-                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                    >
-                                                                        <svg
-                                                                            xmlns="http://www.w3.org/2000/svg"
-                                                                            fill="none"
-                                                                            viewBox="0 0 24 24"
-                                                                            strokeWidth={1.8}
-                                                                            stroke="currentColor"
-                                                                            className="w-3.5 h-3.5 text-indigo-500"
-                                                                        >
-                                                                            <path
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                                d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
-                                                                            />
-                                                                        </svg>
-                                                                        Edit
-                                                                    </button>
-                                                                </>
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
+                                                                        />
+                                                                    </svg>
+                                                                    Edit
+                                                                </button>
                                                             )}
-
                                                             <button
                                                                 onClick={() => handleDelete(item._id)}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
@@ -1052,7 +1100,7 @@ const Purchase = () => {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

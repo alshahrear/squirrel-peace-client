@@ -16,6 +16,20 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
     const [unitInput, setUnitInput] = useState('');
     const [showUnitDropdown, setShowUnitDropdown] = useState(false);
 
+    // Parent Unit (data formData তেই থাকে, তাই draft ও edit এ ঠিক থাকবে)
+    const [showParentDropdown, setShowParentDropdown] = useState(false);
+    const hasParent = formData.hasParent === true;
+    const parentQtyNum = Number(formData.parentQty) || 0;
+    const unitQtyNum = Number(formData.unitQty) || 0;
+    // Parent থাকলে PCS of 1 Unit = Parent Qty × Unit Qty (নিজে থেকে হিসাব হবে)
+    const effectivePcs = hasParent ? parentQtyNum * unitQtyNum : Number(formData.pcsOfUnit) || 0;
+    // Parent থাকলে সিস্টেমের মূল Unit = Parent Unit
+    const effectiveUnitName = hasParent ? (formData.parentUnit || '') : (formData.unit || '');
+    const freeTotal = hasParent
+        ? (Number(formData.freeProductSubQty) || 0) * unitQtyNum +
+        (Number(formData.freeProductPcsQty) || 0)
+        : (Number(formData.freeProductPcsQty) || 0);
+
     useEffect(() => {
         // Company Fetch
         fetch('http://localhost:5000/company')
@@ -70,10 +84,15 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
             mrp: '',
             unit: '',
             pcsOfUnit: '',
-            freeProductQty: '',
+            freeProductUnitQty: '',
+            freeProductSubQty: '',
+            freeProductPcsQty: '',
+            hasParent: false,
+            parentUnit: '',
+            parentQty: '',
+            unitQty: '',
             note: '',
-            isActive: true,
-            createdAt: ''
+            isActive: true
         });
         setCompanyInput('');
         setCategoryInput('');
@@ -96,7 +115,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
     };
 
     const handleSubmit = async (e) => {
-               e.preventDefault();
+        e.preventDefault();
         const isEditing = Boolean(editingId);
 
         const nameInput = formData.productName.trim().toLowerCase();
@@ -113,10 +132,48 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
             return;
         }
 
-        const finalData = {
-            ...formData,
-            createdAt: formData.createdAt || getFormattedDateTime()
+        if (hasParent && (!formData.parentUnit?.trim() || !formData.unit?.trim() || parentQtyNum <= 0 || unitQtyNum <= 0)) {
+            if (showToast) showToast('Parent Unit, Unit এবং দুইটা Qty দিন!', 'error');
+            return;
+        }
+
+
+        // Parent থাকলে: unit = Parent Unit, subUnit = Unit, pcsOfUnit = Parent Qty × Unit Qty
+        const unitData = hasParent
+            ? {
+                parentUnitUse: true,
+                parentUnit: formData.parentUnit.trim(),
+                parentQty: parentQtyNum,
+                subUnit: formData.unit.trim(),
+                subUnitQty: unitQtyNum,
+                pcsOfUnit: effectivePcs,
+                freeProductSubQty: formData.freeProductSubQty || '',
+                freeProductPcsQty: formData.freeProductPcsQty || '',
+            }
+            : {
+                parentUnitUse: false,
+                unit: formData.unit,
+                pcsOfUnit: formData.pcsOfUnit,
+                freeProductPcsQty: formData.freeProductPcsQty || '',
+            };
+
+        const baseData = {
+            productName: formData.productName,
+            company: formData.company,
+            sku: formData.sku,
+            category: formData.category,
+            alertQuantity: formData.alertQuantity,
+            purchasePrice: formData.purchasePrice,
+            sellingPrice: formData.sellingPrice,
+            mrp: formData.mrp,
+            parentUnitUse: hasParent,
+            ...unitData,
+            note: formData.note,
+            isActive: formData.isActive,
         };
+        const finalData = isEditing
+            ? baseData
+            : { ...baseData, createdAt: getFormattedDateTime() };
 
         try {
             let response;
@@ -135,7 +192,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
             }
 
             const data = await response.json();
-            if (data.insertedId || data.modifiedCount > 0) {
+            if (data.insertedId || data.modifiedCount > 0 || data.matchedCount > 0) {
                 if (showToast) {
                     showToast(isEditing ? 'Product updated successfully!' : 'Product added successfully!', 'success');
                 }
@@ -220,7 +277,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                             </span>
                         </div>
                         {showCompanyDropdown && (
-                            <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                            <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
                                 {companies
                                     .filter(c => c.businessName.toLowerCase().includes(companyInput.toLowerCase()))
                                     .length > 0 ? (
@@ -289,7 +346,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                             </span>
                         </div>
                         {showCategoryDropdown && (
-                            <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                            <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
                                 {categories
                                     .filter(cat => cat.name.toLowerCase().includes(categoryInput.toLowerCase()))
                                     .length > 0 ? (
@@ -318,7 +375,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                     {/* Alert Quantity */}
                     <div>
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                            <FaExclamationTriangle className="text-indigo-500" /> Alert Quantity
+                            <FaExclamationTriangle className="text-indigo-500" /> Alert Quantity (PCS)
                         </label>
                         <input
                             type="number"
@@ -341,7 +398,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                     {/* Purchase Price */}
                     <div>
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                            <FaDollarSign className="text-indigo-500" /> Purchase Price
+                            <FaDollarSign className="text-indigo-500" /> Purchase Price (PCS)
                         </label>
                         <input
                             type="number"
@@ -364,7 +421,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                     {/* Selling Price */}
                     <div>
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                            <FaDollarSign className="text-indigo-500" /> Selling Price
+                            <FaDollarSign className="text-indigo-500" /> Selling Price (PCS)
                         </label>
                         <input
                             type="number"
@@ -387,7 +444,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                     {/* MRP */}
                     <div>
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                            <FaDollarSign className="text-indigo-500" /> MRP
+                            <FaDollarSign className="text-indigo-500" /> MRP (PCS)
                         </label>
                         <input
                             type="number"
@@ -414,133 +471,269 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                         <span className="w-2.5 h-2.5 bg-purple-600 rounded-full inline-block"></span>
                         Unit & Stock Configuration
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 items-start ${hasParent ? 'md:grid-cols-[minmax(0,1.5fr)_minmax(0,0.6fr)_minmax(0,1.7fr)]' : 'md:grid-cols-3'}`}>
                         {/* Unit */}
                         <div className="relative">
-                            <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                                <FaBalanceScale className="text-indigo-500" /> Unit <span className="text-red-500">*</span>
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    placeholder="Select or type unit"
-                                    value={unitInput}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        setUnitInput(val);
-                                        setShowUnitDropdown(true);
-                                        setFormData({ ...formData, unit: val });
-                                    }}
-                                    onFocus={() => setShowUnitDropdown(true)}
-                                    onBlur={() => setTimeout(() => setShowUnitDropdown(false), 200)}
-                                    required
-                                    className="w-full px-3 py-2 pr-8 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                                />
-                                <span
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer pointer-events-none"
-                                    onClick={() => setShowUnitDropdown(!showUnitDropdown)}
+                            <div className="flex items-center justify-between mb-1.5 h-6">
+                                <label className="block text-gray-700 text-xs font-semibold flex items-center gap-1.5">
+                                    <FaBalanceScale className="text-indigo-500" /> Unit <span className="text-red-500">*</span>
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setFormData({
+                                            ...formData,
+                                            hasParent: !hasParent,
+                                            unit: '',
+                                            parentUnit: '',
+                                            parentQty: '',
+                                            unitQty: '',
+                                            pcsOfUnit: '',
+                                            freeProductUnitQty: '',
+                                            freeProductParentUnitQty: '',
+                                            freeProductSubQty: '',
+                                            freeProductPcsQty: '',
+                                        })
+                                    }
+                                    className={`text-[11px] font-bold px-2 py-0.5 rounded-md border transition cursor-pointer ${hasParent
+                                        ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                                        : 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+                                        }`}
                                 >
-                                    <FaChevronDown className="text-xs" />
-                                </span>
+                                    {hasParent ? '× Remove Parent' : '+ Parent Unit'}
+                                </button>
                             </div>
-                            {showUnitDropdown && (
-                                <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
-                                    {units
-                                        .filter(u => u.name.toLowerCase().includes(unitInput.toLowerCase()))
-                                        .length > 0 ? (
-                                        units
-                                            .filter(u => u.name.toLowerCase().includes(unitInput.toLowerCase()))
-                                            .map((u) => (
-                                                <li
-                                                    key={u._id}
-                                                    onClick={() => {
-                                                        setUnitInput(u.name);
-                                                        setFormData({ ...formData, unit: u.name });
-                                                        setShowUnitDropdown(false);
-                                                    }}
-                                                    className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer text-gray-700"
-                                                >
-                                                    {u.name}
-                                                </li>
-                                            ))
-                                    ) : (
-                                        <li className="px-3 py-2 text-sm text-gray-400 italic">No unit found</li>
+
+                            {/* Parent Unit + Qty (একই violet border/color) */}
+                            {hasParent && (
+                                <div className="relative mb-2">
+                                    <span className="absolute -top-2 left-3 z-0 px-1.5 rounded bg-violet-100 text-violet-700 text-[10px] leading-[14px] font-bold pointer-events-none">
+                                        Parent Unit
+                                    </span>
+                                    <div className="flex items-stretch rounded-lg border-2 border-violet-300 bg-violet-50/60 focus-within:ring-2 focus-within:ring-violet-200">
+                                        <input
+                                            type="text"
+                                            placeholder="Select or type parent unit"
+                                            value={formData.parentUnit ?? ''}
+                                            onChange={(e) => {
+                                                setFormData({ ...formData, parentUnit: e.target.value });
+                                                setShowParentDropdown(true);
+                                            }}
+                                            onFocus={() => setShowParentDropdown(true)}
+                                            onBlur={() => setTimeout(() => setShowParentDropdown(false), 200)}
+                                            required
+                                            className="flex-1 min-w-0 px-3 py-2 text-sm bg-transparent outline-none"
+                                        />
+                                        <input
+                                            type="number"
+                                            step="1"
+                                            placeholder="Qty"
+                                            required
+                                            min="1"
+                                            value={formData.parentQty ?? ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                if (/^\d*$/.test(value)) setFormData({ ...formData, parentQty: value });
+                                            }}
+                                            className="w-28 px-2 py-2 text-sm text-center font-semibold bg-violet-100/70 border-l-2 border-violet-300 rounded-r-md outline-none"
+                                        />
+                                    </div>
+                                    {showParentDropdown && (
+                                        <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                                            {units.filter(u => u.name.toLowerCase().includes((formData.parentUnit || '').toLowerCase())).length > 0 ? (
+                                                units
+                                                    .filter(u => u.name.toLowerCase().includes((formData.parentUnit || '').toLowerCase()))
+                                                    .map((u) => (
+                                                        <li
+                                                            key={u._id}
+                                                            onClick={() => {
+                                                                setFormData({ ...formData, parentUnit: u.name });
+                                                                setShowParentDropdown(false);
+                                                            }}
+                                                            className="px-3 py-2 text-sm hover:bg-violet-50 cursor-pointer text-gray-700"
+                                                        >
+                                                            {u.name}
+                                                        </li>
+                                                    ))
+                                            ) : (
+                                                <li className="px-3 py-2 text-sm text-gray-400 italic">No unit found</li>
+                                            )}
+                                        </ul>
                                     )}
-                                </ul>
+                                </div>
                             )}
+
+                            {/* Unit + Qty (Parent থাকলে নিচে ঢুকানো, একই indigo border/color) */}
+                            <div className={hasParent ? 'relative ml-4 pl-3' : 'relative'}>
+                                {hasParent && (
+                                    <span className="absolute left-0 -top-2 w-3 h-[calc(50%+0.5rem)] border-l-2 border-b-2 border-gray-300 rounded-bl-lg pointer-events-none" />
+                                )}
+                                <div
+                                    className={hasParent
+                                        ? 'flex items-stretch rounded-lg border-2 border-indigo-300 bg-indigo-50/60 focus-within:ring-2 focus-within:ring-indigo-200'
+                                        : 'relative'}
+                                >
+                                    <div className="relative flex-1 min-w-0">
+                                        <input
+                                            type="text"
+                                            placeholder="Select or type unit"
+                                            value={unitInput}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setUnitInput(val);
+                                                setShowUnitDropdown(true);
+                                                setFormData({ ...formData, unit: val });
+                                            }}
+                                            onFocus={() => setShowUnitDropdown(true)}
+                                            onBlur={() => setTimeout(() => setShowUnitDropdown(false), 200)}
+                                            required
+                                            className={hasParent
+                                                ? 'w-full px-3 py-2 pr-8 text-sm bg-transparent outline-none'
+                                                : 'w-full px-3 py-2 pr-8 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50'}
+                                        />
+                                        <span
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer pointer-events-none"
+                                            onClick={() => setShowUnitDropdown(!showUnitDropdown)}
+                                        >
+                                            <FaChevronDown className="text-xs" />
+                                        </span>
+                                    </div>
+                                    {hasParent && (
+                                        <input
+                                            type="number"
+                                            step="1"
+                                            placeholder="Qty"
+                                            required
+                                            min="1"
+                                            value={formData.unitQty ?? ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                if (/^\d*$/.test(value)) setFormData({ ...formData, unitQty: value });
+                                            }}
+                                            className="w-28 px-2 py-2 text-sm text-center font-semibold bg-indigo-100/70 border-l-2 border-indigo-300 rounded-r-md outline-none"
+                                        />
+                                    )}
+                                </div>
+                                {showUnitDropdown && (
+                                    <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                                        {units
+                                            .filter(u => u.name.toLowerCase().includes(unitInput.toLowerCase()))
+                                            .length > 0 ? (
+                                            units
+                                                .filter(u => u.name.toLowerCase().includes(unitInput.toLowerCase()))
+                                                .map((u) => (
+                                                    <li
+                                                        key={u._id}
+                                                        onClick={() => {
+                                                            setUnitInput(u.name);
+                                                            setFormData({ ...formData, unit: u.name });
+                                                            setShowUnitDropdown(false);
+                                                        }}
+                                                        className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer text-gray-700"
+                                                    >
+                                                        {u.name}
+                                                    </li>
+                                                ))
+                                        ) : (
+                                            <li className="px-3 py-2 text-sm text-gray-400 italic">No unit found</li>
+                                        )}
+                                    </ul>
+                                )}
+                            </div>
+
                         </div>
 
                         {/* PCS of 1 Unit */}
-                        <div>
-                            <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                                <FaBalanceScale className="text-indigo-500" /> PCS of 1 Unit <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="number"
-                                name="pcsOfUnit"
-                                placeholder="e.g. 10"
-                                value={formData.pcsOfUnit}
-                                onChange={(e) => {
-                                    const value = e.target.value;
+                        {(
+                            <div>
+                                <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5 h-6">
+                                    <FaBalanceScale className="text-indigo-500" /> PCS of 1 Unit <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    name="pcsOfUnit"
+                                    placeholder="e.g. 10"
+                                    value={hasParent ? (effectivePcs || '') : formData.pcsOfUnit}
+                                    readOnly={hasParent}
+                                    title={hasParent ? 'Parent Qty × Unit Qty থেকে নিজে থেকে হিসাব হচ্ছে' : ''}
+                                    style={hasParent ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed', textAlign: 'center', paddingLeft: '4px', paddingRight: '4px' } : undefined}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
 
-                                    if (/^\d*$/.test(value)) {
-                                        handleChange(e);
-                                    }
-                                }}
-                                required
-                                min="0"
-                                step="1"
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                            />
-                        </div>
+                                        if (/^\d*$/.test(value)) {
+                                            handleChange(e);
+                                        }
+                                    }}
+                                    required
+                                    min="0"
+                                    step="1"
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
+                                />
+                            </div>
+                        )}
 
-                                                {/* Free Product Qty */}
+                        {/* Free Product Qty */}
                         <div className="relative">
-                            <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
+                            <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5 h-6">
                                 <FaGift className="text-indigo-500" /> Free Product Qty
                             </label>
                             <div
-                                className={`absolute -top-1 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${((Number(formData.freeProductUnitQty) || 0) * (Number(formData.pcsOfUnit) || 0) + (Number(formData.freeProductPcsQty) || 0)) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}
+                                className={`absolute -top-1 left-1/2 -translate-x-1/2 z-0 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${freeTotal > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}
                             >
-                                Total: {(Number(formData.freeProductUnitQty) || 0) * (Number(formData.pcsOfUnit) || 0) + (Number(formData.freeProductPcsQty) || 0)}
+                                Total: {freeTotal}
                             </div>
-                            <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50/50 overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200">
-                                <input
-                                    type="number"
-                                    name="freeProductUnitQty"
-                                    placeholder="0"
-                                    value={formData.freeProductUnitQty}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
+                            {hasParent ? (
+                                <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50/50 overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200">
 
-                                        if (/^\d*$/.test(value)) {
-                                            handleChange(e);
-                                        }
-                                    }}
-                                    min="0"
-                                    step="1"
-                                    className="w-1/3 px-2 py-2 text-sm bg-transparent outline-none text-center"
-                                />
-                                <span className="flex-1 bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate">
-                                    {formData.unit || 'Unit'}
-                                </span>
-                                <input
-                                    type="number"
-                                    name="freeProductPcsQty"
-                                    placeholder="0"
-                                    value={formData.freeProductPcsQty}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
+                                    <input
+                                        type="number"
+                                        name="freeProductSubQty"
+                                        value={formData.freeProductSubQty ?? ''}
+                                        onChange={(e) => { if (/^\d*$/.test(e.target.value)) handleChange(e); }}
+                                        min="0"
+                                        step="1"
+                                        className="w-0 flex-1 min-w-0 px-1 py-2 text-sm bg-transparent outline-none text-center"
+                                    />
+                                    <span className="bg-gradient-to-br from-indigo-500 to-blue-500 text-white text-[10px] px-1 py-2.5 text-center font-semibold select-none max-w-[22%] truncate">
+                                        {formData.unit || 'Unit'}
+                                    </span>
+                                    <input
+                                        type="number"
+                                        name="freeProductPcsQty"
+                                        value={formData.freeProductPcsQty ?? ''}
+                                        onChange={(e) => { if (/^\d*$/.test(e.target.value)) handleChange(e); }}
+                                        min="0"
+                                        step="1"
+                                        className="w-0 flex-1 min-w-0 px-1 py-2 text-sm bg-transparent outline-none text-center"
+                                    />
+                                    <span className="bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-[10px] px-1 py-2.5 text-center font-semibold select-none">
+                                        Pcs
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50/50 overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200">
 
-                                        if (/^\d*$/.test(value)) {
-                                            handleChange(e);
-                                        }
-                                    }}
-                                    min="0"
-                                    step="1"
-                                    className="w-1/3 px-2 py-2 text-sm bg-transparent outline-none text-center"
-                                />
-                            </div>
+                                    <input
+                                        type="number"
+                                        name="freeProductPcsQty"
+                                        placeholder="0"
+                                        value={formData.freeProductPcsQty}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+
+                                            if (/^\d*$/.test(value)) {
+                                                handleChange(e);
+                                            }
+                                        }}
+                                        min="0"
+                                        step="1"
+                                        className="flex-1 min-w-0 px-2 py-2 text-sm bg-transparent outline-none text-center"
+                                    />
+                                    <span className="bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none">
+                                        Pcs
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                     </div>

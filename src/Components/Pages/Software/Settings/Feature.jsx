@@ -4,10 +4,21 @@ const API_BASE = 'http://localhost:5000';
 
 // নতুন feature যোগ করতে শুধু এই লিস্টে একটা আইটেম যোগ করুন (key = database key)
 const FEATURES = [
+
     {
         key: 'saveDraft',
         title: 'Save Draft',
         description: 'ON করলে Navbar এ Save Draft toggle দেখাবে। Toggle ON থাকলে ফর্মে দেওয়া ডেটা অন্য পেজে গেলে বা সফটওয়্যার বন্ধ করলেও ৩ ঘণ্টা পর্যন্ত সেভ থাকবে।',
+    },
+    {
+        key: 'purchaseMultiReturn',
+        title: 'Purchase Multi Return',
+        description: 'OFF থাকলে একটা Purchase Invoice থেকে মাত্র একবার Return করা যাবে। ON করলে একই Invoice থেকে যতবার খুশি Return করা যাবে।',
+    },
+    {
+        key: 'salesMultiReturn',
+        title: 'Sales Multi Return',
+        description: 'OFF থাকলে একটা Sales Invoice থেকে মাত্র একবার Return করা যাবে। ON করলে একই Invoice থেকে যতবার খুশি Return করা যাবে।',
     },
 ];
 

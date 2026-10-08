@@ -23,7 +23,7 @@ const SalesReturnView = () => {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [returnEntry, setReturnEntry] = useState(null);
     const [notFound, setNotFound] = useState(false);
-    const [showDetails, setShowDetails] = useState(false); // Unit Qty theke Subtotal porjonto collapse thakbe
+    const [showDetails, setShowDetails] = useState(false); // Quantity theke Subtotal porjonto collapse thakbe
 
     useEffect(() => {
         setLoading(true);
@@ -54,28 +54,32 @@ const SalesReturnView = () => {
         const found = returnEntry?.items?.find((it) => it.productId === productId);
         return {
             returnUnitQty: found ? Number(found.returnUnitQty) || 0 : 0,
+            returnSubQty: found ? Number(found.returnSubQty) || 0 : 0,
             returnPcsQty: found ? Number(found.returnPcsQty) || 0 : 0,
             returnTotalQty: found ? Number(found.returnTotalQty) || 0 : 0,
             returnFreeUnitQty: found ? Number(found.returnFreeUnitQty) || 0 : 0,
+            returnFreeSubQty: found ? Number(found.returnFreeSubQty) || 0 : 0,
             returnFreePcsQty: found ? Number(found.returnFreePcsQty) || 0 : 0,
             returnFreeTotalQty: found ? Number(found.returnFreeTotalQty) || 0 : 0,
             returnAmount: found ? Number(found.returnAmount) || 0 : 0,
         };
     };
 
-    // Nirdishto return entry theke Others Free Product er return info ber kora
+    // Others Free Product er return info
     const getReturnFreeItemInfo = (productId) => {
         const found = returnEntry?.freeItems?.find((it) => it.productId === productId);
         return {
             returnUnitQty: found ? Number(found.returnUnitQty) || 0 : 0,
+            returnSubQty: found ? Number(found.returnSubQty) || 0 : 0,
             returnPcsQty: found ? Number(found.returnPcsQty) || 0 : 0,
             returnTotalQty: found ? Number(found.returnTotalQty) || 0 : 0,
         };
     };
 
-    // Original row er gross total (Unit ongsho + PCS ongsho) -> Sales e 2 ta price thake (Unit & PCS)
+    // Original row er gross total (Unit ongsho + Sub ongsho + PCS ongsho)
     const getRowGross = (item) =>
         (Number(item.unitQty) || 0) * (Number(item.sellPriceUnit) || 0) +
+        (Number(item.subQty) || 0) * (Number(item.sellPriceSub) || 0) +
         (Number(item.pcsQty) || 0) * (Number(item.sellPricePcs) || 0);
 
     const handlePrint = () => {
@@ -175,6 +179,13 @@ const SalesReturnView = () => {
                                 <p className="font-bold text-slate-800 text-base">ইসরাইল এন্টারপ্রাইজ</p>
                                 <p className="text-xs sm:text-sm text-slate-600 mt-0.5">01997074920</p>
                                 <p className="text-xs sm:text-sm text-slate-600">শাহজী পাড়া, বড় বাজার, মেহেরপুর</p>
+                                {(selectedOrder.sr || selectedOrder.deliveredBy) && (
+                                    <p className="text-[11px] text-slate-500 mt-2">
+                                        {selectedOrder.sr && <>SR: <span className="font-semibold text-slate-700">{selectedOrder.sr}</span></>}
+                                        {selectedOrder.sr && selectedOrder.deliveredBy && ' | '}
+                                        {selectedOrder.deliveredBy && <>Delivered By: <span className="font-semibold text-slate-700">{selectedOrder.deliveredBy}</span></>}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm print:border-none print:p-0 print:shadow-none flex flex-col justify-between">
@@ -215,15 +226,12 @@ const SalesReturnView = () => {
                                         <>
                                             <th className="py-3 px-3.5">
                                                 <button type="button" onClick={() => setShowDetails(false)} className="flex items-center gap-1 hover:text-indigo-100 transition cursor-pointer print:hidden">
-                                                    <ChevronLeft className="w-3.5 h-3.5" /> Unit Qty
+                                                    <ChevronLeft className="w-3.5 h-3.5" /> Quantity
                                                 </button>
-                                                <span className="hidden print:inline">Unit Qty</span>
+                                                <span className="hidden print:inline">Quantity</span>
                                             </th>
-                                            <th className="py-3 px-3.5">Pcs</th>
-                                            <th className="py-3 px-3.5">Total Pcs</th>
-                                            <th className="py-3 px-3.5">Free Qty</th>
-                                            <th className="py-3 px-3.5 text-right">Total Price (Unit)</th>
-                                            <th className="py-3 px-3.5 text-right">Total Price (Pcs)</th>
+                                            <th className="py-3 px-3.5">Free Quantity</th>
+                                            <th className="py-3 px-3.5 text-right">Gross Total</th>
                                             <th className="py-3 px-3.5 text-right">Discount</th>
                                             <th className="py-3 px-3.5 text-right">Subtotal</th>
                                         </>
@@ -234,8 +242,7 @@ const SalesReturnView = () => {
                                             </button>
                                         </th>
                                     )}
-                                    <th className="py-3 px-3.5 text-right">Sell Price (Unit)</th>
-                                    <th className="py-3 px-3.5 text-right">Sell Price (Pcs)</th>
+                                    <th className="py-3 px-3.5 text-right">Sell Price</th>
                                     <th className="py-3 px-3.5 text-center">Return Qty</th>
                                     <th className="py-3 px-3.5 text-center">Return Free Qty</th>
                                     <th className="py-3 px-3.5 text-right rounded-r-xl">Return Amount</th>
@@ -243,7 +250,11 @@ const SalesReturnView = () => {
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
                                 {selectedOrder.items.map((item, index) => {
-                                    const { returnUnitQty, returnPcsQty, returnTotalQty, returnFreeUnitQty, returnFreePcsQty, returnFreeTotalQty, returnAmount } = getReturnItemInfo(item.productId);
+                                    const {
+                                        returnUnitQty, returnSubQty, returnPcsQty, returnTotalQty,
+                                        returnFreeUnitQty, returnFreeSubQty, returnFreePcsQty, returnFreeTotalQty,
+                                        returnAmount
+                                    } = getReturnItemInfo(item.productId);
                                     return (
                                         <tr key={index} className="hover:bg-indigo-50/40 transition-colors">
                                             <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
@@ -251,19 +262,16 @@ const SalesReturnView = () => {
                                             <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
                                             {showDetails ? (
                                                 <>
-                                                    <td className="py-4 px-3.5">{item.unitQty} {item.unit}</td>
-                                                    <td className="py-4 px-3.5">{item.pcsQty}</td>
-                                                    <td className="py-4 px-3.5 font-semibold text-indigo-600">{item.totalPcs}</td>
-                                                    <td className="py-4 px-3.5 font-medium text-emerald-600">
-                                                        {item.freeQty > 0 ? `${item.freeQty} ` : '0'}
+                                                    <td className="py-4 px-3.5 font-semibold text-orange-600">
+                                                        {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
+                                                        <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalPcs})</span>
                                                     </td>
-                                                    <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                                        ৳{(Number(item.unitQty) * Number(item.sellPriceUnit)).toFixed(2)}
-                                                        <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.sellPriceUnit).toFixed(2)})</span>
+                                                    <td className="py-4 px-3.5 font-semibold text-emerald-600">
+                                                        {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
+                                                        <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty ?? 0})</span>
                                                     </td>
-                                                    <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                                        ৳{(Number(item.pcsQty) * Number(item.sellPricePcs)).toFixed(2)}
-                                                        <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.sellPricePcs).toFixed(2)})</span>
+                                                    <td className="py-4 px-3.5 text-right font-medium text-slate-600">
+                                                        ৳{getRowGross(item).toFixed(2)}
                                                     </td>
                                                     <td className="py-4 px-3.5 text-right font-medium">
                                                         {(() => {
@@ -273,7 +281,7 @@ const SalesReturnView = () => {
                                                                 (item.discountType === 'percent'
                                                                     ? (rowGrossTotal * Number(item.discount)) / 100
                                                                     : Number(item.discount))
-                                                            );
+                                                            ) || 0;
                                                             const discountPct =
                                                                 item.discountType === 'percent'
                                                                     ? Number(item.discount) || 0
@@ -296,14 +304,28 @@ const SalesReturnView = () => {
                                             ) : (
                                                 <td className="py-4 px-3.5 text-center text-slate-300 print:hidden">•••</td>
                                             )}
-                                            <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.sellPriceUnit).toFixed(2)}</td>
-                                            <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.sellPricePcs).toFixed(2)}</td>
+                                            <td className="py-4 px-3.5 text-right font-medium text-slate-600 whitespace-nowrap">
+                                                <div>
+                                                    ৳{Number(item.sellPriceUnit || 0).toFixed(2)}
+                                                    <span className="text-[10px] text-slate-400 ml-1">/{item.unit || 'unit'}</span>
+                                                </div>
+                                                {item.parentMode && (
+                                                    <div>
+                                                        ৳{Number(item.sellPriceSub || 0).toFixed(2)}
+                                                        <span className="text-[10px] text-slate-400 ml-1">/{item.subUnit || 'sub'}</span>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    ৳{Number(item.sellPricePcs || 0).toFixed(2)}
+                                                    <span className="text-[10px] text-slate-400 ml-1">/pcs</span>
+                                                </div>
+                                            </td>
                                             <td className="py-4 px-3.5 text-center font-semibold text-orange-600">
-                                                {returnUnitQty} {item.unit} {returnPcsQty} Pcs
+                                                {returnUnitQty} {item.unit} {item.parentMode && <>{returnSubQty} {item.subUnit} </>}{returnPcsQty} Pcs
                                                 <span className="text-[10px] text-indigo-600 ml-1 font-bold">(Total: {returnTotalQty})</span>
                                             </td>
                                             <td className="py-4 px-3.5 text-center font-semibold text-emerald-600">
-                                                {returnFreeUnitQty} {item.unit} {returnFreePcsQty} Pcs
+                                                {returnFreeUnitQty} {item.unit} {item.parentMode && <>{returnFreeSubQty} {item.subUnit} </>}{returnFreePcsQty} Pcs
                                                 <span className="text-[10px] text-emerald-700 ml-1 font-bold">(Total: {returnFreeTotalQty})</span>
                                             </td>
                                             <td className="py-4 px-3.5 text-right font-bold text-orange-600">৳{Number(returnAmount).toFixed(2)}</td>
@@ -317,37 +339,32 @@ const SalesReturnView = () => {
                     {/* Others Free Product Return Table */}
                     {selectedOrder.freeItems && selectedOrder.freeItems.length > 0 && (
                         <div className="px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
-                            <h4 className="text-xs font-bold text-amber-700 uppercase mb-3 flex items-center gap-1.5">
-                                <PackageX className="w-3.5 h-3.5 text-amber-600" /> Others Free Product Return
-                            </h4>
+                            <h4 className="text-xs font-bold text-amber-700 uppercase mb-3">Others Free Product Return</h4>
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-amber-100/70 text-amber-800 text-[11px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
                                         <th className="py-3 px-3.5 rounded-l-xl">SL</th>
                                         <th className="py-3 px-3.5">Product Name</th>
                                         <th className="py-3 px-3.5">Company</th>
-                                        <th className="py-3 px-3.5 text-center">RT Unit Qty</th>
-                                        <th className="py-3 px-3.5 text-center">RT Pcs Qty</th>
-                                        <th className="py-3 px-3.5 text-center rounded-r-xl">Total RT Qty</th>
+                                        <th className="py-3 px-3.5">Quantity</th>
+                                        <th className="py-3 px-3.5 text-center rounded-r-xl">Return Qty</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
                                     {selectedOrder.freeItems.map((item, index) => {
-                                        const { returnUnitQty, returnPcsQty, returnTotalQty } = getReturnFreeItemInfo(item.productId);
+                                        const { returnUnitQty, returnSubQty, returnPcsQty, returnTotalQty } = getReturnFreeItemInfo(item.productId);
                                         return (
                                             <tr key={index} className="hover:bg-amber-50/40 transition-colors">
                                                 <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
                                                 <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                                <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
-                                                <td className="py-4 px-3.5 text-center">
-                                                    <div className="font-semibold text-orange-600">{returnTotalQty > 0 ? returnUnitQty : 'N/A'}</div>
-                                                    {returnTotalQty > 0 && <div className="text-[10px] text-slate-400">{item.unit}</div>}
+                                                <td className="py-4 px-3.5 text-slate-600">{item.company || '-'}</td>
+                                                <td className="py-4 px-3.5 font-semibold text-emerald-600 whitespace-nowrap">
+                                                    {item.unitQty || 0} {item.unit || 'Unit'} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
+                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.totalQty || 0})</span>
                                                 </td>
-                                                <td className="py-4 px-3.5 text-center font-semibold text-orange-600">
-                                                    {returnTotalQty > 0 ? returnPcsQty : 'N/A'}
-                                                </td>
-                                                <td className="py-4 px-3.5 text-center font-bold text-orange-600">
-                                                    {returnTotalQty > 0 ? returnTotalQty : 'N/A'}
+                                                <td className="py-4 px-3.5 text-center font-semibold text-amber-600 whitespace-nowrap">
+                                                    {returnUnitQty} {item.unit || 'Unit'} {item.parentMode && <>{returnSubQty} {item.subUnit} </>}{returnPcsQty} Pcs
+                                                    <span className="text-[10px] text-amber-700 ml-1 font-bold">(Total: {returnTotalQty})</span>
                                                 </td>
                                             </tr>
                                         );
@@ -368,93 +385,7 @@ const SalesReturnView = () => {
                                     <p className="text-xs sm:text-sm text-emerald-900/90 italic leading-relaxed">{selectedOrder.orderNote}</p>
                                 </div>
                             )}
-                        </div>
-
-                        <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
-                            <div className="flex justify-between py-1 text-slate-600">
-                                <span>Grand Total:</span>
-                                <span className="font-semibold text-slate-800">৳{Number(selectedOrder.grandTotal).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between py-1 text-slate-600">
-                                <span>Product Wise Discount:</span>
-                                <span className="font-semibold text-rose-600">- ৳{Number(selectedOrder.productWiseDiscount).toFixed(2)}</span>
-                            </div>
-                            {Number(selectedOrder.overallDiscount) > 0 && (
-                                <div className="flex justify-between py-1 text-slate-600">
-                                    <span>Overall Discount:</span>
-                                    <span className="font-semibold">
-                                        {(() => {
-                                            const afterProductDiscount = Number(selectedOrder.grandTotal) - Number(selectedOrder.productWiseDiscount);
-                                            const overallAmt = Number(
-                                                selectedOrder.overallDiscountValue ??
-                                                (selectedOrder.overallDiscountType === 'percent'
-                                                    ? (afterProductDiscount * Number(selectedOrder.overallDiscount)) / 100
-                                                    : Number(selectedOrder.overallDiscount))
-                                            );
-                                            const overallPct =
-                                                selectedOrder.overallDiscountType === 'percent'
-                                                    ? Number(selectedOrder.overallDiscount) || 0
-                                                    : (afterProductDiscount > 0 ? (overallAmt / afterProductDiscount) * 100 : 0);
-                                            return (
-                                                <>
-                                                    <span className={selectedOrder.overallDiscountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
-                                                        - ৳{overallAmt.toFixed(2)}
-                                                    </span>
-                                                    {' '}
-                                                    <span className={selectedOrder.overallDiscountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
-                                                        ({overallPct.toFixed(2)}%)
-                                                    </span>
-                                                </>
-                                            );
-                                        })()}
-                                    </span>
-                                </div>
-                            )}
-                            {selectedOrder.adjustment && Number(selectedOrder.adjustment.amount) > 0 && (
-                                <div className="flex justify-between py-1 text-slate-600">
-                                    <span className="truncate pr-2">
-                                        {selectedOrder.adjustment.text || 'Adjustment'} ({selectedOrder.adjustment.type}):
-                                    </span>
-                                    <span className={`font-semibold shrink-0 ${selectedOrder.adjustment.type === '-' ? 'text-rose-600' : 'text-slate-800'}`}>
-                                        {selectedOrder.adjustment.type === '-' ? '- ' : '+ '}৳{Number(selectedOrder.adjustment.amount).toFixed(2)}
-                                    </span>
-                                </div>
-                            )}
-                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
-                                <span>Payable Amount:</span>
-                                <span className="text-indigo-600">৳{Number(selectedOrder.payableAmount).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between py-1 text-slate-500 text-sm">
-                                <span>Paid Amount:</span>
-                                <span>৳{Number(selectedOrder.paidAmount || 0).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between py-2 text-sm font-bold text-slate-800 border-t border-dashed border-slate-300">
-                                <span>Due Amount:</span>
-                                <span className="text-rose-600">
-                                    ৳{(Number(selectedOrder.payableAmount) - Number(selectedOrder.paidAmount || 0)).toFixed(2)}
-                                </span>
-                            </div>
-
-                            {selectedOrder.paymentNote && (
-                                <div className="pt-2 mt-1 border-t border-slate-200">
-                                    <h4 className="text-[11px] font-bold text-slate-500 uppercase mb-1">Payment Note:</h4>
-                                    <p className="text-xs text-slate-600 italic leading-relaxed">{selectedOrder.paymentNote}</p>
-                                </div>
-                            )}
-
-                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-orange-700 border-t border-orange-200 bg-orange-50 -mx-5 px-5 rounded-t-xl mt-2">
-                                <span>Total Return Qty:</span>
-                                <span>{returnEntry?.totalReturnPcs || 0}</span>
-                            </div>
-                            <div className="flex justify-between py-1 text-sm font-bold text-orange-700 bg-orange-50 -mx-5 px-5">
-                                <span>Total Return Free Qty:</span>
-                                <span>{returnEntry?.totalReturnFreeQty || 0}</span>
-                            </div>
-                            <div className="flex justify-between py-1 text-sm font-bold text-orange-700 bg-orange-50 -mx-5 px-5 pb-3 rounded-b-xl">
-                                <span>Total Return Amount:</span>
-                                <span>৳{Number(returnEntry?.totalReturnAmount || 0).toFixed(2)}</span>
-                            </div>
-                        </div>
+                        </div>                  
                     </div>
                 </div>
             </div>

@@ -74,25 +74,50 @@ const PurchaseReturn = () => {
 
                     const sumUnitQty = retItems.reduce((s, it) => s + (Number(it.returnUnitQty) || 0), 0);
                     const sumPcsQty = retItems.reduce((s, it) => s + (Number(it.returnPcsQty) || 0), 0);
+                    const sumSubQty = retItems.reduce((s, it) => s + (Number(it.returnSubQty) || 0), 0);
                     const sumFreeUnitQty = retItems.reduce((s, it) => s + (Number(it.returnFreeUnitQty) || 0), 0);
                     const sumFreePcsQty = retItems.reduce((s, it) => s + (Number(it.returnFreePcsQty) || 0), 0);
+                    const sumFreeSubQty = retItems.reduce((s, it) => s + (Number(it.returnFreeSubQty) || 0), 0);
 
                     // Others Free Product return er sum
                     const retFreeItems = ret.freeItems || [];
                     const sumOtherFreeUnitQty = retFreeItems.reduce((s, it) => s + (Number(it.returnUnitQty) || 0), 0);
                     const sumOtherFreePcsQty = retFreeItems.reduce((s, it) => s + (Number(it.returnPcsQty) || 0), 0);
+                    const sumOtherFreeSubQty = retFreeItems.reduce((s, it) => s + (Number(it.returnSubQty) || 0), 0);
                     const otherFreeFirst = retFreeItems[0];
                     const matchedOtherFreeItem = otherFreeFirst
                         ? (order.freeItems || []).find((fi) => fi.productId === otherFreeFirst.productId)
                         : null;
                     const otherFreeUnitLabel = matchedOtherFreeItem?.unit || 'Unit';
+                    const otherFreeIsParent = matchedOtherFreeItem?.parentMode === true;
+                    const otherFreeSubLabel = matchedOtherFreeItem?.subUnit || 'Sub';
 
-                    // Unit label item er original order.items theke khuje ber kora
-                    const firstItem = retItems[0];
-                    const matchedOrderItem = firstItem
-                        ? (order.items || []).find((oi) => oi.productId === firstItem.productId)
-                        : null;
-                    const unitLabel = matchedOrderItem?.unit || 'Unit';
+                    // Proti product er jonno alada line banano (unit, sub unit, pcs, total)
+                    const buildLines = (list, unitKey, subKey, pcsKey, totalKey, sourceItems) => {
+                        const lines = [];
+                        list.forEach((it) => {
+                            const src = (sourceItems || []).find((oi) => oi.productId === it.productId);
+                            const u = Number(it[unitKey]) || 0;
+                            const s = Number(it[subKey]) || 0;
+                            const p = Number(it[pcsKey]) || 0;
+                            const t = Number(it[totalKey]) || 0;
+                            if (u <= 0 && s <= 0 && p <= 0 && t <= 0) return;
+                            lines.push({
+                                unitLabel: src?.unit || 'Unit',
+                                subLabel: src?.subUnit || 'Sub',
+                                isParent: src?.parentMode === true,
+                                unitQty: u,
+                                subQty: s,
+                                pcsQty: p,
+                                totalQty: t,
+                            });
+                        });
+                        return lines;
+                    };
+
+                    const retLines = buildLines(retItems, 'returnUnitQty', 'returnSubQty', 'returnPcsQty', 'returnTotalQty', order.items);
+                    const freeLines = buildLines(retItems, 'returnFreeUnitQty', 'returnFreeSubQty', 'returnFreePcsQty', 'returnFreeTotalQty', order.items);
+                    const otherLines = buildLines(retFreeItems, 'returnUnitQty', 'returnSubQty', 'returnPcsQty', 'returnTotalQty', order.freeItems);
 
                     flattenedReturns.push({
                         seq: flattenedReturns.length,
@@ -114,7 +139,14 @@ const PurchaseReturn = () => {
                         sumPcsQty,
                         sumFreeUnitQty,
                         sumFreePcsQty,
-                        unitLabel,
+                        retLines,
+                        freeLines,
+                        otherLines,
+                        sumSubQty,
+                        sumFreeSubQty,
+                        sumOtherFreeSubQty,
+                        otherFreeIsParent,
+                        otherFreeSubLabel,
                     });
                 });
             });
@@ -421,24 +453,57 @@ const PurchaseReturn = () => {
     const summaryRows = hasSelection ? checkedRows : filteredReturns;
 
     // Table-এর মতোই "X Bundle Y Pcs (Total: N)" আকারে যোগফল
-    const buildQtyInfo = (rows, unitKey, pcsKey, labelKey, totalKey) => {
-        const units = {};
-        let pcs = 0;
-        let total = 0;
-        rows.forEach((r) => {
-            const label = r[labelKey] || 'Unit';
-            const u = Number(r[unitKey]) || 0;
-            if (u > 0) units[label] = (units[label] || 0) + u;
-            pcs += Number(r[pcsKey]) || 0;
-            total += Number(r[totalKey]) || 0;
-        });
-        const unitText = Object.entries(units).map(([l, u]) => `${u} ${l}`).join(' + ') || '0 Unit';
-        return { text: `${unitText} ${pcs} Pcs`, total };
+    // Ekta line ke text e convert: "1 Dozon 2 Pcs" ba "1 Karton 1 Packet 2 Pcs"
+    const formatLine = (ln) => {
+        const parts = [];
+        if (ln.unitQty > 0) parts.push(`${ln.unitQty} ${ln.unitLabel}`);
+        if (ln.isParent && ln.subQty > 0) parts.push(`${ln.subQty} ${ln.subLabel}`);
+        parts.push(`${ln.pcsQty} Pcs`);
+        return parts.join(' ');
     };
 
-    const qtyInfo = buildQtyInfo(summaryRows, 'sumUnitQty', 'sumPcsQty', 'unitLabel', 'totalReturnPcs');
-    const freeInfo = buildQtyInfo(summaryRows, 'sumFreeUnitQty', 'sumFreePcsQty', 'unitLabel', 'totalReturnFreeQty');
-    const othersInfo = buildQtyInfo(summaryRows, 'sumOtherFreeUnitQty', 'sumOtherFreePcsQty', 'otherFreeUnitLabel', 'totalReturnFreeItemsQty');
+    // Table cell e proti product er line alada alada dekhano
+    const renderLines = (lines, totalValue, totalColor) => {
+        if (!lines || lines.length === 0) {
+            return (
+                <div>
+                    0 Pcs
+                    <span className={`text-xs ml-1 font-bold ${totalColor}`}>(Total: {totalValue || 0})</span>
+                </div>
+            );
+        }
+        return lines.map((ln, i) => (
+            <div key={i}>
+                {formatLine(ln)}
+                <span className={`text-xs ml-1 font-bold ${totalColor}`}>(Total: {ln.totalQty})</span>
+            </div>
+        ));
+    };
+
+    // Summary: shob row er line gulo unit/sub label onujayi merge kore alada line banano
+    const buildQtyInfo = (rows, linesKey, totalKey) => {
+        const map = {};
+        let total = 0;
+        rows.forEach((r) => {
+            (r[linesKey] || []).forEach((ln) => {
+                const key = `${ln.unitLabel}|${ln.isParent ? ln.subLabel : ''}`;
+                if (!map[key]) {
+                    map[key] = { ...ln, unitQty: 0, subQty: 0, pcsQty: 0, totalQty: 0 };
+                }
+                map[key].unitQty += ln.unitQty;
+                map[key].subQty += ln.subQty;
+                map[key].pcsQty += ln.pcsQty;
+                map[key].totalQty += ln.totalQty;
+            });
+            total += Number(r[totalKey]) || 0;
+        });
+        return { lines: Object.values(map), total };
+    };
+
+
+    const qtyInfo = buildQtyInfo(summaryRows, 'retLines', 'totalReturnPcs');
+    const freeInfo = buildQtyInfo(summaryRows, 'freeLines', 'totalReturnFreeQty');
+    const othersInfo = buildQtyInfo(summaryRows, 'otherLines', 'totalReturnFreeItemsQty');
     const sumAmount = summaryRows.reduce((s, i) => s + (Number(i.totalReturnAmount) || 0), 0);
 
     // Handle page change
@@ -628,22 +693,43 @@ const PurchaseReturn = () => {
                         <div className="px-3 py-2 rounded-xl bg-white border border-orange-200 shadow-sm">
                             <div className="text-[9px] font-bold uppercase text-orange-500">Return Quantity</div>
                             <div className="text-sm font-extrabold text-orange-600">
-                                {qtyInfo.text}
-                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {fmt(qtyInfo.total)})</span>
+                                {qtyInfo.lines.length === 0 ? '0 Pcs' : qtyInfo.lines.map((ln, i) => (
+                                    <div key={i}>
+                                        {formatLine(ln)}
+                                        <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {fmt(ln.totalQty)})</span>
+                                    </div>
+                                ))}
+                                {qtyInfo.lines.length > 1 && (
+                                    <div className="text-xs text-indigo-600 font-bold mt-0.5">Grand Total: {fmt(qtyInfo.total)}</div>
+                                )}
                             </div>
                         </div>
                         <div className="px-3 py-2 rounded-xl bg-white border border-emerald-200 shadow-sm">
                             <div className="text-[9px] font-bold uppercase text-emerald-500">Return Free Quantity</div>
                             <div className="text-sm font-extrabold text-emerald-600">
-                                {freeInfo.text}
-                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {fmt(freeInfo.total)})</span>
+                                {freeInfo.lines.length === 0 ? '0 Pcs' : freeInfo.lines.map((ln, i) => (
+                                    <div key={i}>
+                                        {formatLine(ln)}
+                                        <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {fmt(ln.totalQty)})</span>
+                                    </div>
+                                ))}
+                                {freeInfo.lines.length > 1 && (
+                                    <div className="text-xs text-emerald-700 font-bold mt-0.5">Grand Total: {fmt(freeInfo.total)}</div>
+                                )}
                             </div>
                         </div>
                         <div className="px-3 py-2 rounded-xl bg-white border border-amber-200 shadow-sm">
                             <div className="text-[9px] font-bold uppercase text-amber-500">Others Free Product</div>
                             <div className="text-sm font-extrabold text-amber-600">
-                                {othersInfo.text}
-                                <span className="text-xs text-amber-700 ml-1 font-bold">(Total: {fmt(othersInfo.total)})</span>
+                                {othersInfo.lines.length === 0 ? '0 Pcs' : othersInfo.lines.map((ln, i) => (
+                                    <div key={i}>
+                                        {formatLine(ln)}
+                                        <span className="text-xs text-amber-700 ml-1 font-bold">(Total: {fmt(ln.totalQty)})</span>
+                                    </div>
+                                ))}
+                                {othersInfo.lines.length > 1 && (
+                                    <div className="text-xs text-amber-700 font-bold mt-0.5">Grand Total: {fmt(othersInfo.total)}</div>
+                                )}
                             </div>
                         </div>
                         <div className="px-3 py-2 rounded-xl bg-white border border-rose-200 shadow-sm">
@@ -727,16 +813,13 @@ const PurchaseReturn = () => {
                                             </td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{item.company}</td>
                                             <td className="py-4 px-4 font-semibold text-orange-600">
-                                                {item.sumUnitQty || 0} {item.unitLabel} {item.sumPcsQty || 0} Pcs
-                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalReturnPcs})</span>
+                                                {renderLines(item.retLines, item.totalReturnPcs, 'text-indigo-600')}
                                             </td>
                                             <td className="py-4 px-4 font-semibold text-emerald-600">
-                                                {item.sumFreeUnitQty || 0} {item.unitLabel} {item.sumFreePcsQty || 0} Pcs
-                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.totalReturnFreeQty || 0})</span>
+                                                {renderLines(item.freeLines, item.totalReturnFreeQty, 'text-emerald-700')}
                                             </td>
                                             <td className="py-4 px-4 font-semibold text-amber-600">
-                                                {item.sumOtherFreeUnitQty || 0} {item.otherFreeUnitLabel} {item.sumOtherFreePcsQty || 0} Pcs
-                                                <span className="text-xs text-amber-700 ml-1 font-bold">(Total: {item.totalReturnFreeItemsQty || 0})</span>
+                                                {renderLines(item.otherLines, item.totalReturnFreeItemsQty, 'text-amber-700')}
                                             </td>
                                             <td className="py-4 px-4 font-bold text-orange-600">৳{Number(item.totalReturnAmount).toFixed(2)}</td>
                                             <td className="py-3 px-2.5 text-center relative">
