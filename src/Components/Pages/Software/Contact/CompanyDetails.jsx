@@ -38,7 +38,7 @@ const CompanyDetails = () => {
     useEffect(() => {
         const fetchCompany = async () => {
             try {
-                const res = await fetch('http://localhost:5000/company');
+                const res = await fetch('https://squirrel-peace-server.onrender.com/company');
                 const data = await res.json();
                 const found = data.find((c) => c._id === id);
                 if (found) {

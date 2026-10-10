@@ -47,7 +47,7 @@ const PurchaseReturnDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`http://localhost:5000/purchase/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -124,12 +124,12 @@ const PurchaseReturnDetails = () => {
     // --------------------------------------------------
     // stock-purchase batch gulo anbe
     useEffect(() => {
-        fetch('http://localhost:5000/stock-purchase')
+        fetch('https://squirrel-peace-server.onrender.com/stock-purchase')
             .then((res) => res.json())
             .then((data) => setStockBatches(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching stock:', error));
 
-        fetch('http://localhost:5000/sales')
+        fetch('https://squirrel-peace-server.onrender.com/sales')
             .then((res) => res.json())
             .then((data) => setSalesList(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching sales:', error));
@@ -188,12 +188,13 @@ const PurchaseReturnDetails = () => {
         });
 
         // Sales theke ei batch er Main / Free / Others sold (customer return bad diye)
-        const sold = { main: 0, free: 0, others: 0 };
+        const sold = { paid: 0, free: 0 };
         salesList.forEach((s) =>
             (s.stockAllocations || []).forEach((a) => {
                 if (String(a.batchId) !== String(batch._id)) return;
                 const net = Math.max((Number(a.qty) || 0) - (Number(a.returned) || 0), 0);
-                sold[a.kind || 'main'] += net;
+                const pool = a.pool || ((a.kind || 'main') === 'main' ? 'paid' : 'free');
+                sold[pool] += net;
             })
         );
 
@@ -201,12 +202,12 @@ const PurchaseReturnDetails = () => {
         const curFree = Math.max((Number(batch.freeQty) || 0) - otherFree, 0);
 
         if (isFree) {
-            return { paid: 0, free: Math.max(curFree - (sold.main + sold.free + sold.others), 0) };
+            return { paid: 0, free: Math.max(curFree - (sold.paid + sold.free), 0) };
         }
-        const overflow = Math.max(sold.main - curPaid, 0);
+        // pool onujayi hisab, tai alada overflow hisab lagbe na
         return {
-            paid: Math.max(curPaid - sold.main, 0),
-            free: Math.max(curFree - sold.free - sold.others - overflow, 0),
+            paid: Math.max(curPaid - sold.paid, 0),
+            free: Math.max(curFree - sold.free, 0),
         };
     };
 
@@ -626,11 +627,11 @@ const PurchaseReturnDetails = () => {
         });
         if (overStockItem) {
             const split = getStockSplit(overStockItem, false);
-            showToast(`${overStockItem.productName}: stock a Main ${split.paid} pcs, Free ${split.free} pcs ache, tar beshi return kora jabe na!`, 'error');
+            showToast(`${overStockItem.productName}: স্টকে মেইন ${split.paid} পিস, ফ্রি ${split.free} পিস আছে, এর বেশি ফেরত দেওয়া যাবে না!`, 'error');
             return;
         }
         if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0 && totalReturnFreeItemsQty <= 0) {
-            showToast('Return korar jonno kompokkhe 1 ta product a quantity din!', 'error');
+            showToast('ফেরত দেওয়ার জন্য কমপক্ষে ১টি পণ্যের পরিমাণ দিন!', 'error');
             return;
         }
 
@@ -768,7 +769,7 @@ const PurchaseReturnDetails = () => {
                 returnHistory: updatedReturnHistory,
             };
 
-            const response = await fetch(`http://localhost:5000/purchase/${id}`, {
+            const response = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedData),

@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 // Qty এর Bundle/Pcs ভাগ করার helper (Return-এর আগের মূল সংখ্যা দিয়ে হিসাব)
 const getPerSub = (b) => (b.parentMode === true ? Number(b.pcsPerSub) || 0 : 0);
+
+// কোন pool (paid / free) থেকে stock গেছে
+const getPool = (a) => a.pool || ((a.kind || 'main') === 'main' ? 'paid' : 'free');
+// kind এর নিজের pool না হয়ে অন্য pool থেকে নেওয়া হলে true
+const isBorrowAlloc = (a) => ((a.kind || 'main') === 'main') !== (getPool(a) === 'paid');
 
 const getPerUnit = (b) => {
     if (Number(b.pcsPerUnit) > 0) return Number(b.pcsPerUnit);
@@ -317,9 +322,66 @@ const StockPurchase = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
+    // Sell price inline edit
+    const [editingId, setEditingId] = useState(null);
+    const [editPrice, setEditPrice] = useState('');
+    const [savingId, setSavingId] = useState(null);
+    const [toast, setToast] = useState(null);
+
+    // Overall History
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyShow, setHistoryShow] = useState(false);
+    const [highlight, setHighlight] = useState({});
+    const [focusKeys, setFocusKeys] = useState([]);
+    const [highlightEv, setHighlightEv] = useState(null);
+
+    const showToast = (type, msg) => {
+        setToast({ type, msg });
+        setTimeout(() => setToast(null), 2500);
+    };
+    const startEdit = (b) => {
+        setEditingId(b._id);
+        setEditPrice(String(b.sellPrice ?? 0));
+    };
+    const cancelEdit = () => {
+        setEditingId(null);
+        setEditPrice('');
+    };
+    const saveSellPrice = async (b) => {
+        const price = Number(editPrice);
+        if (editPrice === '' || isNaN(price) || price < 0) {
+            showToast('error', 'Valid sell price din!');
+            return;
+        }
+        if (price === Number(b.sellPrice)) {
+            cancelEdit();
+            return;
+        }
+        try {
+            setSavingId(b._id);
+            const res = await fetch(`https://squirrel-peace-server.onrender.com/stock-purchase/${b._id}/sell-price`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sellPrice: price }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            setBatches((prev) =>
+                prev.map((x) => (String(x._id) === String(b._id) ? { ...x, sellPrice: price } : x))
+            );
+            cancelEdit();
+            showToast('success', 'Sell price update hoyeche!');
+        } catch (err) {
+            showToast('error', 'Sell price update hoyni!');
+        } finally {
+            setSavingId(null);
+        }
+    };
+
+
     const openSalesModal = (b) => {
         setSalesRow(b);
-        setSalesTab('available');
+        const tabMap = { purchase: 'batch', company: 'company', sold: 'sold', customer: 'customer' };
+        setSalesTab(highlight[b._id] && highlightEv ? tabMap[highlightEv.type] : 'available');
         setTimeout(() => setSalesModalShow(true), 10);
     };
 
@@ -339,6 +401,7 @@ const StockPurchase = () => {
                     return {
                         key: `${s._id}-${a.batchId}-${a.kind || 'main'}-${idx}`,
                         kind: a.kind || 'main',
+                        pool: getPool(a),
                         saleId: s._id,
                         orderNo: s.orderNo,
                         customer: s.customer,
@@ -381,15 +444,15 @@ const StockPurchase = () => {
     useEffect(() => {
         const fetchStock = async () => {
             try {
-                const res = await fetch('http://localhost:5000/stock-purchase');
+                const res = await fetch('https://squirrel-peace-server.onrender.com/stock-purchase');
                 const data = await res.json();
                 setBatches(Array.isArray(data) ? data : []);
 
-                const purchaseRes = await fetch('http://localhost:5000/purchase');
+                const purchaseRes = await fetch('https://squirrel-peace-server.onrender.com/purchase');
                 const purchaseData = await purchaseRes.json();
                 setPurchases(Array.isArray(purchaseData) ? purchaseData : []);
 
-                const salesRes = await fetch('http://localhost:5000/sales');
+                const salesRes = await fetch('https://squirrel-peace-server.onrender.com/sales');
                 const salesData = await salesRes.json();
                 setSales(Array.isArray(salesData) ? salesData : []);
             } catch (error) {
@@ -408,9 +471,10 @@ const StockPurchase = () => {
         sales.forEach((s) =>
             (s.stockAllocations || []).forEach((a) => {
                 const k = String(a.batchId);
-                const cur = soldMap.get(k) || { main: 0, free: 0, others: 0 };
+                const cur = soldMap.get(k) || { paid: 0, free: 0 };
                 const net = Math.max((Number(a.qty) || 0) - (Number(a.returned) || 0), 0);
-                cur[a.kind || 'main'] += net;
+                const pool = a.pool || ((a.kind || 'main') === 'main' ? 'paid' : 'free');
+                cur[pool] += net;
                 soldMap.set(k, cur);
             })
         );
@@ -456,16 +520,16 @@ const StockPurchase = () => {
             const origPaid = Number(b.paidQty) || 0;
             const origFree = Number(b.freeQty) || 0;
             const retTotal = retPaid + retFree;
-            const sold = soldMap.get(String(b._id)) || { main: 0, free: 0, others: 0 };
+            const sold = soldMap.get(String(b._id)) || { paid: 0, free: 0 };
             const curPaid = Math.max(origPaid - retPaid, 0);
             const curFree = Math.max(origFree - retFree, 0);
             let availPaid = 0;
             let availFree = 0;
             if (b.isFreeProduct) {
-                availFree = Math.max(curFree - (sold.main + sold.free + sold.others), 0);
+                availFree = Math.max(curFree - (sold.paid + sold.free), 0);
             } else {
-                availPaid = Math.max(curPaid - sold.main, 0);
-                availFree = Math.max(curFree - sold.free - sold.others, 0);
+                availPaid = Math.max(curPaid - sold.paid, 0);
+                availFree = Math.max(curFree - sold.free, 0);
             }
 
             return {
@@ -520,6 +584,140 @@ const StockPurchase = () => {
             .reverse(); // notun order upore
     }, [stockRows, search]);
 
+    // ===== Overall History (notification style, latest 30) =====
+    const historyEvents = useMemo(() => {
+        const toTime = (d) => {
+            if (!d) return 0;
+            const m = String(d).trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+            if (m) return new Date(+m[3], +m[2] - 1, +m[1]).getTime();
+            const t = Date.parse(d);
+            return !isNaN(t) ? t : 0;
+        };
+        const batchById = new Map(batches.map((b) => [String(b._id), b]));
+        // MongoDB _id theke creation time (exact time, latest sort er jonno)
+        const oidTime = (id) => (/^[0-9a-f]{24}$/i.test(String(id)) ? parseInt(String(id).slice(0, 8), 16) * 1000 : 0);
+        const createdTs = (o) => {
+            const c = o?.createdAt ? Date.parse(o.createdAt) : NaN;
+            return !isNaN(c) ? c : oidTime(o?._id);
+        };
+        const retTs = (ret, parent) => {
+            const c = ret.createdAt ? Date.parse(ret.createdAt) : NaN;
+            if (!isNaN(c)) return c;
+            // createdAt nai: return date er din-er sesh (23:59:59) dhora hobe,
+            // jate oi din-er purchase/sold er cheye return ta upore thake
+            const d = toTime(ret.returnDate || ret.date);
+            const endOfDay = d ? d + 24 * 60 * 60 * 1000 - 1000 : 0;
+            return Math.max(endOfDay, createdTs(parent) + 1);
+        };
+        const ev = [];
+        let seq = 0;
+        const push = (type, ref, date, batchIds, ts, meta = {}) => {
+            const ids = [...new Set((batchIds || []).map(String))].filter((id) => batchById.has(id));
+            if (!ids.length) return;
+            const first = batchById.get(ids[0]);
+            ev.push({
+                key: `${type}-${seq}`,
+                type,
+                ref: ref || first.invoiceNo,
+                date: date || '',
+                time: ts || toTime(date),
+                ...meta,
+                seq: seq++,
+                ids,
+                batchNos: ids.map((id) => batchById.get(id).batchNo),
+                orderKeys: [...new Set(ids.map((id) => { const b = batchById.get(id); return b.purchaseId || b.invoiceNo; }))],
+            });
+        };
+
+        // Purchase
+        const pg = new Map();
+        batches.forEach((b) => {
+            const k = b.purchaseId || b.invoiceNo;
+            if (!pg.has(k)) pg.set(k, []);
+            pg.get(k).push(b);
+        });
+        pg.forEach((rows) => push('purchase', rows[0].invoiceNo, rows[0].receiveDate || rows[0].purchaseDate, rows.map((r) => r._id), Math.max(...rows.map((r) => createdTs(r)))));
+
+        // Company Return
+        purchases.forEach((p) => {
+            (p.returnHistory || []).forEach((ret) => {
+                const pids = new Set([...(ret.items || []), ...(ret.freeItems || [])].map((it) => String(it.productId)));
+                const ids = batches
+                    .filter((b) => String(b.purchaseId) === String(p._id) && pids.has(String(b.productId)))
+                    .map((b) => b._id);
+                push('company', null, ret.returnDate || ret.date || ret.createdAt, ids, retTs(ret, p), { returnId: ret.returnId || '' });
+            });
+        });
+
+        // Sold + Customer Return
+        sales.forEach((s) => {
+            push('sold', s.orderNo, s.deliveryDate || s.orderDate || s.createdAt, (s.stockAllocations || []).map((a) => a.batchId), createdTs(s) || toTime(s.deliveryDate || s.orderDate), { saleId: s._id });
+            (s.returnHistory || []).forEach((ret) => {
+                const pids = new Set([...(ret.items || []), ...(ret.freeItems || [])].map((it) => String(it.productId)));
+                const ids = (s.stockAllocations || []).filter((a) => pids.has(String(a.productId))).map((a) => a.batchId);
+                push('customer', s.orderNo, ret.returnDate || ret.date || ret.createdAt, ids, retTs(ret, s), { saleId: s._id, returnId: ret.returnId || '' });
+            });
+        });
+
+        return ev.sort((a, b) => b.time - a.time || b.seq - a.seq).slice(0, 30);
+    }, [batches, purchases, sales]);
+
+    const HISTORY_STYLE = {
+        purchase: { label: 'Purchase', cls: 'bg-indigo-100 text-indigo-700' },
+        company: { label: 'Company Return', cls: 'bg-rose-100 text-rose-700' },
+        sold: { label: 'Sold', cls: 'bg-orange-100 text-orange-700' },
+        customer: { label: 'Customer Return', cls: 'bg-violet-100 text-violet-700' },
+    };
+
+    const openHistory = () => {
+        setHistoryOpen(true);
+        setTimeout(() => setHistoryShow(true), 10);
+    };
+    const closeHistory = () => {
+        setHistoryShow(false);
+        setTimeout(() => setHistoryOpen(false), 300);
+    };
+    const openHistoryItem = (e) => {
+        setSearch('');
+        setOpenOrders((prev) => {
+            const n = { ...prev };
+            e.orderKeys.forEach((k) => (n[k] = true));
+            return n;
+        });
+        const h = {};
+        e.ids.forEach((id) => (h[id] = true));
+        setHighlight(h);
+        setFocusKeys([...e.orderKeys]);
+        closeHistory();
+        setHighlightEv(e);
+    };
+
+    // Open korle oi order er page e niye jabe + scroll korbe
+    useEffect(() => {
+        if (!focusKeys.length) return;
+        const idx = orders.findIndex((o) => focusKeys.includes(o.key));
+        if (idx >= 0) setCurrentPage(Math.floor(idx / itemsPerPage) + 1);
+        const t = setTimeout(() => {
+            const first = Object.keys(highlight)[0];
+            const el = first && document.getElementById(`batch-row-${first}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 350);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line
+    }, [focusKeys]);
+
+    // Highlight row er baire click korle highlight jabe (modal khola thakle jabe na)
+    useEffect(() => {
+        if (!Object.keys(highlight).length || salesRow) return;
+        const onDown = (ev) => {
+            if (ev.target.closest && ev.target.closest('[data-hl="1"]')) return;
+            setHighlight({});
+            setHighlightEv(null);
+        };
+        document.addEventListener('mousedown', onDown);
+        return () => document.removeEventListener('mousedown', onDown);
+    }, [highlight, salesRow]);
+
     const totalPages = Math.ceil(orders.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -545,6 +743,19 @@ const StockPurchase = () => {
 
     return (
         <div className="bg-gradient-to-br from-slate-100 via-indigo-50 to-pink-50">
+            {toast && (
+                <div
+                    className={`fixed top-5 right-5 z-[300] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border text-sm font-bold text-white ${toast.type === 'success'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 border-emerald-300'
+                        : 'bg-gradient-to-r from-rose-500 to-red-600 border-rose-300'
+                        }`}
+                >
+                    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-white/25 text-xs">
+                        {toast.type === 'success' ? '✓' : '!'}
+                    </span>
+                    {toast.msg}
+                </div>
+            )}
             {(
                 <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8">
                     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -577,6 +788,13 @@ const StockPurchase = () => {
                                     <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full">
                                         {orders.length} orders / {orders.reduce((s, o) => s + o.rows.length, 0)} batches
                                     </span>
+                                    <button
+                                        type="button"
+                                        onClick={openHistory}
+                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold shadow-sm transition cursor-pointer"
+                                    >
+                                        🔔 History
+                                    </button>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input
@@ -704,7 +922,9 @@ const StockPurchase = () => {
                                                             return (
                                                                 <tr
                                                                     key={b._id}
-                                                                    className="bg-white hover:bg-indigo-50/40 border-l-4 border-indigo-200 text-[13px] text-gray-700 transition"
+                                                                    id={`batch-row-${b._id}`}
+                                                                    data-hl={highlight[b._id] ? '1' : undefined}
+                                                                    className={`${highlight[b._id] ? 'bg-amber-100 ring-2 ring-inset ring-amber-400' : 'bg-white hover:bg-indigo-50/40'} border-l-4 border-indigo-200 text-[13px] text-gray-700 transition`}
                                                                 >
                                                                     <td className="py-2.5 px-3 whitespace-nowrap"></td>
                                                                     <td className="py-2.5 px-3 text-gray-600 whitespace-nowrap">{b.company}</td>
@@ -735,7 +955,56 @@ const StockPurchase = () => {
                                                                             <span className="inline-flex items-center gap-1.5">
                                                                                 <span className="text-violet-600" title="Cost Price">🛒 ৳{fmt(getCost(b))}</span>
                                                                                 <span className="text-gray-300">-</span>
-                                                                                <span className="text-emerald-600" title="Sell Price">🏷️ ৳{fmt(b.sellPrice)}</span>
+                                                                                {editingId === b._id ? (
+                                                                                    <span className="inline-flex items-center gap-1">
+                                                                                        <span className="text-emerald-600">🏷️ ৳</span>
+                                                                                        <input
+                                                                                            type="number"
+                                                                                            min="0"
+                                                                                            step="any"
+                                                                                            autoFocus
+                                                                                            value={editPrice}
+                                                                                            onChange={(e) => {
+                                                                                                const value = e.target.value;
+                                                                                                if (/^\d*\.?\d{0,2}$/.test(value)) setEditPrice(value);
+                                                                                            }}
+                                                                                            onKeyDown={(e) => {
+                                                                                                if (e.key === 'Enter') saveSellPrice(b);
+                                                                                                if (e.key === 'Escape') cancelEdit();
+                                                                                            }}
+                                                                                            className="w-20 px-2 py-1 text-xs font-bold text-emerald-700 rounded-lg border border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none bg-emerald-50/50"
+                                                                                        />
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => saveSellPrice(b)}
+                                                                                            disabled={savingId === b._id}
+                                                                                            title="Update"
+                                                                                            className="w-6 h-6 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition cursor-pointer disabled:opacity-50"
+                                                                                        >
+                                                                                            <FaCheck size={10} />
+                                                                                        </button>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={cancelEdit}
+                                                                                            title="Cancel"
+                                                                                            className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 transition cursor-pointer"
+                                                                                        >
+                                                                                            <FaTimes size={10} />
+                                                                                        </button>
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span className="inline-flex items-center gap-1.5 text-emerald-600" title="Sell Price">
+                                                                                        🏷️ ৳{fmt(b.sellPrice)}
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => startEdit(b)}
+                                                                                            title="Edit Sell Price"
+                                                                                            className="w-6 h-6 flex items-center justify-center rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition cursor-pointer"
+                                                                                        >
+                                                                                            <FaEdit size={10} />
+                                                                                        </button>
+                                                                                    </span>
+                                                                                )}
                                                                             </span>
                                                                         )}
                                                                     </td>
@@ -817,6 +1086,77 @@ const StockPurchase = () => {
                             )}
                         </div>
                     </div>
+                    {/* Overall History Modal */}
+                    {historyOpen && (
+                        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${historyShow ? 'opacity-100' : 'opacity-0'}`}>
+                            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeHistory} />
+                            <div className={`relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 ease-out ${historyShow ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+                                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+                                    <div>
+                                        <h3 className="text-base font-extrabold">🔔 Overall History</h3>
+                                        <p className="text-[11px] text-white/80 mt-0.5">Latest {historyEvents.length} activities</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={closeHistory}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/30 transition cursor-pointer"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                                <div className="max-h-[75vh] overflow-y-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="sticky top-0">
+                                            <tr className="bg-emerald-50 text-emerald-700 text-[11px] font-bold uppercase tracking-wide">
+                                                <th className="py-2.5 px-3">Batch No</th>
+                                                <th className="py-2.5 px-3">Status</th>
+                                                <th className="py-2.5 px-3">Date</th>
+                                                <th className="py-2.5 px-3 text-center">Open</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
+                                            {historyEvents.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={4} className="py-10 text-center text-gray-400 font-medium">Kono history nai</td>
+                                                </tr>
+                                            ) : (
+                                                historyEvents.map((e) => (
+                                                    <tr key={e.key} className="hover:bg-emerald-50/40 transition">
+                                                        <td className="py-2.5 px-3">
+                                                            <div className="flex flex-col items-start gap-1">
+                                                                {e.batchNos.map((n, i) => (
+                                                                    <span key={i} className="px-2 py-0.5 rounded-md border border-gray-200 bg-gray-50 text-[11px] font-bold text-gray-700 whitespace-nowrap">
+                                                                        {n}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 whitespace-nowrap">
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${HISTORY_STYLE[e.type].cls}`}>
+                                                                {HISTORY_STYLE[e.type].label}
+                                                            </span>
+                                                            <div className="text-[11px] text-gray-500 mt-0.5">#{e.ref}</div>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-gray-500 whitespace-nowrap">{e.date || 'N/A'}</td>
+                                                        <td className="py-2.5 px-3 text-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openHistoryItem(e)}
+                                                                className="px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 text-[10px] font-bold shadow-sm transition cursor-pointer"
+                                                            >
+                                                                Open
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* See History Modal */}
                     {salesRow && (() => {
                         const companyReturnQty = (Number(salesRow.ret?.paid) || 0) + (Number(salesRow.ret?.free) || 0);
@@ -830,6 +1170,8 @@ const StockPurchase = () => {
                                 : { key: 'available', label: 'Available', value: salesAvailable, box: 'bg-red-50 border-red-100', lbl: 'text-red-400', val: 'text-red-600', ring: 'ring-red-400' },
                         ];
                         const th = 'py-2.5 px-3';
+                        const hv = highlight[salesRow._id] ? highlightEv : null;
+                        const hlCls = 'bg-amber-100';
                         // Proti return entry alada row (company tab er moto), newest age
                         const customerRows = (() => {
                             const out = [];
@@ -861,6 +1203,7 @@ const StockPurchase = () => {
                                         let rem = amt[kind];
                                         if (rem <= 0) return;
                                         let mine = 0;
+                                        let mineBorrow = 0;
                                         const list = allocs.filter((a) => a.kind === kind).slice().reverse();
                                         for (const a of list) {
                                             if (rem <= 0) break;
@@ -868,7 +1211,10 @@ const StockPurchase = () => {
                                             if (take <= 0) continue;
                                             a.left -= take;
                                             rem -= take;
-                                            if (String(a.batchId) === String(salesRow._id)) mine += take;
+                                            if (String(a.batchId) === String(salesRow._id)) {
+                                                mine += take;
+                                                if (isBorrowAlloc(a)) mineBorrow += take;
+                                            }
                                         }
                                         if (mine <= 0) return;
                                         const soldQty = allocs
@@ -884,6 +1230,10 @@ const StockPurchase = () => {
                                             returnId: ret.returnId || '',
                                             qty: soldQty,
                                             returned: mine,
+                                            returnedBorrow: mineBorrow,
+                                            soldBorrow: allocs
+                                                .filter((a) => a.kind === kind && String(a.batchId) === String(salesRow._id) && isBorrowAlloc(a))
+                                                .reduce((t, a) => t + (Number(a.qty) || 0), 0),
                                         });
                                     });
                                 });
@@ -932,6 +1282,17 @@ const StockPurchase = () => {
                             });
                             return Array.from(map.values());
                         })();
+                        soldGroups.forEach((g) => {
+                            g.borrow = emptyK();
+                            g.retBorrow = emptyK();
+                            salesRows
+                                .filter((r) => r.saleId === g.saleId && isBorrowAlloc(r))
+                                .forEach((r) => {
+                                    const k = kindOf(r.kind);
+                                    g.borrow[k] += r.qty;
+                                    g.retBorrow[k] += r.returned;
+                                });
+                        });
                         const soldTotals = emptyK();
                         const soldRetTotals = emptyK();
                         const soldNetTotals = emptyK();
@@ -972,6 +1333,17 @@ const StockPurchase = () => {
                             });
                             return Array.from(map.values());
                         })();
+                        customerGroups.forEach((g) => {
+                            g.borrow = emptyK();
+                            g.retBorrow = emptyK();
+                            customerRows
+                                .filter((x) => `${x.saleId}-${x.returnId}` === g.key)
+                                .forEach((x) => {
+                                    const k = kindOf(x.kind);
+                                    g.borrow[k] += x.soldBorrow || 0;
+                                    g.retBorrow[k] += x.returnedBorrow || 0;
+                                });
+                        });
                         const custRetTotals = emptyK();
                         customerGroups.forEach((g) => KINDS.forEach((k) => (custRetTotals[k] += g.ret[k])));
 
@@ -1050,12 +1422,36 @@ const StockPurchase = () => {
                             );
                         };
 
+                        // অন্য pool থেকে নেওয়া qty এর নোট (bundle / pcs format এ)
+                        const BorrowNote = ({ data, ret = false }) => {
+                            if (!data) return null;
+                            const rows = KINDS.filter((k) => data[k] > 0);
+                            if (rows.length === 0) return null;
+                            return (
+                                <div className="mt-1 flex flex-col gap-0.5 items-start">
+                                    {rows.map((k) => {
+                                        const from = k === 'main' ? 'free' : 'main';
+                                        const fromLabel = from === 'free' ? 'Free' : 'Main';
+                                        const t = qtyTxt(from, data[k]);
+                                        return (
+                                            <div key={k} className="text-[10px] font-semibold text-amber-600 whitespace-nowrap">
+                                                {ret
+                                                    ? `↳ ফেরত: ${KIND_STYLE[k].label}-এর ${t} ${fromLabel} স্টকে ফিরেছে`
+                                                    : ` ${KIND_STYLE[k].label}-এর ${t}, ${fromLabel} স্টক থেকে নেওয়া`}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        };
+                        const borrowFromFree = salesRows.filter((r) => r.kind === 'main' && getPool(r) !== 'paid').reduce((t, r) => t + r.qty, 0);
+                        const borrowFromMain = salesRows.filter((r) => r.kind !== 'main' && getPool(r) === 'paid').reduce((t, r) => t + r.qty, 0);
                         const unitCost = getCost(salesRow);
                         const sumQty = (arr, f) => arr.reduce((s, r) => s + f(r), 0);
-                        const soldMain = sumQty(salesRows.filter((r) => r.kind === 'main'), (r) => r.qty);
-                        const soldFree = sumQty(salesRows.filter((r) => r.kind !== 'main'), (r) => r.qty);
-                        const custRetMain = sumQty(salesRows.filter((r) => r.kind === 'main'), (r) => r.returned);
-                        const custRetFree = sumQty(salesRows.filter((r) => r.kind !== 'main'), (r) => r.returned);
+                        const soldMain = sumQty(salesRows.filter((r) => getPool(r) === 'paid'), (r) => r.qty);
+                        const soldFree = sumQty(salesRows.filter((r) => getPool(r) !== 'paid'), (r) => r.qty);
+                        const custRetMain = sumQty(salesRows.filter((r) => getPool(r) === 'paid'), (r) => r.returned);
+                        const custRetFree = sumQty(salesRows.filter((r) => getPool(r) !== 'paid'), (r) => r.returned);
                         const purchaseMain = Number(salesRow.origPaidQty) || 0;
                         const purchaseFree = Number(salesRow.origFreeQty) || 0;
                         const compRetMain = Number(salesRow.ret?.paid) || 0;
@@ -1122,7 +1518,7 @@ const StockPurchase = () => {
                                                             <th className={th}>Sell / pcs</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="text-[13px] text-gray-700">
+                                                    <tbody className={`text-[13px] text-gray-700 ${hv?.type === 'purchase' ? hlCls : ''}`}>
                                                         <tr>
                                                             <td className="py-3 px-3 whitespace-nowrap">
                                                                 <button
@@ -1175,7 +1571,7 @@ const StockPurchase = () => {
                                                             </tr>
                                                         ) : (
                                                             companyGroups.map((row) => (
-                                                                <tr key={row.key} className="hover:bg-rose-50/40 transition">
+                                                                <tr key={row.key} className={`${hv?.type === 'company' && String(hv.returnId || '') === String(row.returnId || '') ? hlCls : 'hover:bg-rose-50/40'} transition`}>
                                                                     <td className="py-3 px-3 whitespace-nowrap">
                                                                         <button
                                                                             type="button"
@@ -1238,7 +1634,7 @@ const StockPurchase = () => {
                                                             </tr>
                                                         ) : (
                                                             soldGroups.map((r) => (
-                                                                <tr key={r.key} className="hover:bg-orange-50/40 transition">
+                                                                <tr key={r.key} className={`${hv?.type === 'sold' && String(hv.saleId) === String(r.saleId) ? hlCls : 'hover:bg-orange-50/40'} transition`}>
                                                                     <td className="py-2.5 px-3 whitespace-nowrap">
                                                                         <button
                                                                             type="button"
@@ -1256,6 +1652,8 @@ const StockPurchase = () => {
                                                                     </td>
                                                                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                                                                         <KindStack align="right" valueClass="text-orange-600" parts={toParts(r.sold)} />
+                                                                        <BorrowNote data={r.borrow} />
+                                                                        <BorrowNote data={r.retBorrow} ret />
                                                                     </td>
                                                                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                                                                         <KindStack align="right" valueClass="text-violet-600" parts={toParts(r.ret)} />
@@ -1306,7 +1704,7 @@ const StockPurchase = () => {
                                                             </tr>
                                                         ) : (
                                                             customerGroups.map((r) => (
-                                                                <tr key={r.key} className="hover:bg-violet-50/40 transition">
+                                                                <tr key={r.key} className={`${hv?.type === 'customer' && String(hv.saleId) === String(r.saleId) && String(hv.returnId || '') === String(r.returnId || '') ? hlCls : 'hover:bg-violet-50/40'} transition`}>
                                                                     <td className="py-2.5 px-3 whitespace-nowrap">
                                                                         <button
                                                                             type="button"
@@ -1323,6 +1721,8 @@ const StockPurchase = () => {
                                                                     </td>
                                                                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                                                                         <KindStack align="right" showTotal={false} valueClass="text-orange-600 font-semibold" parts={toParts(r.sold)} />
+                                                                        <BorrowNote data={r.borrow} />
+                                                                        <BorrowNote data={r.retBorrow} ret />
                                                                     </td>
                                                                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                                                                         <KindStack align="right" valueClass="text-violet-600" parts={toParts(r.ret)} />
@@ -1368,7 +1768,15 @@ const StockPurchase = () => {
                                                             <td className="py-3 px-3"><AvTotal main={compRetMain} free={compRetFree} valueClass="text-rose-600" /></td>
                                                         </tr>
                                                         <tr>
-                                                            <td className="py-3 px-3 font-semibold">(-) Sold</td>
+                                                            <td className="py-3 px-3 font-semibold">
+                                                                (-) Sold
+                                                                {borrowFromFree > 0 && (
+                                                                    <div className="text-[10px] font-semibold text-amber-600"> Main-এর {qtyTxt('free', borrowFromFree)} Free স্টক থেকে নেওয়া</div>
+                                                                )}
+                                                                {borrowFromMain > 0 && (
+                                                                    <div className="text-[10px] font-semibold text-amber-600"> Free-এর {qtyTxt('main', borrowFromMain)} Main স্টক থেকে নেওয়া</div>
+                                                                )}
+                                                            </td>
                                                             <td className="py-3 px-3"><AvCell main={soldMain} free={0} valueClass="text-indigo-600" /></td>
                                                             <td className="py-3 px-3"><AvCell main={0} free={soldFree} valueClass="text-emerald-600" /></td>
                                                             <td className="py-3 px-3"><AvTotal main={soldMain} free={soldFree} valueClass="text-orange-600" /></td>

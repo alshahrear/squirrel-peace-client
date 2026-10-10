@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useDraftState from '../../../../hooks/useDraftState';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://squirrel-peace-server.onrender.com';
 
 // আজকের ডেট ফরম্যাট করার ফাংশন (যেমন: "06 Sep 2026")
 const getFormattedToday = () => {
@@ -342,7 +342,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
     useEffect(() => {
         if (initialData) {
             setSearch((prev) => ({ ...prev, route: initialData.route || '' }));
-            setRouteLocked(!!initialData.customer && !!initialData.route);
+                      setRouteLocked(!initialData.directSales && !!initialData.customer && !!initialData.route);
         }
     }, [initialData]);
 

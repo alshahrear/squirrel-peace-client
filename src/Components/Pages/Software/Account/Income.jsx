@@ -34,7 +34,7 @@ const Income = () => {
     // Fetch Incomes
     const fetchIncomes = async () => {
         try {
-            const response = await fetch('http://localhost:5000/income');
+            const response = await fetch('https://squirrel-peace-server.onrender.com/income');
             const data = await response.json();
             setIncomes(data);
         } catch (error) {
@@ -94,7 +94,7 @@ const Income = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`http://localhost:5000/income/${id}`, {
+                    const response = await fetch(`https://squirrel-peace-server.onrender.com/income/${id}`, {
                         method: 'DELETE',
                     });
 

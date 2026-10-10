@@ -20,7 +20,7 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
 
     // Fetch Roles
     useEffect(() => {
-        fetch('http://localhost:5000/userRole')
+        fetch('https://squirrel-peace-server.onrender.com/userRole')
             .then((res) => res.json())
             .then((data) => {
                 setRoles(data);
@@ -76,8 +76,8 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
         }).toLowerCase().replace(',', ',');
 
         const url = editingUser
-            ? `http://localhost:5000/user/${editingUser._id}`
-            : 'http://localhost:5000/user';
+            ? `https://squirrel-peace-server.onrender.com/user/${editingUser._id}`
+            : 'https://squirrel-peace-server.onrender.com/user';
 
         const method = editingUser ? 'PUT' : 'POST';
 

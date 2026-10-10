@@ -197,7 +197,7 @@ const PurchaseDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`http://localhost:5000/purchase/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {

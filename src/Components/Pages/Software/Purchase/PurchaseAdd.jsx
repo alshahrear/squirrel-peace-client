@@ -271,7 +271,7 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment) {
-            fetch('http://localhost:5000/investment')
+            fetch('https://squirrel-peace-server.onrender.com/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
@@ -289,12 +289,12 @@ const PurchaseAdd = () => {
     // Others Free Product — Category / Product fetch
     // --------------------------------------------------
     useEffect(() => {
-        fetch('http://localhost:5000/category')
+        fetch('https://squirrel-peace-server.onrender.com/category')
             .then((res) => res.json())
             .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching categories:', error));
 
-        fetch('http://localhost:5000/product')
+        fetch('https://squirrel-peace-server.onrender.com/product')
             .then((res) => res.json())
             .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -988,8 +988,8 @@ const PurchaseAdd = () => {
 
         try {
             const url = isEditMode
-                ? `http://localhost:5000/purchase/${editId}`
-                : 'http://localhost:5000/purchase';
+                ? `https://squirrel-peace-server.onrender.com/purchase/${editId}`
+                : 'https://squirrel-peace-server.onrender.com/purchase';
             const method = isEditMode ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
@@ -1163,7 +1163,7 @@ const PurchaseAdd = () => {
 
         try {
             setIsReceiving(true);
-            const res = await fetch(`http://localhost:5000/purchase/${editId}`, {
+            const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(receiveData),

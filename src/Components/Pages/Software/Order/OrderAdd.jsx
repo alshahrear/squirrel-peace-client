@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import OrderForm, { SearchSelect, matchesSearch } from './OrderForm';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import Swal from 'sweetalert2';
 
 const clearOrderDrafts = () => {
     ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'search', 'routeLocked', 'freeItems', 'freeFilter', 'freeSearch', 'damageItems', 'damageFilter', 'damageSearch', 'returnItems', 'returnFilter', 'returnSearch', 'directSales']
@@ -21,7 +22,7 @@ const OrderAdd = () => {
     // Direct Sales toggle (শুধু নতুন order এ, default ON)
     const [directSalesToggle, setDirectSalesToggle] = useState(false);
     useEffect(() => {
-        fetch('http://localhost:5000/feature/orderDirectSales')
+        fetch('https://squirrel-peace-server.onrender.com/feature/orderDirectSales')
             .then((res) => res.json())
             .then((data) => setDirectSalesToggle(data?.enabled === true))
             .catch(() => setDirectSalesToggle(false));
@@ -30,7 +31,7 @@ const OrderAdd = () => {
     // Toggle ON/OFF করলে database এ save হবে (যতক্ষণ না আবার বদলানো হয়)
     const handleDirectSalesChange = (checked) => {
         setDirectSalesToggle(checked);
-        fetch('http://localhost:5000/feature/orderDirectSales', {
+        fetch('https://squirrel-peace-server.onrender.com/feature/orderDirectSales', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled: checked }),
@@ -40,7 +41,8 @@ const OrderAdd = () => {
             })
             .catch(() => setDirectSalesToggle(!checked));
     };
-    const directSales = !editingOrder && directSalesToggle;
+    // Edit mode e order er nijer directSales flag dhorbe, notun order e toggle
+    const directSales = editingOrder ? editingOrder.directSales === true : directSalesToggle;
     const isDeliveredEdit = !!editingOrder && !isDeliveryMode && editingOrder.status === 'Delivered';
     const showPayment = isDeliveryMode || directSales || isDeliveredEdit;
 
@@ -235,7 +237,7 @@ const OrderAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment) {
-            fetch('http://localhost:5000/investment')
+            fetch('https://squirrel-peace-server.onrender.com/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
@@ -247,17 +249,17 @@ const OrderAdd = () => {
     // Others Free Product ডেটা fetch করা (Company, Category, Product)
     // --------------------------------------------------
     useEffect(() => {
-        fetch('http://localhost:5000/company')
+        fetch('https://squirrel-peace-server.onrender.com/company')
             .then((res) => res.json())
             .then((data) => setFreeCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
 
-        fetch('http://localhost:5000/category')
+        fetch('https://squirrel-peace-server.onrender.com/category')
             .then((res) => res.json())
             .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching categories:', error));
 
-        fetch('http://localhost:5000/product')
+        fetch('https://squirrel-peace-server.onrender.com/product')
             .then((res) => res.json())
             .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -528,6 +530,44 @@ const OrderAdd = () => {
     const showToast = (message, isError = false) => {
         setToast({ show: true, message, isError });
         setTimeout(() => setToast({ show: false, message: '', isError: false }), 6000);
+    };
+
+    const escapeHtml = (s) =>
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // Main / Free stock er ekta kom hole onno pool theke nite user er confirm chaibe
+    const askBorrowConfirm = async (borrows = []) => {
+        const blocks = borrows
+            .map((b) => {
+                const toMain = b.direction === 'free_to_main';
+                const to = toMain ? 'Main' : 'Free';
+                const from = toMain ? 'Free' : 'Main';
+                return `
+                <div style="text-align:left;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-top:10px;font-size:13px;line-height:1.7">
+                    <div style="font-weight:800;color:#1e293b;font-size:14px">📦 ${escapeHtml(b.productName)}</div>
+                   <div>${to} লাগবে: <b>${b.need}</b> &nbsp;|&nbsp; ${to} স্টকে আছে: <b style="color:#e11d48">${b.have}</b></div>
+                   <div>${from} স্টকে আছে: <b style="color:#059669">${b.otherAvailable}</b> <span style="color:#94a3b8">(${from} লাগবে ${b.otherNeed})</span></div>
+                    <div style="margin-top:6px;padding:6px 10px;background:#fffbeb;border:1px dashed #f59e0b;border-radius:10px;color:#b45309;font-weight:700">
+                       ${to} স্টকে <b>${b.borrowQty}</b> টি কম আছে। ${from} স্টক থেকে <b>${b.borrowQty}</b> টি নিতে চান?
+                    </div>
+                </div>`;
+            })
+            .join('');
+
+        const result = await Swal.fire({
+            icon: 'question',
+            title: 'স্টক নিশ্চিত করুন',
+            html: `<div style="font-size:13px;color:#475569">আপনার অর্ডারের জন্য এক ধরনের স্টকে পণ্য কম আছে, কিন্তু অন্য ধরনের স্টকে অতিরিক্ত আছে।</div>${blocks}`,
+            showCancelButton: true,
+            confirmButtonText: '✔ Agree',
+            cancelButtonText: '✖ Disagree',
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#f43f5e',
+            reverseButtons: true,
+            allowOutsideClick: false,
+            allowEscapeKey: true,
+        });
+        return result.isConfirmed;
     };
 
     // Order Number Generate (YYMMDDHHMMSS - 24hr, no separators)
@@ -1156,7 +1196,7 @@ const OrderAdd = () => {
         e.preventDefault();
 
         // Direct Sales হলে সরাসরি delivery সহ save হবে
-        if (directSales) {
+        if (directSales && !isEditMode) {
             handleDeliverySubmit();
             return;
         }
@@ -1167,7 +1207,7 @@ const OrderAdd = () => {
             return;
         }
 
-        if (!orderFormData.route) {
+        if (!directSales && !orderFormData.route) {
             showToast('Route is required!', true);
             return;
         }
@@ -1177,12 +1217,12 @@ const OrderAdd = () => {
             return;
         }
 
-        if (!orderFormData.srId) {
+        if (!directSales && !orderFormData.srId) {
             showToast('SR is required!', true);
             return;
         }
 
-        if (!orderFormData.deliveredById) {
+        if (!directSales && !orderFormData.deliveredById) {
             showToast('Delivered By is required!', true);
             return;
         }
@@ -1344,6 +1384,8 @@ const OrderAdd = () => {
 
             orderNote: orderNote,
 
+            ...(directSales ? { directSales: true } : {}),
+
             ...deliveredPaymentData,
 
             ...(isEditMode
@@ -1365,23 +1407,42 @@ const OrderAdd = () => {
         };
 
         // Sales database এ save করা (Edit হলে Update, নাহলে নতুন Create)
-        try {
+        const sendOrder = async (confirmed = false) => {
             const res = await fetch(
                 isEditMode
-                    ? `http://localhost:5000/sales/${editingOrder._id}`
-                    : 'http://localhost:5000/sales',
+                    ? `https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`
+                    : 'https://squirrel-peace-server.onrender.com/sales',
                 {
                     method: isEditMode ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(orderData),
+                    body: JSON.stringify(confirmed ? { ...orderData, stockBorrowConfirmed: true } : orderData),
                 }
             );
 
             if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                if (res.status === 409 && errData?.needsConfirm) {
+                    const agreed = await askBorrowConfirm(errData.borrows);
+                    if (!agreed) return 'cancelled';
+                    return sendOrder(true);
+                }
+                if (errData?.shortages?.length) {
+                    const msg = errData.shortages
+                        .map((s) => `${s.productName} (Need: ${s.need}, Stock: ${s.available})`)
+                        .join(', ');
+                    showToast(`স্টকে পণ্য নেই! ${msg}`, true);
+                    return 'cancelled';
+                }
                 throw new Error('Failed to save order');
             }
 
             await res.json();
+            return 'ok';
+        };
+
+        try {
+            const outcome = await sendOrder(false);
+            if (outcome !== 'ok') return;
         } catch (error) {
             console.error('Error saving order:', error);
             showToast(isEditMode ? 'Failed to update order. Try again.' : 'Failed to save order. Try again.', true);
@@ -1620,37 +1681,53 @@ const OrderAdd = () => {
             returnItems: returnItemsPayload,
         };
 
-        try {
+        const newOrderNo = generateOrderNo();
+
+        const sendDelivery = async (confirmed = false) => {
             const { unsetFields: _unsetFields, ...deliveryCreateData } = deliveryData;
+            const extra = confirmed ? { stockBorrowConfirmed: true } : {};
             const res = await fetch(
-                directSales
-                    ? 'http://localhost:5000/sales'
-                    : `http://localhost:5000/sales/${editingOrder._id}`,
+                !editingOrder
+                    ? 'https://squirrel-peace-server.onrender.com/sales'
+                    : `https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`,
                 {
-                    method: directSales ? 'POST' : 'PUT',
+                    method: !editingOrder ? 'POST' : 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(
-                        directSales
-                            ? { ...deliveryCreateData, orderNo: generateOrderNo() }
-                            : deliveryData
+                        !editingOrder
+                            ? { ...deliveryCreateData, orderNo: newOrderNo, ...extra }
+                            : { ...deliveryData, orderNo: editingOrder.orderNo, ...extra }
                     ),
                 }
             );
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
+
+                if (res.status === 409 && errData?.needsConfirm) {
+                    const agreed = await askBorrowConfirm(errData.borrows);
+                    if (!agreed) return 'cancelled';
+                    return sendDelivery(true);
+                }
+
                 if (errData?.shortages?.length) {
                     const msg = errData.shortages
                         .map((s) => `${s.productName} (Need: ${s.need}, Stock: ${s.available})`)
                         .join(', ');
                     showToast(`Stock a product nai! ${msg}`, true);
-                    return;
+                    return 'cancelled';
                 }
                 showToast(errData?.error || errData?.message || `Server error (${res.status})`, true);
-                return;
+                return 'cancelled';
             }
 
             await res.json();
+            return 'ok';
+        };
+
+        try {
+            const outcome = await sendDelivery(false);
+            if (outcome !== 'ok') return;
 
             clearOrderDrafts();
             showToast('Order delivered successfully!');
@@ -3510,7 +3587,7 @@ const OrderAdd = () => {
                         ================================= */}
                         <div className="mt-6 flex justify-end">
 
-                            {(isDeliveryMode || directSales) ? (
+                            {(isDeliveryMode || (directSales && !isEditMode)) ? (
                                 <button
                                     type="button"
                                     onClick={handleDeliverySubmit}

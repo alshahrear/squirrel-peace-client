@@ -99,7 +99,7 @@ const ProductAll = () => {
     // Fetch products data
     const fetchProducts = async () => {
         try {
-            const res = await fetch('http://localhost:5000/product');
+            const res = await fetch('https://squirrel-peace-server.onrender.com/product');
             const data = await res.json();
             setProducts(data);
         } catch (error) {
@@ -135,7 +135,7 @@ const ProductAll = () => {
     // Fetch categories for filter dropdown
     const fetchCategories = async () => {
         try {
-            const res = await fetch('http://localhost:5000/category');
+            const res = await fetch('https://squirrel-peace-server.onrender.com/category');
             const data = await res.json();
             setCategories(data);
         } catch (error) {
@@ -146,7 +146,7 @@ const ProductAll = () => {
     // Fetch companies for filter dropdown
     const fetchCompanies = async () => {
         try {
-            const res = await fetch('http://localhost:5000/company');
+            const res = await fetch('https://squirrel-peace-server.onrender.com/company');
             const data = await res.json();
             setCompanies(data);
         } catch (error) {
@@ -263,8 +263,8 @@ const ProductAll = () => {
             : { ...formData, createdAt: formatDateTime(new Date()) };
 
         const url = editingId
-            ? `http://localhost:5000/product/${editingId}`
-            : 'http://localhost:5000/product';
+            ? `https://squirrel-peace-server.onrender.com/product/${editingId}`
+            : 'https://squirrel-peace-server.onrender.com/product';
 
         const method = editingId ? 'PUT' : 'POST';
 
@@ -328,7 +328,7 @@ const ProductAll = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`http://localhost:5000/product/${id}`, {
+                    const res = await fetch(`https://squirrel-peace-server.onrender.com/product/${id}`, {
                         method: 'DELETE',
                     });
                     const data = await res.json();
