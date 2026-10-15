@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     Printer,
     Phone,
@@ -18,6 +18,7 @@ import {
 
 const SalesDetails = () => {
     const { id } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -95,8 +96,14 @@ const SalesDetails = () => {
         const remPcsTotal = remPcs * (Number(item.sellPricePcs) || 0);
         const remGross = remUnitTotal + remSubUnitTotal + remPcsTotal;
 
-        const subtotal = Number(item.subtotal) || 0;
-        const remSubtotal = totalPcs > 0 ? (subtotal * remQty) / totalPcs : subtotal;
+        const fullGross = unitQty * (Number(item.sellPriceUnit) || 0) + subQty * (Number(item.sellPriceSub) || 0) + pcsQty * (Number(item.sellPricePcs) || 0);
+        const fullDiscRow = Number(
+            item.discountAmount ??
+            (item.discountType === 'percent'
+                ? (fullGross * Number(item.discount)) / 100
+                : Number(item.discount))
+        ) || 0;
+        const remSubtotal = Math.max(remGross - fullDiscRow, 0);
 
         return {
             remQty, remFree, remUnit, remSub, remPcs,
@@ -140,7 +147,6 @@ const SalesDetails = () => {
         let pwd = 0;
         (inv.items || []).forEach((item) => {
             const info = getRemainingInfo(item);
-            const total = Number(item.totalPcs) || 0;
             const gross =
                 (Number(item.unitQty) || 0) * (Number(item.sellPriceUnit) || 0) +
                 (Number(item.subQty) || 0) * (Number(item.sellPriceSub) || 0) +
@@ -152,7 +158,7 @@ const SalesDetails = () => {
                     : Number(item.discount))
             ) || 0;
             grand += info.remGross;
-            pwd += total > 0 ? (fullDisc * info.remQty) / total : 0;
+            pwd += fullDisc;
         });
 
         const afterProduct = grand - pwd;
@@ -197,6 +203,18 @@ const SalesDetails = () => {
                 setLoading(false);
             });
     }, [id]);
+
+    // DamageProducts থেকে এলে Damage section এ scroll করবে
+    useEffect(() => {
+        const target =
+            location.state?.scrollTo ||
+            (new URLSearchParams(location.search).get('scrollToReturn') ? 'return-products-section' : null);
+        if (!loading && selectedOrder && target) {
+            setTimeout(() => {
+                document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    }, [loading, selectedOrder, location.state]);
 
     const handlePrint = () => {
         window.print();
@@ -415,9 +433,7 @@ const SalesDetails = () => {
                                             ? (rowGrossTotal * Number(item.discount)) / 100
                                             : Number(item.discount))
                                     ) || 0;
-                                    const discountAmt = showRemaining && Number(item.totalPcs) > 0
-                                        ? (fullDiscountAmt * rem.remQty) / Number(item.totalPcs)
-                                        : fullDiscountAmt;
+                                    const discountAmt = fullDiscountAmt;
                                     const discountPct =
                                         item.discountType === 'percent'
                                             ? Number(item.discount) || 0
@@ -531,7 +547,7 @@ const SalesDetails = () => {
                         {/* Damage Products Table */}
                         {selectedOrder.damageItems && selectedOrder.damageItems.length > 0 && (
                             <div className="px-3 sm:px-4 pb-3 sm:pb-4 overflow-x-auto">
-                                <h4 className="text-xs font-bold text-red-700 uppercase mb-3 flex items-center gap-1.5">
+                                <h4 id="damage-section" className="text-xs font-bold text-red-700 uppercase mb-3 flex items-center gap-1.5 scroll-mt-6">
                                     <AlertTriangle className="w-3.5 h-3.5 text-red-600" /> Damage Products
                                 </h4>
                                 <table className="w-full text-left border-collapse">
@@ -592,7 +608,7 @@ const SalesDetails = () => {
                         {/* Return Products Table */}
                         {selectedOrder.returnItems && selectedOrder.returnItems.length > 0 && (
                             <div className="px-3 sm:px-4 pb-3 sm:pb-4 overflow-x-auto">
-                                <h4 className="text-xs font-bold text-violet-700 uppercase mb-3 flex items-center gap-1.5">
+                                <h4 id="return-products-section" className="text-xs font-bold text-violet-700 uppercase mb-3 flex items-center gap-1.5 scroll-mt-6">
                                     <Undo2 className="w-3.5 h-3.5 text-violet-600" /> Return Products
                                 </h4>
                                 <table className="w-full text-left border-collapse">

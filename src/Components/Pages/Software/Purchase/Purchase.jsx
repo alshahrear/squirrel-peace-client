@@ -52,7 +52,7 @@ const Purchase = () => {
     }, [location.pathname]);
 
     // Extra filter (multi select) - default: sob select kora
-    const EXTRA_OPTIONS = ['Free', 'Others Free', 'Return'];
+    const EXTRA_OPTIONS = ['Free', 'Others Free', 'Purchase Return', 'Bulk Return', 'Damage'];
     const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
     const [isExtraOpen, setIsExtraOpen] = useState(false);
     const extraDropdownRef = useRef(null);
@@ -113,12 +113,14 @@ const Purchase = () => {
     useEffect(() => {
         const loadSold = async () => {
             try {
-                const [stockRes, salesRes] = await Promise.all([
+                const [stockRes, salesRes, bulkRes] = await Promise.all([
                     fetch('https://squirrel-peace-server.onrender.com/stock-purchase'),
                     fetch('https://squirrel-peace-server.onrender.com/sales'),
+                    fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
                 ]);
                 const stock = await stockRes.json();
                 const sales = await salesRes.json();
+                const bulks = await bulkRes.json();
                 const batchToPurchase = new Map(
                     (Array.isArray(stock) ? stock : []).map((b) => [String(b._id), String(b.purchaseId)])
                 );
@@ -128,6 +130,12 @@ const Purchase = () => {
                         const net = (Number(a.qty) || 0) - (Number(a.returned) || 0);
                         const pid = batchToPurchase.get(String(a.batchId));
                         if (pid && net > 0) ids.add(pid);
+                    });
+                });
+                (Array.isArray(bulks) ? bulks : []).forEach((r) => {
+                    (r.stockAllocations || []).forEach((a) => {
+                        const pid = batchToPurchase.get(String(a.batchId));
+                        if (pid && (Number(a.qty) || 0) > 0) ids.add(pid);
                     });
                 });
                 setSoldPurchaseIds(ids);
@@ -297,6 +305,12 @@ const Purchase = () => {
                 (Number(r.totalReturnFreeItemsQty) || 0) > 0
         );
 
+    // PurchaseAdd theke Bulk Return (returnItems) deya ase kina
+    const hasBulkReturn = (item) => (item.returnItems || []).length > 0;
+
+    // Damage product deya ase kina
+    const hasDamage = (item) => (item.damageItems || []).length > 0;
+
     // Main product e free ase kina
     const hasFree = (item) =>
         (item.items || []).some((p) => (Number(p.freeTotalQty ?? p.freeQty) || 0) > 0);
@@ -305,7 +319,9 @@ const Purchase = () => {
         const list = [];
         if (hasFree(item)) list.push('Free');
         if ((item.freeItems || []).length > 0) list.push('Others Free');
-        if (hasReturned(item)) list.push('Return');
+        if (hasReturned(item)) list.push('Purchase Return');
+        if (hasBulkReturn(item)) list.push('Bulk Return');
+        if (hasDamage(item)) list.push('Damage');
         return list;
     };
 
@@ -854,7 +870,9 @@ const Purchase = () => {
                                                 {(() => {
                                                     const extras = [];
                                                     if ((item.freeItems || []).length > 0) extras.push({ label: 'Others Free', color: 'text-amber-600' });
-                                                    if (hasReturned(item)) extras.push({ label: 'Return', color: 'text-violet-600' });
+                                                    if (hasReturned(item)) extras.push({ label: 'Purchase Return', color: 'text-violet-600' });
+                                                    if (hasBulkReturn(item)) extras.push({ label: 'Bulk Return', color: 'text-fuchsia-600' });
+                                                    if (hasDamage(item)) extras.push({ label: 'Damage', color: 'text-red-600' });
                                                     if (hasFree(item)) extras.push({ label: 'Free - Has', color: 'text-emerald-600' });
                                                     if (extras.length === 0) return <div className="text-[9px] text-gray-300">N/A</div>;
                                                     return (
@@ -981,7 +999,7 @@ const Purchase = () => {
                                                                 </button>
                                                             )}
 
-                                                            {!soldPurchaseIds.has(String(item._id)) && (
+                                                            {!soldPurchaseIds.has(String(item._id)) && (item.returnHistory || []).length === 0 && (
                                                                 <button
                                                                     onClick={() => handleEdit(item)}
                                                                     className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"

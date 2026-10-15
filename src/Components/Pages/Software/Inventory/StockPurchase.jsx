@@ -308,13 +308,16 @@ const getValue = (b) => {
     return getCost(b) * (Number(b.availPaidQty) || 0);
 };
 
-const StockPurchase = () => {
+const StockPurchase = ({ focusEvent = null }) => {
     const [batches, setBatches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [openOrders, setOpenOrders] = useState({});
     const [purchases, setPurchases] = useState([]);
     const [sales, setSales] = useState([]);
+    const [bulkReturns, setBulkReturns] = useState([]);
+    const [salesBulkReturns, setSalesBulkReturns] = useState([]);
+    const [damages, setDamages] = useState([]);
     const [salesTab, setSalesTab] = useState('available');
     const [salesRow, setSalesRow] = useState(null);
     const [salesModalShow, setSalesModalShow] = useState(false);
@@ -380,7 +383,7 @@ const StockPurchase = () => {
 
     const openSalesModal = (b) => {
         setSalesRow(b);
-        const tabMap = { purchase: 'batch', company: 'company', sold: 'sold', customer: 'customer' };
+        const tabMap = { purchase: 'batch', company: 'company', sold: 'sold', customer: 'customer', damage: 'damage' };
         setSalesTab(highlight[b._id] && highlightEv ? tabMap[highlightEv.type] : 'available');
         setTimeout(() => setSalesModalShow(true), 10);
     };
@@ -431,8 +434,9 @@ const StockPurchase = () => {
         ? Math.max(
             salesBatchTotal -
             ((Number(salesRow.ret?.paid) || 0) + (Number(salesRow.ret?.free) || 0)) -
-            salesTotalSold +
-            salesTotalReturned,
+            salesTotalSold - (Number(salesRow.dmgPaid) || 0) - (Number(salesRow.dmgFree) || 0) +
+            salesTotalReturned +
+            (Number(salesRow.sbPaid) || 0) + (Number(salesRow.sbFree) || 0),
             0
         )
         : 0;
@@ -455,6 +459,18 @@ const StockPurchase = () => {
                 const salesRes = await fetch('https://squirrel-peace-server.onrender.com/sales');
                 const salesData = await salesRes.json();
                 setSales(Array.isArray(salesData) ? salesData : []);
+
+                const bulkRes = await fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return');
+                const bulkData = await bulkRes.json();
+                setBulkReturns(Array.isArray(bulkData) ? bulkData : []);
+
+                const sbRes = await fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return');
+                const sbData = await sbRes.json();
+                setSalesBulkReturns(Array.isArray(sbData) ? sbData : []);
+
+                const dmgRes = await fetch('https://squirrel-peace-server.onrender.com/sales-damage');
+                const dmgData = await dmgRes.json();
+                setDamages(Array.isArray(dmgData) ? dmgData : []);
             } catch (error) {
                 console.error('Error fetching stock purchase:', error);
             } finally {
@@ -467,6 +483,33 @@ const StockPurchase = () => {
     // Purchase er returnHistory theke batch wise return ber kore stock theke bad deya
     const stockRows = useMemo(() => {
         const purchaseMap = new Map(purchases.map((p) => [String(p._id), p]));
+        const bulkMap = new Map();
+        bulkReturns.forEach((r) =>
+            (r.stockAllocations || []).forEach((a) => {
+                const k = String(a.batchId);
+                const cur = bulkMap.get(k) || { paid: 0, free: 0 };
+                cur[a.pool === 'paid' ? 'paid' : 'free'] += Number(a.qty) || 0;
+                bulkMap.set(k, cur);
+            })
+        );
+        const sbMap = new Map();
+        salesBulkReturns.forEach((r) =>
+            (r.stockAllocations || []).forEach((a) => {
+                const k = String(a.batchId);
+                const cur = sbMap.get(k) || { paid: 0, free: 0 };
+                cur[a.pool === 'paid' ? 'paid' : 'free'] += Number(a.qty) || 0;
+                sbMap.set(k, cur);
+            })
+        );
+        const dmgMap = new Map();
+        damages.forEach((d) =>
+            (d.stockAllocations || []).forEach((a) => {
+                const k = String(a.batchId);
+                const cur = dmgMap.get(k) || { paid: 0, free: 0 };
+                cur[a.pool === 'paid' ? 'paid' : 'free'] += Number(a.qty) || 0;
+                dmgMap.set(k, cur);
+            })
+        );
         const soldMap = new Map();
         sales.forEach((s) =>
             (s.stockAllocations || []).forEach((a) => {
@@ -517,10 +560,18 @@ const StockPurchase = () => {
                 if (entry.paid > 0 || entry.free > 0) retEntries.push(entry);
             });
 
+            const bulk = bulkMap.get(String(b._id));
+            if (bulk) {
+                retPaid += bulk.paid;
+                retFree += bulk.free;
+            }
             const origPaid = Number(b.paidQty) || 0;
             const origFree = Number(b.freeQty) || 0;
             const retTotal = retPaid + retFree;
-            const sold = soldMap.get(String(b._id)) || { paid: 0, free: 0 };
+            const sold0 = soldMap.get(String(b._id)) || { paid: 0, free: 0 };
+            const sb = sbMap.get(String(b._id)) || { paid: 0, free: 0 };
+            const dm = dmgMap.get(String(b._id)) || { paid: 0, free: 0 };
+            const sold = { paid: sold0.paid - sb.paid + dm.paid, free: sold0.free - sb.free + dm.free };
             const curPaid = Math.max(origPaid - retPaid, 0);
             const curFree = Math.max(origFree - retFree, 0);
             let availPaid = 0;
@@ -543,10 +594,14 @@ const StockPurchase = () => {
                 availPaidQty: availPaid,
                 availFreeQty: availFree,
                 hasReturn: retTotal > 0,
+                sbPaid: sb.paid,
+                sbFree: sb.free,
+                dmgPaid: dm.paid,
+                dmgFree: dm.free,
                 ret: { paid: retPaid, free: retFree, amount: retAmount, dates: [...new Set(retDates)], entries: retEntries },
             };
         });
-    }, [batches, purchases, sales]);
+    }, [batches, purchases, sales, bulkReturns, salesBulkReturns, damages]);
 
     // Order (purchaseId) onujayi group + search filter
     const orders = useMemo(() => {
@@ -649,9 +704,14 @@ const StockPurchase = () => {
             });
         });
 
+        // Bulk Return
+        bulkReturns.forEach((r) => {
+            push('company', r.invoiceNo, r.returnDate || r.createdAt, (r.stockAllocations || []).map((a) => a.batchId), createdTs(r) || toTime(r.returnDate), { returnId: '', bulkId: r._id, isBulk: true });
+        });
+
         // Sold + Customer Return
         sales.forEach((s) => {
-            push('sold', s.orderNo, s.deliveryDate || s.orderDate || s.createdAt, (s.stockAllocations || []).map((a) => a.batchId), createdTs(s) || toTime(s.deliveryDate || s.orderDate), { saleId: s._id });
+            push('sold', s.orderNo, s.deliveryDate || s.orderDate || s.createdAt, (s.stockAllocations || []).map((a) => a.batchId), (s.deliveredAt ? Date.parse(s.deliveredAt) : 0) || createdTs(s) || toTime(s.deliveryDate || s.orderDate), { saleId: s._id });
             (s.returnHistory || []).forEach((ret) => {
                 const pids = new Set([...(ret.items || []), ...(ret.freeItems || [])].map((it) => String(it.productId)));
                 const ids = (s.stockAllocations || []).filter((a) => pids.has(String(a.productId))).map((a) => a.batchId);
@@ -659,14 +719,25 @@ const StockPurchase = () => {
             });
         });
 
+        // Sales Bulk Return (Customer Return, stock plus)
+        salesBulkReturns.forEach((r) => {
+            push('customer', r.invoiceNo, r.returnDate || r.createdAt, (r.stockAllocations || []).map((a) => a.batchId), createdTs(r) || toTime(r.returnDate), { returnId: '', bulkId: r._id, isBulk: true, saleId: r.saleId });
+        });
+
+        // Damage (stock minus)
+        damages.forEach((d) => {
+            push('damage', d.invoiceNo, d.damageDate || d.createdAt, (d.stockAllocations || []).map((a) => a.batchId), createdTs(d) || toTime(d.damageDate), { damageId: d._id });
+        });
+
         return ev.sort((a, b) => b.time - a.time || b.seq - a.seq).slice(0, 30);
-    }, [batches, purchases, sales]);
+    }, [batches, purchases, sales, bulkReturns, salesBulkReturns, damages]);
 
     const HISTORY_STYLE = {
         purchase: { label: 'Purchase', cls: 'bg-indigo-100 text-indigo-700' },
         company: { label: 'Company Return', cls: 'bg-rose-100 text-rose-700' },
         sold: { label: 'Sold', cls: 'bg-orange-100 text-orange-700' },
         customer: { label: 'Customer Return', cls: 'bg-violet-100 text-violet-700' },
+        damage: { label: 'Damage', cls: 'bg-red-100 text-red-700' },
     };
 
     const openHistory = () => {
@@ -692,9 +763,26 @@ const StockPurchase = () => {
         setHighlightEv(e);
     };
 
+    // Stock Products tab theke Open click korle ekhane oi receipt open + highlight hobe
+    useEffect(() => {
+        if (!focusEvent) return;
+        const e = focusEvent;
+        setSearch('');
+        setOpenOrders((prev) => {
+            const n = { ...prev };
+            e.orderKeys.forEach((k) => (n[k] = true));
+            return n;
+        });
+        const h = {};
+        e.ids.forEach((id) => (h[id] = true));
+        setHighlight(h);
+        setFocusKeys([...e.orderKeys]);
+        setHighlightEv(e);
+    }, [focusEvent]);
+
     // Open korle oi order er page e niye jabe + scroll korbe
     useEffect(() => {
-        if (!focusKeys.length) return;
+        if (!focusKeys.length || loading) return;
         const idx = orders.findIndex((o) => focusKeys.includes(o.key));
         if (idx >= 0) setCurrentPage(Math.floor(idx / itemsPerPage) + 1);
         const t = setTimeout(() => {
@@ -704,7 +792,7 @@ const StockPurchase = () => {
         }, 350);
         return () => clearTimeout(t);
         // eslint-disable-next-line
-    }, [focusKeys]);
+    }, [focusKeys, loading]);
 
     // Highlight row er baire click korle highlight jabe (modal khola thakle jabe na)
     useEffect(() => {
@@ -1133,7 +1221,7 @@ const StockPurchase = () => {
                                                         </td>
                                                         <td className="py-2.5 px-3 whitespace-nowrap">
                                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${HISTORY_STYLE[e.type].cls}`}>
-                                                                {HISTORY_STYLE[e.type].label}
+                                                                {HISTORY_STYLE[e.type].label}{e.isBulk ? ' (Bulk)' : ''}
                                                             </span>
                                                             <div className="text-[11px] text-gray-500 mt-0.5">#{e.ref}</div>
                                                         </td>
@@ -1164,7 +1252,8 @@ const StockPurchase = () => {
                             { key: 'batch', label: 'Purchase Total', value: salesBatchTotal, box: 'bg-indigo-50 border-indigo-100', lbl: 'text-indigo-400', val: 'text-indigo-700', ring: 'ring-indigo-400' },
                             { key: 'company', label: 'Company Return', value: companyReturnQty, box: 'bg-rose-50 border-rose-100', lbl: 'text-rose-400', val: 'text-rose-600', ring: 'ring-rose-400' },
                             { key: 'sold', label: 'Sold', value: salesTotalSold, box: 'bg-orange-50 border-orange-100', lbl: 'text-orange-400', val: 'text-orange-600', ring: 'ring-orange-400' },
-                            { key: 'customer', label: 'Customer Return', value: salesTotalReturned, box: 'bg-violet-50 border-violet-100', lbl: 'text-violet-400', val: 'text-violet-600', ring: 'ring-violet-400' },
+                            { key: 'customer', label: 'Customer Return', value: salesTotalReturned + (Number(salesRow.sbPaid) || 0) + (Number(salesRow.sbFree) || 0), box: 'bg-violet-50 border-violet-100', lbl: 'text-violet-400', val: 'text-violet-600', ring: 'ring-violet-400' },
+                            { key: 'damage', label: 'Damage', value: (Number(salesRow.dmgPaid) || 0) + (Number(salesRow.dmgFree) || 0), box: 'bg-red-50 border-red-100', lbl: 'text-red-400', val: 'text-red-600', ring: 'ring-red-400' },
                             salesAvailable > 0
                                 ? { key: 'available', label: 'Available', value: salesAvailable, box: 'bg-emerald-50 border-emerald-100', lbl: 'text-emerald-400', val: 'text-emerald-600', ring: 'ring-emerald-400' }
                                 : { key: 'available', label: 'Available', value: salesAvailable, box: 'bg-red-50 border-red-100', lbl: 'text-red-400', val: 'text-red-600', ring: 'ring-red-400' },
@@ -1331,7 +1420,32 @@ const StockPurchase = () => {
                                 g.sold[k] += r.qty;
                                 g.ret[k] += r.returned;
                             });
-                            return Array.from(map.values());
+                            const base = Array.from(map.values());
+                            const sbGroups = salesBulkReturns.map((r) => {
+                                const allocs = (r.stockAllocations || []).filter((a) => String(a.batchId) === String(salesRow._id));
+                                if (allocs.length === 0) return null;
+                                const ret = emptyK();
+                                allocs.forEach((a) => {
+                                    const q = Number(a.qty) || 0;
+                                    if (a.pool === 'paid') ret.main += q;
+                                    else if (salesRow.isFreeProduct) ret.others += q;
+                                    else ret.free += q;
+                                });
+                                return {
+                                    key: `sbulk-${r._id}`,
+                                    isBulk: true,
+                                    bulkId: r._id,
+                                    fromSales: r.fromSales === true,
+                                    saleId: r.saleId,
+                                    orderNo: r.invoiceNo,
+                                    customer: r.customer,
+                                    returnDate: r.returnDate,
+                                    returnId: '',
+                                    sold: emptyK(),
+                                    ret,
+                                };
+                            }).filter(Boolean).reverse();
+                            return [...sbGroups, ...base];
                         })();
                         customerGroups.forEach((g) => {
                             g.borrow = emptyK();
@@ -1348,9 +1462,9 @@ const StockPurchase = () => {
                         customerGroups.forEach((g) => KINDS.forEach((k) => (custRetTotals[k] += g.ret[k])));
 
                         // Company Return tab: return invoice wise
-                        const companyGroups = (() => {
+                        const purchaseCompanyGroups = (() => {
                             const map = new Map();
-                            modalRows.forEach((row) => {
+                            modalRows.filter((row) => row.returnId).forEach((row) => {
                                 const gk = row.returnId || 'all';
                                 if (!map.has(gk)) {
                                     map.set(gk, {
@@ -1371,9 +1485,85 @@ const StockPurchase = () => {
                             });
                             return Array.from(map.values());
                         })();
+                        const bulkGroups = bulkReturns.map((r) => {
+                            const allocs = (r.stockAllocations || []).filter((a) => String(a.batchId) === String(salesRow._id));
+                            if (allocs.length === 0) return null;
+                            const total = emptyK();
+                            let paidQ = 0;
+                            allocs.forEach((a) => {
+                                const q = Number(a.qty) || 0;
+                                if (a.pool === 'paid') { total.main += q; paidQ += q; }
+                                else if (salesRow.isFreeProduct) total.others += q;
+                                else total.free += q;
+                            });
+                            const it = (r.items || []).find((x) => allocs.some((a) => String(a.productId) === String(x.productId)) || x.productName === salesRow.productName);
+                            return {
+                                key: `bulk-${r._id}`,
+                                isBulk: true,
+                                bulkId: r._id,
+                                fromPurchase: r.fromPurchase === true,
+                                purchaseId: r.purchaseId,
+                                invoiceNo: r.invoiceNo,
+                                returnId: '',
+                                date: r.returnDate,
+                                name: salesRow.productName,
+                                qty: {},
+                                total,
+                                value: paidQ * (Number(it?.buyPrice) || 0),
+                            };
+                        }).filter(Boolean).reverse();
+                        const oidT = (id) => (/^[0-9a-f]{24}$/i.test(String(id)) ? parseInt(String(id).slice(0, 8), 16) * 1000 : 0);
+                        const dateT = (d) => {
+                            if (!d) return 0;
+                            const m = String(d).trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+                            if (m) return new Date(+m[3], +m[2] - 1, +m[1]).getTime();
+                            const t = Date.parse(d);
+                            return !isNaN(t) ? t : 0;
+                        };
+                        const parentPurchase = purchases.find((p) => String(p._id) === String(salesRow.purchaseId));
+                        const companyGroups = [
+                            ...purchaseCompanyGroups.map((g) => {
+                                const ret = (parentPurchase?.returnHistory || []).find((x) => String(x.returnId) === String(g.returnId));
+                                const c = ret?.createdAt ? Date.parse(ret.createdAt) : NaN;
+                                return { ...g, ts: !isNaN(c) ? c : dateT(g.date) };
+                            }),
+                            ...bulkGroups.map((g) => {
+                                const r = bulkReturns.find((x) => String(x._id) === String(g.bulkId));
+                                const c = r?.createdAt ? Date.parse(r.createdAt) : NaN;
+                                return { ...g, ts: !isNaN(c) ? c : (oidT(g.bulkId) || dateT(g.date)) };
+                            }),
+                        ].sort((a, b) => b.ts - a.ts);
                         const compTotals = emptyK();
                         companyGroups.forEach((g) => KINDS.forEach((k) => (compTotals[k] += g.total[k])));
                         const companyParts = (o) => toParts(o);
+
+                        // Damage tab: damage invoice wise
+                        const damageGroups = damages
+                            .map((d) => {
+                                const allocs = (d.stockAllocations || []).filter((a) => String(a.batchId) === String(salesRow._id));
+                                if (allocs.length === 0) return null;
+                                const total = emptyK();
+                                let paidQ = 0;
+                                allocs.forEach((a) => {
+                                    const q = Number(a.qty) || 0;
+                                    if (a.pool === 'paid') { total.main += q; paidQ += q; }
+                                    else if (salesRow.isFreeProduct) total.others += q;
+                                    else total.free += q;
+                                });
+                                return {
+                                    key: `dmg-${d._id}`,
+                                    damageId: d._id,
+                                    invoiceNo: d.invoiceNo,
+                                    date: d.damageDate,
+                                    note: d.note || '',
+                                    total,
+                                    value: paidQ * getCost(salesRow),
+                                };
+                            })
+                            .filter(Boolean)
+                            .reverse();
+                        const damTotals = emptyK();
+                        damageGroups.forEach((g) => KINDS.forEach((k) => (damTotals[k] += g.total[k])));
 
                         // Available tab: Main / Free / Total cell (bundle text + pcs chip)
                         const AvCell = ({ main, free, valueClass, align = 'right' }) => {
@@ -1450,14 +1640,14 @@ const StockPurchase = () => {
                         const sumQty = (arr, f) => arr.reduce((s, r) => s + f(r), 0);
                         const soldMain = sumQty(salesRows.filter((r) => getPool(r) === 'paid'), (r) => r.qty);
                         const soldFree = sumQty(salesRows.filter((r) => getPool(r) !== 'paid'), (r) => r.qty);
-                        const custRetMain = sumQty(salesRows.filter((r) => getPool(r) === 'paid'), (r) => r.returned);
-                        const custRetFree = sumQty(salesRows.filter((r) => getPool(r) !== 'paid'), (r) => r.returned);
+                        const custRetMain = sumQty(salesRows.filter((r) => getPool(r) === 'paid'), (r) => r.returned) + (Number(salesRow.sbPaid) || 0);
+                        const custRetFree = sumQty(salesRows.filter((r) => getPool(r) !== 'paid'), (r) => r.returned) + (Number(salesRow.sbFree) || 0);
                         const purchaseMain = Number(salesRow.origPaidQty) || 0;
                         const purchaseFree = Number(salesRow.origFreeQty) || 0;
                         const compRetMain = Number(salesRow.ret?.paid) || 0;
                         const compRetFree = Number(salesRow.ret?.free) || 0;
-                        const availMain = Math.max(purchaseMain - compRetMain - soldMain + custRetMain, 0);
-                        const availFree = Math.max(purchaseFree - compRetFree - soldFree + custRetFree, 0);
+                        const availMain = Math.max(purchaseMain - compRetMain - soldMain - (Number(salesRow.dmgPaid) || 0) + custRetMain, 0);
+                        const availFree = Math.max(purchaseFree - compRetFree - soldFree - (Number(salesRow.dmgFree) || 0) + custRetFree, 0);
 
                         return (
                             <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${salesModalShow ? 'opacity-100' : 'opacity-0'}`}>
@@ -1478,7 +1668,7 @@ const StockPurchase = () => {
                                     </div>
 
                                     <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                                             {cards.map((c) => (
                                                 <button
                                                     key={c.key}
@@ -1563,7 +1753,7 @@ const StockPurchase = () => {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
-                                                        {modalRows.length === 0 ? (
+                                                        {companyGroups.length === 0 ? (
                                                             <tr>
                                                                 <td colSpan={5} className="py-8 text-center text-gray-400 font-medium">
                                                                     Company te ekhono kono return kora hoyni
@@ -1571,16 +1761,24 @@ const StockPurchase = () => {
                                                             </tr>
                                                         ) : (
                                                             companyGroups.map((row) => (
-                                                                <tr key={row.key} className={`${hv?.type === 'company' && String(hv.returnId || '') === String(row.returnId || '') ? hlCls : 'hover:bg-rose-50/40'} transition`}>
+                                                                <tr key={row.key} className={`${hv?.type === 'company' && (row.isBulk ? String(hv.bulkId || '') === String(row.bulkId) : (!hv.isBulk && String(hv.returnId || '') === String(row.returnId || ''))) ? hlCls : 'hover:bg-rose-50/40'} transition`}>
                                                                     <td className="py-3 px-3 whitespace-nowrap">
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => window.open(`/purchase-return-view/${salesRow.purchaseId}?returnId=${row.returnId}`, '_blank')}
+                                                                            onClick={() => window.open(
+                                                                                row.isBulk
+                                                                                    ? (row.fromPurchase
+                                                                                        ? `/purchase-details/${row.purchaseId}?scrollToReturn=1`
+                                                                                        : `/purchase-bulk-return-view/${row.bulkId}`)
+                                                                                    : `/purchase-return-view/${salesRow.purchaseId}?returnId=${row.returnId}`,
+                                                                                '_blank'
+                                                                            )}
                                                                             className="font-bold text-indigo-600 hover:text-pink-600 hover:underline cursor-pointer"
                                                                         >
-                                                                            #{salesRow.invoiceNo}
+                                                                            #{row.isBulk ? row.invoiceNo : salesRow.invoiceNo}
                                                                         </button>
                                                                         <div className="text-[11px] text-gray-500 mt-0.5">{row.date || 'N/A'}</div>
+                                                                        <div className={`text-[10px] font-bold mt-0.5 ${row.isBulk ? 'text-amber-600' : 'text-rose-500'}`}>({row.isBulk ? 'Bulk Return' : 'Purchase Return'})</div>
                                                                     </td>
                                                                     <td className="py-3 px-3 font-semibold text-gray-800 whitespace-nowrap">
                                                                         {row.name}
@@ -1599,14 +1797,14 @@ const StockPurchase = () => {
                                                             ))
                                                         )}
                                                     </tbody>
-                                                    {modalRows.length > 0 && (
+                                                    {companyGroups.length > 0 && (
                                                         <tfoot>
                                                             <tr className="bg-rose-50/60 font-extrabold text-[13px]">
                                                                 <td className="py-3 px-3 text-gray-700" colSpan={3}>Total</td>
                                                                 <td className="py-3 px-3 whitespace-nowrap">
                                                                     <KindStack valueClass="text-orange-600" parts={companyParts(compTotals)} />
                                                                 </td>
-                                                                <td className="py-3 px-3 text-right text-rose-600 whitespace-nowrap">৳{fmt(modalTotalValue)}</td>
+                                                                <td className="py-3 px-3 text-right text-rose-600 whitespace-nowrap">৳{fmt(companyGroups.reduce((s, g) => s + (Number(g.value) || 0), 0))}</td>
                                                             </tr>
                                                         </tfoot>
                                                     )}
@@ -1696,7 +1894,7 @@ const StockPurchase = () => {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
-                                                        {customerRows.length === 0 ? (
+                                                        {customerGroups.length === 0 ? (
                                                             <tr>
                                                                 <td colSpan={5} className="py-8 text-center text-gray-400 font-medium">
                                                                     Customer ekhono kono return koreni
@@ -1704,16 +1902,24 @@ const StockPurchase = () => {
                                                             </tr>
                                                         ) : (
                                                             customerGroups.map((r) => (
-                                                                <tr key={r.key} className={`${hv?.type === 'customer' && String(hv.saleId) === String(r.saleId) && String(hv.returnId || '') === String(r.returnId || '') ? hlCls : 'hover:bg-violet-50/40'} transition`}>
+                                                                <tr key={r.key} className={`${hv?.type === 'customer' && (r.isBulk ? (hv.isBulk && String(hv.bulkId) === String(r.bulkId)) : (!hv.isBulk && String(hv.saleId) === String(r.saleId) && String(hv.returnId || '') === String(r.returnId || ''))) ? hlCls : 'hover:bg-violet-50/40'} transition`}>
                                                                     <td className="py-2.5 px-3 whitespace-nowrap">
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => window.open(`/sales-return-view/${r.saleId}?returnId=${r.returnId}`, '_blank')}
+                                                                            onClick={() => window.open(
+                                                                                r.isBulk
+                                                                                    ? (r.fromSales
+                                                                                        ? `/sales-details/${r.saleId}?scrollToReturn=1`
+                                                                                        : `/sales-bulk-return-view/${r.bulkId}`)
+                                                                                    : `/sales-return-view/${r.saleId}?returnId=${r.returnId}`,
+                                                                                '_blank'
+                                                                            )}
                                                                             className="font-bold text-indigo-600 hover:text-pink-600 hover:underline cursor-pointer"
                                                                         >
                                                                             #{r.orderNo}
                                                                         </button>
                                                                         <div className="text-[11px] text-gray-500 mt-0.5">Return: {r.returnDate || 'N/A'}</div>
+                                                                        {r.isBulk && <div className="text-[10px] font-bold mt-0.5 text-amber-600">(Bulk Return)</div>}
                                                                     </td>
                                                                     <td className="py-2.5 px-3 font-semibold text-gray-800 whitespace-nowrap">{r.customer}</td>
                                                                     <td className="py-2.5 px-3 font-semibold text-gray-800 whitespace-nowrap">
@@ -1731,13 +1937,74 @@ const StockPurchase = () => {
                                                             ))
                                                         )}
                                                     </tbody>
-                                                    {customerRows.length > 0 && (
+                                                    {customerGroups.length > 0 && (
                                                         <tfoot>
                                                             <tr className="bg-violet-50/60 font-extrabold text-[13px]">
                                                                 <td className="py-3 px-3 text-gray-700" colSpan={4}>Total</td>
                                                                 <td className="py-3 px-3 text-right whitespace-nowrap">
                                                                     <KindStack align="right" valueClass="text-violet-600" parts={toParts(custRetTotals)} />
                                                                 </td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    )}
+                                                </table>
+                                            )}
+
+                                            {salesTab === 'damage' && (
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead className="sticky top-0">
+                                                        <tr className="bg-red-50 text-red-700 text-[11px] font-bold uppercase tracking-wide">
+                                                            <th className={th}>Invoice / Date</th>
+                                                            <th className={th}>Product</th>
+                                                            <th className={th}>Company</th>
+                                                            <th className={th}>Qty</th>
+                                                            <th className={th}>Note</th>
+                                                            <th className={`${th} text-right`}>Loss Value</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
+                                                        {damageGroups.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
+                                                                    Ei batch theke ekhono kono damage hoyni
+                                                                </td>
+                                                            </tr>
+                                                        ) : (
+                                                            damageGroups.map((row) => (
+                                                                <tr key={row.key} className={`${hv?.type === 'damage' && String(hv.damageId) === String(row.damageId) ? hlCls : 'hover:bg-red-50/40'} transition`}>
+                                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => window.open(`/damage-details/${row.damageId}`, '_blank')}
+                                                                            className="font-bold text-indigo-600 hover:text-pink-600 hover:underline cursor-pointer"
+                                                                        >
+                                                                            #{row.invoiceNo}
+                                                                        </button>
+                                                                        <div className="text-[11px] text-gray-500 mt-0.5">{row.date || 'N/A'}</div>
+                                                                        <div className="text-[10px] font-bold mt-0.5 text-red-500">(Damage)</div>
+                                                                    </td>
+                                                                    <td className="py-3 px-3 font-semibold text-gray-800 whitespace-nowrap">{salesRow.productName}</td>
+                                                                    <td className="py-3 px-3 text-gray-600 whitespace-nowrap">{salesRow.company}</td>
+                                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                                        <KindStack valueClass="text-red-600" parts={toParts(row.total)} />
+                                                                    </td>
+                                                                    <td className="py-3 px-3 text-gray-500 text-[12px]">{row.note || <span className="text-gray-300">—</span>}</td>
+                                                                    <td className="py-3 px-3 text-right font-bold text-red-600 whitespace-nowrap">
+                                                                        {row.value > 0 ? `৳${fmt(row.value)}` : <span className="text-gray-300">—</span>}
+                                                                    </td>
+                                                                </tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                    {damageGroups.length > 0 && (
+                                                        <tfoot>
+                                                            <tr className="bg-red-50/60 font-extrabold text-[13px]">
+                                                                <td className="py-3 px-3 text-gray-700" colSpan={3}>Total</td>
+                                                                <td className="py-3 px-3 whitespace-nowrap">
+                                                                    <KindStack valueClass="text-red-600" parts={toParts(damTotals)} />
+                                                                </td>
+                                                                <td className="py-3 px-3"></td>
+                                                                <td className="py-3 px-3 text-right text-red-600 whitespace-nowrap">৳{fmt(damageGroups.reduce((s, g) => s + (Number(g.value) || 0), 0))}</td>
                                                             </tr>
                                                         </tfoot>
                                                     )}
@@ -1780,6 +2047,12 @@ const StockPurchase = () => {
                                                             <td className="py-3 px-3"><AvCell main={soldMain} free={0} valueClass="text-indigo-600" /></td>
                                                             <td className="py-3 px-3"><AvCell main={0} free={soldFree} valueClass="text-emerald-600" /></td>
                                                             <td className="py-3 px-3"><AvTotal main={soldMain} free={soldFree} valueClass="text-orange-600" /></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="py-3 px-3 font-semibold">(-) Damage</td>
+                                                            <td className="py-3 px-3"><AvCell main={Number(salesRow.dmgPaid) || 0} free={0} valueClass="text-indigo-600" /></td>
+                                                            <td className="py-3 px-3"><AvCell main={0} free={Number(salesRow.dmgFree) || 0} valueClass="text-emerald-600" /></td>
+                                                            <td className="py-3 px-3"><AvTotal main={Number(salesRow.dmgPaid) || 0} free={Number(salesRow.dmgFree) || 0} valueClass="text-red-600" /></td>
                                                         </tr>
                                                         <tr>
                                                             <td className="py-3 px-3 font-semibold">(+) Customer Return</td>

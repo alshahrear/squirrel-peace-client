@@ -30,7 +30,7 @@ const Wholesale = () => {
     });
 
     // Extra filter (multi select) - default: sob select kora
-    const EXTRA_OPTIONS = ['Others Free', 'Damage', 'Return'];
+    const EXTRA_OPTIONS = ['Others Free', 'Damage', 'Sales Return', 'Bulk Return'];
     const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
     const [isExtraOpen, setIsExtraOpen] = useState(false);
     const extraDropdownRef = useRef(null);
@@ -187,7 +187,8 @@ const Wholesale = () => {
         const list = [];
         if ((item.freeItems || []).length > 0) list.push('Others Free');
         if ((item.damageItems || []).length > 0) list.push('Damage');
-        if ((item.returnItems || []).length > 0) list.push('Return');
+        if (hasReturned(item)) list.push('Sales Return');
+        if ((item.returnItems || []).length > 0) list.push('Bulk Return');
         return list;
     };
 
@@ -1082,7 +1083,8 @@ const Wholesale = () => {
                                                     {(() => {
                                                         const extras = [];
                                                         if ((item.damageItems || []).length > 0) extras.push({ label: 'Damage', color: 'text-red-600' });
-                                                        if ((item.returnItems || []).length > 0) extras.push({ label: 'Return', color: 'text-violet-600' });
+                                                        if (hasReturned(item)) extras.push({ label: 'Sales Return', color: 'text-violet-600' });
+                                                        if ((item.returnItems || []).length > 0) extras.push({ label: 'Bulk Return', color: 'text-fuchsia-600' });
                                                         if ((item.freeItems || []).length > 0) extras.push({ label: 'Others Free', color: 'text-amber-600' });
                                                         if (extras.length === 0) return <div className="text-[9px] text-gray-300">N/A</div>;
                                                         return (
@@ -1164,7 +1166,7 @@ const Wholesale = () => {
                                                                     </button>
                                                                 )}
 
-                                                                {(
+                                                                {!hasReturned(item) && (
                                                                     <button
                                                                         onClick={() => handleEdit(item)}
                                                                         className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"

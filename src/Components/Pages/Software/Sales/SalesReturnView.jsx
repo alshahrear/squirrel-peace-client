@@ -9,9 +9,7 @@ import {
     FileText,
     Building2,
     ArrowLeft,
-    PackageX,
-    ChevronLeft,
-    ChevronRight
+    PackageX
 } from 'lucide-react';
 
 const SalesReturnView = () => {
@@ -23,8 +21,6 @@ const SalesReturnView = () => {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [returnEntry, setReturnEntry] = useState(null);
     const [notFound, setNotFound] = useState(false);
-    const [showDetails, setShowDetails] = useState(false); // Quantity theke Subtotal porjonto collapse thakbe
-
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
@@ -75,12 +71,6 @@ const SalesReturnView = () => {
             returnTotalQty: found ? Number(found.returnTotalQty) || 0 : 0,
         };
     };
-
-    // Original row er gross total (Unit ongsho + Sub ongsho + PCS ongsho)
-    const getRowGross = (item) =>
-        (Number(item.unitQty) || 0) * (Number(item.sellPriceUnit) || 0) +
-        (Number(item.subQty) || 0) * (Number(item.sellPriceSub) || 0) +
-        (Number(item.pcsQty) || 0) * (Number(item.sellPricePcs) || 0);
 
     const handlePrint = () => {
         window.print();
@@ -222,26 +212,6 @@ const SalesReturnView = () => {
                                     <th className="py-3 px-3.5 rounded-l-xl">SL</th>
                                     <th className="py-3 px-3.5">Product Name</th>
                                     <th className="py-3 px-3.5">Company</th>
-                                    {showDetails ? (
-                                        <>
-                                            <th className="py-3 px-3.5">
-                                                <button type="button" onClick={() => setShowDetails(false)} className="flex items-center gap-1 hover:text-indigo-100 transition cursor-pointer print:hidden">
-                                                    <ChevronLeft className="w-3.5 h-3.5" /> Quantity
-                                                </button>
-                                                <span className="hidden print:inline">Quantity</span>
-                                            </th>
-                                            <th className="py-3 px-3.5">Free Quantity</th>
-                                            <th className="py-3 px-3.5 text-right">Gross Total</th>
-                                            <th className="py-3 px-3.5 text-right">Discount</th>
-                                            <th className="py-3 px-3.5 text-right">Subtotal</th>
-                                        </>
-                                    ) : (
-                                        <th className="py-3 px-3.5 print:hidden">
-                                            <button type="button" onClick={() => setShowDetails(true)} className="flex items-center gap-1 hover:text-indigo-100 transition cursor-pointer">
-                                                Details <ChevronRight className="w-3.5 h-3.5" />
-                                            </button>
-                                        </th>
-                                    )}
                                     <th className="py-3 px-3.5 text-right">Sell Price</th>
                                     <th className="py-3 px-3.5 text-center">Return Qty</th>
                                     <th className="py-3 px-3.5 text-center">Return Free Qty</th>
@@ -260,61 +230,7 @@ const SalesReturnView = () => {
                                             <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
                                             <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
                                             <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
-                                            {showDetails ? (
-                                                <>
-                                                    <td className="py-4 px-3.5 font-semibold text-orange-600">
-                                                        {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
-                                                        <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalPcs})</span>
-                                                    </td>
-                                                    <td className="py-4 px-3.5 font-semibold text-emerald-600">
-                                                        {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
-                                                        <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty ?? 0})</span>
-                                                    </td>
-                                                    <td className="py-4 px-3.5 text-right font-medium text-slate-600">
-                                                        ৳{getRowGross(item).toFixed(2)}
-                                                    </td>
-                                                    <td className="py-4 px-3.5 text-right font-medium">
-                                                        {(() => {
-                                                            const rowGrossTotal = getRowGross(item);
-                                                            const discountAmt = Number(
-                                                                item.discountAmount ??
-                                                                (item.discountType === 'percent'
-                                                                    ? (rowGrossTotal * Number(item.discount)) / 100
-                                                                    : Number(item.discount))
-                                                            ) || 0;
-                                                            const discountPct =
-                                                                item.discountType === 'percent'
-                                                                    ? Number(item.discount) || 0
-                                                                    : (rowGrossTotal > 0 ? (discountAmt / rowGrossTotal) * 100 : 0);
-                                                            return (
-                                                                <>
-                                                                    <span className={item.discountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
-                                                                        ৳{discountAmt.toFixed(2)}
-                                                                    </span>
-                                                                    {' '}
-                                                                    <span className={item.discountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
-                                                                        ({discountPct.toFixed(2)}%)
-                                                                    </span>
-                                                                </>
-                                                            );
-                                                        })()}
-                                                    </td>
-                                                    <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal).toFixed(2)}</td>
-                                                </>
-                                            ) : (
-                                                <td className="py-4 px-3.5 text-center text-slate-300 print:hidden">•••</td>
-                                            )}
                                             <td className="py-4 px-3.5 text-right font-medium text-slate-600 whitespace-nowrap">
-                                                <div>
-                                                    ৳{Number(item.sellPriceUnit || 0).toFixed(2)}
-                                                    <span className="text-[10px] text-slate-400 ml-1">/{item.unit || 'unit'}</span>
-                                                </div>
-                                                {item.parentMode && (
-                                                    <div>
-                                                        ৳{Number(item.sellPriceSub || 0).toFixed(2)}
-                                                        <span className="text-[10px] text-slate-400 ml-1">/{item.subUnit || 'sub'}</span>
-                                                    </div>
-                                                )}
                                                 <div>
                                                     ৳{Number(item.sellPricePcs || 0).toFixed(2)}
                                                     <span className="text-[10px] text-slate-400 ml-1">/pcs</span>
@@ -377,6 +293,14 @@ const SalesReturnView = () => {
                     {/* Totals + Note */}
                     <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col sm:flex-row justify-between items-start gap-6 print:bg-white">
                         <div className="w-full sm:w-1/2">
+                            {returnEntry?.returnNote && (
+                                <div className="bg-orange-50/60 border border-orange-200/70 p-4 rounded-2xl shadow-sm mb-4">
+                                    <h4 className="text-xs font-bold text-orange-800 uppercase mb-1.5 flex items-center gap-1.5">
+                                        <FileText className="w-3.5 h-3.5 text-orange-600" /> Return Note:
+                                    </h4>
+                                    <p className="text-xs sm:text-sm text-orange-900/90 italic leading-relaxed">{returnEntry.returnNote}</p>
+                                </div>
+                            )}
                             {selectedOrder.orderNote && (
                                 <div className="bg-emerald-50/60 border border-emerald-200/70 p-4 rounded-2xl shadow-sm">
                                     <h4 className="text-xs font-bold text-emerald-800 uppercase mb-1.5 flex items-center gap-1.5">
@@ -385,7 +309,7 @@ const SalesReturnView = () => {
                                     <p className="text-xs sm:text-sm text-emerald-900/90 italic leading-relaxed">{selectedOrder.orderNote}</p>
                                 </div>
                             )}
-                        </div>                  
+                        </div>
                     </div>
                 </div>
             </div>

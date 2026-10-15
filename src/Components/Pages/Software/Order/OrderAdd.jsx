@@ -10,6 +10,13 @@ const clearOrderDrafts = () => {
 };
 
 
+// Damage-only edit এ OrderForm lock করার wrapper
+const LockWrap = ({ locked, as: Comp, ...props }) => (
+    <div className={locked ? 'pointer-events-none opacity-60 select-none' : ''}>
+        <Comp {...props} />
+    </div>
+);
+
 const OrderAdd = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -18,6 +25,11 @@ const OrderAdd = () => {
     const editingOrder = location.state?.order || null;
     const isEditMode = !!editingOrder;
     const isDeliveryMode = location.state?.mode === 'delivery';
+    // Damage page থেকে এলে শুধু Damage section edit হবে
+    const isDamageOnly = !!editingOrder && location.state?.mode === 'damage';
+    // Sales Bulk Return page theke Edit e eshe shudhu Bulk Return section edit hobe
+    const isReturnOnly = !!editingOrder && location.state?.mode === 'bulkReturn';
+    const lockCls = (isDamageOnly || isReturnOnly) ? 'pointer-events-none opacity-60 select-none' : '';
 
     // Direct Sales toggle (শুধু নতুন order এ, default ON)
     const [directSalesToggle, setDirectSalesToggle] = useState(false);
@@ -56,6 +68,40 @@ const OrderAdd = () => {
     const [paymentAccountType, setPaymentAccountType] = useState('');
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
     const [paymentNote, setPaymentNote] = useState('');
+
+    // Save Payment Method checkbox (database এ save থাকবে)
+    const [savePaymentMethod, setSavePaymentMethod] = useState(false);
+
+    useEffect(() => {
+        if (isDeliveredEdit) return;
+        fetch('https://squirrel-peace-server.onrender.com/feature/orderPaymentMethod')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data?.enabled === true && data?.value?.paymentAccountType && data?.value?.selectedAccountKey) {
+                    setPaymentAccountType(data.value.paymentAccountType);
+                    setSelectedAccountKey(data.value.selectedAccountKey);
+                    setSavePaymentMethod(true);
+                }
+            })
+            .catch(() => { });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const persistPaymentMethod = (checked, method, key) => {
+        fetch('https://squirrel-peace-server.onrender.com/feature/orderPaymentMethod', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                enabled: checked,
+                value: checked ? { paymentAccountType: method, selectedAccountKey: key } : null,
+            }),
+        }).catch((error) => console.error('Error saving payment method:', error));
+    };
+
+    const handleSavePaymentToggle = (checked) => {
+        setSavePaymentMethod(checked);
+        persistPaymentMethod(checked, paymentAccountType, selectedAccountKey);
+    };
 
     // OrderForm থেকে আসা customer, route, date, shippingAddress, sr, deliveredBy ইত্যাদি
     const [orderFormData, setOrderFormData] = useState({
@@ -233,6 +279,16 @@ const OrderAdd = () => {
     }, [editingOrder]);
 
     // --------------------------------------------------
+    // Damage edit এ এলে Damage section এ scroll করবে
+    useEffect(() => {
+        if (isDamageOnly && damageProductOpen) {
+            setTimeout(() => {
+                document.getElementById('damage-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 200);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDamageOnly, damageProductOpen]);
+
     // Delivery Mode হলে Investment Accounts fetch করবে
     // --------------------------------------------------
     useEffect(() => {
@@ -978,6 +1034,10 @@ const OrderAdd = () => {
     };
 
     const addedMainProductIds = orderItems.map((item) => item.productName || item._id);
+
+    // Main table এ minimum 1 pcs product না থাকলে Damage / Return disabled থাকবে
+    const hasMainProduct = orderItems.some((item) => (Number(item.totalQty) || 0) >= 1);
+    const disabledTip = 'Main table e minimum 1 pcs product add korle then enable hobe';
     const addedFreeProductIds = freeProductItems.map((item) => item.productName || item._id);
 
     const filteredFreeCompanies = freeCompanies.filter((comp) =>
@@ -1192,8 +1252,90 @@ const OrderAdd = () => {
     // --------------------------------------------------
     // Submit (এখন শুধু Frontend — Backend পরে যোগ হবে)
     // --------------------------------------------------
+    // Damage-only update: শুধু damage related field পাঠাবে (stock এ হাত দেবে না)
+    const handleDamageOnlySubmit = async () => {
+        if (damageItems.length === 0) {
+            showToast('At least one damage product is required!', true);
+            return;
+        }
+        const hasInvalid = damageItems.some(
+            (item) => (Number(item.totalQty) || 0) <= 0 && (Number(item.freeQty) || 0) <= 0
+        );
+        if (hasInvalid) {
+            showToast('Each damage product must have a valid quantity (Unit/PCS/Free)!', true);
+            return;
+        }
+
+        const useAdj = addDamageToAdjustment && damageTotalValue > 0;
+        const body = {
+            damageItems: buildAdjItemsPayload(damageItems),
+            payableAmount: payableAmount,
+            ...(useAdj ? { damageAdjustmentAmount: damageTotalValue } : {}),
+            unsetFields: useAdj ? [] : ['damageAdjustmentAmount'],
+        };
+
+        try {
+            const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error('Failed');
+            clearOrderDrafts();
+            showToast('Damage products updated successfully!');
+            setTimeout(() => navigate(-1), 1200);
+        } catch (error) {
+            console.error('Error updating damage:', error);
+            showToast('Failed to update damage. Try again.', true);
+        }
+    };
+
+    // Bulk Return-only update: shudhu returnItems related field pathabe
+    const handleReturnOnlySubmit = async () => {
+        const hasInvalid = returnItems.some(
+            (item) => (Number(item.totalQty) || 0) <= 0 && (Number(item.freeQty) || 0) <= 0
+        );
+        if (hasInvalid) {
+            showToast('Each return product must have a valid quantity (Unit/PCS/Free)!', true);
+            return;
+        }
+
+        const useAdj = addReturnToAdjustment && returnTotalValue > 0;
+        const body = {
+            returnItems: buildAdjItemsPayload(returnItems),
+            payableAmount: payableAmount,
+            ...(useAdj ? { returnAdjustmentAmount: returnTotalValue } : {}),
+            unsetFields: useAdj ? [] : ['returnAdjustmentAmount'],
+        };
+
+        try {
+            const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error('Failed');
+            clearOrderDrafts();
+            showToast('Bulk return updated successfully!');
+            setTimeout(() => navigate(-1), 1200);
+        } catch (error) {
+            console.error('Error updating bulk return:', error);
+            showToast('Failed to update bulk return. Try again.', true);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (isDamageOnly) {
+            handleDamageOnlySubmit();
+            return;
+        }
+
+        if (isReturnOnly) {
+            handleReturnOnlySubmit();
+            return;
+        }
 
         // Direct Sales হলে সরাসরি delivery সহ save হবে
         if (directSales && !isEditMode) {
@@ -1765,7 +1907,9 @@ const OrderAdd = () => {
             {/* -----------------------------------------
                 Order Form (Customer, Route, SR, Product Select...)
             ----------------------------------------- */}
-            <OrderForm
+            <LockWrap
+                locked={isDamageOnly || isReturnOnly}
+                as={OrderForm}
                 key={formResetKey}
                 onAddProduct={handleAddProduct}
                 addedProductIds={addedProductIds}
@@ -1786,7 +1930,7 @@ const OrderAdd = () => {
                         {/* ---------------------------------
                             Product Table
                         --------------------------------- */}
-                        <div className="overflow-x-auto rounded-2xl border border-teal-100">
+                        <div className={`overflow-x-auto rounded-2xl border border-teal-100 ${lockCls}`}>
                             <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
                                 <colgroup>
                                     <col style={{ width: '11%' }} />
@@ -2188,7 +2332,7 @@ const OrderAdd = () => {
                         ================================= */}
                         <div className="mt-6 flex justify-end">
 
-                            <div className="w-full md:w-[700px] space-y-2.5 bg-teal-50/40 border border-teal-100 rounded-2xl p-5">
+                            <div className={`w-full md:w-[700px] space-y-2.5 bg-teal-50/40 border border-teal-100 rounded-2xl p-5 ${lockCls}`}>
 
                                 {/* Grand Total */}
                                 <div className="flex items-center">
@@ -2399,6 +2543,7 @@ const OrderAdd = () => {
                             <button
                                 type="button"
                                 onClick={() => setFreeProductOpen((prev) => !prev)}
+                                disabled={isDamageOnly}
                                 className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition cursor-pointer"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
@@ -2423,7 +2568,7 @@ const OrderAdd = () => {
                             </button>
 
                             {freeProductOpen && (
-                                <div className="mt-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
+                                <div className={`mt-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6 ${lockCls}`}>
                                     <h3 className="text-base font-bold text-emerald-800 mb-4">Others Free Product</h3>
 
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -2617,859 +2762,869 @@ const OrderAdd = () => {
                         </div>
 
                         {/* =================================
-                            DAMAGE PRODUCT
+DAMAGE PRODUCT
                         ================================= */}
-                        <div className="mt-8">
-                            <button
-                                type="button"
-                                onClick={() => setDamageProductOpen((prev) => !prev)}
-                                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-sm font-semibold text-white shadow-md shadow-red-200 transition cursor-pointer"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                                </svg>
-                                Damage Product
-                                {damageItems.length > 0 && (
-                                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs font-bold">
-                                        {damageItems.length}
-                                    </span>
-                                )}
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={2}
-                                    stroke="currentColor"
-                                    className={`w-4 h-4 transition-transform duration-200 ${damageProductOpen ? 'rotate-180' : ''}`}
+                        <div className="flex flex-col-reverse">
+                            {/*
+                        ================================= */}
+                            <div className="mt-8">
+                                <button
+                                    type="button"
+                                    disabled={!hasMainProduct}
+                                    title={!hasMainProduct ? disabledTip : ''}
+                                    onClick={() => hasMainProduct && setDamageProductOpen((prev) => !prev)}
+                                    className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-sm font-semibold text-white shadow-md shadow-red-200 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                </svg>
-                            </button>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                    </svg>
+                                    Damage Product
+                                    {damageItems.length > 0 && (
+                                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs font-bold">
+                                            {damageItems.length}
+                                        </span>
+                                    )}
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth={2}
+                                        stroke="currentColor"
+                                        className={`w-4 h-4 transition-transform duration-200 ${damageProductOpen ? 'rotate-180' : ''}`}
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </button>
 
-                            {damageProductOpen && (
-                                <div className="mt-4 bg-red-50/50 border border-red-100 rounded-2xl p-5 md:p-6">
-                                    <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                                        <h3 className="text-base font-bold text-red-800">Damage Product</h3>
+                                {damageProductOpen && hasMainProduct && (
+                                    <div id="damage-section" className={`mt-4 bg-red-50/50 border border-red-100 rounded-2xl p-5 md:p-6 scroll-mt-6 ${isReturnOnly ? lockCls : ''}`}>
+                                        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                                            <h3 className="text-base font-bold text-red-800">Damage Product</h3>
 
-                                        <div className="flex items-center gap-2.5">
-                                            <span className="text-xs font-semibold text-red-700">
-                                                Add to the Damage Adjustment
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setAddDamageToAdjustment((prev) => !prev)}
-                                                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${addDamageToAdjustment ? 'bg-red-500' : 'bg-slate-300'
-                                                    }`}
-                                            >
-                                                <span
-                                                    className={`inline-block h-4.5 w-4.5 h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${addDamageToAdjustment ? 'translate-x-6' : 'translate-x-1'
+                                            <div className="flex items-center gap-2.5">
+                                                <span className="text-xs font-semibold text-red-700">
+                                                    Add to the Damage Adjustment
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAddDamageToAdjustment((prev) => !prev)}
+                                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${addDamageToAdjustment ? 'bg-red-500' : 'bg-slate-300'
                                                         }`}
-                                                />
-                                            </button>
+                                                >
+                                                    <span
+                                                        className={`inline-block h-4.5 w-4.5 h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${addDamageToAdjustment ? 'translate-x-6' : 'translate-x-1'
+                                                            }`}
+                                                    />
+                                                </button>
+                                            </div>
+
+                                            {damageItems.length > 0 && (
+                                                <span className="px-4 py-1.5 rounded-full bg-red-100 text-red-700 text-sm font-bold border border-red-200">
+                                                    Total Value: ৳{damageTotalValue.toFixed(2)}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <SearchSelect
+                                                label="Filter by Company"
+                                                placeholder="Search or select company..."
+                                                searchValue={damageSearch.company}
+                                                onSearchChange={(text) => setDamageSearch((prev) => ({ ...prev, company: text }))}
+                                                onClear={handleClearDamageCompany}
+                                                onSelect={handleSelectDamageCompany}
+                                                items={filteredDamageCompanies}
+                                                getKey={(comp) => comp._id}
+                                                emptyText="No company found"
+                                                renderItem={(comp) => (
+                                                    <p className="text-sm font-semibold text-slate-800">{comp.businessName}</p>
+                                                )}
+                                            />
+
+                                            <SearchSelect
+                                                label="Filter by Category"
+                                                placeholder="Search or select category..."
+                                                searchValue={damageSearch.category}
+                                                onSearchChange={(text) => setDamageSearch((prev) => ({ ...prev, category: text }))}
+                                                onClear={handleClearDamageCategory}
+                                                onSelect={handleSelectDamageCategory}
+                                                items={filteredDamageCategories}
+                                                getKey={(cat) => cat._id}
+                                                emptyText="No active category found"
+                                                renderItem={(cat) => (
+                                                    <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
+                                                )}
+                                            />
+
+                                            <SearchSelect
+                                                label="Select Damage Product"
+                                                placeholder="Search or select product..."
+                                                searchValue={damageSearch.product}
+                                                onSearchChange={(text) => setDamageSearch((prev) => ({ ...prev, product: text }))}
+                                                onClear={() => setDamageSearch((prev) => ({ ...prev, product: '' }))}
+                                                onSelect={handleAddDamageProduct}
+                                                items={filteredDamageProducts}
+                                                getKey={(prod) => prod._id}
+                                                emptyText="No matching product found"
+                                                renderItem={(prod) => (
+                                                    <div className="flex justify-between items-center gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
+                                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                                Company: {prod.company}
+                                                                {prod.category ? ` | Category: ${prod.category}` : ''}
+                                                            </p>
+                                                        </div>
+                                                        {prod.sku && (
+                                                            <span className="text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-lg font-medium border border-red-100 shrink-0">
+                                                                SKU: {prod.sku}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            />
                                         </div>
 
                                         {damageItems.length > 0 && (
-                                            <span className="px-4 py-1.5 rounded-full bg-red-100 text-red-700 text-sm font-bold border border-red-200">
-                                                Total Value: ৳{damageTotalValue.toFixed(2)}
-                                            </span>
+                                            <div className="mt-6 overflow-x-auto rounded-2xl border border-red-200">
+                                                <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
+                                                    <colgroup>
+                                                        <col style={{ width: '13%' }} />
+                                                        <col style={{ width: '8%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '9%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '9%' }} />
+                                                        <col style={{ width: '11%' }} />
+                                                        <col style={{ width: '11%' }} />
+                                                        <col style={{ width: '10%' }} />
+                                                        <col style={{ width: '5%' }} />
+                                                    </colgroup>
+                                                    <thead>
+                                                        <tr className="bg-red-100/70 border-b-2 border-red-200 text-xs font-semibold text-red-800">
+                                                            <th className="py-3 px-3">Product Name</th>
+                                                            <th className="py-3 px-3">Company</th>
+                                                            <th className="py-3 pl-4 pr-1">Unit Qty</th>
+                                                            <th className="py-3 pl-3 pr-2">PCS Qty</th>
+                                                            <th className="py-3 pl-4 pr-1">Free Unit</th>
+                                                            <th className="py-3 pl-3 pr-2">Free PCS</th>
+                                                            <th className="py-3 px-3">Sell Price ({damageSellPriceUnitLabel})</th>
+                                                            <th className="py-3 px-3">Sell Price (PCS)</th>
+                                                            <th className="py-3 px-3">Subtotal</th>
+                                                            <th className="py-3 px-3 text-center">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-red-100 text-sm">
+                                                        {damageItems.map((item) => {
+                                                            const rowGrossTotal = getRowGross(item);
+                                                            const currentUnitLabel = item.unit || 'Pcs';
+
+                                                            return (
+                                                                <tr key={item.uniqueId} className="hover:bg-red-50/40 transition">
+
+                                                                    <td className="py-3 px-2 leading-tight">
+                                                                        <div className="font-semibold text-slate-800">
+                                                                            {item.productName}
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="py-3 px-2 text-slate-600 text-xs">
+                                                                        {item.company}
+                                                                    </td>
+
+                                                                    <td className="relative py-3 pl-2 pr-0">
+                                                                        <div
+                                                                            className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
+                                                                                }`}
+                                                                        >
+                                                                            Total: {item.totalQty}
+                                                                        </div>
+                                                                        <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
+                                                                            <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.unitQty}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleDamageItemChange(item.uniqueId, 'unitQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title={currentUnitLabel}
+                                                                                >
+                                                                                    {currentUnitLabel}
+                                                                                </span>
+                                                                            </div>
+                                                                            {item.parentMode && (
+                                                                                <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        step="1"
+                                                                                        placeholder="0"
+                                                                                        value={item.subQty ?? ''}
+                                                                                        onChange={(e) => {
+                                                                                            const value = e.target.value;
+                                                                                            if (/^\d*$/.test(value)) {
+                                                                                                handleDamageItemChange(item.uniqueId, 'subQty', value);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                    />
+                                                                                    <span
+                                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                        title="Sub Unit"
+                                                                                    >
+                                                                                        {item.subUnit}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="py-3 pl-0 pr-2">
+                                                                        <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.pcsQty}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleDamageItemChange(item.uniqueId, 'pcsQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                                                            />
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="relative py-3 pl-2 pr-0">
+                                                                        <div
+                                                                            className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                                                                                }`}
+                                                                        >
+                                                                            Total: {item.freeQty}
+                                                                        </div>
+                                                                        <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                                            <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.freeUnitQty}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleDamageItemChange(item.uniqueId, 'freeUnitQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title={currentUnitLabel}
+                                                                                >
+                                                                                    {currentUnitLabel}
+                                                                                </span>
+                                                                            </div>
+                                                                            {item.parentMode && (
+                                                                                <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        step="1"
+                                                                                        placeholder="0"
+                                                                                        value={item.freeSubQty ?? ''}
+                                                                                        onChange={(e) => {
+                                                                                            const value = e.target.value;
+                                                                                            if (/^\d*$/.test(value)) {
+                                                                                                handleDamageItemChange(item.uniqueId, 'freeSubQty', value);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                    />
+                                                                                    <span
+                                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                        title="Sub Unit"
+                                                                                    >
+                                                                                        {item.subUnit}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="py-3 pl-0 pr-2">
+                                                                        <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.freePcsQty}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleDamageItemChange(item.uniqueId, 'freePcsQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                                                            />
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="relative py-3 px-2">
+                                                                        <div
+                                                                            className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                        >
+                                                                            ৳{getUnitTotal(item).toFixed(2)}
+                                                                        </div>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            placeholder="0"
+                                                                            title="প্রতি Unit এর দাম (edit করা যাবে)"
+                                                                            disabled={!(Number(item.unitQty) > 0)}
+                                                                            value={item.sellPriceUnit}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                    handleDamageItemChange(item.uniqueId, 'sellPriceUnit', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                        />
+                                                                        {item.parentMode && (
+                                                                            <div className="relative mt-6">
+                                                                                <div
+                                                                                    className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                                >
+                                                                                    {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
+                                                                                </div>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="0.01"
+                                                                                    placeholder="0"
+                                                                                    title="প্রতি Sub Unit এর দাম (edit করা যাবে)"
+                                                                                    disabled={!(Number(item.subQty) > 0)}
+                                                                                    value={item.sellPriceSub}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                            handleDamageItemChange(item.uniqueId, 'sellPriceSub', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+
+                                                                    <td className="relative py-3 px-2">
+                                                                        <div
+                                                                            className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getPcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                        >
+                                                                            ৳{getPcsTotal(item).toFixed(2)}
+                                                                        </div>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            value={item.sellPricePcs}
+                                                                            disabled={!(Number(item.pcsQty) > 0)}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                    handleDamageItemChange(item.uniqueId, 'sellPricePcs', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                                        />
+                                                                    </td>
+
+                                                                    <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
+                                                                        {rowGrossTotal.toFixed(2)}
+                                                                    </td>
+
+                                                                    <td className="py-3 px-1 text-center">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRemoveDamageItem(item.uniqueId)}
+                                                                            className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
+                                                                        >
+                                                                            <svg
+                                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                                fill="none"
+                                                                                viewBox="0 0 24 24"
+                                                                                strokeWidth={1.5}
+                                                                                stroke="currentColor"
+                                                                                className="w-5 h-5"
+                                                                            >
+                                                                                <path
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                    d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                                                                                />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         )}
                                     </div>
+                                )}
+                            </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <SearchSelect
-                                            label="Filter by Company"
-                                            placeholder="Search or select company..."
-                                            searchValue={damageSearch.company}
-                                            onSearchChange={(text) => setDamageSearch((prev) => ({ ...prev, company: text }))}
-                                            onClear={handleClearDamageCompany}
-                                            onSelect={handleSelectDamageCompany}
-                                            items={filteredDamageCompanies}
-                                            getKey={(comp) => comp._id}
-                                            emptyText="No company found"
-                                            renderItem={(comp) => (
-                                                <p className="text-sm font-semibold text-slate-800">{comp.businessName}</p>
-                                            )}
-                                        />
-
-                                        <SearchSelect
-                                            label="Filter by Category"
-                                            placeholder="Search or select category..."
-                                            searchValue={damageSearch.category}
-                                            onSearchChange={(text) => setDamageSearch((prev) => ({ ...prev, category: text }))}
-                                            onClear={handleClearDamageCategory}
-                                            onSelect={handleSelectDamageCategory}
-                                            items={filteredDamageCategories}
-                                            getKey={(cat) => cat._id}
-                                            emptyText="No active category found"
-                                            renderItem={(cat) => (
-                                                <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
-                                            )}
-                                        />
-
-                                        <SearchSelect
-                                            label="Select Damage Product"
-                                            placeholder="Search or select product..."
-                                            searchValue={damageSearch.product}
-                                            onSearchChange={(text) => setDamageSearch((prev) => ({ ...prev, product: text }))}
-                                            onClear={() => setDamageSearch((prev) => ({ ...prev, product: '' }))}
-                                            onSelect={handleAddDamageProduct}
-                                            items={filteredDamageProducts}
-                                            getKey={(prod) => prod._id}
-                                            emptyText="No matching product found"
-                                            renderItem={(prod) => (
-                                                <div className="flex justify-between items-center gap-3">
-                                                    <div>
-                                                        <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
-                                                        <p className="text-xs text-slate-500 mt-0.5">
-                                                            Company: {prod.company}
-                                                            {prod.category ? ` | Category: ${prod.category}` : ''}
-                                                        </p>
-                                                    </div>
-                                                    {prod.sku && (
-                                                        <span className="text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-lg font-medium border border-red-100 shrink-0">
-                                                            SKU: {prod.sku}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        />
-                                    </div>
-
-                                    {damageItems.length > 0 && (
-                                        <div className="mt-6 overflow-x-auto rounded-2xl border border-red-200">
-                                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
-                                                <colgroup>
-                                                    <col style={{ width: '13%' }} />
-                                                    <col style={{ width: '8%' }} />
-                                                    <col style={{ width: '12%' }} />
-                                                    <col style={{ width: '9%' }} />
-                                                    <col style={{ width: '12%' }} />
-                                                    <col style={{ width: '9%' }} />
-                                                    <col style={{ width: '11%' }} />
-                                                    <col style={{ width: '11%' }} />
-                                                    <col style={{ width: '10%' }} />
-                                                    <col style={{ width: '5%' }} />
-                                                </colgroup>
-                                                <thead>
-                                                    <tr className="bg-red-100/70 border-b-2 border-red-200 text-xs font-semibold text-red-800">
-                                                        <th className="py-3 px-3">Product Name</th>
-                                                        <th className="py-3 px-3">Company</th>
-                                                        <th className="py-3 pl-4 pr-1">Unit Qty</th>
-                                                        <th className="py-3 pl-3 pr-2">PCS Qty</th>
-                                                        <th className="py-3 pl-4 pr-1">Free Unit</th>
-                                                        <th className="py-3 pl-3 pr-2">Free PCS</th>
-                                                        <th className="py-3 px-3">Sell Price ({damageSellPriceUnitLabel})</th>
-                                                        <th className="py-3 px-3">Sell Price (PCS)</th>
-                                                        <th className="py-3 px-3">Subtotal</th>
-                                                        <th className="py-3 px-3 text-center">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-red-100 text-sm">
-                                                    {damageItems.map((item) => {
-                                                        const rowGrossTotal = getRowGross(item);
-                                                        const currentUnitLabel = item.unit || 'Pcs';
-
-                                                        return (
-                                                            <tr key={item.uniqueId} className="hover:bg-red-50/40 transition">
-
-                                                                <td className="py-3 px-2 leading-tight">
-                                                                    <div className="font-semibold text-slate-800">
-                                                                        {item.productName}
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="py-3 px-2 text-slate-600 text-xs">
-                                                                    {item.company}
-                                                                </td>
-
-                                                                <td className="relative py-3 pl-2 pr-0">
-                                                                    <div
-                                                                        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
-                                                                            }`}
-                                                                    >
-                                                                        Total: {item.totalQty}
-                                                                    </div>
-                                                                    <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
-                                                                        <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                            <input
-                                                                                type="number"
-                                                                                min="0"
-                                                                                step="1"
-                                                                                placeholder="0"
-                                                                                value={item.unitQty}
-                                                                                onChange={(e) => {
-                                                                                    const value = e.target.value;
-                                                                                    if (/^\d*$/.test(value)) {
-                                                                                        handleDamageItemChange(item.uniqueId, 'unitQty', value);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-                                                                            />
-                                                                            <span
-                                                                                className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                                title={currentUnitLabel}
-                                                                            >
-                                                                                {currentUnitLabel}
-                                                                            </span>
-                                                                        </div>
-                                                                        {item.parentMode && (
-                                                                            <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                                <input
-                                                                                    type="number"
-                                                                                    min="0"
-                                                                                    step="1"
-                                                                                    placeholder="0"
-                                                                                    value={item.subQty ?? ''}
-                                                                                    onChange={(e) => {
-                                                                                        const value = e.target.value;
-                                                                                        if (/^\d*$/.test(value)) {
-                                                                                            handleDamageItemChange(item.uniqueId, 'subQty', value);
-                                                                                        }
-                                                                                    }}
-                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-                                                                                />
-                                                                                <span
-                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                                    title="Sub Unit"
-                                                                                >
-                                                                                    {item.subUnit}
-                                                                                </span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="py-3 pl-0 pr-2">
-                                                                    <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            step="1"
-                                                                            placeholder="0"
-                                                                            value={item.pcsQty}
-                                                                            onChange={(e) => {
-                                                                                const value = e.target.value;
-                                                                                if (/^\d*$/.test(value)) {
-                                                                                    handleDamageItemChange(item.uniqueId, 'pcsQty', value);
-                                                                                }
-                                                                            }}
-                                                                            className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                                        />
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="relative py-3 pl-2 pr-0">
-                                                                    <div
-                                                                        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
-                                                                            }`}
-                                                                    >
-                                                                        Total: {item.freeQty}
-                                                                    </div>
-                                                                    <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
-                                                                        <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                            <input
-                                                                                type="number"
-                                                                                min="0"
-                                                                                step="1"
-                                                                                placeholder="0"
-                                                                                value={item.freeUnitQty}
-                                                                                onChange={(e) => {
-                                                                                    const value = e.target.value;
-                                                                                    if (/^\d*$/.test(value)) {
-                                                                                        handleDamageItemChange(item.uniqueId, 'freeUnitQty', value);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-                                                                            />
-                                                                            <span
-                                                                                className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                                title={currentUnitLabel}
-                                                                            >
-                                                                                {currentUnitLabel}
-                                                                            </span>
-                                                                        </div>
-                                                                        {item.parentMode && (
-                                                                            <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                                <input
-                                                                                    type="number"
-                                                                                    min="0"
-                                                                                    step="1"
-                                                                                    placeholder="0"
-                                                                                    value={item.freeSubQty ?? ''}
-                                                                                    onChange={(e) => {
-                                                                                        const value = e.target.value;
-                                                                                        if (/^\d*$/.test(value)) {
-                                                                                            handleDamageItemChange(item.uniqueId, 'freeSubQty', value);
-                                                                                        }
-                                                                                    }}
-                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-                                                                                />
-                                                                                <span
-                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                                    title="Sub Unit"
-                                                                                >
-                                                                                    {item.subUnit}
-                                                                                </span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="py-3 pl-0 pr-2">
-                                                                    <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            step="1"
-                                                                            placeholder="0"
-                                                                            value={item.freePcsQty}
-                                                                            onChange={(e) => {
-                                                                                const value = e.target.value;
-                                                                                if (/^\d*$/.test(value)) {
-                                                                                    handleDamageItemChange(item.uniqueId, 'freePcsQty', value);
-                                                                                }
-                                                                            }}
-                                                                            className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                                                                        />
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="relative py-3 px-2">
-                                                                    <div
-                                                                        className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}
-                                                                    >
-                                                                        ৳{getUnitTotal(item).toFixed(2)}
-                                                                    </div>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        placeholder="0"
-                                                                        title="প্রতি Unit এর দাম (edit করা যাবে)"
-                                                                        disabled={!(Number(item.unitQty) > 0)}
-                                                                        value={item.sellPriceUnit}
-                                                                        onChange={(e) => {
-                                                                            const value = e.target.value;
-                                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                                handleDamageItemChange(item.uniqueId, 'sellPriceUnit', value);
-                                                                            }
-                                                                        }}
-                                                                        className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
-                                                                    />
-                                                                    {item.parentMode && (
-                                                                        <div className="relative mt-6">
-                                                                            <div
-                                                                                className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}
-                                                                            >
-                                                                                {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
-                                                                            </div>
-                                                                            <input
-                                                                                type="number"
-                                                                                min="0"
-                                                                                step="0.01"
-                                                                                placeholder="0"
-                                                                                title="প্রতি Sub Unit এর দাম (edit করা যাবে)"
-                                                                                disabled={!(Number(item.subQty) > 0)}
-                                                                                value={item.sellPriceSub}
-                                                                                onChange={(e) => {
-                                                                                    const value = e.target.value;
-                                                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                                        handleDamageItemChange(item.uniqueId, 'sellPriceSub', value);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
-                                                                            />
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-
-                                                                <td className="relative py-3 px-2">
-                                                                    <div
-                                                                        className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getPcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}
-                                                                    >
-                                                                        ৳{getPcsTotal(item).toFixed(2)}
-                                                                    </div>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        value={item.sellPricePcs}
-                                                                        disabled={!(Number(item.pcsQty) > 0)}
-                                                                        onChange={(e) => {
-                                                                            const value = e.target.value;
-                                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                                handleDamageItemChange(item.uniqueId, 'sellPricePcs', value);
-                                                                            }
-                                                                        }}
-                                                                        className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                                                    />
-                                                                </td>
-
-                                                                <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
-                                                                    {rowGrossTotal.toFixed(2)}
-                                                                </td>
-
-                                                                <td className="py-3 px-1 text-center">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleRemoveDamageItem(item.uniqueId)}
-                                                                        className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
-                                                                    >
-                                                                        <svg
-                                                                            xmlns="http://www.w3.org/2000/svg"
-                                                                            fill="none"
-                                                                            viewBox="0 0 24 24"
-                                                                            strokeWidth={1.5}
-                                                                            stroke="currentColor"
-                                                                            className="w-5 h-5"
-                                                                        >
-                                                                            <path
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                                                                            />
-                                                                        </svg>
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* =================================
+                            {/* =================================
                             RETURN PRODUCT
                         ================================= */}
-                        <div className="mt-8">
-                            <button
-                                type="button"
-                                onClick={() => setReturnProductOpen((prev) => !prev)}
-                                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-sm font-semibold text-white shadow-md shadow-violet-200 transition cursor-pointer"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-                                </svg>
-                                Return Product
-                                {returnItems.length > 0 && (
-                                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs font-bold">
-                                        {returnItems.length}
-                                    </span>
-                                )}
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={2}
-                                    stroke="currentColor"
-                                    className={`w-4 h-4 transition-transform duration-200 ${returnProductOpen ? 'rotate-180' : ''}`}
+                            <div className="mt-8">
+                                <button
+                                    type="button"
+                                    onClick={() => hasMainProduct && setReturnProductOpen((prev) => !prev)}
+                                    disabled={isDamageOnly || !hasMainProduct}
+                                    title={!hasMainProduct ? disabledTip : ''}
+                                    className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-sm font-semibold text-white shadow-md shadow-violet-200 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                </svg>
-                            </button>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                                    </svg>
+                                    Bulk Return Product
+                                    {returnItems.length > 0 && (
+                                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs font-bold">
+                                            {returnItems.length}
+                                        </span>
+                                    )}
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth={2}
+                                        stroke="currentColor"
+                                        className={`w-4 h-4 transition-transform duration-200 ${returnProductOpen ? 'rotate-180' : ''}`}
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </button>
 
-                            {returnProductOpen && (
-                                <div className="mt-4 bg-violet-50/50 border border-violet-100 rounded-2xl p-5 md:p-6">
-                                    <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                                        <h3 className="text-base font-bold text-violet-800">Return Product</h3>
+                                {returnProductOpen && hasMainProduct && (
+                                    <div className={`mt-4 bg-violet-50/50 border border-violet-100 rounded-2xl p-5 md:p-6 ${isDamageOnly ? lockCls : ''}`}>
+                                        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                                            <h3 className="text-base font-bold text-violet-800">Bulk Return Product</h3>
 
-                                        <div className="flex items-center gap-2.5">
-                                            <span className="text-xs font-semibold text-violet-700">
-                                                Add to the Return Adjustment
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setAddReturnToAdjustment((prev) => !prev)}
-                                                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${addReturnToAdjustment ? 'bg-violet-500' : 'bg-slate-300'
-                                                    }`}
-                                            >
-                                                <span
-                                                    className={`inline-block h-4.5 w-4.5 h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${addReturnToAdjustment ? 'translate-x-6' : 'translate-x-1'
+                                            <div className="flex items-center gap-2.5">
+                                                <span className="text-xs font-semibold text-violet-700">
+                                                    Add to the Return Adjustment
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAddReturnToAdjustment((prev) => !prev)}
+                                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${addReturnToAdjustment ? 'bg-violet-500' : 'bg-slate-300'
                                                         }`}
-                                                />
-                                            </button>
+                                                >
+                                                    <span
+                                                        className={`inline-block h-4.5 w-4.5 h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${addReturnToAdjustment ? 'translate-x-6' : 'translate-x-1'
+                                                            }`}
+                                                    />
+                                                </button>
+                                            </div>
+
+                                            {returnItems.length > 0 && (
+                                                <span className="px-4 py-1.5 rounded-full bg-violet-100 text-violet-700 text-sm font-bold border border-violet-200">
+                                                    Total Value: ৳{returnTotalValue.toFixed(2)}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <SearchSelect
+                                                label="Filter by Company"
+                                                placeholder="Search or select company..."
+                                                searchValue={returnSearch.company}
+                                                onSearchChange={(text) => setReturnSearch((prev) => ({ ...prev, company: text }))}
+                                                onClear={handleClearReturnCompany}
+                                                onSelect={handleSelectReturnCompany}
+                                                items={filteredReturnCompanies}
+                                                getKey={(comp) => comp._id}
+                                                emptyText="No company found"
+                                                renderItem={(comp) => (
+                                                    <p className="text-sm font-semibold text-slate-800">{comp.businessName}</p>
+                                                )}
+                                            />
+
+                                            <SearchSelect
+                                                label="Filter by Category"
+                                                placeholder="Search or select category..."
+                                                searchValue={returnSearch.category}
+                                                onSearchChange={(text) => setReturnSearch((prev) => ({ ...prev, category: text }))}
+                                                onClear={handleClearReturnCategory}
+                                                onSelect={handleSelectReturnCategory}
+                                                items={filteredReturnCategories}
+                                                getKey={(cat) => cat._id}
+                                                emptyText="No active category found"
+                                                renderItem={(cat) => (
+                                                    <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
+                                                )}
+                                            />
+
+                                            <SearchSelect
+                                                label="Select Return Product"
+                                                placeholder="Search or select product..."
+                                                searchValue={returnSearch.product}
+                                                onSearchChange={(text) => setReturnSearch((prev) => ({ ...prev, product: text }))}
+                                                onClear={() => setReturnSearch((prev) => ({ ...prev, product: '' }))}
+                                                onSelect={handleAddReturnProduct}
+                                                items={filteredReturnProducts}
+                                                getKey={(prod) => prod._id}
+                                                emptyText="No matching product found"
+                                                renderItem={(prod) => (
+                                                    <div className="flex justify-between items-center gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
+                                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                                Company: {prod.company}
+                                                                {prod.category ? ` | Category: ${prod.category}` : ''}
+                                                            </p>
+                                                        </div>
+                                                        {prod.sku && (
+                                                            <span className="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-lg font-medium border border-violet-100 shrink-0">
+                                                                SKU: {prod.sku}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            />
                                         </div>
 
                                         {returnItems.length > 0 && (
-                                            <span className="px-4 py-1.5 rounded-full bg-violet-100 text-violet-700 text-sm font-bold border border-violet-200">
-                                                Total Value: ৳{returnTotalValue.toFixed(2)}
-                                            </span>
+                                            <div className="mt-6 overflow-x-auto rounded-2xl border border-violet-200">
+                                                <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
+                                                    <colgroup>
+                                                        <col style={{ width: '13%' }} />
+                                                        <col style={{ width: '8%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '9%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '9%' }} />
+                                                        <col style={{ width: '11%' }} />
+                                                        <col style={{ width: '11%' }} />
+                                                        <col style={{ width: '10%' }} />
+                                                        <col style={{ width: '5%' }} />
+                                                    </colgroup>
+                                                    <thead>
+                                                        <tr className="bg-violet-100/70 border-b-2 border-violet-200 text-xs font-semibold text-violet-800">
+                                                            <th className="py-3 px-3">Product Name</th>
+                                                            <th className="py-3 px-3">Company</th>
+                                                            <th className="py-3 pl-4 pr-1">Unit Qty</th>
+                                                            <th className="py-3 pl-3 pr-2">PCS Qty</th>
+                                                            <th className="py-3 pl-4 pr-1">Free Unit</th>
+                                                            <th className="py-3 pl-3 pr-2">Free PCS</th>
+                                                            <th className="py-3 px-3">Sell Price ({returnSellPriceUnitLabel})</th>
+                                                            <th className="py-3 px-3">Sell Price (PCS)</th>
+                                                            <th className="py-3 px-3">Subtotal</th>
+                                                            <th className="py-3 px-3 text-center">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-violet-100 text-sm">
+                                                        {returnItems.map((item) => {
+                                                            const rowGrossTotal = getRowGross(item);
+                                                            const currentUnitLabel = item.unit || 'Pcs';
+
+                                                            return (
+                                                                <tr key={item.uniqueId} className="hover:bg-violet-50/40 transition">
+
+                                                                    <td className="py-3 px-2 leading-tight">
+                                                                        <div className="font-semibold text-slate-800">
+                                                                            {item.productName}
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="py-3 px-2 text-slate-600 text-xs">
+                                                                        {item.company}
+                                                                    </td>
+
+                                                                    <td className="relative py-3 pl-2 pr-0">
+                                                                        <div
+                                                                            className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
+                                                                                }`}
+                                                                        >
+                                                                            Total: {item.totalQty}
+                                                                        </div>
+                                                                        <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
+                                                                            <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.unitQty}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleReturnItemChange(item.uniqueId, 'unitQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title={currentUnitLabel}
+                                                                                >
+                                                                                    {currentUnitLabel}
+                                                                                </span>
+                                                                            </div>
+                                                                            {item.parentMode && (
+                                                                                <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        step="1"
+                                                                                        placeholder="0"
+                                                                                        value={item.subQty ?? ''}
+                                                                                        onChange={(e) => {
+                                                                                            const value = e.target.value;
+                                                                                            if (/^\d*$/.test(value)) {
+                                                                                                handleReturnItemChange(item.uniqueId, 'subQty', value);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                    />
+                                                                                    <span
+                                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                        title="Sub Unit"
+                                                                                    >
+                                                                                        {item.subUnit}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="py-3 pl-0 pr-2">
+                                                                        <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.pcsQty}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleReturnItemChange(item.uniqueId, 'pcsQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                                                            />
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="relative py-3 pl-2 pr-0">
+                                                                        <div
+                                                                            className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                                                                                }`}
+                                                                        >
+                                                                            Total: {item.freeQty}
+                                                                        </div>
+                                                                        <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                                            <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.freeUnitQty}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleReturnItemChange(item.uniqueId, 'freeUnitQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title={currentUnitLabel}
+                                                                                >
+                                                                                    {currentUnitLabel}
+                                                                                </span>
+                                                                            </div>
+                                                                            {item.parentMode && (
+                                                                                <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        step="1"
+                                                                                        placeholder="0"
+                                                                                        value={item.freeSubQty ?? ''}
+                                                                                        onChange={(e) => {
+                                                                                            const value = e.target.value;
+                                                                                            if (/^\d*$/.test(value)) {
+                                                                                                handleReturnItemChange(item.uniqueId, 'freeSubQty', value);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                    />
+                                                                                    <span
+                                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                                        title="Sub Unit"
+                                                                                    >
+                                                                                        {item.subUnit}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="py-3 pl-0 pr-2">
+                                                                        <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.freePcsQty}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleReturnItemChange(item.uniqueId, 'freePcsQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                                                            />
+                                                                        </div>
+                                                                    </td>
+
+                                                                    <td className="relative py-3 px-2">
+                                                                        <div
+                                                                            className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                        >
+                                                                            ৳{getUnitTotal(item).toFixed(2)}
+                                                                        </div>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            placeholder="0"
+                                                                            title="প্রতি Unit এর দাম (edit করা যাবে)"
+                                                                            disabled={!(Number(item.unitQty) > 0)}
+                                                                            value={item.sellPriceUnit}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                    handleReturnItemChange(item.uniqueId, 'sellPriceUnit', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                        />
+                                                                        {item.parentMode && (
+                                                                            <div className="relative mt-6">
+                                                                                <div
+                                                                                    className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                                >
+                                                                                    {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
+                                                                                </div>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="0.01"
+                                                                                    placeholder="0"
+                                                                                    title="প্রতি Sub Unit এর দাম (edit করা যাবে)"
+                                                                                    disabled={!(Number(item.subQty) > 0)}
+                                                                                    value={item.sellPriceSub}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                            handleReturnItemChange(item.uniqueId, 'sellPriceSub', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+
+                                                                    <td className="relative py-3 px-2">
+                                                                        <div
+                                                                            className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getPcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                        >
+                                                                            ৳{getPcsTotal(item).toFixed(2)}
+                                                                        </div>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            value={item.sellPricePcs}
+                                                                            disabled={!(Number(item.pcsQty) > 0)}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                    handleReturnItemChange(item.uniqueId, 'sellPricePcs', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                                        />
+                                                                    </td>
+
+                                                                    <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
+                                                                        {rowGrossTotal.toFixed(2)}
+                                                                    </td>
+
+                                                                    <td className="py-3 px-1 text-center">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRemoveReturnItem(item.uniqueId)}
+                                                                            className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
+                                                                        >
+                                                                            <svg
+                                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                                fill="none"
+                                                                                viewBox="0 0 24 24"
+                                                                                strokeWidth={1.5}
+                                                                                stroke="currentColor"
+                                                                                className="w-5 h-5"
+                                                                            >
+                                                                                <path
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                    d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                                                                                />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         )}
                                     </div>
+                                )}
+                            </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <SearchSelect
-                                            label="Filter by Company"
-                                            placeholder="Search or select company..."
-                                            searchValue={returnSearch.company}
-                                            onSearchChange={(text) => setReturnSearch((prev) => ({ ...prev, company: text }))}
-                                            onClear={handleClearReturnCompany}
-                                            onSelect={handleSelectReturnCompany}
-                                            items={filteredReturnCompanies}
-                                            getKey={(comp) => comp._id}
-                                            emptyText="No company found"
-                                            renderItem={(comp) => (
-                                                <p className="text-sm font-semibold text-slate-800">{comp.businessName}</p>
-                                            )}
-                                        />
-
-                                        <SearchSelect
-                                            label="Filter by Category"
-                                            placeholder="Search or select category..."
-                                            searchValue={returnSearch.category}
-                                            onSearchChange={(text) => setReturnSearch((prev) => ({ ...prev, category: text }))}
-                                            onClear={handleClearReturnCategory}
-                                            onSelect={handleSelectReturnCategory}
-                                            items={filteredReturnCategories}
-                                            getKey={(cat) => cat._id}
-                                            emptyText="No active category found"
-                                            renderItem={(cat) => (
-                                                <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
-                                            )}
-                                        />
-
-                                        <SearchSelect
-                                            label="Select Return Product"
-                                            placeholder="Search or select product..."
-                                            searchValue={returnSearch.product}
-                                            onSearchChange={(text) => setReturnSearch((prev) => ({ ...prev, product: text }))}
-                                            onClear={() => setReturnSearch((prev) => ({ ...prev, product: '' }))}
-                                            onSelect={handleAddReturnProduct}
-                                            items={filteredReturnProducts}
-                                            getKey={(prod) => prod._id}
-                                            emptyText="No matching product found"
-                                            renderItem={(prod) => (
-                                                <div className="flex justify-between items-center gap-3">
-                                                    <div>
-                                                        <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
-                                                        <p className="text-xs text-slate-500 mt-0.5">
-                                                            Company: {prod.company}
-                                                            {prod.category ? ` | Category: ${prod.category}` : ''}
-                                                        </p>
-                                                    </div>
-                                                    {prod.sku && (
-                                                        <span className="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-lg font-medium border border-violet-100 shrink-0">
-                                                            SKU: {prod.sku}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        />
-                                    </div>
-
-                                    {returnItems.length > 0 && (
-                                        <div className="mt-6 overflow-x-auto rounded-2xl border border-violet-200">
-                                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
-                                                <colgroup>
-                                                    <col style={{ width: '13%' }} />
-                                                    <col style={{ width: '8%' }} />
-                                                    <col style={{ width: '12%' }} />
-                                                    <col style={{ width: '9%' }} />
-                                                    <col style={{ width: '12%' }} />
-                                                    <col style={{ width: '9%' }} />
-                                                    <col style={{ width: '11%' }} />
-                                                    <col style={{ width: '11%' }} />
-                                                    <col style={{ width: '10%' }} />
-                                                    <col style={{ width: '5%' }} />
-                                                </colgroup>
-                                                <thead>
-                                                    <tr className="bg-violet-100/70 border-b-2 border-violet-200 text-xs font-semibold text-violet-800">
-                                                        <th className="py-3 px-3">Product Name</th>
-                                                        <th className="py-3 px-3">Company</th>
-                                                        <th className="py-3 pl-4 pr-1">Unit Qty</th>
-                                                        <th className="py-3 pl-3 pr-2">PCS Qty</th>
-                                                        <th className="py-3 pl-4 pr-1">Free Unit</th>
-                                                        <th className="py-3 pl-3 pr-2">Free PCS</th>
-                                                        <th className="py-3 px-3">Sell Price ({returnSellPriceUnitLabel})</th>
-                                                        <th className="py-3 px-3">Sell Price (PCS)</th>
-                                                        <th className="py-3 px-3">Subtotal</th>
-                                                        <th className="py-3 px-3 text-center">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-violet-100 text-sm">
-                                                    {returnItems.map((item) => {
-                                                        const rowGrossTotal = getRowGross(item);
-                                                        const currentUnitLabel = item.unit || 'Pcs';
-
-                                                        return (
-                                                            <tr key={item.uniqueId} className="hover:bg-violet-50/40 transition">
-
-                                                                <td className="py-3 px-2 leading-tight">
-                                                                    <div className="font-semibold text-slate-800">
-                                                                        {item.productName}
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="py-3 px-2 text-slate-600 text-xs">
-                                                                    {item.company}
-                                                                </td>
-
-                                                                <td className="relative py-3 pl-2 pr-0">
-                                                                    <div
-                                                                        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
-                                                                            }`}
-                                                                    >
-                                                                        Total: {item.totalQty}
-                                                                    </div>
-                                                                    <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
-                                                                        <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                            <input
-                                                                                type="number"
-                                                                                min="0"
-                                                                                step="1"
-                                                                                placeholder="0"
-                                                                                value={item.unitQty}
-                                                                                onChange={(e) => {
-                                                                                    const value = e.target.value;
-                                                                                    if (/^\d*$/.test(value)) {
-                                                                                        handleReturnItemChange(item.uniqueId, 'unitQty', value);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-                                                                            />
-                                                                            <span
-                                                                                className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                                title={currentUnitLabel}
-                                                                            >
-                                                                                {currentUnitLabel}
-                                                                            </span>
-                                                                        </div>
-                                                                        {item.parentMode && (
-                                                                            <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                                <input
-                                                                                    type="number"
-                                                                                    min="0"
-                                                                                    step="1"
-                                                                                    placeholder="0"
-                                                                                    value={item.subQty ?? ''}
-                                                                                    onChange={(e) => {
-                                                                                        const value = e.target.value;
-                                                                                        if (/^\d*$/.test(value)) {
-                                                                                            handleReturnItemChange(item.uniqueId, 'subQty', value);
-                                                                                        }
-                                                                                    }}
-                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-                                                                                />
-                                                                                <span
-                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                                    title="Sub Unit"
-                                                                                >
-                                                                                    {item.subUnit}
-                                                                                </span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="py-3 pl-0 pr-2">
-                                                                    <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            step="1"
-                                                                            placeholder="0"
-                                                                            value={item.pcsQty}
-                                                                            onChange={(e) => {
-                                                                                const value = e.target.value;
-                                                                                if (/^\d*$/.test(value)) {
-                                                                                    handleReturnItemChange(item.uniqueId, 'pcsQty', value);
-                                                                                }
-                                                                            }}
-                                                                            className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                                        />
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="relative py-3 pl-2 pr-0">
-                                                                    <div
-                                                                        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
-                                                                            }`}
-                                                                    >
-                                                                        Total: {item.freeQty}
-                                                                    </div>
-                                                                    <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
-                                                                        <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                            <input
-                                                                                type="number"
-                                                                                min="0"
-                                                                                step="1"
-                                                                                placeholder="0"
-                                                                                value={item.freeUnitQty}
-                                                                                onChange={(e) => {
-                                                                                    const value = e.target.value;
-                                                                                    if (/^\d*$/.test(value)) {
-                                                                                        handleReturnItemChange(item.uniqueId, 'freeUnitQty', value);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-                                                                            />
-                                                                            <span
-                                                                                className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                                title={currentUnitLabel}
-                                                                            >
-                                                                                {currentUnitLabel}
-                                                                            </span>
-                                                                        </div>
-                                                                        {item.parentMode && (
-                                                                            <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                                <input
-                                                                                    type="number"
-                                                                                    min="0"
-                                                                                    step="1"
-                                                                                    placeholder="0"
-                                                                                    value={item.freeSubQty ?? ''}
-                                                                                    onChange={(e) => {
-                                                                                        const value = e.target.value;
-                                                                                        if (/^\d*$/.test(value)) {
-                                                                                            handleReturnItemChange(item.uniqueId, 'freeSubQty', value);
-                                                                                        }
-                                                                                    }}
-                                                                                    className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-                                                                                />
-                                                                                <span
-                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                                    title="Sub Unit"
-                                                                                >
-                                                                                    {item.subUnit}
-                                                                                </span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="py-3 pl-0 pr-2">
-                                                                    <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            step="1"
-                                                                            placeholder="0"
-                                                                            value={item.freePcsQty}
-                                                                            onChange={(e) => {
-                                                                                const value = e.target.value;
-                                                                                if (/^\d*$/.test(value)) {
-                                                                                    handleReturnItemChange(item.uniqueId, 'freePcsQty', value);
-                                                                                }
-                                                                            }}
-                                                                            className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                                                                        />
-                                                                    </div>
-                                                                </td>
-
-                                                                <td className="relative py-3 px-2">
-                                                                    <div
-                                                                        className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}
-                                                                    >
-                                                                        ৳{getUnitTotal(item).toFixed(2)}
-                                                                    </div>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        placeholder="0"
-                                                                        title="প্রতি Unit এর দাম (edit করা যাবে)"
-                                                                        disabled={!(Number(item.unitQty) > 0)}
-                                                                        value={item.sellPriceUnit}
-                                                                        onChange={(e) => {
-                                                                            const value = e.target.value;
-                                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                                handleReturnItemChange(item.uniqueId, 'sellPriceUnit', value);
-                                                                            }
-                                                                        }}
-                                                                        className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
-                                                                    />
-                                                                    {item.parentMode && (
-                                                                        <div className="relative mt-6">
-                                                                            <div
-                                                                                className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}
-                                                                            >
-                                                                                {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
-                                                                            </div>
-                                                                            <input
-                                                                                type="number"
-                                                                                min="0"
-                                                                                step="0.01"
-                                                                                placeholder="0"
-                                                                                title="প্রতি Sub Unit এর দাম (edit করা যাবে)"
-                                                                                disabled={!(Number(item.subQty) > 0)}
-                                                                                value={item.sellPriceSub}
-                                                                                onChange={(e) => {
-                                                                                    const value = e.target.value;
-                                                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                                        handleReturnItemChange(item.uniqueId, 'sellPriceSub', value);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
-                                                                            />
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-
-                                                                <td className="relative py-3 px-2">
-                                                                    <div
-                                                                        className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getPcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}
-                                                                    >
-                                                                        ৳{getPcsTotal(item).toFixed(2)}
-                                                                    </div>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        value={item.sellPricePcs}
-                                                                        disabled={!(Number(item.pcsQty) > 0)}
-                                                                        onChange={(e) => {
-                                                                            const value = e.target.value;
-                                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                                handleReturnItemChange(item.uniqueId, 'sellPricePcs', value);
-                                                                            }
-                                                                        }}
-                                                                        className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                                                    />
-                                                                </td>
-
-                                                                <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
-                                                                    {rowGrossTotal.toFixed(2)}
-                                                                </td>
-
-                                                                <td className="py-3 px-1 text-center">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleRemoveReturnItem(item.uniqueId)}
-                                                                        className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
-                                                                    >
-                                                                        <svg
-                                                                            xmlns="http://www.w3.org/2000/svg"
-                                                                            fill="none"
-                                                                            viewBox="0 0 24 24"
-                                                                            strokeWidth={1.5}
-                                                                            stroke="currentColor"
-                                                                            className="w-5 h-5"
-                                                                        >
-                                                                            <path
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                                                                            />
-                                                                        </svg>
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                            {/* =================================
+                           ORDER NOTE
+                        ================================= */}
                         </div>
-
-                        {/* =================================
-                            ORDER NOTE
+                        {/*
                         ================================= */}
                         <div className="mt-8">
 
@@ -3480,6 +3635,7 @@ const OrderAdd = () => {
                             <textarea
                                 rows="3"
                                 placeholder="Write any note about this order..."
+                                disabled={isDamageOnly}
                                 value={orderNote}
                                 onChange={(e) => setOrderNote(e.target.value)}
                                 className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 resize-y shadow-sm"
@@ -3491,8 +3647,24 @@ const OrderAdd = () => {
                             PAYMENT (Delivery Mode Only)
                         ================================= */}
                         {showPayment && (
-                            <div className="mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
-                                <h3 className="text-base font-bold text-emerald-800 mb-4">Payment</h3>
+                            <div className={`mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6 ${lockCls}`}>
+                                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                                    <h3 className="text-base font-bold text-emerald-800">Payment</h3>
+
+                                    <label
+                                        className={`flex items-center gap-2 text-sm font-semibold ${paymentAccountType && selectedAccountKey ? 'text-emerald-700 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`}
+                                        title={paymentAccountType && selectedAccountKey ? '' : 'আগে Payment Method ও Account select করুন'}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={savePaymentMethod}
+                                            disabled={!(paymentAccountType && selectedAccountKey)}
+                                            onChange={(e) => handleSavePaymentToggle(e.target.checked)}
+                                            className="w-4 h-4 accent-emerald-600 disabled:cursor-not-allowed"
+                                        />
+                                        Save Payment Method
+                                    </label>
+                                </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
@@ -3525,6 +3697,10 @@ const OrderAdd = () => {
                                             onChange={(e) => {
                                                 setPaymentAccountType(e.target.value);
                                                 setSelectedAccountKey('');
+                                                if (savePaymentMethod) {
+                                                    setSavePaymentMethod(false);
+                                                    persistPaymentMethod(false, '', '');
+                                                }
                                             }}
                                             className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
                                         >
@@ -3541,7 +3717,12 @@ const OrderAdd = () => {
                                         </label>
                                         <select
                                             value={selectedAccountKey}
-                                            onChange={(e) => setSelectedAccountKey(e.target.value)}
+                                            onChange={(e) => {
+                                                setSelectedAccountKey(e.target.value);
+                                                if (savePaymentMethod) {
+                                                    persistPaymentMethod(true, paymentAccountType, e.target.value);
+                                                }
+                                            }}
                                             disabled={!paymentAccountType}
                                             className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
                                                 ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
@@ -3587,7 +3768,14 @@ const OrderAdd = () => {
                         ================================= */}
                         <div className="mt-6 flex justify-end">
 
-                            {(isDeliveryMode || (directSales && !isEditMode)) ? (
+                            {isDamageOnly ? (
+                                <button
+                                    type="submit"
+                                    className="px-10 py-3 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-sm font-semibold text-white shadow-md shadow-red-200 transition cursor-pointer"
+                                >
+                                    Update Damage
+                                </button>
+                            ) : (isDeliveryMode || (directSales && !isEditMode)) ? (
                                 <button
                                     type="button"
                                     onClick={handleDeliverySubmit}
@@ -3600,7 +3788,7 @@ const OrderAdd = () => {
                                     type="submit"
                                     className="px-10 py-3 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 hover:from-teal-700 hover:to-emerald-600 text-sm font-semibold text-white shadow-md shadow-teal-200 transition cursor-pointer"
                                 >
-                                    {isEditMode ? 'Update Order' : 'Create Order'}
+                                    {isReturnOnly ? 'Update Bulk Return' : isEditMode ? 'Update Order' : 'Create Order'}
                                 </button>
                             )}
                         </div>

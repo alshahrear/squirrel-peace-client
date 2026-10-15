@@ -70,6 +70,7 @@ const PurchaseAdd = () => {
     const location = useLocation();
     const editingPurchase = location.state?.purchase || null;
     const isReceiveMode = location.state?.mode === 'receive';
+    const isReturnOnly = location.state?.returnOnly === true;
     const isReceivedEdit =
         !!editingPurchase &&
         location.state?.mode !== 'receive' &&
@@ -81,7 +82,7 @@ const PurchaseAdd = () => {
     // Draft key: নতুন Purchase আর Edit/Receive এর draft আলাদা থাকবে
     const draftPrefix = editingPurchase ? `purchaseEdit:${editingPurchase._id}` : 'purchaseNew';
     const clearPurchaseDrafts = () => {
-        ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'companySearch', 'categorySearch', 'freeItems', 'freeFilter', 'freeSearch']
+        ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'companySearch', 'categorySearch', 'freeItems', 'freeFilter', 'freeSearch', 'returnItems', 'returnFilter', 'returnSearch', 'damageItems', 'damageFilter', 'damageSearch']
             .forEach((k) => clearDraft(`${draftPrefix}:${k}`));
     };
 
@@ -93,6 +94,40 @@ const PurchaseAdd = () => {
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
     const [paymentNote, setPaymentNote] = useState('');
     const [isReceiving, setIsReceiving] = useState(false);
+
+    // Save Payment Method checkbox (database এ save থাকবে)
+    const [savePaymentMethod, setSavePaymentMethod] = useState(false);
+
+    useEffect(() => {
+        if (isReceivedEdit) return;
+        fetch('https://squirrel-peace-server.onrender.com/feature/purchasePaymentMethod')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data?.enabled === true && data?.value?.paymentAccountType && data?.value?.selectedAccountKey) {
+                    setPaymentAccountType(data.value.paymentAccountType);
+                    setSelectedAccountKey(data.value.selectedAccountKey);
+                    setSavePaymentMethod(true);
+                }
+            })
+            .catch(() => { });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const persistPaymentMethod = (checked, method, key) => {
+        fetch('https://squirrel-peace-server.onrender.com/feature/purchasePaymentMethod', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                enabled: checked,
+                value: checked ? { paymentAccountType: method, selectedAccountKey: key } : null,
+            }),
+        }).catch((error) => console.error('Error saving payment method:', error));
+    };
+
+    const handleSavePaymentToggle = (checked) => {
+        setSavePaymentMethod(checked);
+        persistPaymentMethod(checked, paymentAccountType, selectedAccountKey);
+    };
 
     // সিলেক্ট করা প্রোডাক্টগুলো রাখার স্টেট
     const [purchaseItems, setPurchaseItems] = useDraftState(`${draftPrefix}:items`, []);
@@ -132,6 +167,97 @@ const PurchaseAdd = () => {
     const [freeProducts, setFreeProducts] = useState([]);
     const [freeFilter, setFreeFilter] = useDraftState(`${draftPrefix}:freeFilter`, { category: '' });
     const [freeSearch, setFreeSearch] = useDraftState(`${draftPrefix}:freeSearch`, { category: '', product: '' });
+
+    // ---------------- Damage Product (এখন কোনো কাজ করবে না) ----------------
+    // ---------------- Return Product States ----------------
+    const [returnProductOpen, setReturnProductOpen] = useState(false);
+    const [returnItems, setReturnItems] = useDraftState(`${draftPrefix}:returnItems`, []);
+    const [returnFilter, setReturnFilter] = useDraftState(`${draftPrefix}:returnFilter`, { category: '' });
+    const [returnSearch, setReturnSearch] = useDraftState(`${draftPrefix}:returnSearch`, { category: '', product: '' });
+    const [addReturnToAdjustment, setAddReturnToAdjustment] = useState(false);
+
+    // ---------------- Damage Product States ----------------
+    const [damageProductOpen, setDamageProductOpen] = useState(false);
+    const [damageItems, setDamageItems] = useDraftState(`${draftPrefix}:damageItems`, []);
+    const [damageFilter, setDamageFilter] = useDraftState(`${draftPrefix}:damageFilter`, { category: '' });
+    const [damageSearch, setDamageSearch] = useDraftState(`${draftPrefix}:damageSearch`, { category: '', product: '' });
+    const [addDamageToAdjustment, setAddDamageToAdjustment] = useState(false);
+
+    const damageKey = (name, company) =>
+        `${(name || '').toString().trim().toLowerCase()}|${(company || '').toString().trim().toLowerCase()}`;
+
+    // Damage stock = Sales damage + Standalone damage - Received purchase er damage return
+    const [damageStockList, setDamageStockList] = useState(null);
+    useEffect(() => {
+        Promise.all([
+            fetch('https://squirrel-peace-server.onrender.com/sales').then((r) => r.json()),
+            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
+        ])
+            .then(([sales, dmg, purchases, damageReturns]) => {
+                const map = new Map();
+                const addRow = (it, sign) => {
+                    const key = damageKey(it.productName, it.company);
+                    if (!map.has(key)) {
+                        map.set(key, {
+                            key,
+                            productName: it.productName || '',
+                            company: it.company || '',
+                            productId: it.productId,
+                            paid: 0,
+                            free: 0,
+                            pcsPerUnit: 1,
+                            parentMode: false,
+                            pcsPerSub: 0,
+                            unit: '',
+                            subUnit: '',
+                        });
+                    }
+                    const g = map.get(key);
+                    g.paid += sign * (Number(it.totalQty) || 0);
+                    g.free += sign * (Number(it.freeQty) || 0);
+                    if (sign > 0) {
+                        g.pcsPerUnit = Number(it.pcsPerUnit) || g.pcsPerUnit;
+                        g.parentMode = it.parentMode === true;
+                        g.pcsPerSub = it.parentMode === true ? Number(it.pcsPerSub) || 0 : 0;
+                        g.unit = it.unit || g.unit;
+                        g.subUnit = it.subUnit || g.subUnit;
+                    }
+                };
+                (Array.isArray(sales) ? sales : [])
+                    .filter((s) => s.status === 'Delivered')
+                    .forEach((s) => (s.damageItems || []).forEach((it) => addRow(it, 1)));
+                (Array.isArray(dmg) ? dmg : []).forEach((d) => (d.items || []).forEach((it) => addRow(it, 1)));
+                (Array.isArray(purchases) ? purchases : []).forEach((p) => {
+                    if (editId && String(p._id) === String(editId)) return;
+                    if (!(p.receiveStatus === 'Received' || p.receiveStatus === 'Yes')) return;
+                    (p.damageItems || []).forEach((it) => addRow(it, -1));
+                });
+                (Array.isArray(damageReturns) ? damageReturns : []).forEach((d) =>
+                    (d.items || []).forEach((it) => addRow(it, -1))
+                );
+                setDamageStockList(
+                    Array.from(map.values()).map((g) => ({ ...g, paid: Math.max(g.paid, 0), free: Math.max(g.free, 0) }))
+                );
+            })
+            .catch((error) => console.error('Error fetching damage stock:', error));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Bulk Return stock (main / free)
+    const [stockMap, setStockMap] = useState(null);
+    useEffect(() => {
+        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${location.state?.bulkId ? `?excludeId=${location.state.bulkId}` : ''}`)
+            .then((res) => res.json())
+            .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
+            .catch((error) => console.error('Error fetching bulk return stock:', error));
+    }, []);
+
+    const getStock = (item) =>
+        stockMap
+            ? stockMap[String(item._id)] || stockMap[`name:${item.productName}`] || { paid: 0, free: 0 }
+            : null;
 
     // --------------------------------------------------
     // PurchaseForm-কে দেওয়ার জন্য stable initialData (re-render এ যেন
@@ -259,6 +385,51 @@ const PurchaseAdd = () => {
                 };
             });
             setFreeProductItems(restoredFreeItems);
+
+            const restoredReturnItems = (editingPurchase.returnItems || []).map((item, index) => ({
+                ...item,
+                uniqueId: `${item.productId || 'ret'}-${index}-${Date.now()}`,
+                _id: item.productId,
+                unitQty: Number(item.unitQty) || '',
+                subQty: Number(item.subQty) || '',
+                pcsQty: Number(item.pcsQty) || '',
+                totalQty: Number(item.totalQty) || 0,
+                freeUnitQty: Number(item.freeUnitQty) || '',
+                freeSubQty: Number(item.freeSubQty) || '',
+                freePcsQty: Number(item.freePcsQty) || '',
+                freeQty: Number(item.freeQty) || 0,
+                baseFreeUnitQty: Number(item.unitQty) > 0 ? (Number(item.freeUnitQty) || 0) / Number(item.unitQty) : 0,
+                baseFreeSubQty: Number(item.unitQty) > 0 ? (Number(item.freeSubQty) || 0) / Number(item.unitQty) : 0,
+                baseFreePcsQty: item.parentMode === true
+                    ? ((Number(item.unitQty) || 0) + (Number(item.subQty) || 0) > 0
+                        ? (Number(item.freePcsQty) || 0) / ((Number(item.unitQty) || 0) + (Number(item.subQty) || 0))
+                        : 0)
+                    : (Number(item.unitQty) > 0 ? (Number(item.freePcsQty) || 0) / Number(item.unitQty) : 0),
+            }));
+            setReturnItems(restoredReturnItems);
+            if (restoredReturnItems.length > 0) {
+                setReturnProductOpen(true);
+            }
+            setAddReturnToAdjustment(Number(editingPurchase.returnAdjustmentAmount) > 0);
+
+            const restoredDamageItems = (editingPurchase.damageItems || []).map((item, index) => ({
+                ...item,
+                uniqueId: `${item.productId || 'dmg'}-${index}-${Date.now()}`,
+                _id: item.productId,
+                unitQty: Number(item.unitQty) || '',
+                subQty: Number(item.subQty) || '',
+                pcsQty: Number(item.pcsQty) || '',
+                totalQty: Number(item.totalQty) || 0,
+                freeUnitQty: Number(item.freeUnitQty) || '',
+                freeSubQty: Number(item.freeSubQty) || '',
+                freePcsQty: Number(item.freePcsQty) || '',
+                freeQty: Number(item.freeQty) || 0,
+            }));
+            setDamageItems(restoredDamageItems);
+            if (restoredDamageItems.length > 0) {
+                setDamageProductOpen(true);
+            }
+            setAddDamageToAdjustment(Number(editingPurchase.damageAdjustmentAmount) > 0);
             if (restoredFreeItems.length > 0) {
                 setFreeProductOpen(true);
             }
@@ -401,6 +572,319 @@ const PurchaseAdd = () => {
         setFreeSearch((prev) => ({ ...prev, category: '', product: '' }));
     };
 
+    // Main table-e minimum 1 pcs product add na hole Return/Damage disabled thakbe
+    const hasMainProduct = purchaseItems.some((item) => (Number(item.totalQty) || 0) >= 1);
+    const disabledTip = 'Minimum 1 pcs product table a add korle then enable hobe';
+
+    // --------------------------------------------------
+    // Return Product — Add / Remove / Change
+    // --------------------------------------------------
+    const getReturnRowTotal = (item) =>
+        (Number(item.buyPrice) || 0) * (Number(item.totalQty) || 0);
+
+    const handleAddReturnProduct = (product) => {
+        const isParent = product.parentUnitUse === true;
+        const newItem = {
+            uniqueId: Date.now() + Math.random(),
+            _id: product._id,
+            productName: product.productName || '',
+            company: product.company || '',
+            buyPrice: Number(product.purchasePrice) || 0,
+            unit: isParent ? product.parentUnit : (product.unit || 'Pcs'),
+            parentMode: isParent,
+            subUnit: isParent ? (product.subUnit || '') : '',
+            pcsPerSub: isParent ? (Number(product.subUnitQty) || 1) : 0,
+            pcsPerUnit: Number(product.pcsOfUnit) || 1,
+            subQty: '',
+            unitQty: '',
+            pcsQty: '',
+            totalQty: 0,
+            freeUnitQty: '',
+            freeSubQty: '',
+            freePcsQty: '',
+            freeQty: 0,
+            baseFreeUnitQty: Number(isParent ? product.freeProductParentUnitQty : product.freeProductUnitQty) || 0,
+            baseFreeSubQty: isParent ? (Number(product.freeProductSubQty) || 0) : 0,
+            baseFreePcsQty: Number(product.freeProductPcsQty) || 0,
+        };
+        setReturnItems((prev) => [...prev, newItem]);
+        setReturnSearch((prev) => ({ ...prev, product: '' }));
+    };
+
+    const handleRemoveReturnItem = (uniqueId) => {
+        setReturnItems((prev) => prev.filter((item) => item.uniqueId !== uniqueId));
+    };
+
+    const handleReturnItemChange = (uniqueId, field, value) => {
+        const cur = returnItems.find((i) => i.uniqueId === uniqueId);
+        if (cur && ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)) {
+            const stock = getStock(cur);
+            if (stock) {
+                const n = { ...cur, [field]: value === '' ? '' : Number(value) || 0 };
+                const ppu = Number(n.pcsPerUnit) || 1;
+                const pps = Number(n.pcsPerSub) || 0;
+                const total =
+                    (Number(n.unitQty) || 0) * ppu +
+                    (Number(n.subQty) || 0) * pps +
+                    (Number(n.pcsQty) || 0);
+                if (cur.parentMode) {
+                    if (field === 'unitQty' || field === 'subQty') {
+                        const u = Number(n.unitQty) || 0;
+                        const s = Number(n.subQty) || 0;
+                        n.freeSubQty = u * (Number(cur.baseFreeSubQty) || 0) || '';
+                        n.freePcsQty = (u + s) * (Number(cur.baseFreePcsQty) || 0) || '';
+                    }
+                } else if (field === 'unitQty') {
+                    const q = Number(n.unitQty) || 0;
+                    n.freeUnitQty = q * (Number(cur.baseFreeUnitQty) || 0) || '';
+                    n.freeSubQty = q * (Number(cur.baseFreeSubQty) || 0) || '';
+                    n.freePcsQty = q * (Number(cur.baseFreePcsQty) || 0) || '';
+                }
+                const freeTotal =
+                    (Number(n.freeUnitQty) || 0) * ppu +
+                    (Number(n.freeSubQty) || 0) * pps +
+                    (Number(n.freePcsQty) || 0);
+                const stockError =
+                    total > stock.paid
+                        ? `Main stock e matro ${stock.paid} pcs ache!`
+                        : freeTotal > stock.free
+                            ? `Free stock e matro ${stock.free} pcs ache!`
+                            : '';
+                if (stockError) {
+                    setToast({ show: true, message: stockError, isError: true });
+                    setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                    return;
+                }
+            }
+        }
+        if (value !== '' && Number(value) < 0) return;
+
+        setReturnItems((prev) =>
+            prev.map((item) => {
+                if (item.uniqueId !== uniqueId) return item;
+
+                if (['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)) {
+                    const numVal = value === '' ? '' : Number(value) || 0;
+                    const next = { ...item, [field]: numVal };
+                    const ppu = Number(next.pcsPerUnit) || 1;
+                    const pps = Number(next.pcsPerSub) || 0;
+                    next.totalQty =
+                        (Number(next.unitQty) || 0) * ppu +
+                        (Number(next.subQty) || 0) * pps +
+                        (Number(next.pcsQty) || 0);
+                    if (item.parentMode) {
+                        if (field === 'unitQty' || field === 'subQty') {
+                            const u = Number(next.unitQty) || 0;
+                            const s = Number(next.subQty) || 0;
+                            next.freeSubQty = u * (Number(item.baseFreeSubQty) || 0) || '';
+                            next.freePcsQty = (u + s) * (Number(item.baseFreePcsQty) || 0) || '';
+                        }
+                    } else if (field === 'unitQty') {
+                        const n = Number(numVal) || 0;
+                        next.freeUnitQty = n * (Number(item.baseFreeUnitQty) || 0) || '';
+                        next.freeSubQty = n * (Number(item.baseFreeSubQty) || 0) || '';
+                        next.freePcsQty = n * (Number(item.baseFreePcsQty) || 0) || '';
+                    }
+                    next.freeQty =
+                        (Number(next.freeUnitQty) || 0) * ppu +
+                        (Number(next.freeSubQty) || 0) * pps +
+                        (Number(next.freePcsQty) || 0);
+                    return next;
+                }
+
+                return { ...item, [field]: value };
+            })
+        );
+    };
+
+    const handleSelectReturnCategory = (cat) => {
+        setReturnFilter({ category: cat.name });
+        setReturnSearch((prev) => ({ ...prev, category: cat.name, product: '' }));
+    };
+
+    const handleClearReturnCategory = () => {
+        setReturnFilter({ category: '' });
+        setReturnSearch((prev) => ({ ...prev, category: '', product: '' }));
+    };
+
+    const filteredReturnCategories = freeCategories
+        .filter((cat) => cat.isActive === true)
+        .filter((cat) => matchesSearch(returnSearch.category, [cat.name]));
+
+    // শুধু উপরের PurchaseForm এ সিলেক্ট করা company এর product
+    const filteredReturnProducts = freeProducts.filter((prod) => {
+        if (!purchaseFormData.company) return false;
+        if (!prod.productName) return false;
+        if (prod.isActive !== true) return false;
+        if (prod.company !== purchaseFormData.company) return false;
+        if (returnFilter.category && prod.category !== returnFilter.category) return false;
+
+        const isAlreadyAddedInReturn = returnItems.some(
+            (item) => item._id === prod._id || item.productName === prod.productName
+        );
+        if (isAlreadyAddedInReturn) return false;
+
+        return matchesSearch(returnSearch.product, [prod.productName, prod.sku]);
+    });
+
+    const returnItemsPayload = returnItems.map((item) => ({
+        productId: item._id,
+        productName: item.productName,
+        company: item.company,
+        buyPrice: roundTo2(item.buyPrice),
+        unit: item.unit || 'Pcs',
+        parentMode: item.parentMode === true,
+        subUnit: item.subUnit || '',
+        pcsPerUnit: Number(item.pcsPerUnit) || 1,
+        pcsPerSub: Number(item.pcsPerSub) || 0,
+        unitQty: Number(item.unitQty) || 0,
+        subQty: Number(item.subQty) || 0,
+        pcsQty: Number(item.pcsQty) || 0,
+        totalQty: Number(item.totalQty) || 0,
+        freeUnitQty: Number(item.freeUnitQty) || 0,
+        freeSubQty: Number(item.freeSubQty) || 0,
+        freePcsQty: Number(item.freePcsQty) || 0,
+        freeQty: Number(item.freeQty) || 0,
+        subtotal: roundTo2(getReturnRowTotal(item)),
+    }));
+
+    // --------------------------------------------------
+    // Damage Product — Add / Remove / Change
+    // --------------------------------------------------
+    const getDamageStock = (item) => {
+        if (!damageStockList) return null;
+        const f = damageStockList.find((d) => d.key === damageKey(item.productName, item.company));
+        return f ? { paid: f.paid, free: f.free } : { paid: 0, free: 0 };
+    };
+
+    const getDamageRowTotal = (item) =>
+        (Number(item.buyPrice) || 0) * (Number(item.totalQty) || 0);
+
+    const findMasterProduct = (s) =>
+        freeProducts.find((p) => damageKey(p.productName, p.company) === s.key);
+
+    const handleAddDamageProduct = (s) => {
+        const master = findMasterProduct(s);
+        const isParent = s.parentMode === true;
+        const newItem = {
+            uniqueId: Date.now() + Math.random(),
+            _id: master?._id || s.productId,
+            productName: s.productName || '',
+            company: s.company || '',
+            buyPrice: Number(master?.purchasePrice) || 0,
+            unit: s.unit || master?.unit || 'Pcs',
+            parentMode: isParent,
+            subUnit: isParent ? (s.subUnit || '') : '',
+            pcsPerSub: isParent ? (Number(s.pcsPerSub) || 1) : 0,
+            pcsPerUnit: Number(s.pcsPerUnit) || 1,
+            subQty: '',
+            unitQty: '',
+            pcsQty: '',
+            totalQty: 0,
+            freeUnitQty: '',
+            freeSubQty: '',
+            freePcsQty: '',
+            freeQty: 0,
+        };
+        setDamageItems((prev) => [...prev, newItem]);
+        setDamageSearch((prev) => ({ ...prev, product: '' }));
+    };
+
+    const handleRemoveDamageItem = (uniqueId) => {
+        setDamageItems((prev) => prev.filter((item) => item.uniqueId !== uniqueId));
+    };
+
+    const handleDamageItemChange = (uniqueId, field, value) => {
+        if (value !== '' && Number(value) < 0) return;
+        const qtyFields = ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'];
+        const cur = damageItems.find((i) => i.uniqueId === uniqueId);
+        if (cur && qtyFields.includes(field)) {
+            const stock = getDamageStock(cur);
+            if (stock) {
+                const n = { ...cur, [field]: value === '' ? '' : Number(value) || 0 };
+                const ppu = Number(n.pcsPerUnit) || 1;
+                const pps = Number(n.pcsPerSub) || 0;
+                const total = (Number(n.unitQty) || 0) * ppu + (Number(n.subQty) || 0) * pps + (Number(n.pcsQty) || 0);
+                const freeTotal = (Number(n.freeUnitQty) || 0) * ppu + (Number(n.freeSubQty) || 0) * pps + (Number(n.freePcsQty) || 0);
+                const stockError =
+                    total > stock.paid
+                        ? `Damage main stock e matro ${stock.paid} pcs ache!`
+                        : freeTotal > stock.free
+                            ? `Damage free stock e matro ${stock.free} pcs ache!`
+                            : '';
+                if (stockError) {
+                    setToast({ show: true, message: stockError, isError: true });
+                    setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                    return;
+                }
+            }
+        }
+
+        setDamageItems((prev) =>
+            prev.map((item) => {
+                if (item.uniqueId !== uniqueId) return item;
+                if (qtyFields.includes(field)) {
+                    const next = { ...item, [field]: value === '' ? '' : Number(value) || 0 };
+                    const ppu = Number(next.pcsPerUnit) || 1;
+                    const pps = Number(next.pcsPerSub) || 0;
+                    next.totalQty = (Number(next.unitQty) || 0) * ppu + (Number(next.subQty) || 0) * pps + (Number(next.pcsQty) || 0);
+                    next.freeQty = (Number(next.freeUnitQty) || 0) * ppu + (Number(next.freeSubQty) || 0) * pps + (Number(next.freePcsQty) || 0);
+                    return next;
+                }
+                return { ...item, [field]: value };
+            })
+        );
+    };
+
+    const handleSelectDamageCategory = (cat) => {
+        setDamageFilter({ category: cat.name });
+        setDamageSearch((prev) => ({ ...prev, category: cat.name, product: '' }));
+    };
+
+    const handleClearDamageCategory = () => {
+        setDamageFilter({ category: '' });
+        setDamageSearch((prev) => ({ ...prev, category: '', product: '' }));
+    };
+
+    const filteredDamageCategories = freeCategories
+        .filter((cat) => cat.isActive === true)
+        .filter((cat) => matchesSearch(damageSearch.category, [cat.name]));
+
+    const filteredDamageProducts = (damageStockList || []).filter((s) => {
+        if (!purchaseFormData.company) return false;
+        if (damageKey('', s.company) !== damageKey('', purchaseFormData.company)) return false;
+        if (s.paid <= 0 && s.free <= 0) return false;
+        const master = findMasterProduct(s);
+        if (damageFilter.category && master?.category !== damageFilter.category) return false;
+        if (damageItems.some((i) => damageKey(i.productName, i.company) === s.key)) return false;
+        return matchesSearch(damageSearch.product, [s.productName, master?.sku]);
+    });
+
+    const damageItemsPayload = damageItems.map((item) => ({
+        productId: item._id,
+        productName: item.productName,
+        company: item.company,
+        buyPrice: roundTo2(item.buyPrice),
+        unit: item.unit || 'Pcs',
+        parentMode: item.parentMode === true,
+        subUnit: item.subUnit || '',
+        pcsPerUnit: Number(item.pcsPerUnit) || 1,
+        pcsPerSub: Number(item.pcsPerSub) || 0,
+        unitQty: Number(item.unitQty) || 0,
+        subQty: Number(item.subQty) || 0,
+        pcsQty: Number(item.pcsQty) || 0,
+        totalQty: Number(item.totalQty) || 0,
+        freeUnitQty: Number(item.freeUnitQty) || 0,
+        freeSubQty: Number(item.freeSubQty) || 0,
+        freePcsQty: Number(item.freePcsQty) || 0,
+        freeQty: Number(item.freeQty) || 0,
+        subtotal: roundTo2(getDamageRowTotal(item)),
+    }));
+
+    const damageTotalValue = roundTo2(
+        damageItems.reduce((total, item) => total + getDamageRowTotal(item), 0)
+    );
+
     const addedMainProductIds = purchaseItems.map((item) => item.productName || item._id);
     const addedFreeProductIds = freeProductItems.map((item) => item.productName || item._id);
 
@@ -471,6 +955,8 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
     const handleCompanyClear = () => {
         setPurchaseItems([]);
+        setReturnItems([]);
+        setDamageItems([]);
     };
 
     // --------------------------------------------------
@@ -809,6 +1295,21 @@ const PurchaseAdd = () => {
         payableAmount -= adjustmentValue;
     }
 
+    // Return Product Total
+    const returnTotalValue = roundTo2(
+        returnItems.reduce((total, item) => total + getReturnRowTotal(item), 0)
+    );
+
+    // Return toggle on thakle Payable theke biyog hobe
+    if (addReturnToAdjustment) {
+        payableAmount -= returnTotalValue;
+    }
+
+    // Damage toggle on thakle Payable theke biyog hobe
+    if (addDamageToAdjustment) {
+        payableAmount -= damageTotalValue;
+    }
+
     // Payable কখনো negative হবে না
     if (payableAmount < 0) {
         payableAmount = 0;
@@ -832,6 +1333,48 @@ const PurchaseAdd = () => {
     // Submit
     // --------------------------------------------------
     const handleSubmit = async (e) => {
+        if (isReturnOnly) {
+            e.preventDefault();
+            const badRet = returnItems.some(
+                (i) => (Number(i.totalQty) || 0) <= 0 && (Number(i.freeQty) || 0) <= 0
+            );
+            if (badRet) {
+                setToast({ show: true, message: 'Each return product must have a valid quantity!', isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                return;
+            }
+            const useAdj = addReturnToAdjustment && returnTotalValue > 0;
+            const newPayable = Math.max(
+                roundTo2(
+                    (Number(editingPurchase.payableAmount) || 0) +
+                    (Number(editingPurchase.returnAdjustmentAmount) || 0) -
+                    (useAdj ? returnTotalValue : 0)
+                ),
+                0
+            );
+            try {
+                const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        returnItems: returnItemsPayload,
+                        payableAmount: newPayable,
+                        receiveStatus: 'Received',
+                        returnOnly: true,
+                        ...(useAdj ? { returnAdjustmentAmount: returnTotalValue } : { unsetFields: ['returnAdjustmentAmount'] }),
+                    }),
+                });
+                if (!res.ok) throw new Error('Failed');
+                clearPurchaseDrafts();
+                setToast({ show: true, message: 'Return updated successfully!', isError: false });
+                setTimeout(() => navigate(-1), 1000);
+            } catch (error) {
+                console.error(error);
+                setToast({ show: true, message: 'Failed to update return. Try again.', isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+            }
+            return;
+        }
         e.preventDefault();
 
         // ---------------- Validation ----------------
@@ -970,6 +1513,19 @@ const PurchaseAdd = () => {
             overallDiscount: roundTo2(overallDiscountAmount),
             overallDiscountType: overallDiscountType,
             overallDiscountValue: overallDiscountValue,
+
+            returnItems: returnItemsPayload,
+            ...(addReturnToAdjustment && returnTotalValue > 0 ? { returnAdjustmentAmount: returnTotalValue } : {}),
+            damageItems: damageItemsPayload,
+            ...(addDamageToAdjustment && damageTotalValue > 0 ? { damageAdjustmentAmount: damageTotalValue } : {}),
+            ...(isEditMode
+                ? {
+                    unsetFields: [
+                        ...(addReturnToAdjustment && returnTotalValue > 0 ? [] : ['returnAdjustmentAmount']),
+                        ...(addDamageToAdjustment && damageTotalValue > 0 ? [] : ['damageAdjustmentAmount']),
+                    ],
+                }
+                : {}),
 
             freeItems: freeItemsPayload,
 
@@ -1155,6 +1711,15 @@ const PurchaseAdd = () => {
 
             paidAmount: roundTo2(paymentAmount),
             receiveDate: receiveDate,
+
+            returnItems: returnItemsPayload,
+            ...(addReturnToAdjustment && returnTotalValue > 0 ? { returnAdjustmentAmount: returnTotalValue } : {}),
+            damageItems: damageItemsPayload,
+            ...(addDamageToAdjustment && damageTotalValue > 0 ? { damageAdjustmentAmount: damageTotalValue } : {}),
+            unsetFields: [
+                ...(addReturnToAdjustment && returnTotalValue > 0 ? [] : ['returnAdjustmentAmount']),
+                ...(addDamageToAdjustment && damageTotalValue > 0 ? [] : ['damageAdjustmentAmount']),
+            ],
             receiveStatus: 'Received',
             paymentMethod: paymentAccountType,
             paymentAccount: accountInfo,
@@ -1223,7 +1788,7 @@ const PurchaseAdd = () => {
             {/* -----------------------------------------
                 Product Select Form
             ----------------------------------------- */}
-            <PurchaseForm
+            <fieldset disabled={isReturnOnly} className="contents"><PurchaseForm
                 key={formResetKey}
                 onAddProduct={handleAddProduct}
                 addedProductIds={addedProductIds}
@@ -1233,656 +1798,918 @@ const PurchaseAdd = () => {
                 onCompanyClear={handleCompanyClear}
             />
 
-            {/* -----------------------------------------
-                Main Purchase Table
+                {/* -----------------------------------------
+               Main Purchase Table
+            ----------------------------------------- */}
+            </fieldset>
+            {/*
             ----------------------------------------- */}
             <div className="w-full px-0 sm:px-1 my-6 relative z-0">
                 <div className="bg-white rounded-3xl shadow-xl shadow-teal-900/5 p-6 md:p-8 border border-teal-100/70">
 
                     <form onSubmit={handleSubmit}>
+                        <fieldset disabled={isReturnOnly} className="contents">
 
-                        {/* ---------------------------------
+                            {/* ---------------------------------
                             Product Table
                         --------------------------------- */}
-                        <div className="rounded-2xl border border-teal-100">
-                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
-                                <colgroup>
-                                    <col style={{ width: '10%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '13%' }} />
-                                    <col style={{ width: '7%' }} />
-                                    <col style={{ width: '13%' }} />
-                                    <col style={{ width: '7%' }} />
-                                    <col style={{ width: '14%' }} />
-                                    <col style={{ width: '5%' }} />
-                                    <col style={{ width: '4%' }} />
-                                </colgroup>
+                            <div className="rounded-2xl border border-teal-100">
+                                <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
+                                    <colgroup>
+                                        <col style={{ width: '10%' }} />
+                                        <col style={{ width: '9%' }} />
+                                        <col style={{ width: '9%' }} />
+                                        <col style={{ width: '9%' }} />
+                                        <col style={{ width: '13%' }} />
+                                        <col style={{ width: '7%' }} />
+                                        <col style={{ width: '13%' }} />
+                                        <col style={{ width: '7%' }} />
+                                        <col style={{ width: '14%' }} />
+                                        <col style={{ width: '5%' }} />
+                                        <col style={{ width: '4%' }} />
+                                    </colgroup>
 
-                                <thead>
-                                    <tr className="bg-teal-50/60 border-b-2 border-teal-100 text-xs font-semibold text-teal-800">
+                                    <thead>
+                                        <tr className="bg-teal-50/60 border-b-2 border-teal-100 text-xs font-semibold text-teal-800">
 
-                                        <th className="py-3 px-3">
-                                            Product Name
-                                        </th>
+                                            <th className="py-3 px-3">
+                                                Product Name
+                                            </th>
 
-                                        <th className="py-3 px-3">
-                                            Company
-                                        </th>
+                                            <th className="py-3 px-3">
+                                                Company
+                                            </th>
 
-                                        <th className="py-3 px-3">
-                                            Buy Price
-                                        </th>
+                                            <th className="py-3 px-3">
+                                                Buy Price
+                                            </th>
 
-                                        <th className="py-3 px-3">
-                                            Sell Price
-                                        </th>
+                                            <th className="py-3 px-3">
+                                                Sell Price
+                                            </th>
 
-                                        <th className="py-3 pl-4 pr-1">
-                                            Unit Qty
-                                        </th>
+                                            <th className="py-3 pl-4 pr-1">
+                                                Unit Qty
+                                            </th>
 
-                                        <th className="py-3 pl-3 pr-2">
-                                            PCS Qty
-                                        </th>
+                                            <th className="py-3 pl-3 pr-2">
+                                                PCS Qty
+                                            </th>
 
-                                        <th className="py-3 pl-4 pr-1">
-                                            Free Unit
-                                        </th>
+                                            <th className="py-3 pl-4 pr-1">
+                                                Free Unit
+                                            </th>
 
-                                        <th className="py-3 pl-3 pr-2">
-                                            Free PCS
-                                        </th>
+                                            <th className="py-3 pl-3 pr-2">
+                                                Free PCS
+                                            </th>
 
-                                        <th className="py-3 px-3">
-                                            Discount
-                                        </th>
+                                            <th className="py-3 px-3">
+                                                Discount
+                                            </th>
 
-                                        <th className="py-3 px-3">
-                                            Subtotal
-                                        </th>
+                                            <th className="py-3 px-3">
+                                                Subtotal
+                                            </th>
 
-                                        <th className="py-3 px-3 text-center">
-                                            Action
-                                        </th>
+                                            <th className="py-3 px-3 text-center">
+                                                Action
+                                            </th>
 
-                                    </tr>
-                                </thead>
+                                        </tr>
+                                    </thead>
 
-                                <tbody className="divide-y divide-slate-100 text-sm">
+                                    <tbody className="divide-y divide-slate-100 text-sm">
 
-                                    {purchaseItems.length > 0 ? (
+                                        {purchaseItems.length > 0 ? (
 
-                                        purchaseItems.map((item) => {
+                                            purchaseItems.map((item) => {
 
-                                            // Row Subtotal
-                                            const rowGrossTotal =
-                                                (Number(item.buyPrice) || 0) *
-                                                (Number(item.totalQty) || 0);
+                                                // Row Subtotal
+                                                const rowGrossTotal =
+                                                    (Number(item.buyPrice) || 0) *
+                                                    (Number(item.totalQty) || 0);
 
-                                            const rowEffectiveDiscount =
-                                                item.discountType === 'percent'
-                                                    ? roundTo2((rowGrossTotal * (Number(item.discount) || 0)) / 100)
-                                                    : roundTo2(Number(item.discount) || 0);
+                                                const rowEffectiveDiscount =
+                                                    item.discountType === 'percent'
+                                                        ? roundTo2((rowGrossTotal * (Number(item.discount) || 0)) / 100)
+                                                        : roundTo2(Number(item.discount) || 0);
 
-                                            const rowDiscountPercent =
-                                                item.discountType === 'amount'
-                                                    ? (rowGrossTotal > 0 ? roundTo2(((Number(item.discount) || 0) / rowGrossTotal) * 100) : 0)
-                                                    : 0;
+                                                const rowDiscountPercent =
+                                                    item.discountType === 'amount'
+                                                        ? (rowGrossTotal > 0 ? roundTo2(((Number(item.discount) || 0) / rowGrossTotal) * 100) : 0)
+                                                        : 0;
 
-                                            const rowSubtotal =
-                                                roundTo2(rowGrossTotal - rowEffectiveDiscount);
+                                                const rowSubtotal =
+                                                    roundTo2(rowGrossTotal - rowEffectiveDiscount);
 
-                                            const currentUnitLabel =
-                                                item.unit || 'Pcs';
+                                                const currentUnitLabel =
+                                                    item.unit || 'Pcs';
 
-                                            return (
-                                                <tr
-                                                    key={item.uniqueId}
-                                                    className="hover:bg-teal-50/40 transition"
-                                                >
+                                                return (
+                                                    <tr
+                                                        key={item.uniqueId}
+                                                        className="hover:bg-teal-50/40 transition"
+                                                    >
 
-                                                    {/* Product Name */}
-                                                    <td className="py-3 px-3">
-                                                        <div className="font-semibold text-slate-800">
-                                                            {item.productName}
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Company */}
-                                                    <td className="py-3 px-3 text-slate-600">
-                                                        {item.company}
-                                                    </td>
-
-                                                    {/* Buy Price */}
-                                                    <td className="py-3 px-3">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.01"
-                                                            value={item.buyPrice}
-                                                            onChange={(e) => {
-                                                                const value = e.target.value;
-
-                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                    handleItemChange(
-                                                                        item.uniqueId,
-                                                                        'buyPrice',
-                                                                        value
-                                                                    );
-                                                                }
-                                                            }}
-                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                                                        />
-                                                    </td>
-
-                                                    {/* Sell Price */}
-                                                    <td className="py-3 px-3">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.01"
-                                                            value={item.sellPrice}
-                                                            onChange={(e) => {
-                                                                const value = e.target.value;
-
-                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                    handleItemChange(
-                                                                        item.uniqueId,
-                                                                        'sellPrice',
-                                                                        value
-                                                                    );
-                                                                }
-                                                            }}
-                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                                                        />
-                                                    </td>
-
-                                                    {/* Unit Qty */}
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div
-                                                            className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
-                                                                }`}
-                                                        >
-                                                            Total: {item.totalQty}
-                                                        </div>
-                                                        <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
-                                                            <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    step="1"
-                                                                    placeholder="0"
-                                                                    value={item.unitQty}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-
-                                                                        if (/^\d*$/.test(value)) {
-                                                                            handleItemChange(
-                                                                                item.uniqueId,
-                                                                                'unitQty',
-                                                                                value
-                                                                            );
-                                                                        }
-                                                                    }}
-                                                                    className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                                />
-
-                                                                <span
-                                                                    className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                    title="Unit"
-                                                                >
-                                                                    {currentUnitLabel}
-                                                                </span>
-
+                                                        {/* Product Name */}
+                                                        <td className="py-3 px-3">
+                                                            <div className="font-semibold text-slate-800">
+                                                                {item.productName}
                                                             </div>
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="1"
-                                                                        placeholder="0"
-                                                                        value={item.subQty ?? ''}
-                                                                        onChange={(e) => {
-                                                                            const value = e.target.value;
-                                                                            if (/^\d*$/.test(value)) {
-                                                                                handleItemChange(item.uniqueId, 'subQty', value);
-                                                                            }
-                                                                        }}
-                                                                        className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                                    />
-                                                                    <span
-                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                        title="Sub Unit"
-                                                                    >
-                                                                        {item.subUnit}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
+                                                        </td>
 
-                                                    {/* PCS Qty */}
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                step="1"
-                                                                placeholder="0"
-                                                                value={item.pcsQty}
-                                                                onChange={(e) => {
-                                                                    const value = e.target.value;
+                                                        {/* Company */}
+                                                        <td className="py-3 px-3 text-slate-600">
+                                                            {item.company}
+                                                        </td>
 
-                                                                    if (/^\d*$/.test(value)) {
-                                                                        handleItemChange(
-                                                                            item.uniqueId,
-                                                                            'pcsQty',
-                                                                            value
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                className="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Free Unit Qty */}
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div
-                                                            className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
-                                                                }`}
-                                                        >
-                                                            Total: {item.freeQty}
-                                                        </div>
-                                                        <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
-                                                            <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    step="1"
-                                                                    placeholder="0"
-                                                                    value={item.freeUnitQty}
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-
-                                                                        if (/^\d*$/.test(value)) {
-                                                                            handleItemChange(
-                                                                                item.uniqueId,
-                                                                                'freeUnitQty',
-                                                                                value
-                                                                            );
-                                                                        }
-                                                                    }}
-                                                                    className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                                />
-
-                                                                <span
-                                                                    className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                    title="Unit"
-                                                                >
-                                                                    {currentUnitLabel}
-                                                                </span>
-
-                                                            </div>
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="1"
-                                                                        placeholder="0"
-                                                                        value={item.freeSubQty ?? ''}
-                                                                        onChange={(e) => {
-                                                                            const value = e.target.value;
-                                                                            if (/^\d*$/.test(value)) {
-                                                                                handleItemChange(item.uniqueId, 'freeSubQty', value);
-                                                                            }
-                                                                        }}
-                                                                        className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                                    />
-                                                                    <span
-                                                                        className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                        title="Sub Unit"
-                                                                    >
-                                                                        {item.subUnit}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Free PCS Qty */}
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                step="1"
-                                                                placeholder="0"
-                                                                value={item.freePcsQty}
-                                                                onChange={(e) => {
-                                                                    const value = e.target.value;
-
-                                                                    if (/^\d*$/.test(value)) {
-                                                                        handleItemChange(
-                                                                            item.uniqueId,
-                                                                            'freePcsQty',
-                                                                            value
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                className="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Discount */}
-                                                    <td className="py-3 px-3 relative">
-                                                        <div
-                                                            className={`absolute top-1 left-11 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${(item.discountType === 'percent' ? rowEffectiveDiscount : rowDiscountPercent)
-                                                                ? 'bg-amber-100 text-amber-700'
-                                                                : 'bg-slate-100 text-slate-400'
-                                                                }`}
-                                                        >
-                                                            {item.discountType === 'percent'
-                                                                ? `৳${rowEffectiveDiscount.toFixed(2)}`
-                                                                : `${rowDiscountPercent.toFixed(2)}%`}
-                                                        </div>
-                                                        <div className="flex items-center gap-1">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    handleToggleDiscountType(item.uniqueId)
-                                                                }
-                                                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold transition cursor-pointer"
-                                                                title="Click to toggle Amount / Percentage"
-                                                            >
-                                                                {item.discountType === 'percent' ? '%' : '৳'}
-                                                            </button>
-
+                                                        {/* Buy Price */}
+                                                        <td className="py-3 px-3">
                                                             <input
                                                                 type="number"
                                                                 min="0"
                                                                 step="0.01"
-                                                                placeholder="0"
-                                                                value={item.discount === 0 ? '' : item.discount}
+                                                                value={item.buyPrice}
                                                                 onChange={(e) => {
                                                                     const value = e.target.value;
 
                                                                     if (/^\d*\.?\d{0,2}$/.test(value)) {
                                                                         handleItemChange(
                                                                             item.uniqueId,
-                                                                            'discount',
+                                                                            'buyPrice',
                                                                             value
                                                                         );
                                                                     }
                                                                 }}
-                                                                className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                                                             />
-                                                        </div>
-                                                    </td>
+                                                        </td>
 
-                                                    {/* Row Subtotal */}
-                                                    <td className="py-3 px-3 font-bold text-emerald-700">
-                                                        {rowSubtotal.toFixed(2)}
-                                                    </td>
+                                                        {/* Sell Price */}
+                                                        <td className="py-3 px-3">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={item.sellPrice}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
 
-                                                    {/* Action */}
-                                                    <td className="py-3 px-3 text-center">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                handleRemoveItem(
-                                                                    item.uniqueId
-                                                                )
-                                                            }
-                                                            className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
-                                                        >
-                                                            <svg
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                strokeWidth={1.5}
-                                                                stroke="currentColor"
-                                                                className="w-5 h-5"
+                                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                        handleItemChange(
+                                                                            item.uniqueId,
+                                                                            'sellPrice',
+                                                                            value
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                                                            />
+                                                        </td>
+
+                                                        {/* Unit Qty */}
+                                                        <td className="relative py-3 pl-2 pr-0">
+                                                            <div
+                                                                className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
+                                                                    }`}
                                                             >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                                                                Total: {item.totalQty}
+                                                            </div>
+                                                            <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
+                                                                <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder="0"
+                                                                        value={item.unitQty}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+
+                                                                            if (/^\d*$/.test(value)) {
+                                                                                handleItemChange(
+                                                                                    item.uniqueId,
+                                                                                    'unitQty',
+                                                                                    value
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                        className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                    />
+
+                                                                    <span
+                                                                        className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                        title="Unit"
+                                                                    >
+                                                                        {currentUnitLabel}
+                                                                    </span>
+
+                                                                </div>
+                                                                {item.parentMode && (
+                                                                    <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            placeholder="0"
+                                                                            value={item.subQty ?? ''}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*$/.test(value)) {
+                                                                                    handleItemChange(item.uniqueId, 'subQty', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                        />
+                                                                        <span
+                                                                            className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                            title="Sub Unit"
+                                                                        >
+                                                                            {item.subUnit}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* PCS Qty */}
+                                                        <td className="py-3 pl-0 pr-2">
+                                                            <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="1"
+                                                                    placeholder="0"
+                                                                    value={item.pcsQty}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+
+                                                                        if (/^\d*$/.test(value)) {
+                                                                            handleItemChange(
+                                                                                item.uniqueId,
+                                                                                'pcsQty',
+                                                                                value
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                                                                 />
-                                                            </svg>
-                                                        </button>
-                                                    </td>
+                                                            </div>
+                                                        </td>
 
-                                                </tr>
-                                            );
-                                        })
+                                                        {/* Free Unit Qty */}
+                                                        <td className="relative py-3 pl-2 pr-0">
+                                                            <div
+                                                                className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                                                                    }`}
+                                                            >
+                                                                Total: {item.freeQty}
+                                                            </div>
+                                                            <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                                <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
 
-                                    ) : (
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder="0"
+                                                                        value={item.freeUnitQty}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
 
-                                        <tr>
-                                            <td
-                                                colSpan="11"
-                                                className="text-center py-8 text-slate-400 text-sm"
-                                            >
-                                                No products added yet.
-                                                Please select a company
-                                                and product above.
-                                            </td>
-                                        </tr>
+                                                                            if (/^\d*$/.test(value)) {
+                                                                                handleItemChange(
+                                                                                    item.uniqueId,
+                                                                                    'freeUnitQty',
+                                                                                    value
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                        className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                    />
 
-                                    )}
+                                                                    <span
+                                                                        className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                        title="Unit"
+                                                                    >
+                                                                        {currentUnitLabel}
+                                                                    </span>
 
-                                </tbody>
-                            </table>
-                        </div>
+                                                                </div>
+                                                                {item.parentMode && (
+                                                                    <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            placeholder="0"
+                                                                            value={item.freeSubQty ?? ''}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*$/.test(value)) {
+                                                                                    handleItemChange(item.uniqueId, 'freeSubQty', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                        />
+                                                                        <span
+                                                                            className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
+                                                                            title="Sub Unit"
+                                                                        >
+                                                                            {item.subUnit}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Free PCS Qty */}
+                                                        <td className="py-3 pl-0 pr-2">
+                                                            <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="1"
+                                                                    placeholder="0"
+                                                                    value={item.freePcsQty}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+
+                                                                        if (/^\d*$/.test(value)) {
+                                                                            handleItemChange(
+                                                                                item.uniqueId,
+                                                                                'freePcsQty',
+                                                                                value
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                                                />
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Discount */}
+                                                        <td className="py-3 px-3 relative">
+                                                            <div
+                                                                className={`absolute top-1 left-11 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${(item.discountType === 'percent' ? rowEffectiveDiscount : rowDiscountPercent)
+                                                                    ? 'bg-amber-100 text-amber-700'
+                                                                    : 'bg-slate-100 text-slate-400'
+                                                                    }`}
+                                                            >
+                                                                {item.discountType === 'percent'
+                                                                    ? `৳${rowEffectiveDiscount.toFixed(2)}`
+                                                                    : `${rowDiscountPercent.toFixed(2)}%`}
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        handleToggleDiscountType(item.uniqueId)
+                                                                    }
+                                                                    className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold transition cursor-pointer"
+                                                                    title="Click to toggle Amount / Percentage"
+                                                                >
+                                                                    {item.discountType === 'percent' ? '%' : '৳'}
+                                                                </button>
+
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    placeholder="0"
+                                                                    value={item.discount === 0 ? '' : item.discount}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+
+                                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                            handleItemChange(
+                                                                                item.uniqueId,
+                                                                                'discount',
+                                                                                value
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                                                                />
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Row Subtotal */}
+                                                        <td className="py-3 px-3 font-bold text-emerald-700">
+                                                            {rowSubtotal.toFixed(2)}
+                                                        </td>
+
+                                                        {/* Action */}
+                                                        <td className="py-3 px-3 text-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    handleRemoveItem(
+                                                                        item.uniqueId
+                                                                    )
+                                                                }
+                                                                className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
+                                                            >
+                                                                <svg
+                                                                    xmlns="http://www.w3.org/2000/svg"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    strokeWidth={1.5}
+                                                                    stroke="currentColor"
+                                                                    className="w-5 h-5"
+                                                                >
+                                                                    <path
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                                                                    />
+                                                                </svg>
+                                                            </button>
+                                                        </td>
+
+                                                    </tr>
+                                                );
+                                            })
+
+                                        ) : (
+
+                                            <tr>
+                                                <td
+                                                    colSpan="11"
+                                                    className="text-center py-8 text-slate-400 text-sm"
+                                                >
+                                                    No products added yet.
+                                                    Please select a company
+                                                    and product above.
+                                                </td>
+                                            </tr>
+
+                                        )}
+
+                                    </tbody>
+                                </table>
+                            </div>
 
 
-                        {/* =================================
+                            {/* =================================
     SUMMARY SECTION
 ================================= */}
-                        <div className="mt-6 flex justify-end">
+                            <div className="mt-6 flex justify-end">
 
-                            <div className="w-full md:w-[700px] space-y-2.5 bg-teal-50/40 border border-teal-100 rounded-2xl p-5">
+                                <div className="w-full md:w-[700px] space-y-2.5 bg-teal-50/40 border border-teal-100 rounded-2xl p-5">
 
-                                {/* Grand Total */}
-                                <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
-                                        Grand Total
-                                    </label>
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        value={subTotal.toFixed(2)}
-                                        className="flex-1 px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm outline-none"
-                                    />
-                                </div>
-
-                                {/* Product Wise Discount */}
-                                <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
-                                        Product Wise Discount
-                                    </label>
-
-                                    <div className="flex flex-1 rounded-lg overflow-hidden border border-slate-200">
+                                    {/* Grand Total */}
+                                    <div className="flex items-center">
+                                        <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
+                                            Grand Total
+                                        </label>
                                         <input
                                             type="text"
                                             readOnly
-                                            value={productWiseDiscount.toFixed(2)}
-                                            className="flex-1 min-w-0 px-3 py-2 bg-slate-100 text-sm outline-none"
-                                        />
-
-                                        <input
-                                            type="text"
-                                            readOnly
-                                            value={productWiseDiscountPercent ? `${productWiseDiscountPercent.toFixed(2)}%` : ''}
-                                            placeholder="0%"
-                                            title="Grand Total এর তুলনায় Discount percentage"
-                                            className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600"
+                                            value={subTotal.toFixed(2)}
+                                            className="flex-1 px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm outline-none"
                                         />
                                     </div>
-                                </div>
 
-                                {/* Overall Discount */}
-                                <div className="flex items-center">
+                                    {/* Product Wise Discount */}
+                                    <div className="flex items-center">
+                                        <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
+                                            Product Wise Discount
+                                        </label>
 
-                                    <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
-                                        Overall Discount
-                                    </label>
-
-                                    <div className="flex flex-1 rounded-lg overflow-hidden border border-slate-200">
-
-                                        {/* Overall Discount Amount */}
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            placeholder="0"
-                                            value={overallDiscountAmount === 0 ? '' : overallDiscountAmount}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-
-                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                    setOverallDiscountAmount(
-                                                        value === '' ? '' : Number(value)
-                                                    );
-                                                }
-                                            }}
-                                            className="flex-1 min-w-0 px-3 py-2 bg-white text-sm outline-none focus:bg-teal-50/30"
-                                        />
-
-                                        {overallDiscountType === 'percent' && (
+                                        <div className="flex flex-1 rounded-lg overflow-hidden border border-slate-200">
                                             <input
                                                 type="text"
                                                 readOnly
-                                                value={overallDiscountValue ? overallDiscountValue.toFixed(2) : ''}
-                                                placeholder="৳0.00"
-                                                title="Discount amount in Taka"
-                                                className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                                value={productWiseDiscount.toFixed(2)}
+                                                className="flex-1 min-w-0 px-3 py-2 bg-slate-100 text-sm outline-none"
                                             />
-                                        )}
 
-                                        {overallDiscountType === 'amount' && (
                                             <input
                                                 type="text"
                                                 readOnly
-                                                value={overallDiscountPercent ? `${overallDiscountPercent.toFixed(2)}%` : ''}
+                                                value={productWiseDiscountPercent ? `${productWiseDiscountPercent.toFixed(2)}%` : ''}
                                                 placeholder="0%"
-                                                title="Discount percentage"
-                                                className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                                title="Grand Total এর তুলনায় Discount percentage"
+                                                className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600"
                                             />
-                                        )}
-
-                                        {/* Amount / Percent Toggle */}
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setOverallDiscountType((prev) =>
-                                                    prev === 'amount' ? 'percent' : 'amount'
-                                                )
-                                            }
-                                            className="w-16 shrink-0 border-l border-slate-200 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold transition cursor-pointer"
-                                            title="Click to toggle Amount / Percentage"
-                                        >
-                                            {overallDiscountType === 'percent' ? '%' : '৳'}
-                                        </button>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* Adjustment */}
-                                <div className="flex items-center">
+                                    {/* Overall Discount */}
+                                    <div className="flex items-center">
 
-                                    <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
-                                        Adjustment
-                                    </label>
+                                        <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
+                                            Overall Discount
+                                        </label>
 
-                                    <div className="flex flex-1 rounded-lg overflow-hidden border border-slate-200">
+                                        <div className="flex flex-1 rounded-lg overflow-hidden border border-slate-200">
 
-                                        {/* Adjustment Text */}
+                                            {/* Overall Discount Amount */}
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="0"
+                                                value={overallDiscountAmount === 0 ? '' : overallDiscountAmount}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+
+                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                        setOverallDiscountAmount(
+                                                            value === '' ? '' : Number(value)
+                                                        );
+                                                    }
+                                                }}
+                                                className="flex-1 min-w-0 px-3 py-2 bg-white text-sm outline-none focus:bg-teal-50/30"
+                                            />
+
+                                            {overallDiscountType === 'percent' && (
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    value={overallDiscountValue ? overallDiscountValue.toFixed(2) : ''}
+                                                    placeholder="৳0.00"
+                                                    title="Discount amount in Taka"
+                                                    className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                                />
+                                            )}
+
+                                            {overallDiscountType === 'amount' && (
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    value={overallDiscountPercent ? `${overallDiscountPercent.toFixed(2)}%` : ''}
+                                                    placeholder="0%"
+                                                    title="Discount percentage"
+                                                    className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                                />
+                                            )}
+
+                                            {/* Amount / Percent Toggle */}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setOverallDiscountType((prev) =>
+                                                        prev === 'amount' ? 'percent' : 'amount'
+                                                    )
+                                                }
+                                                className="w-16 shrink-0 border-l border-slate-200 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold transition cursor-pointer"
+                                                title="Click to toggle Amount / Percentage"
+                                            >
+                                                {overallDiscountType === 'percent' ? '%' : '৳'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Adjustment */}
+                                    <div className="flex items-center">
+
+                                        <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
+                                            Adjustment
+                                        </label>
+
+                                        <div className="flex flex-1 rounded-lg overflow-hidden border border-slate-200">
+
+                                            {/* Adjustment Text */}
+                                            <input
+                                                type="text"
+                                                placeholder="Text"
+                                                value={adjustmentText}
+                                                onChange={(e) =>
+                                                    setAdjustmentText(e.target.value)
+                                                }
+                                                className="flex-1 min-w-0 px-3 py-2 bg-white text-sm outline-none focus:bg-teal-50/30"
+                                            />
+
+                                            {/* Adjustment Amount */}
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="0"
+                                                value={adjustmentAmount === 0 ? '' : adjustmentAmount}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+
+                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                        setAdjustmentAmount(
+                                                            value === '' ? '' : Number(value)
+                                                        );
+                                                    }
+                                                }}
+                                                className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-white text-sm outline-none focus:bg-teal-50/30"
+                                            />
+
+                                            {/* Adjustment Type */}
+                                            <select
+                                                value={adjustmentType}
+                                                onChange={(e) =>
+                                                    setAdjustmentType(e.target.value)
+                                                }
+                                                className="w-16 shrink-0 px-2 py-2 border-l border-slate-200 bg-white text-sm outline-none cursor-pointer"
+                                            >
+                                                <option value="+">+</option>
+                                                <option value="-">-</option>
+                                            </select>
+
+                                        </div>
+                                    </div>
+
+                                    {/* Return Amount (Toggle On হলে দেখাবে) */}
+                                    {addReturnToAdjustment && returnTotalValue > 0 && (
+                                        <div className="flex items-center">
+                                            <label className="w-56 text-right pr-3 text-sm font-medium text-violet-600">
+                                                Return Products Amount
+                                            </label>
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={`- ৳${returnTotalValue.toFixed(2)}`}
+                                                className="flex-1 px-3 py-2 border border-violet-200 bg-violet-50 text-violet-700 font-semibold rounded-lg text-sm outline-none"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Payable Amount */}
+                                    <div className="flex items-center pt-2 mt-1 border-t border-teal-200">
+                                        <label className="w-56 text-right pr-3 text-sm font-bold text-teal-800">
+                                            Payable Amount
+                                        </label>
+
                                         <input
                                             type="text"
-                                            placeholder="Text"
-                                            value={adjustmentText}
-                                            onChange={(e) =>
-                                                setAdjustmentText(e.target.value)
-                                            }
-                                            className="flex-1 min-w-0 px-3 py-2 bg-white text-sm outline-none focus:bg-teal-50/30"
+                                            readOnly
+                                            value={payableAmount.toFixed(2)}
+                                            className="flex-1 px-3 py-2.5 border border-teal-200 bg-white font-bold text-emerald-700 text-base rounded-lg outline-none"
                                         />
-
-                                        {/* Adjustment Amount */}
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            placeholder="0"
-                                            value={adjustmentAmount === 0 ? '' : adjustmentAmount}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-
-                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                    setAdjustmentAmount(
-                                                        value === '' ? '' : Number(value)
-                                                    );
-                                                }
-                                            }}
-                                            className="w-28 shrink-0 px-3 py-2 border-l border-slate-200 bg-white text-sm outline-none focus:bg-teal-50/30"
-                                        />
-
-                                        {/* Adjustment Type */}
-                                        <select
-                                            value={adjustmentType}
-                                            onChange={(e) =>
-                                                setAdjustmentType(e.target.value)
-                                            }
-                                            className="w-16 shrink-0 px-2 py-2 border-l border-slate-200 bg-white text-sm outline-none cursor-pointer"
-                                        >
-                                            <option value="+">+</option>
-                                            <option value="-">-</option>
-                                        </select>
-
                                     </div>
+
                                 </div>
-
-                                {/* Payable Amount */}
-                                <div className="flex items-center pt-2 mt-1 border-t border-teal-200">
-                                    <label className="w-56 text-right pr-3 text-sm font-bold text-teal-800">
-                                        Payable Amount
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        value={payableAmount.toFixed(2)}
-                                        className="flex-1 px-3 py-2.5 border border-teal-200 bg-white font-bold text-emerald-700 text-base rounded-lg outline-none"
-                                    />
-                                </div>
-
                             </div>
-                        </div>
 
 
-                        {/* =================================
+                            {/* =================================
                             OTHERS FREE PRODUCT
+                        ================================= */}
+                            <div className="mt-8">
+                                <button
+                                    type="button"
+                                    onClick={() => setFreeProductOpen((prev) => !prev)}
+                                    className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition cursor-pointer"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                    Others Free Product
+                                    {freeProductItems.length > 0 && (
+                                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs font-bold">
+                                            {freeProductItems.length}
+                                        </span>
+                                    )}
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth={2}
+                                        stroke="currentColor"
+                                        className={`w-4 h-4 transition-transform duration-200 ${freeProductOpen ? 'rotate-180' : ''}`}
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </button>
+
+                                {freeProductOpen && (
+                                    <div className="mt-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
+                                        <h3 className="text-base font-bold text-emerald-800 mb-4">Others Free Product</h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <SearchSelect
+                                                label="Filter by Category"
+                                                placeholder="Search or select category..."
+                                                searchValue={freeSearch.category}
+                                                onSearchChange={(text) => setFreeSearch((prev) => ({ ...prev, category: text }))}
+                                                onClear={handleClearFreeCategory}
+                                                onSelect={handleSelectFreeCategory}
+                                                items={filteredFreeCategories}
+                                                getKey={(cat) => cat._id}
+                                                emptyText="No active category found"
+                                                renderItem={(cat) => (
+                                                    <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
+                                                )}
+                                            />
+
+                                            <SearchSelect
+                                                label="Select Free Product"
+                                                placeholder="Search or select product..."
+                                                searchValue={freeSearch.product}
+                                                onSearchChange={(text) => setFreeSearch((prev) => ({ ...prev, product: text }))}
+                                                onClear={() => setFreeSearch((prev) => ({ ...prev, product: '' }))}
+                                                onSelect={handleAddFreeProduct}
+                                                items={filteredFreeProducts}
+                                                getKey={(prod) => prod._id}
+                                                emptyText="No matching product found"
+                                                renderItem={(prod) => (
+                                                    <div className="flex justify-between items-center gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
+                                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                                Company: {prod.company}
+                                                                {prod.category ? ` | Category: ${prod.category}` : ''}
+                                                            </p>
+                                                        </div>
+                                                        {prod.sku && (
+                                                            <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg font-medium border border-emerald-100 shrink-0">
+                                                                SKU: {prod.sku}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            />
+                                        </div>
+
+                                        {freeProductItems.length > 0 && (
+                                            <div className="mt-6 overflow-x-auto rounded-2xl border border-emerald-200">
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead>
+                                                        <tr className="bg-emerald-100/70 border-b-2 border-emerald-200 text-xs font-semibold text-emerald-800">
+                                                            <th className="py-3 px-3">Product Name</th>
+                                                            <th className="py-3 px-3">Company</th>
+                                                            <th className="py-3 px-3">Unit Qty</th>
+                                                            <th className="py-3 px-3">PCS Qty</th>
+                                                            <th className="py-3 px-3">Total Qty</th>
+                                                            <th className="py-3 px-3">Sell Price (PCS)</th>
+                                                            <th className="py-3 px-3">Subtotal</th>
+                                                            <th className="py-3 px-3 text-center">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-emerald-100 text-sm">
+                                                        {freeProductItems.map((item) => (
+                                                            <tr key={item.uniqueId} className="hover:bg-emerald-50/50 transition">
+                                                                <td className="py-3 px-2 font-semibold text-slate-800">{item.productName}</td>
+                                                                <td className="py-3 px-2 text-slate-600 text-xs">{item.company}</td>
+
+                                                                <td className="py-3 pl-1 pr-0 w-40">
+                                                                    <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                                        <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.unitQty}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleFreeItemChange(item.uniqueId, 'unitQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
+                                                                            />
+                                                                            <span
+                                                                                className="flex-1 bg-gradient-to-br from-emerald-500 to-green-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate"
+                                                                                title="Unit"
+                                                                            >
+                                                                                {item.unit || 'Pcs'}
+                                                                            </span>
+                                                                        </div>
+                                                                        {item.parentMode && (
+                                                                            <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.subQty ?? ''}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleFreeItemChange(item.uniqueId, 'subQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span
+                                                                                    className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate"
+                                                                                    title="Sub Unit"
+                                                                                >
+                                                                                    {item.subUnit}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+
+                                                                <td className="py-3 pl-0 pr-1 w-32">
+                                                                    <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            placeholder="0"
+                                                                            value={item.pcsQty}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*$/.test(value)) {
+                                                                                    handleFreeItemChange(item.uniqueId, 'pcsQty', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                                                        />
+                                                                    </div>
+                                                                </td>
+
+                                                                <td className="py-3 px-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        readOnly
+                                                                        value={item.totalQty}
+                                                                        className="w-24 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
+                                                                    />
+                                                                </td>
+
+                                                                <td className="relative py-3 px-2">
+                                                                    <div
+                                                                        className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getFreePcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                    >
+                                                                        ৳{getFreePcsTotal(item).toFixed(2)}
+                                                                    </div>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        placeholder="0"
+                                                                        disabled={!(Number(item.totalQty) > 0)}
+                                                                        value={item.sellPricePcs}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                handleFreeItemChange(item.uniqueId, 'sellPricePcs', value);
+                                                                            }
+                                                                        }}
+                                                                        className="w-24 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                                    />
+                                                                </td>
+
+                                                                <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
+                                                                    {getFreeRowTotal(item).toFixed(2)}
+                                                                </td>
+
+                                                                <td className="py-3 px-1 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleRemoveFreeItem(item.uniqueId)}
+                                                                        className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
+                                                                    >
+                                                                        <svg
+                                                                            xmlns="http://www.w3.org/2000/svg"
+                                                                            fill="none"
+                                                                            viewBox="0 0 24 24"
+                                                                            strokeWidth={1.5}
+                                                                            stroke="currentColor"
+                                                                            className="w-5 h-5"
+                                                                        >
+                                                                            <path
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                                                                            />
+                                                                        </svg>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* =================================
+                          RETURN PRODUCT (Purchase Bulk Return)
+                        ================================= */}
+                        </fieldset>
+                        {/*
                         ================================= */}
                         <div className="mt-8">
                             <button
                                 type="button"
-                                onClick={() => setFreeProductOpen((prev) => !prev)}
-                                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition cursor-pointer"
+                                disabled={!hasMainProduct}
+                                title={!hasMainProduct ? disabledTip : ''}
+                                onClick={() => hasMainProduct && setReturnProductOpen((prev) => !prev)}
+                                className={`flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-500 text-sm font-semibold text-white shadow-md shadow-violet-200 transition ${hasMainProduct ? 'hover:from-violet-600 hover:to-purple-600 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
                                 </svg>
-                                Others Free Product
-                                {freeProductItems.length > 0 && (
+                                Purchase Bulk Return
+                                {returnItems.length > 0 && (
                                     <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs font-bold">
-                                        {freeProductItems.length}
+                                        {returnItems.length}
                                     </span>
                                 )}
                                 <svg
@@ -1891,25 +2718,48 @@ const PurchaseAdd = () => {
                                     viewBox="0 0 24 24"
                                     strokeWidth={2}
                                     stroke="currentColor"
-                                    className={`w-4 h-4 transition-transform duration-200 ${freeProductOpen ? 'rotate-180' : ''}`}
+                                    className={`w-4 h-4 transition-transform duration-200 ${returnProductOpen ? 'rotate-180' : ''}`}
                                 >
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                 </svg>
                             </button>
 
-                            {freeProductOpen && (
-                                <div className="mt-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
-                                    <h3 className="text-base font-bold text-emerald-800 mb-4">Others Free Product</h3>
+                            {returnProductOpen && hasMainProduct && (
+                                <div className="mt-4 bg-violet-50/50 border border-violet-100 rounded-2xl p-5 md:p-6">
+                                    <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                                        <h3 className="text-base font-bold text-violet-800">Purchase Bulk Return</h3>
+
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="text-xs font-semibold text-violet-700">
+                                                Add to the Return Adjustment
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setAddReturnToAdjustment((prev) => !prev)}
+                                                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${addReturnToAdjustment ? 'bg-violet-500' : 'bg-slate-300'}`}
+                                            >
+                                                <span
+                                                    className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${addReturnToAdjustment ? 'translate-x-6' : 'translate-x-1'}`}
+                                                />
+                                            </button>
+                                        </div>
+
+                                        {returnItems.length > 0 && (
+                                            <span className="px-4 py-1.5 rounded-full bg-violet-100 text-violet-700 text-sm font-bold border border-violet-200">
+                                                Total Value: ৳{returnTotalValue.toFixed(2)}
+                                            </span>
+                                        )}
+                                    </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <SearchSelect
                                             label="Filter by Category"
                                             placeholder="Search or select category..."
-                                            searchValue={freeSearch.category}
-                                            onSearchChange={(text) => setFreeSearch((prev) => ({ ...prev, category: text }))}
-                                            onClear={handleClearFreeCategory}
-                                            onSelect={handleSelectFreeCategory}
-                                            items={filteredFreeCategories}
+                                            searchValue={returnSearch.category}
+                                            onSearchChange={(text) => setReturnSearch((prev) => ({ ...prev, category: text }))}
+                                            onClear={handleClearReturnCategory}
+                                            onSelect={handleSelectReturnCategory}
+                                            items={filteredReturnCategories}
                                             getKey={(cat) => cat._id}
                                             emptyText="No active category found"
                                             renderItem={(cat) => (
@@ -1918,15 +2768,15 @@ const PurchaseAdd = () => {
                                         />
 
                                         <SearchSelect
-                                            label="Select Free Product"
-                                            placeholder="Search or select product..."
-                                            searchValue={freeSearch.product}
-                                            onSearchChange={(text) => setFreeSearch((prev) => ({ ...prev, product: text }))}
-                                            onClear={() => setFreeSearch((prev) => ({ ...prev, product: '' }))}
-                                            onSelect={handleAddFreeProduct}
-                                            items={filteredFreeProducts}
+                                            label="Select Return Product"
+                                            placeholder={purchaseFormData.company ? 'Search or select product...' : 'Select a company first...'}
+                                            searchValue={returnSearch.product}
+                                            onSearchChange={(text) => setReturnSearch((prev) => ({ ...prev, product: text }))}
+                                            onClear={() => setReturnSearch((prev) => ({ ...prev, product: '' }))}
+                                            onSelect={handleAddReturnProduct}
+                                            items={filteredReturnProducts}
                                             getKey={(prod) => prod._id}
-                                            emptyText="No matching product found"
+                                            emptyText={purchaseFormData.company ? 'No matching product found' : 'Please select a company first'}
                                             renderItem={(prod) => (
                                                 <div className="flex justify-between items-center gap-3">
                                                     <div>
@@ -1937,7 +2787,7 @@ const PurchaseAdd = () => {
                                                         </p>
                                                     </div>
                                                     {prod.sku && (
-                                                        <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg font-medium border border-emerald-100 shrink-0">
+                                                        <span className="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-lg font-medium border border-violet-100 shrink-0">
                                                             SKU: {prod.sku}
                                                         </span>
                                                     )}
@@ -1946,30 +2796,48 @@ const PurchaseAdd = () => {
                                         />
                                     </div>
 
-                                    {freeProductItems.length > 0 && (
-                                        <div className="mt-6 overflow-x-auto rounded-2xl border border-emerald-200">
-                                            <table className="w-full text-left border-collapse">
+                                    {returnItems.length > 0 && (
+                                        <div className="mt-6 overflow-x-auto rounded-2xl border border-violet-200">
+                                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
+                                                <colgroup>
+                                                    <col style={{ width: '12%' }} />
+                                                    <col style={{ width: '9%' }} />
+                                                    <col style={{ width: '14%' }} />
+                                                    <col style={{ width: '9%' }} />
+                                                    <col style={{ width: '14%' }} />
+                                                    <col style={{ width: '9%' }} />
+                                                    <col style={{ width: '12%' }} />
+                                                    <col style={{ width: '16%' }} />
+                                                    <col style={{ width: '5%' }} />
+                                                </colgroup>
                                                 <thead>
-                                                    <tr className="bg-emerald-100/70 border-b-2 border-emerald-200 text-xs font-semibold text-emerald-800">
+                                                    <tr className="bg-violet-100/70 border-b-2 border-violet-200 text-xs font-semibold text-violet-800">
                                                         <th className="py-3 px-3">Product Name</th>
                                                         <th className="py-3 px-3">Company</th>
-                                                        <th className="py-3 px-3">Unit Qty</th>
-                                                        <th className="py-3 px-3">PCS Qty</th>
-                                                        <th className="py-3 px-3">Total Qty</th>
-                                                        <th className="py-3 px-3">Sell Price (PCS)</th>
+                                                        <th className="py-3 pl-4 pr-1">Unit Qty</th>
+                                                        <th className="py-3 pl-3 pr-2">PCS Qty</th>
+                                                        <th className="py-3 pl-4 pr-1">Free Unit</th>
+                                                        <th className="py-3 pl-3 pr-2">Free PCS</th>
+                                                        <th className="py-3 px-3">Buy Price (PCS)</th>
                                                         <th className="py-3 px-3">Subtotal</th>
                                                         <th className="py-3 px-3 text-center">Action</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-emerald-100 text-sm">
-                                                    {freeProductItems.map((item) => (
-                                                        <tr key={item.uniqueId} className="hover:bg-emerald-50/50 transition">
+                                                <tbody className="divide-y divide-violet-100 text-sm">
+                                                    {returnItems.map((item) => (
+                                                        <tr key={item.uniqueId} className="hover:bg-violet-50/40 transition">
                                                             <td className="py-3 px-2 font-semibold text-slate-800">{item.productName}</td>
                                                             <td className="py-3 px-2 text-slate-600 text-xs">{item.company}</td>
 
-                                                            <td className="py-3 pl-1 pr-0 w-40">
-                                                                <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
-                                                                    <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                            <td className="relative py-3 pl-2 pr-0 w-40">
+                                                                <div
+                                                                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-400'} after:content-[attr(data-stock)]`}
+                                                                    data-stock={getStock(item) ? ` | Stock: ${getStock(item).paid}` : ' | Stock: ...'}
+                                                                >
+                                                                    Total: {item.totalQty}
+                                                                </div>
+                                                                <div className="p-1.5 bg-violet-50 border border-r-0 border-violet-200 rounded-l-2xl">
+                                                                    <div className="flex items-center border border-violet-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
                                                                         <input
                                                                             type="number"
                                                                             min="0"
@@ -1979,15 +2847,82 @@ const PurchaseAdd = () => {
                                                                             onChange={(e) => {
                                                                                 const value = e.target.value;
                                                                                 if (/^\d*$/.test(value)) {
-                                                                                    handleFreeItemChange(item.uniqueId, 'unitQty', value);
+                                                                                    handleReturnItemChange(item.uniqueId, 'unitQty', value);
                                                                                 }
                                                                             }}
                                                                             className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
                                                                         />
-                                                                        <span
-                                                                            className="flex-1 bg-gradient-to-br from-emerald-500 to-green-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate"
-                                                                            title="Unit"
-                                                                        >
+                                                                        <span className="flex-1 bg-gradient-to-br from-violet-500 to-purple-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate">
+                                                                            {item.unit || 'Pcs'}
+                                                                        </span>
+                                                                    </div>
+                                                                    {item.parentMode && (
+                                                                        <div className="mt-1.5 flex items-center border border-violet-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.subQty ?? ''}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleReturnItemChange(item.uniqueId, 'subQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                            />
+                                                                            <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate">
+                                                                                {item.subUnit}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+
+                                                            <td className="py-3 pl-0 pr-2">
+                                                                <div className="p-1.5 bg-violet-50 border border-l-0 border-violet-200 rounded-r-2xl">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="1"
+                                                                        placeholder="0"
+                                                                        value={item.pcsQty}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (/^\d*$/.test(value)) {
+                                                                                handleReturnItemChange(item.uniqueId, 'pcsQty', value);
+                                                                            }
+                                                                        }}
+                                                                        className="w-full px-3 py-2.5 rounded-xl border border-violet-200 bg-white text-sm outline-none shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                                                                    />
+                                                                </div>
+                                                            </td>
+
+                                                            <td className="relative py-3 pl-2 pr-0 w-40">
+                                                                <div
+                                                                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'} after:content-[attr(data-stock)]`}
+                                                                    data-stock={getStock(item) ? ` | Stock: ${getStock(item).free}` : ' | Stock: ...'}
+                                                                >
+                                                                    Total: {item.freeQty}
+                                                                </div>
+                                                                <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                                    <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            placeholder="0"
+                                                                            value={item.freeUnitQty}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*$/.test(value)) {
+                                                                                    handleReturnItemChange(item.uniqueId, 'freeUnitQty', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                        />
+                                                                        <span className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate">
                                                                             {item.unit || 'Pcs'}
                                                                         </span>
                                                                     </div>
@@ -1998,19 +2933,16 @@ const PurchaseAdd = () => {
                                                                                 min="0"
                                                                                 step="1"
                                                                                 placeholder="0"
-                                                                                value={item.subQty ?? ''}
+                                                                                value={item.freeSubQty ?? ''}
                                                                                 onChange={(e) => {
                                                                                     const value = e.target.value;
                                                                                     if (/^\d*$/.test(value)) {
-                                                                                        handleFreeItemChange(item.uniqueId, 'subQty', value);
+                                                                                        handleReturnItemChange(item.uniqueId, 'freeSubQty', value);
                                                                                     }
                                                                                 }}
                                                                                 className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
                                                                             />
-                                                                            <span
-                                                                                className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate"
-                                                                                title="Sub Unit"
-                                                                            >
+                                                                            <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate">
                                                                                 {item.subUnit}
                                                                             </span>
                                                                         </div>
@@ -2018,18 +2950,18 @@ const PurchaseAdd = () => {
                                                                 </div>
                                                             </td>
 
-                                                            <td className="py-3 pl-0 pr-1 w-32">
+                                                            <td className="py-3 pl-0 pr-2">
                                                                 <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
                                                                     <input
                                                                         type="number"
                                                                         min="0"
                                                                         step="1"
                                                                         placeholder="0"
-                                                                        value={item.pcsQty}
+                                                                        value={item.freePcsQty}
                                                                         onChange={(e) => {
                                                                             const value = e.target.value;
                                                                             if (/^\d*$/.test(value)) {
-                                                                                handleFreeItemChange(item.uniqueId, 'pcsQty', value);
+                                                                                handleReturnItemChange(item.uniqueId, 'freePcsQty', value);
                                                                             }
                                                                         }}
                                                                         className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
@@ -2040,58 +2972,31 @@ const PurchaseAdd = () => {
                                                             <td className="py-3 px-2">
                                                                 <input
                                                                     type="number"
-                                                                    readOnly
-                                                                    value={item.totalQty}
-                                                                    className="w-24 px-2 py-2 rounded-xl border border-slate-200 bg-slate-100 text-sm outline-none text-slate-600 cursor-not-allowed"
-                                                                />
-                                                            </td>
-
-                                                            <td className="relative py-3 px-2">
-                                                                <div
-                                                                    className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getFreePcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}
-                                                                >
-                                                                    ৳{getFreePcsTotal(item).toFixed(2)}
-                                                                </div>
-                                                                <input
-                                                                    type="number"
                                                                     min="0"
                                                                     step="0.01"
-                                                                    placeholder="0"
-                                                                    disabled={!(Number(item.totalQty) > 0)}
-                                                                    value={item.sellPricePcs}
+                                                                    value={item.buyPrice}
                                                                     onChange={(e) => {
                                                                         const value = e.target.value;
                                                                         if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                            handleFreeItemChange(item.uniqueId, 'sellPricePcs', value);
+                                                                            handleReturnItemChange(item.uniqueId, 'buyPrice', value);
                                                                         }
                                                                     }}
-                                                                    className="w-24 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
                                                                 />
                                                             </td>
 
                                                             <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
-                                                                {getFreeRowTotal(item).toFixed(2)}
+                                                                {getReturnRowTotal(item).toFixed(2)}
                                                             </td>
 
                                                             <td className="py-3 px-1 text-center">
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => handleRemoveFreeItem(item.uniqueId)}
+                                                                    onClick={() => handleRemoveReturnItem(item.uniqueId)}
                                                                     className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
                                                                 >
-                                                                    <svg
-                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                        fill="none"
-                                                                        viewBox="0 0 24 24"
-                                                                        strokeWidth={1.5}
-                                                                        stroke="currentColor"
-                                                                        className="w-5 h-5"
-                                                                    >
-                                                                        <path
-                                                                            strokeLinecap="round"
-                                                                            strokeLinejoin="round"
-                                                                            d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                                                                        />
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                                                                     </svg>
                                                                 </button>
                                                             </td>
@@ -2105,126 +3010,461 @@ const PurchaseAdd = () => {
                             )}
                         </div>
 
-                        <div className="mt-8">
-
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Order Note
-                            </label>
-
-                            <textarea
-                                rows="3"
-                                placeholder="Write any note about this purchase..."
-                                value={orderNote}
-                                onChange={(e) =>
-                                    setOrderNote(e.target.value)
-                                }
-                                className="w-full  px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 resize-y shadow-sm"
-                            />
-
-                        </div>
-
                         {/* =================================
+                           DAMAGE PRODUCT (এখন কিছু করবে না)
+                        ================================= */}
+                        <fieldset disabled={isReturnOnly} className="contents">
+                            {/*
+                        ================================= */}
+                            <div className="mt-8">
+                                <button
+                                    type="button"
+                                    disabled={!hasMainProduct}
+                                    title={!hasMainProduct ? disabledTip : ''}
+                                    onClick={() => hasMainProduct && setDamageProductOpen((prev) => !prev)}
+                                    className={`flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-sm font-semibold text-white shadow-md shadow-red-200 transition ${hasMainProduct ? 'hover:from-red-600 hover:to-rose-700 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                    </svg>
+                                    Damage Product
+                                    {damageItems.length > 0 && (
+                                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs font-bold">
+                                            {damageItems.length}
+                                        </span>
+                                    )}
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 transition-transform duration-200 ${damageProductOpen ? 'rotate-180' : ''}`}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </button>
+
+                                {damageProductOpen && hasMainProduct && (
+                                    <div className="mt-4 bg-red-50/50 border border-red-100 rounded-2xl p-5 md:p-6">
+                                        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                                            <h3 className="text-base font-bold text-red-800">Damage Product</h3>
+
+                                            <div className="flex items-center gap-2.5">
+                                                <span className="text-xs font-semibold text-red-700">
+                                                    Add to the Damage Adjustment
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAddDamageToAdjustment((prev) => !prev)}
+                                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${addDamageToAdjustment ? 'bg-red-500' : 'bg-slate-300'}`}
+                                                >
+                                                    <span
+                                                        className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${addDamageToAdjustment ? 'translate-x-6' : 'translate-x-1'}`}
+                                                    />
+                                                </button>
+                                            </div>
+
+                                            {damageItems.length > 0 && (
+                                                <span className="px-4 py-1.5 rounded-full bg-red-100 text-red-700 text-sm font-bold border border-red-200">
+                                                    Total Value: ৳{damageTotalValue.toFixed(2)}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <SearchSelect
+                                                label="Filter by Category"
+                                                placeholder="Search or select category..."
+                                                searchValue={damageSearch.category}
+                                                onSearchChange={(text) => setDamageSearch((prev) => ({ ...prev, category: text }))}
+                                                onClear={handleClearDamageCategory}
+                                                onSelect={handleSelectDamageCategory}
+                                                items={filteredDamageCategories}
+                                                getKey={(cat) => cat._id}
+                                                emptyText="No active category found"
+                                                renderItem={(cat) => (
+                                                    <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
+                                                )}
+                                            />
+
+                                            <SearchSelect
+                                                label="Select Damage Product"
+                                                placeholder={purchaseFormData.company ? 'Search or select product...' : 'Select a company first...'}
+                                                searchValue={damageSearch.product}
+                                                onSearchChange={(text) => setDamageSearch((prev) => ({ ...prev, product: text }))}
+                                                onClear={() => setDamageSearch((prev) => ({ ...prev, product: '' }))}
+                                                onSelect={handleAddDamageProduct}
+                                                items={filteredDamageProducts}
+                                                getKey={(s) => s.key}
+                                                emptyText={purchaseFormData.company ? 'No damage stock found' : 'Please select a company first'}
+                                                renderItem={(s) => (
+                                                    <div className="flex justify-between items-center gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-slate-800">{s.productName}</p>
+                                                            <p className="text-xs text-slate-500 mt-0.5">Company: {s.company}</p>
+                                                        </div>
+                                                        <span className="text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-lg font-medium border border-red-100 shrink-0">
+                                                            Main: {s.paid} | Free: {s.free}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            />
+                                        </div>
+
+                                        {damageItems.length > 0 && (
+                                            <div className="mt-6 overflow-x-auto rounded-2xl border border-red-200">
+                                                <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
+                                                    <colgroup>
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '9%' }} />
+                                                        <col style={{ width: '14%' }} />
+                                                        <col style={{ width: '9%' }} />
+                                                        <col style={{ width: '14%' }} />
+                                                        <col style={{ width: '9%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '16%' }} />
+                                                        <col style={{ width: '5%' }} />
+                                                    </colgroup>
+                                                    <thead>
+                                                        <tr className="bg-red-100/70 border-b-2 border-red-200 text-xs font-semibold text-red-800">
+                                                            <th className="py-3 px-3">Product Name</th>
+                                                            <th className="py-3 px-3">Company</th>
+                                                            <th className="py-3 pl-4 pr-1">Unit Qty</th>
+                                                            <th className="py-3 pl-3 pr-2">PCS Qty</th>
+                                                            <th className="py-3 pl-4 pr-1">Free Unit</th>
+                                                            <th className="py-3 pl-3 pr-2">Free PCS</th>
+                                                            <th className="py-3 px-3">Buy Price (PCS)</th>
+                                                            <th className="py-3 px-3">Subtotal</th>
+                                                            <th className="py-3 px-3 text-center">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-red-100 text-sm">
+                                                        {damageItems.map((item) => (
+                                                            <tr key={item.uniqueId} className="hover:bg-red-50/40 transition">
+                                                                <td className="py-3 px-2 font-semibold text-slate-800">{item.productName}</td>
+                                                                <td className="py-3 px-2 text-slate-600 text-xs">{item.company}</td>
+
+                                                                <td className="relative py-3 pl-2 pr-0 w-40">
+                                                                    <div
+                                                                        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                    >
+                                                                        Total: {item.totalQty} | Stock: {getDamageStock(item) ? getDamageStock(item).paid : '...'}
+                                                                    </div>
+                                                                    <div className="p-1.5 bg-red-50 border border-r-0 border-red-200 rounded-l-2xl">
+                                                                        <div className="flex items-center border border-red-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.unitQty}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleDamageItemChange(item.uniqueId, 'unitQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                            />
+                                                                            <span className="flex-1 bg-gradient-to-br from-red-500 to-rose-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate">
+                                                                                {item.unit || 'Pcs'}
+                                                                            </span>
+                                                                        </div>
+                                                                        {item.parentMode && (
+                                                                            <div className="mt-1.5 flex items-center border border-red-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.subQty ?? ''}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleDamageItemChange(item.uniqueId, 'subQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate">
+                                                                                    {item.subUnit}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+
+                                                                <td className="py-3 pl-0 pr-2">
+                                                                    <div className="p-1.5 bg-red-50 border border-l-0 border-red-200 rounded-r-2xl">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            placeholder="0"
+                                                                            value={item.pcsQty}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*$/.test(value)) {
+                                                                                    handleDamageItemChange(item.uniqueId, 'pcsQty', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-full px-3 py-2.5 rounded-xl border border-red-200 bg-white text-sm outline-none shadow-sm focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                                                                        />
+                                                                    </div>
+                                                                </td>
+
+                                                                <td className="relative py-3 pl-2 pr-0 w-40">
+                                                                    <div
+                                                                        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}
+                                                                    >
+                                                                        Total: {item.freeQty} | Stock: {getDamageStock(item) ? getDamageStock(item).free : '...'}
+                                                                    </div>
+                                                                    <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
+                                                                        <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                placeholder="0"
+                                                                                value={item.freeUnitQty}
+                                                                                onChange={(e) => {
+                                                                                    const value = e.target.value;
+                                                                                    if (/^\d*$/.test(value)) {
+                                                                                        handleDamageItemChange(item.uniqueId, 'freeUnitQty', value);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                            />
+                                                                            <span className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate">
+                                                                                {item.unit || 'Pcs'}
+                                                                            </span>
+                                                                        </div>
+                                                                        {item.parentMode && (
+                                                                            <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="1"
+                                                                                    placeholder="0"
+                                                                                    value={item.freeSubQty ?? ''}
+                                                                                    onChange={(e) => {
+                                                                                        const value = e.target.value;
+                                                                                        if (/^\d*$/.test(value)) {
+                                                                                            handleDamageItemChange(item.uniqueId, 'freeSubQty', value);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-20 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
+                                                                                />
+                                                                                <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-1 py-2.5 text-center font-semibold select-none truncate">
+                                                                                    {item.subUnit}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+
+                                                                <td className="py-3 pl-0 pr-2">
+                                                                    <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            placeholder="0"
+                                                                            value={item.freePcsQty}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value;
+                                                                                if (/^\d*$/.test(value)) {
+                                                                                    handleDamageItemChange(item.uniqueId, 'freePcsQty', value);
+                                                                                }
+                                                                            }}
+                                                                            className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                                                        />
+                                                                    </div>
+                                                                </td>
+
+                                                                <td className="py-3 px-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        value={item.buyPrice}
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                                handleDamageItemChange(item.uniqueId, 'buyPrice', value);
+                                                                            }
+                                                                        }}
+                                                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                                                                    />
+                                                                </td>
+
+                                                                <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
+                                                                    {getDamageRowTotal(item).toFixed(2)}
+                                                                </td>
+
+                                                                <td className="py-3 px-1 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleRemoveDamageItem(item.uniqueId)}
+                                                                        className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                                        </svg>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-8">
+
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    Order Note
+                                </label>
+
+                                <textarea
+                                    rows="3"
+                                    placeholder="Write any note about this purchase..."
+                                    value={orderNote}
+                                    onChange={(e) =>
+                                        setOrderNote(e.target.value)
+                                    }
+                                    className="w-full  px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 resize-y shadow-sm"
+                                />
+
+                            </div>
+
+                            {/* =================================
                             PAYMENT (Receive Mode Only)
                         ================================= */}
-                        {showPayment && (
-                            <div className="mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
-                                <h3 className="text-base font-bold text-emerald-800 mb-4">Payment</h3>
+                            {showPayment && (
+                                <div className="mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
+                                    <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                                        <h3 className="text-base font-bold text-emerald-800">Payment</h3>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                                    {/* Payment Amount */}
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Payment Amount <span className="text-rose-500">*</span>
+                                        <label
+                                            className={`flex items-center gap-2 text-sm font-semibold ${paymentAccountType && selectedAccountKey ? 'text-emerald-700 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`}
+                                            title={paymentAccountType && selectedAccountKey ? '' : 'আগে Payment Method ও Account select করুন'}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={savePaymentMethod}
+                                                disabled={!(paymentAccountType && selectedAccountKey)}
+                                                onChange={(e) => handleSavePaymentToggle(e.target.checked)}
+                                                className="w-4 h-4 accent-emerald-600 disabled:cursor-not-allowed"
+                                            />
+                                            Save Payment Method
                                         </label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={paymentAmount}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
+                                    </div>
 
-                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                    setPaymentAmount(value);
-                                                    setPaymentAmountTouched(true);
-                                                }
-                                            }}
-                                            className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                                        {/* Payment Amount */}
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                Payment Amount <span className="text-rose-500">*</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={paymentAmount}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+
+                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                        setPaymentAmount(value);
+                                                        setPaymentAmountTouched(true);
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                            />
+                                        </div>
+
+                                        {/* Payment Method */}
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                Payment Method <span className="text-rose-500">*</span>
+                                            </label>
+                                            <select
+                                                value={paymentAccountType}
+                                                onChange={(e) => {
+                                                    setPaymentAccountType(e.target.value);
+                                                    setSelectedAccountKey('');
+                                                    if (savePaymentMethod) {
+                                                        setSavePaymentMethod(false);
+                                                        persistPaymentMethod(false, '', '');
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
+                                            >
+                                                <option value="">Select method...</option>
+                                                {accountTypes.map((type) => (
+                                                    <option key={type} value={type}>{type}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Account Selection */}
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                Account <span className="text-rose-500">*</span>
+                                            </label>
+                                            <select
+                                                value={selectedAccountKey}
+                                                onChange={(e) => {
+                                                    setSelectedAccountKey(e.target.value);
+                                                    if (savePaymentMethod) {
+                                                        persistPaymentMethod(true, paymentAccountType, e.target.value);
+                                                    }
+                                                }}
+                                                disabled={!paymentAccountType}
+                                                className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
+                                                    ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
+                                                    : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                    }`}
+                                            >
+                                                <option value="">
+                                                    {paymentAccountType ? 'Select account...' : 'Select method first'}
+                                                </option>
+                                                {uniqueAccounts.map((inv) => {
+                                                    const key = getAccountKey(inv);
+                                                    const label =
+                                                        inv.accountType === 'Bank'
+                                                            ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
+                                                            : inv.accountType === 'Mobile Banking'
+                                                                ? `${inv.accountName} - ${inv.accountNumber}`
+                                                                : 'Cash';
+                                                    return (
+                                                        <option key={key} value={key}>{label}</option>
+                                                    );
+                                                })}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Payment Note (Optional) */}
+                                    <div className="mt-6">
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                            Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
+                                        </label>
+                                        <textarea
+                                            rows="2"
+                                            placeholder="Write any note about this payment..."
+                                            value={paymentNote}
+                                            onChange={(e) => setPaymentNote(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
                                         />
                                     </div>
-
-                                    {/* Payment Method */}
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Payment Method <span className="text-rose-500">*</span>
-                                        </label>
-                                        <select
-                                            value={paymentAccountType}
-                                            onChange={(e) => {
-                                                setPaymentAccountType(e.target.value);
-                                                setSelectedAccountKey('');
-                                            }}
-                                            className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
-                                        >
-                                            <option value="">Select method...</option>
-                                            {accountTypes.map((type) => (
-                                                <option key={type} value={type}>{type}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Account Selection */}
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Account <span className="text-rose-500">*</span>
-                                        </label>
-                                        <select
-                                            value={selectedAccountKey}
-                                            onChange={(e) => setSelectedAccountKey(e.target.value)}
-                                            disabled={!paymentAccountType}
-                                            className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
-                                                ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
-                                                : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                }`}
-                                        >
-                                            <option value="">
-                                                {paymentAccountType ? 'Select account...' : 'Select method first'}
-                                            </option>
-                                            {uniqueAccounts.map((inv) => {
-                                                const key = getAccountKey(inv);
-                                                const label =
-                                                    inv.accountType === 'Bank'
-                                                        ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
-                                                        : inv.accountType === 'Mobile Banking'
-                                                            ? `${inv.accountName} - ${inv.accountNumber}`
-                                                            : 'Cash';
-                                                return (
-                                                    <option key={key} value={key}>{label}</option>
-                                                );
-                                            })}
-                                        </select>
-                                    </div>
                                 </div>
+                            )}
 
-                                {/* Payment Note (Optional) */}
-                                <div className="mt-6">
-                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                        Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
-                                    </label>
-                                    <textarea
-                                        rows="2"
-                                        placeholder="Write any note about this payment..."
-                                        value={paymentNote}
-                                        onChange={(e) => setPaymentNote(e.target.value)}
-                                        className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* =================================
-                            SUBMIT / RECEIVE BUTTON
+                            {/* =================================
+                           SUBMIT / RECEIVE BUTTON
+                        ================================= */}
+                        </fieldset>
+                        {/*
                         ================================= */}
                         <div className="mt-6 flex justify-end">
 
@@ -2242,7 +3482,7 @@ const PurchaseAdd = () => {
                                     type="submit"
                                     className="px-10 py-3 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 hover:from-teal-700 hover:to-emerald-600 text-sm font-semibold text-white shadow-md shadow-teal-200 transition cursor-pointer"
                                 >
-                                    {isEditMode ? 'Update Purchase' : 'Purchase'}
+                                    {isReturnOnly ? 'Update Return' : isEditMode ? 'Update Purchase' : 'Purchase'}
                                 </button>
                             )}
                         </div>

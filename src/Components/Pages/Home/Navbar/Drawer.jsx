@@ -227,9 +227,9 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       key: "inventory",
       label: "Inventory",
       children: [
-        { to: "/free-products", label: "Free Products" },
-        { to: "/damage-products", label: "Damage Products" },
         { to: "/stock-all", label: "Stock All" },
+        { to: "/stock-alert", label: "Stock Alert" },
+        { to: "/damage-products", label: "Damage Products" },
       ],
     },
     {
@@ -265,19 +265,11 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
     },
     {
       type: "dropdown",
-      key: "billing",
-      label: "Payment & Billing",
-      children: [
-
-      ],
-    },
-    {
-      type: "dropdown",
       key: "settings",
       label: "Settings",
       children: [
         { to: "/features", label: "Features" },
-
+        { to: "/payment-billing", label: "Payment & Billing" },
       ],
     },
   ].filter(Boolean); // কোনো ভ্যালু ফলসি হলে ফিল্টার করে বাদ দিবে

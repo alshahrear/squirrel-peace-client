@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     Printer,
     Phone,
@@ -14,6 +14,7 @@ import {
 
 const PurchaseDetails = () => {
     const { id } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -29,6 +30,10 @@ const PurchaseDetails = () => {
     );
     // Return না থাকলে Remaining feature কাজ করবে না
     const showRemaining = showRemainingToggle && hasReturn;
+
+    // Discount purchase er somoy jeta silo setai thakbe (return e discount change hoy na)
+    const displayItems = selectedInvoice?.items || [];
+    const ovInv = selectedInvoice;
 
     // Return বাদ দিয়ে Remaining Quantity / Free Quantity / Subtotal হিসাব
     // total pcs কে Parent Unit / Sub Unit / Pcs এ ভাঙার helper
@@ -83,8 +88,14 @@ const PurchaseDetails = () => {
             ? splitQty(remFree, perUnit, perSub, parentMode)
             : [freeUnitQty, freeSubQty, freePcsQty];
 
-        const subtotal = Number(item.subtotal) || 0;
-        const remSubtotal = totalPcs > 0 ? (subtotal * remQty) / totalPcs : subtotal;
+        const buyP = Number(item.buyPrice) || 0;
+        const fullDiscRow = Number(
+            item.discountAmount ??
+            (item.discountType === 'percent'
+                ? (buyP * totalPcs * Number(item.discount)) / 100
+                : Number(item.discount))
+        ) || 0;
+        const remSubtotal = Math.max(buyP * remQty - fullDiscRow, 0);
 
         return { remQty, remFree, remUnit, remSub, remPcs, remFreeUnit, remFreeSub, remFreePcs, remSubtotal };
     };
@@ -215,18 +226,34 @@ const PurchaseDetails = () => {
     }, [id]);
 
     // Return বাদ দিয়ে Grand Total / Discount / Payable / Due হিসাব
+    // Bulk Return page theke View click korle Return section e scroll korbe
+    useEffect(() => {
+               const scrollTarget =
+            location.state?.scrollTo ||
+            (location.state?.scrollToReturn ||
+                new URLSearchParams(location.search).get('scrollToReturn') === '1'
+                ? 'return-products-section'
+                : null);
+        if (loading || !scrollTarget) return;
+        const t = setTimeout(() => {
+            document
+                .getElementById(scrollTarget)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 200);
+        return () => clearTimeout(t);
+    }, [loading, selectedInvoice, location.state, location.search]);
     const getTotals = () => {
         const inv = selectedInvoice;
         const paid = Number(inv.paidAmount || 0);
 
         if (!showRemaining) {
-            const payable = Number(inv.payableAmount) || 0;
+            const payable = Number(ovInv.payableAmount) || 0;
             return { payable, due: payable - paid };
         }
 
         let grand = 0;
         let pwd = 0;
-        (inv.items || []).forEach((item) => {
+        displayItems.forEach((item) => {
             const info = getRemainingInfo(item);
             const total = Number(item.totalPcs) || 0;
             const buy = Number(item.buyPrice) || 0;
@@ -238,17 +265,19 @@ const PurchaseDetails = () => {
                     : Number(item.discount))
             ) || 0;
             grand += buy * info.remQty;
-            pwd += total > 0 ? (fullDisc * info.remQty) / total : 0;
+            pwd += fullDisc;
         });
 
         const afterProduct = grand - pwd;
         const overallAmt =
-            inv.overallDiscountType === 'percent'
-                ? (afterProduct * (Number(inv.overallDiscount) || 0)) / 100
-                : Number(inv.overallDiscountValue ?? inv.overallDiscount) || 0;
+            ovInv.overallDiscountType === 'percent'
+                ? (afterProduct * (Number(ovInv.overallDiscount) || 0)) / 100
+                : Number(ovInv.overallDiscountValue ?? ovInv.overallDiscount) || 0;
         const adjAmt = Number(inv.adjustment?.amount) || 0;
         let payable = afterProduct - overallAmt;
         payable = inv.adjustment?.type === '-' ? payable - adjAmt : payable + adjAmt;
+        payable -= Number(inv.returnAdjustmentAmount) || 0;
+        payable -= Number(inv.damageAdjustmentAmount) || 0;
         if (payable < 0) payable = 0;
 
         return {
@@ -414,7 +443,7 @@ const PurchaseDetails = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
-                                {selectedInvoice.items.map((item, index) => (
+                                {displayItems.map((item, index) => (
                                     <tr key={index} className="hover:bg-indigo-50/40 transition-colors">
                                         <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
                                         <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
@@ -462,13 +491,14 @@ const PurchaseDetails = () => {
                                                         ? (rowGrossTotal * Number(item.discount)) / 100
                                                         : Number(item.discount))
                                                 );
-                                                const discountAmt = showRemaining && Number(item.totalPcs) > 0
-                                                    ? (fullDiscountAmt * getRemainingInfo(item).remQty) / Number(item.totalPcs)
-                                                    : fullDiscountAmt;
+                                                const discountAmt = fullDiscountAmt;
+                                                const remGross = showRemaining
+                                                    ? Number(item.buyPrice) * getRemainingInfo(item).remQty
+                                                    : rowGrossTotal;
                                                 const discountPct =
-                                                    item.discountType === 'percent'
+                                                    item.discountType === 'percent' && !showRemaining
                                                         ? Number(item.discount) || 0
-                                                        : (rowGrossTotal > 0 ? (discountAmt / rowGrossTotal) * 100 : 0);
+                                                        : (remGross > 0 ? (discountAmt / remGross) * 100 : 0);
                                                 return (
                                                     <>
                                                         <span className={item.discountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
@@ -538,6 +568,84 @@ const PurchaseDetails = () => {
                         </div>
                     )}
 
+                    {/* Return Products */}
+                    {selectedInvoice.returnItems && selectedInvoice.returnItems.length > 0 && (
+                        <div className="order-2 px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
+                            <h4 id="return-products-section" className="scroll-mt-24 text-xs font-bold text-violet-700 uppercase mb-3">Bulk Return Products</h4>
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-violet-100/70 text-violet-800 text-[11px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
+                                        <th className="py-3 px-3.5 rounded-l-xl whitespace-nowrap">SL</th>
+                                        <th className="py-3 px-3.5 whitespace-nowrap">Product</th>
+                                        <th className="py-3 px-3.5 whitespace-nowrap">Company</th>
+                                        <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
+                                        <th className="py-3 px-3.5 whitespace-nowrap">Free Quantity</th>
+                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Buy Price (PCS)</th>
+                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-violet-100 text-xs sm:text-sm text-slate-700">
+                                    {selectedInvoice.returnItems.map((item, index) => (
+                                        <tr key={index} className="hover:bg-violet-50/40 transition-colors">
+                                            <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
+                                            <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
+                                            <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
+                                            <td className="py-4 px-3.5 font-semibold text-orange-600">
+                                                {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
+                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalQty})</span>
+                                            </td>
+                                            <td className="py-4 px-3.5 font-semibold text-emerald-600">
+                                                {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
+                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
+                                            </td>
+                                            <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.buyPrice || 0).toFixed(2)}</td>
+                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal || 0).toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {/* Damage Products */}
+                    {selectedInvoice.damageItems && selectedInvoice.damageItems.length > 0 && (
+                        <div className="order-2 px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
+                            <h4 id="damage-products-section" className="scroll-mt-24 text-xs font-bold text-red-700 uppercase mb-3">Damage Products</h4>
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-red-100/70 text-red-800 text-[11px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
+                                        <th className="py-3 px-3.5 rounded-l-xl whitespace-nowrap">SL</th>
+                                        <th className="py-3 px-3.5 whitespace-nowrap">Product</th>
+                                        <th className="py-3 px-3.5 whitespace-nowrap">Company</th>
+                                        <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
+                                        <th className="py-3 px-3.5 whitespace-nowrap">Free Quantity</th>
+                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Buy Price (PCS)</th>
+                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-red-100 text-xs sm:text-sm text-slate-700">
+                                    {selectedInvoice.damageItems.map((item, index) => (
+                                        <tr key={index} className="hover:bg-red-50/40 transition-colors">
+                                            <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
+                                            <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
+                                            <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
+                                            <td className="py-4 px-3.5 font-semibold text-orange-600">
+                                                {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
+                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalQty})</span>
+                                            </td>
+                                            <td className="py-4 px-3.5 font-semibold text-emerald-600">
+                                                {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
+                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
+                                            </td>
+                                            <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.buyPrice || 0).toFixed(2)}</td>
+                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal || 0).toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
                     {/* Totals + Note */}
                     <div className="order-1 p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col sm:flex-row justify-between items-start gap-6 print:bg-white">
                         <div className="w-full sm:w-1/2">
@@ -559,40 +667,40 @@ const PurchaseDetails = () => {
                             <div className="flex justify-between py-1 text-slate-600">
                                 <span>Product Wise Discount:</span>
                                 <span className="font-semibold text-rose-600">
-                                    - ৳{(showRemaining ? getTotals().pwd : Number(selectedInvoice.productWiseDiscount)).toFixed(2)}
+                                    - ৳{(showRemaining ? getTotals().pwd : Number(ovInv.productWiseDiscount)).toFixed(2)}
                                     <span className="text-[10px] text-slate-400 ml-1">
                                         ({(
-                                            (showRemaining ? getTotals().pwdPct : selectedInvoice.productWiseDiscountPercent) ??
-                                            (Number(selectedInvoice.grandTotal) > 0
-                                                ? (Number(selectedInvoice.productWiseDiscount) / Number(selectedInvoice.grandTotal)) * 100
+                                            (showRemaining ? getTotals().pwdPct : ovInv.productWiseDiscountPercent) ??
+                                            (Number(ovInv.grandTotal) > 0
+                                                ? (Number(ovInv.productWiseDiscount) / Number(ovInv.grandTotal)) * 100
                                                 : 0)
                                         ).toFixed(2)}%)
                                     </span>
                                 </span>
                             </div>
-                            {Number(selectedInvoice.overallDiscount) > 0 && (
+                            {Number(ovInv.overallDiscount) > 0 && (
                                 <div className="flex justify-between py-1 text-slate-600">
                                     <span>Overall Discount:</span>
                                     <span className="font-semibold">
                                         {(() => {
-                                            const afterProductDiscount = showRemaining ? getTotals().afterProduct : Number(selectedInvoice.grandTotal) - Number(selectedInvoice.productWiseDiscount);
+                                            const afterProductDiscount = showRemaining ? getTotals().afterProduct : Number(ovInv.grandTotal) - Number(ovInv.productWiseDiscount);
                                             const overallAmt = showRemaining ? getTotals().overallAmt : Number(
-                                                selectedInvoice.overallDiscountValue ??
-                                                (selectedInvoice.overallDiscountType === 'percent'
-                                                    ? (afterProductDiscount * Number(selectedInvoice.overallDiscount)) / 100
-                                                    : Number(selectedInvoice.overallDiscount))
+                                                ovInv.overallDiscountValue ??
+                                                (ovInv.overallDiscountType === 'percent'
+                                                    ? (afterProductDiscount * Number(ovInv.overallDiscount)) / 100
+                                                    : Number(ovInv.overallDiscount))
                                             );
                                             const overallPct =
-                                                selectedInvoice.overallDiscountType === 'percent'
-                                                    ? Number(selectedInvoice.overallDiscount) || 0
+                                                ovInv.overallDiscountType === 'percent'
+                                                    ? Number(ovInv.overallDiscount) || 0
                                                     : (afterProductDiscount > 0 ? (overallAmt / afterProductDiscount) * 100 : 0);
                                             return (
                                                 <>
-                                                    <span className={selectedInvoice.overallDiscountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                    <span className={ovInv.overallDiscountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
                                                         - ৳{overallAmt.toFixed(2)}
                                                     </span>
                                                     {' '}
-                                                    <span className={selectedInvoice.overallDiscountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                    <span className={ovInv.overallDiscountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
                                                         ({overallPct.toFixed(2)}%)
                                                     </span>
                                                 </>
@@ -612,7 +720,7 @@ const PurchaseDetails = () => {
                                             ({(() => {
                                                 const base = showRemaining
                                                     ? getTotals().afterProduct - getTotals().overallAmt
-                                                    : Number(selectedInvoice.grandTotal) - Number(selectedInvoice.productWiseDiscount) - Number(selectedInvoice.overallDiscountValue ?? 0);
+                                                    : Number(ovInv.grandTotal) - Number(ovInv.productWiseDiscount) - Number(ovInv.overallDiscountValue ?? 0);
                                                 return base > 0
                                                     ? ((Number(selectedInvoice.adjustment.amount) / base) * 100).toFixed(2)
                                                     : '0.00';
@@ -621,9 +729,25 @@ const PurchaseDetails = () => {
                                     </span>
                                 </div>
                             )}
+                            {Number(selectedInvoice.damageAdjustmentAmount) > 0 && (
+                                <div className="flex justify-between py-1 text-slate-600">
+                                    <span>Damage Products Amount:</span>
+                                    <span className="font-semibold text-red-600">
+                                        - ৳{Number(selectedInvoice.damageAdjustmentAmount).toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
+                            {Number(selectedInvoice.returnAdjustmentAmount) > 0 && (
+                                <div className="flex justify-between py-1 text-slate-600">
+                                    <span>Return Products Amount:</span>
+                                    <span className="font-semibold text-violet-600">
+                                        - ৳{Number(selectedInvoice.returnAdjustmentAmount).toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
                                 <span>Payable Amount:</span>
-                                <span className="text-indigo-600">৳{Number(selectedInvoice.payableAmount).toFixed(2)}</span>
+                                <span className="text-indigo-600">৳{getTotals().payable.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-slate-500 text-sm">
                                 <span>Paid Amount:</span>
@@ -632,7 +756,7 @@ const PurchaseDetails = () => {
                             <div className="flex justify-between py-2 text-sm font-bold text-slate-800 border-t border-dashed border-slate-300">
                                 <span>Due Amount:</span>
                                 <span className="text-rose-600">
-                                    ৳{(Number(selectedInvoice.payableAmount) - Number(selectedInvoice.paidAmount || 0)).toFixed(2)}
+                                    ৳{getTotals().due.toFixed(2)}
                                 </span>
                             </div>
 

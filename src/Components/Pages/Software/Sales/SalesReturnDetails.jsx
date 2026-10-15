@@ -22,12 +22,10 @@ const SalesReturnDetails = () => {
     const [notFound, setNotFound] = useState(false);
     const [returnInputs, setReturnInputs] = useState([]); // [{ rtUnitQty, rtPcsQty, rtFreeUnitQty, rtFreePcsQty }, ...]
     const [freeReturnInputs, setFreeReturnInputs] = useState([]); // Others Free Product return: [{ rtUnitQty, rtPcsQty }, ...]
-    const [itemDiscounts, setItemDiscounts] = useState([]); // [{ discount, discountType }, ...]
     const [returnPricesUnit, setReturnPricesUnit] = useState([]); // Unit er return price, editable
     const [returnPricesPcs, setReturnPricesPcs] = useState([]); // PCS er return price, editable
     const [returnPricesSub, setReturnPricesSub] = useState([]); // Sub Unit er return price, editable
-    const [overallDiscountAmount, setOverallDiscountAmount] = useState(0);
-    const [overallDiscountType, setOverallDiscountType] = useState('amount');
+    const [returnNote, setReturnNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
@@ -56,6 +54,7 @@ const SalesReturnDetails = () => {
                     const editingEntry = editReturnId
                         ? (data.returnHistory || []).find((ret) => ret.returnId === editReturnId)
                         : null;
+                    setReturnNote(editingEntry?.returnNote || '');
 
                     setReturnInputs(
                         (data.items || []).map((item) => {
@@ -92,25 +91,25 @@ const SalesReturnDetails = () => {
                         })
                     );
 
-                    setItemDiscounts(
-                        (data.items || []).map((item) => ({
-                            discount: Number(item.discount) || 0,
-                            discountType: item.discountType || 'amount',
-                        }))
-                    );
-
                     setReturnPricesUnit(
                         (data.items || []).map((item) => Number(item.sellPriceUnit) || 0)
                     );
+                    // Discount / overall discount / adjustment er por asol net price per pcs
+                    const payableNum = Number(data.payableAmount) || 0;
+                    const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.subtotal) || 0), 0);
                     setReturnPricesPcs(
-                        (data.items || []).map((item) => Number(item.sellPricePcs) || 0)
+                        (data.items || []).map((item) => {
+                            const paidQty = Number(item.totalPcs) || 0;
+                            const netAmount = subtotalSum > 0
+                                ? (payableNum * (Number(item.subtotal) || 0)) / subtotalSum
+                                : 0;
+                            return paidQty > 0 ? roundTo2(netAmount / paidQty) : (Number(item.sellPricePcs) || 0);
+                        })
                     );
                     setReturnPricesSub(
                         (data.items || []).map((item) => Number(item.sellPriceSub) || 0)
                     );
 
-                    setOverallDiscountAmount(Number(data.overallDiscount) || 0);
-                    setOverallDiscountType(data.overallDiscountType || 'amount');
                 } else {
                     setNotFound(true);
                 }
@@ -266,23 +265,11 @@ const SalesReturnDetails = () => {
         return rtSubQty * priceSub;
     };
 
-    const getReturnAmount = (index, item) =>
-        getReturnUnitAmount(index, item) + getReturnSubAmount(index, item) + getReturnPcsAmount(index, item);
-
-    // Original row er gross total (Unit ongsho + Sub ongsho + PCS ongsho)
-    const getRowGross = (item) =>
-        (Number(item.unitQty) || 0) * (Number(item.sellPriceUnit) || 0) +
-        (Number(item.subQty) || 0) * (Number(item.sellPriceSub) || 0) +
-        (Number(item.pcsQty) || 0) * (Number(item.sellPricePcs) || 0);
-
-    const getItemDiscountAmount = (index, item) => {
-        const discount = Number(itemDiscounts[index]?.discount) || 0;
-        const discountType = itemDiscounts[index]?.discountType || 'amount';
-        const rowGrossTotal = getRowGross(item);
-        return discountType === 'percent'
-            ? roundTo2((rowGrossTotal * discount) / 100)
-            : roundTo2(discount);
+    const getReturnAmount = (index, item) => {
+        const pricePcs = returnPricesPcs[index] !== undefined ? Number(returnPricesPcs[index]) || 0 : (Number(item.sellPricePcs) || 0);
+        return getTotalRtQty(index, item) * pricePcs;
     };
+
 
     // --------------------------------------------------
     // RT Qty (Unit) Change
@@ -528,35 +515,6 @@ const SalesReturnDetails = () => {
         });
     };
 
-    // --------------------------------------------------
-    // Item Discount Change
-    // --------------------------------------------------
-    const handleItemDiscountChange = (index, value) => {
-        if (value !== '' && !/^\d*\.?\d{0,2}$/.test(value)) return; // পয়েন্টের পর সর্বোচ্চ ২ ডিজিট
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        setItemDiscounts((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], discount: val };
-            return updated;
-        });
-    };
-
-    // --------------------------------------------------
-    // Item Discount Type Toggle (Amount / Percent)
-    // --------------------------------------------------
-    const handleToggleItemDiscountType = (index) => {
-        setItemDiscounts((prev) => {
-            const updated = [...prev];
-            updated[index] = {
-                ...updated[index],
-                discountType: updated[index]?.discountType === 'percent' ? 'amount' : 'percent',
-            };
-            return updated;
-        });
-    };
-
     const totalReturnPcs = selectedOrder
         ? selectedOrder.items.reduce((sum, item, index) => sum + getTotalRtQty(index, item), 0)
         : 0;
@@ -571,18 +529,6 @@ const SalesReturnDetails = () => {
 
     const totalReturnAmount = selectedOrder
         ? selectedOrder.items.reduce((sum, item, index) => sum + getReturnAmount(index, item), 0)
-        : 0;
-
-    const liveProductWiseDiscount = selectedOrder
-        ? roundTo2(selectedOrder.items.reduce((sum, item, index) => sum + getItemDiscountAmount(index, item), 0))
-        : 0;
-
-    const liveOverallDiscountValue = selectedOrder
-        ? roundTo2(
-            overallDiscountType === 'percent'
-                ? ((Number(selectedOrder.grandTotal) || 0) - liveProductWiseDiscount) * (Number(overallDiscountAmount) || 0) / 100
-                : Number(overallDiscountAmount) || 0
-        )
         : 0;
 
     const handleConfirmReturn = async () => {
@@ -657,6 +603,7 @@ const SalesReturnDetails = () => {
                     } = ret;
                     return {
                         ...cleanRet,
+                        returnNote: returnNote.trim(),
                         items: returnedItems,
                         freeItems: freeReturnedItems,
                         totalReturnPcs,
@@ -668,6 +615,7 @@ const SalesReturnDetails = () => {
             } else {
                 const returnId = `RET-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
                 const newReturnEntry = {
+                    returnNote: returnNote.trim(),
                     returnId,
                     returnDate,
                     items: returnedItems,
@@ -683,61 +631,8 @@ const SalesReturnDetails = () => {
                 ];
             }
 
-            const updatedItems = selectedOrder.items.map((item, index) => {
-                const itemDiscount = Number(itemDiscounts[index]?.discount) || 0;
-                const itemDiscountType = itemDiscounts[index]?.discountType || 'amount';
-                const rowGrossTotal = getRowGross(item);
-                const effectiveDiscount =
-                    itemDiscountType === 'percent'
-                        ? roundTo2((rowGrossTotal * itemDiscount) / 100)
-                        : roundTo2(itemDiscount);
-                const rowSubtotal = roundTo2(rowGrossTotal - effectiveDiscount);
-
-                return {
-                    ...item,
-                    discount: itemDiscount,
-                    discountType: itemDiscountType,
-                    discountAmount: effectiveDiscount,
-                    subtotal: rowSubtotal,
-                };
-            });
-
-            // Product Wise Discount notun kore hisab
-            const productWiseDiscount = roundTo2(
-                updatedItems.reduce((sum, it) => sum + (Number(it.discountAmount) || 0), 0)
-            );
-
-            const grandTotal = Number(rest.grandTotal) || 0;
-            const afterProductDiscount = grandTotal - productWiseDiscount;
-
-            // Overall Discount Value notun kore hisab
-            const overallDiscountValue = roundTo2(
-                overallDiscountType === 'percent'
-                    ? (afterProductDiscount * (Number(overallDiscountAmount) || 0)) / 100
-                    : Number(overallDiscountAmount) || 0
-            );
-
-            // Adjustment age jevabe silo shevabei thakbe, khali Payable Amount notun kore hisab hbe
-            const existingAdjustmentAmount = Number(rest.adjustment?.amount) || 0;
-            const existingAdjustmentType = rest.adjustment?.type || '+';
-
-            let payableAmount = afterProductDiscount - overallDiscountValue;
-            payableAmount =
-                existingAdjustmentType === '-'
-                    ? payableAmount - existingAdjustmentAmount
-                    : payableAmount + existingAdjustmentAmount;
-
-            if (payableAmount < 0) payableAmount = 0;
-            payableAmount = roundTo2(payableAmount);
-
             const updatedData = {
                 ...rest,
-                items: updatedItems,
-                productWiseDiscount,
-                overallDiscount: Number(overallDiscountAmount) || 0,
-                overallDiscountType: overallDiscountType,
-                overallDiscountValue,
-                payableAmount,
                 returnHistory: updatedReturnHistory,
             };
 
@@ -895,9 +790,7 @@ const SalesReturnDetails = () => {
                                     <th className="py-3 px-3.5 text-center">RT Free Unit</th>
                                     <th className="py-3 px-3.5 text-center">RT Free PCS</th>
                                     <th className="py-3 px-3.5 text-center">Remaining Free Qty</th>
-                                    <th className="py-3 px-3.5 text-right">Sell Price (Unit)</th>
                                     <th className="py-3 px-3.5 text-right">Sell Price (PCS)</th>
-                                    <th className="py-3 px-3.5 text-right">Discount</th>
                                     <th className="py-3 px-3.5 text-right rounded-r-xl">Return Amount</th>
                                 </tr>
                             </thead>
@@ -1045,34 +938,6 @@ const SalesReturnDetails = () => {
                                                 {freeRemainingQty}
                                             </td>
 
-                                            {/* Sell Price (Unit) */}
-                                            <td className="py-4 px-3.5 text-right">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    disabled={rtUnitDisabled}
-                                                    value={returnPricesUnit[index] === 0 ? '' : returnPricesUnit[index] ?? ''}
-                                                    onChange={(e) => handleReturnPriceUnitChange(index, e.target.value)}
-                                                    className="w-20 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                />
-                                                {item.parentMode && (
-                                                    <div className="mt-1.5">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.01"
-                                                            placeholder={item.subUnit}
-                                                            title={`${item.subUnit} price`}
-                                                            disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0}
-                                                            value={returnPricesSub[index] === 0 ? '' : returnPricesSub[index] ?? ''}
-                                                            onChange={(e) => handleReturnPriceSubChange(index, e.target.value)}
-                                                            className="w-20 text-right px-2 py-1.5 rounded-lg border border-fuchsia-200 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-200 outline-none text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </td>
-
                                             {/* Sell Price (PCS) */}
                                             <td className="py-4 px-3.5 text-right">
                                                 <input
@@ -1084,44 +949,6 @@ const SalesReturnDetails = () => {
                                                     onChange={(e) => handleReturnPricePcsChange(index, e.target.value)}
                                                     className="w-20 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                                                 />
-                                            </td>
-
-                                            {/* Discount */}
-                                            <td className="relative py-4 px-3.5">
-                                                {(() => {
-                                                    const rowGrossTotal = getRowGross(item);
-                                                    const discountAmt = getItemDiscountAmount(index, item);
-                                                    const discountPct =
-                                                        itemDiscounts[index]?.discountType === 'percent'
-                                                            ? Number(itemDiscounts[index]?.discount) || 0
-                                                            : (rowGrossTotal > 0 ? (discountAmt / rowGrossTotal) * 100 : 0);
-                                                    const isPercentActive = itemDiscounts[index]?.discountType === 'percent';
-                                                    return (
-                                                        <div
-                                                            className={`absolute top-1 right-3.5 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${(isPercentActive ? discountAmt : discountPct) ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-400'}`}
-                                                        >
-                                                            {isPercentActive ? `৳${discountAmt.toFixed(2)}` : `${discountPct.toFixed(2)}%`}
-                                                        </div>
-                                                    );
-                                                })()}
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleToggleItemDiscountType(index)}
-                                                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-amber-400 hover:bg-amber-500 text-white text-xs font-bold transition cursor-pointer"
-                                                        title="Click to toggle Amount / Percentage"
-                                                    >
-                                                        {itemDiscounts[index]?.discountType === 'percent' ? '%' : '৳'}
-                                                    </button>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        value={itemDiscounts[index]?.discount === 0 ? '' : itemDiscounts[index]?.discount ?? ''}
-                                                        onChange={(e) => handleItemDiscountChange(index, e.target.value)}
-                                                        className="w-20 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none text-sm"
-                                                    />
-                                                </div>
                                             </td>
 
                                             {/* Return Amount */}
@@ -1227,56 +1054,23 @@ const SalesReturnDetails = () => {
                         </div>
                     )}
 
+                    {/* Return Note */}
+                    <div className="px-6 sm:px-8 pb-6 sm:pb-8">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Return Note <span className="text-slate-400 font-normal">(Optional)</span>
+                        </label>
+                        <textarea
+                            rows="3"
+                            placeholder="Write any note about this return..."
+                            value={returnNote}
+                            onChange={(e) => setReturnNote(e.target.value)}
+                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 resize-y shadow-sm"
+                        />
+                    </div>
+
                     {/* Totals + Confirm Return */}
                     <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6">
                         <div className="flex flex-wrap items-start gap-6 flex-1 w-full [&>div]:flex-1 [&>div]:basis-0 [&>div]:min-w-[150px] [&>div>p:first-child]:min-h-[2rem]">
-                            {(selectedOrder.items || []).length > 0 && (
-                                <div>
-                                    <p className="text-xs text-slate-500 uppercase font-semibold mb-1">Overall Discount</p>
-                                    <div className="flex items-center rounded-lg overflow-hidden border border-slate-200">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            placeholder="0"
-                                            value={overallDiscountAmount === 0 ? '' : overallDiscountAmount}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                    setOverallDiscountAmount(value === '' ? '' : Number(value));
-                                                }
-                                            }}
-                                            className={`w-20 px-2 py-1.5 text-sm outline-none ${overallDiscountType === 'amount' ? 'bg-indigo-50 font-bold text-indigo-700 ring-2 ring-indigo-200' : 'bg-white focus:bg-indigo-50/40'}`}
-                                        />
-                                        {(() => {
-                                            const afterProductDiscount = (Number(selectedOrder?.grandTotal) || 0) - liveProductWiseDiscount;
-                                            const overallPct =
-                                                overallDiscountType === 'percent'
-                                                    ? Number(overallDiscountAmount) || 0
-                                                    : (afterProductDiscount > 0 ? (liveOverallDiscountValue / afterProductDiscount) * 100 : 0);
-                                            const isPercentActive = overallDiscountType === 'percent';
-                                            return (
-                                                <input
-                                                    type="text"
-                                                    readOnly
-                                                    value={!isPercentActive ? (overallPct ? `${overallPct.toFixed(2)}%` : '') : (liveOverallDiscountValue ? `৳${liveOverallDiscountValue.toFixed(2)}` : '')}
-                                                    placeholder={!isPercentActive ? '0%' : '৳0.00'}
-                                                    title={!isPercentActive ? 'Discount percentage' : 'Discount amount in Taka'}
-                                                    className={`w-20 px-2 py-1.5 border-l border-slate-200 text-sm outline-none cursor-not-allowed ${isPercentActive ? 'bg-indigo-50 font-bold text-indigo-700' : 'bg-slate-100 text-slate-600'}`}
-                                                />
-                                            );
-                                        })()}
-                                        <button
-                                            type="button"
-                                            onClick={() => setOverallDiscountType((prev) => (prev === 'amount' ? 'percent' : 'amount'))}
-                                            className="w-9 shrink-0 border-l border-slate-200 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold transition cursor-pointer"
-                                            title="Click to toggle Amount / Percentage"
-                                        >
-                                            {overallDiscountType === 'percent' ? '%' : '৳'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                             {(selectedOrder.items || []).length > 0 && (
                                 <div>
                                     <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Qty</p>

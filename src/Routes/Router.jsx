@@ -46,9 +46,18 @@ import SalesReturnView from "../Components/Pages/Software/Sales/SalesReturnView"
 import CompanyDetails from "../Components/Pages/Software/Contact/CompanyDetails";
 import CustomersDetails from "../Components/Pages/Software/Contact/CustomersDetails";
 import ProductDetails from "../Components/Pages/Software/Product/ProductDetails";
-import FreeProducts from "../Components/Pages/Software/Inventory/FreeProducts";
-import StockPurchase from "../Components/Pages/Software/Inventory/StockPurchase";
-
+import StockAll from "../Components/Pages/Software/Inventory/StockAll";
+import StockAlert from "../Components/Pages/Software/Inventory/StockAlert";
+import DamageAll from "../Components/Pages/Software/Inventory/DamageAll";
+import PurchaseBulkReturnForm from "../Components/Pages/Software/Purchase/PurchaseBulkReturnForm";
+import PurchaseBulkDetails from "../Components/Pages/Software/Purchase/PurchaseBulkDetails";
+import SalesBulkReturn from "../Components/Pages/Software/Sales/SalesBulkReturn";
+import SalesBulkReturnForm from "../Components/Pages/Software/Sales/SalesBulkReturnForm";
+import SalesBulkDetails from "../Components/Pages/Software/Sales/SalesBulkDetails";
+import DamageStockDetails from "../Components/Pages/Software/Inventory/DamageStockDetails";
+import DamageStockAdd from "../Components/Pages/Software/Inventory/DamageStockAdd";
+import DamageReturnAdd from "../Components/Pages/Software/Inventory/DamageReturnAdd";
+import DamageReturnDetails from "../Components/Pages/Software/Inventory/DamageReturnDetails";
 
 export const router = createBrowserRouter([
   {
@@ -101,8 +110,16 @@ export const router = createBrowserRouter([
         element: <ClientRoute><PurchaseReturnView></PurchaseReturnView></ClientRoute>
       },
       {
+        path: "/purchase-bulk-return-view/:id",
+        element: <ClientRoute><PurchaseBulkDetails></PurchaseBulkDetails></ClientRoute>
+      },
+      {
         path: "/purchase-bulk-return",
         element: <ClientRoute><PurchaseBulkReturn></PurchaseBulkReturn></ClientRoute>
+      },
+      {
+        path: "/purchase-bulk-return-form",
+        element: <ClientRoute><PurchaseBulkReturnForm></PurchaseBulkReturnForm></ClientRoute>
       },
       {
         path: "/create-order",
@@ -129,6 +146,22 @@ export const router = createBrowserRouter([
         element: <ClientRoute><SalesReturnView></SalesReturnView></ClientRoute>
       },
       {
+        path: "/purchase-bulk-return-view/:id",
+        element: <ClientRoute><PurchaseBulkDetails></PurchaseBulkDetails></ClientRoute>
+      },
+      {
+        path: "/sales-bulk-return",
+        element: <ClientRoute><SalesBulkReturn></SalesBulkReturn></ClientRoute>
+      },
+      {
+        path: "/sales-bulk-return-form",
+        element: <ClientRoute><SalesBulkReturnForm></SalesBulkReturnForm></ClientRoute>
+      },
+      {
+        path: "/sales-bulk-return-view/:id",
+        element: <ClientRoute><SalesBulkDetails></SalesBulkDetails></ClientRoute>
+      },
+      {
         path: "/units",
         element: <ClientRoute><Units></Units></ClientRoute>
       },
@@ -152,7 +185,7 @@ export const router = createBrowserRouter([
         path: "/customer-details/:id",
         element: <ClientRoute><CustomersDetails></CustomersDetails></ClientRoute>
       },
-       {
+      {
         path: "/product",
         element: <ClientRoute><ProductAll></ProductAll></ClientRoute>
       },
@@ -161,15 +194,35 @@ export const router = createBrowserRouter([
         element: <ClientRoute><ProductDetails></ProductDetails></ClientRoute>
       },
       {
-        path: "/free-products",
-        element: <ClientRoute><FreeProducts></FreeProducts></ClientRoute>
-      },
-      {
         path: "/stock-all",
-        element: <ClientRoute><StockPurchase></StockPurchase></ClientRoute>
+        element: <ClientRoute><StockAll></StockAll></ClientRoute>
       },
       {
-      path: "/software",
+        path: "/stock-alert",
+        element: <ClientRoute><StockAlert></StockAlert></ClientRoute>
+      },
+      {
+        path: "/damage-add",
+        element: <ClientRoute><DamageStockAdd></DamageStockAdd></ClientRoute>
+      },
+      {
+        path: "/damage-products",
+        element: <ClientRoute><DamageAll></DamageAll></ClientRoute>
+      },
+      {
+        path: "/damage-details/:id",
+        element: <ClientRoute><DamageStockDetails></DamageStockDetails></ClientRoute>
+      },
+      {
+        path: "/damage-return-add",
+        element: <ClientRoute><DamageReturnAdd></DamageReturnAdd></ClientRoute>
+      },
+      {
+        path: "/damage-return-details/:id",
+        element: <ClientRoute><DamageReturnDetails></DamageReturnDetails></ClientRoute>
+      },
+      {
+        path: "/software",
         element: <AdminRoute><Software></Software></AdminRoute>
       },
       {
