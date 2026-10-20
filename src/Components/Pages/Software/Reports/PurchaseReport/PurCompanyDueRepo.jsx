@@ -1,5 +1,5 @@
 
-const StockAlert = () => {
+const PurCompanyDueRepo = () => {
     return (
         <div>
             
@@ -7,4 +7,4 @@ const StockAlert = () => {
     );
 };
 
-export default StockAlert;
+export default PurCompanyDueRepo;

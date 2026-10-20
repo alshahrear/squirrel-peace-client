@@ -56,7 +56,7 @@ const HeadsForm = ({ showToast, editingHead, onHeadAdded, onHeadSaved }) => {
                 // আপডেট (PUT)
                 const finalData = { ...formData };
 
-                const response = await fetch(`https://squirrel-peace-server.onrender.com/account-heads/${editingHead._id}`, {
+                const response = await fetch(`http://localhost:5000/account-heads/${editingHead._id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(finalData),
@@ -81,7 +81,7 @@ const HeadsForm = ({ showToast, editingHead, onHeadAdded, onHeadSaved }) => {
                     createdAt: formattedDate,
                 };
 
-                const response = await fetch('https://squirrel-peace-server.onrender.com/account-heads', {
+                const response = await fetch('http://localhost:5000/account-heads', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(finalData),

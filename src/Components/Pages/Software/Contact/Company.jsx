@@ -85,7 +85,7 @@ const Company = () => {
     // Fetch companies data
     const fetchCompanies = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/company');
+            const res = await fetch('http://localhost:5000/company');
             const data = await res.json();
             setCompanies(data);
         } catch (error) {
@@ -187,8 +187,8 @@ const Company = () => {
             : { ...formData, createdAt: formatDateTime(new Date()) };
 
         const url = editingId
-            ? `https://squirrel-peace-server.onrender.com/company/${editingId}`
-            : 'https://squirrel-peace-server.onrender.com/company';
+            ? `http://localhost:5000/company/${editingId}`
+            : 'http://localhost:5000/company';
 
         const method = editingId ? 'PUT' : 'POST';
 
@@ -239,7 +239,7 @@ const Company = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/company/${id}`, {
+                    const res = await fetch(`http://localhost:5000/company/${id}`, {
                         method: 'DELETE',
                     });
                     const data = await res.json();

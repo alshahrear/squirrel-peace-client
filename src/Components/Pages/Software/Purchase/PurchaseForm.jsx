@@ -46,7 +46,7 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
 
     // Fetch Companies
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => {
                 setCompanies(Array.isArray(data) ? data : []);
@@ -56,7 +56,7 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
 
     // Fetch Categories
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/category')
+        fetch('http://localhost:5000/category')
             .then((res) => res.json())
             .then((data) => {
                 const activeCategories = Array.isArray(data)
@@ -69,7 +69,7 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
 
     // Fetch Products
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((data) => {
                 setProducts(Array.isArray(data) ? data : []);

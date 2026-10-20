@@ -59,7 +59,7 @@ const IncomeForm = ({
     useEffect(() => {
         const fetchIncomeHeads = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
+                const res = await fetch('http://localhost:5000/account-heads');
                 const data = await res.json();
                 const filtered = data.filter(
                     (head) => head.category === 'Income' && head.isActive === true
@@ -77,7 +77,7 @@ const IncomeForm = ({
     useEffect(() => {
         const fetchInvestments = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/investment');
+                const res = await fetch('http://localhost:5000/investment');
                 const data = await res.json();
                 setInvestments(data);
             } catch (error) {
@@ -223,8 +223,8 @@ const IncomeForm = ({
         }
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/income/${editingIncome._id}`
-            : 'https://squirrel-peace-server.onrender.com/income';
+            ? `http://localhost:5000/income/${editingIncome._id}`
+            : 'http://localhost:5000/income';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {

@@ -36,7 +36,7 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
 
     const fetchAdjustmentHistory = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/adjustment');
+            const response = await fetch('http://localhost:5000/adjustment');
             const data = await response.json();
 
             // শুধুমাত্র selectedInvestment এর _id এর সাথে match করা adjustmentID এর ডেটা রাখা হচ্ছে
@@ -159,7 +159,7 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
 
         if (result.isConfirmed) {
             try {
-                const response = await fetch(`https://squirrel-peace-server.onrender.com/adjustment/${id}`, {
+                const response = await fetch(`http://localhost:5000/adjustment/${id}`, {
                     method: 'DELETE',
                 });
                 const data = await response.json();

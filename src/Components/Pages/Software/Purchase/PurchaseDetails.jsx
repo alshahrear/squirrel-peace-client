@@ -17,9 +17,47 @@ const PurchaseDetails = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
-    const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [rawInvoice, setSelectedInvoice] = useState(null);
+    const [showOrder, setShowOrder] = useState(false);
+    // Order r Receive er moddhe parthokko thakle tobei toggle dekhabe
+    const hasOrderSnapshot = (() => {
+        const snap = rawInvoice?.orderSnapshot;
+        if (!snap) return false;
+        const n = (v) => Number(v) || 0;
+        const mainSig = (list) =>
+            (list || [])
+                .map((i) =>
+                    [i.productName, n(i.totalPcs), n(i.freeTotalQty ?? i.freeQty), n(i.buyPrice), n(i.sellPrice), n(i.discount), i.discountType || 'amount'].join('|')
+                )
+                .join(';');
+        const freeSig = (list) =>
+            (list || []).map((i) => [i.productName, n(i.totalQty), n(i.sellPricePcs)].join('|')).join(';');
+        const totalSig = (o) =>
+            [n(o.subTotal ?? o.grandTotal), n(o.overallDiscount), o.overallDiscountType || 'amount', n(o.adjustment?.amount), o.adjustment?.type || '+', n(o.payableAmount)].join('|');
+        return (
+            mainSig(snap.items) !== mainSig(rawInvoice.items) ||
+            freeSig(snap.freeItems) !== freeSig(rawInvoice.freeItems) ||
+            totalSig(snap) !== totalSig(rawInvoice)
+        );
+    })();
+    // Order View ON hole order dewar somoyer data dekhabe (database e kichu change hoy na)
     const [notFound, setNotFound] = useState(false);
-    const [showRemainingToggle, setShowRemaining] = useState(true); // default ON, refresh দিলে আবার ON
+    const [showRemainingToggle, setShowRemaining] = useState(!location.state?.fromReport); // report থেকে এলে default OFF, নাহলে ON
+    const orderView = showOrder && hasOrderSnapshot;
+    const selectedInvoice = orderView
+        ? {
+            ...rawInvoice,
+            ...rawInvoice.orderSnapshot,
+            subTotal: rawInvoice.orderSnapshot.subTotal ?? rawInvoice.orderSnapshot.grandTotal,
+            returnItems: [],
+            damageItems: [],
+            returnHistory: [],
+            returnAdjustmentAmount: 0,
+            damageAdjustmentAmount: 0,
+            paidAmount: 0,
+            paymentNote: '',
+        }
+        : rawInvoice;
 
     // কোনো Return হয়েছে কিনা
     const hasReturn = (selectedInvoice?.returnHistory || []).some(
@@ -34,6 +72,7 @@ const PurchaseDetails = () => {
     // Discount purchase er somoy jeta silo setai thakbe (return e discount change hoy na)
     const displayItems = selectedInvoice?.items || [];
     const ovInv = selectedInvoice;
+    const invSubTotal = Number(ovInv?.subTotal ?? ovInv?.grandTotal) || 0;
 
     // Return বাদ দিয়ে Remaining Quantity / Free Quantity / Subtotal হিসাব
     // total pcs কে Parent Unit / Sub Unit / Pcs এ ভাঙার helper
@@ -208,7 +247,7 @@ const PurchaseDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`)
+        fetch(`http://localhost:5000/purchase/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -228,7 +267,7 @@ const PurchaseDetails = () => {
     // Return বাদ দিয়ে Grand Total / Discount / Payable / Due হিসাব
     // Bulk Return page theke View click korle Return section e scroll korbe
     useEffect(() => {
-               const scrollTarget =
+        const scrollTarget =
             location.state?.scrollTo ||
             (location.state?.scrollToReturn ||
                 new URLSearchParams(location.search).get('scrollToReturn') === '1'
@@ -409,21 +448,42 @@ const PurchaseDetails = () => {
                     </div>
 
                     {/* Remaining After Return Toggle */}
-                    <div className={`px-6 sm:px-8 pt-6 sm:pt-8 items-center gap-3 print:hidden ${hasReturn ? 'flex' : 'hidden'}`}>
-                        <span className="text-sm font-bold text-slate-700">Remaining After Return</span>
-                        <button
-                            type="button"
-                            onClick={() => setShowRemaining((prev) => !prev)}
-                            title={showRemaining ? 'ON' : 'OFF'}
-                            className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
-                        >
-                            <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showRemaining ? 'bg-emerald-500' : 'bg-gray-300'}`}>
-                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showRemaining ? 'translate-x-5' : ''}`} />
-                            </span>
-                            <span className={`text-xs font-bold ${showRemaining ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                {showRemaining ? 'ON' : 'OFF'}
-                            </span>
-                        </button>
+                    <div className={`px-6 sm:px-8 pt-6 sm:pt-8 items-center justify-between gap-3 print:hidden ${(hasReturn || hasOrderSnapshot) ? 'flex' : 'hidden'}`}>
+                        <div className={`items-center gap-3 ${hasReturn ? 'flex' : 'invisible flex'}`}>
+                            <span className="text-sm font-bold text-slate-700">Remaining After Return</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowRemaining((prev) => !prev)}
+                                title={showRemaining ? 'ON' : 'OFF'}
+                                className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
+                            >
+                                <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showRemaining ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+                                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showRemaining ? 'translate-x-5' : ''}`} />
+                                </span>
+                                <span className={`text-xs font-bold ${showRemaining ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                    {showRemaining ? 'ON' : 'OFF'}
+                                </span>
+                            </button>
+                        </div>
+
+                        {hasOrderSnapshot && (
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-bold text-slate-700">Original Order View</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOrder((prev) => !prev)}
+                                    title={showOrder ? 'ON' : 'OFF'}
+                                    className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
+                                >
+                                    <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showOrder ? 'bg-amber-500' : 'bg-gray-300'}`}>
+                                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showOrder ? 'translate-x-5' : ''}`} />
+                                    </span>
+                                    <span className={`text-xs font-bold ${showOrder ? 'text-amber-600' : 'text-gray-400'}`}>
+                                        {showOrder ? 'ON' : 'OFF'}
+                                    </span>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Products Table */}
@@ -439,7 +499,7 @@ const PurchaseDetails = () => {
                                     <th className="py-3 px-3.5 text-right">Total Cost Price</th>
                                     <th className="py-3 px-3.5 text-right">Total Sell Price</th>
                                     <th className="py-3 px-3.5 text-right">Discount</th>
-                                    <th className="py-3 px-3.5 text-right rounded-r-xl">Subtotal</th>
+                                    <th className="py-3 px-3.5 text-right rounded-r-xl">Item Total</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
@@ -513,7 +573,7 @@ const PurchaseDetails = () => {
                                             })()}
                                         </td>
                                         <td className="py-4 px-3.5 text-right font-bold text-slate-900">
-                                            ৳{(showRemaining ? getRemainingInfo(item).remSubtotal : Number(item.subtotal)).toFixed(2)}
+                                            ৳{(showRemaining ? getRemainingInfo(item).remSubtotal : Number(item.itemTotal ?? item.subtotal)).toFixed(2)}
                                         </td>
                                     </tr>
                                 ))}
@@ -581,7 +641,7 @@ const PurchaseDetails = () => {
                                         <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
                                         <th className="py-3 px-3.5 whitespace-nowrap">Free Quantity</th>
                                         <th className="py-3 px-3.5 text-right whitespace-nowrap">Buy Price (PCS)</th>
-                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
+                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Item Total</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-violet-100 text-xs sm:text-sm text-slate-700">
@@ -599,7 +659,7 @@ const PurchaseDetails = () => {
                                                 <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
                                             </td>
                                             <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.buyPrice || 0).toFixed(2)}</td>
-                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal || 0).toFixed(2)}</td>
+                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -620,7 +680,7 @@ const PurchaseDetails = () => {
                                         <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
                                         <th className="py-3 px-3.5 whitespace-nowrap">Free Quantity</th>
                                         <th className="py-3 px-3.5 text-right whitespace-nowrap">Buy Price (PCS)</th>
-                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
+                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Item Total</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-red-100 text-xs sm:text-sm text-slate-700">
@@ -638,7 +698,7 @@ const PurchaseDetails = () => {
                                                 <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
                                             </td>
                                             <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.buyPrice || 0).toFixed(2)}</td>
-                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.subtotal || 0).toFixed(2)}</td>
+                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -661,8 +721,8 @@ const PurchaseDetails = () => {
 
                         <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
                             <div className="flex justify-between py-1 text-slate-600">
-                                <span>Grand Total:</span>
-                                <span className="font-semibold text-slate-800">৳{(showRemaining ? getTotals().grand : Number(selectedInvoice.grandTotal)).toFixed(2)}</span>
+                                <span>Subtotal:</span>
+                                <span className="font-semibold text-slate-800">৳{(showRemaining ? getTotals().grand : invSubTotal).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-slate-600">
                                 <span>Product Wise Discount:</span>
@@ -671,8 +731,8 @@ const PurchaseDetails = () => {
                                     <span className="text-[10px] text-slate-400 ml-1">
                                         ({(
                                             (showRemaining ? getTotals().pwdPct : ovInv.productWiseDiscountPercent) ??
-                                            (Number(ovInv.grandTotal) > 0
-                                                ? (Number(ovInv.productWiseDiscount) / Number(ovInv.grandTotal)) * 100
+                                            (invSubTotal > 0
+                                                ? (Number(ovInv.productWiseDiscount) / invSubTotal) * 100
                                                 : 0)
                                         ).toFixed(2)}%)
                                     </span>
@@ -683,7 +743,7 @@ const PurchaseDetails = () => {
                                     <span>Overall Discount:</span>
                                     <span className="font-semibold">
                                         {(() => {
-                                            const afterProductDiscount = showRemaining ? getTotals().afterProduct : Number(ovInv.grandTotal) - Number(ovInv.productWiseDiscount);
+                                            const afterProductDiscount = showRemaining ? getTotals().afterProduct : invSubTotal - Number(ovInv.productWiseDiscount);
                                             const overallAmt = showRemaining ? getTotals().overallAmt : Number(
                                                 ovInv.overallDiscountValue ??
                                                 (ovInv.overallDiscountType === 'percent'
@@ -720,7 +780,7 @@ const PurchaseDetails = () => {
                                             ({(() => {
                                                 const base = showRemaining
                                                     ? getTotals().afterProduct - getTotals().overallAmt
-                                                    : Number(ovInv.grandTotal) - Number(ovInv.productWiseDiscount) - Number(ovInv.overallDiscountValue ?? 0);
+                                                    : invSubTotal - Number(ovInv.productWiseDiscount) - Number(ovInv.overallDiscountValue ?? 0);
                                                 return base > 0
                                                     ? ((Number(selectedInvoice.adjustment.amount) / base) * 100).toFixed(2)
                                                     : '0.00';

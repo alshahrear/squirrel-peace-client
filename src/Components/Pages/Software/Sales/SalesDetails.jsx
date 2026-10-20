@@ -187,7 +187,7 @@ const SalesDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`)
+        fetch(`http://localhost:5000/sales/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -268,13 +268,14 @@ const SalesDetails = () => {
 
     const totals = showRemaining ? getTotals() : null;
     const due = Number(selectedOrder.payableAmount) - Number(selectedOrder.paidAmount || 0);
-    const shownGrand = totals ? totals.grand : Number(selectedOrder.grandTotal);
+    const baseSubTotal = Number(selectedOrder.subTotal ?? selectedOrder.grandTotal) || 0;
+    const shownGrand = totals ? totals.grand : baseSubTotal;
     const shownPwd = totals ? totals.pwd : Number(selectedOrder.productWiseDiscount);
     const shownPwdPct = totals
         ? totals.pwdPct
         : (selectedOrder.productWiseDiscountPercent ??
-            (Number(selectedOrder.grandTotal) > 0
-                ? (Number(selectedOrder.productWiseDiscount) / Number(selectedOrder.grandTotal)) * 100
+            (baseSubTotal > 0
+                ? (Number(selectedOrder.productWiseDiscount) / baseSubTotal) * 100
                 : 0));
     const shownPayable = Number(selectedOrder.payableAmount);
 
@@ -420,7 +421,7 @@ const SalesDetails = () => {
                                     <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (Unit)</th>
                                     <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (PCS)</th>
                                     <th className="py-2.5 px-2 text-right whitespace-nowrap">Discount</th>
-                                    <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
+                                    <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Item Total</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
@@ -452,7 +453,7 @@ const SalesDetails = () => {
                                     const unitTotal = showRemaining ? rem.remUnitTotal : getUnitTotal(item);
                                     const subUnitTotal = showRemaining ? rem.remSubUnitTotal : getSubTotal(item);
                                     const pcsTotal = showRemaining ? rem.remPcsTotal : getPcsTotal(item);
-                                    const rowSubtotal = showRemaining ? rem.remSubtotal : Number(item.subtotal);
+                                    const rowSubtotal = showRemaining ? rem.remSubtotal : Number(item.itemTotal ?? item.subtotal);
 
                                     return (
                                         <tr key={index} className="hover:bg-indigo-50/40 transition-colors">
@@ -560,7 +561,7 @@ const SalesDetails = () => {
                                             <th className="py-2.5 px-2 whitespace-nowrap">Free Quantity</th>
                                             <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (Unit)</th>
                                             <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (PCS)</th>
-                                            <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
+                                            <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Item Total</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-red-100 text-xs sm:text-sm text-slate-700">
@@ -597,7 +598,7 @@ const SalesDetails = () => {
                                                         (৳{Number(item.sellPricePcs || 0).toFixed(2)}/pcs)
                                                     </span>
                                                 </td>
-                                                <td className="py-3 px-2 text-right font-bold text-slate-900 whitespace-nowrap">৳{Number(item.subtotal).toFixed(2)}</td>
+                                                <td className="py-3 px-2 text-right font-bold text-slate-900 whitespace-nowrap">৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -621,7 +622,7 @@ const SalesDetails = () => {
                                             <th className="py-2.5 px-2 whitespace-nowrap">Free Quantity</th>
                                             <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (Unit)</th>
                                             <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (PCS)</th>
-                                            <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Subtotal</th>
+                                            <th className="py-2.5 px-2 text-right rounded-r-xl whitespace-nowrap">Item Total</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-violet-100 text-xs sm:text-sm text-slate-700">
@@ -658,7 +659,7 @@ const SalesDetails = () => {
                                                         (৳{Number(item.sellPricePcs || 0).toFixed(2)}/pcs)
                                                     </span>
                                                 </td>
-                                                <td className="py-3 px-2 text-right font-bold text-slate-900 whitespace-nowrap">৳{Number(item.subtotal).toFixed(2)}</td>
+                                                <td className="py-3 px-2 text-right font-bold text-slate-900 whitespace-nowrap">৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -683,7 +684,7 @@ const SalesDetails = () => {
 
                         <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
                             <div className="flex justify-between py-1 text-slate-600">
-                                <span>Grand Total:</span>
+                                <span>Subtotal:</span>
                                 <span className="font-semibold text-slate-800">৳{shownGrand.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-slate-600">
@@ -702,7 +703,7 @@ const SalesDetails = () => {
                                         {(() => {
                                             const afterProductDiscount = totals
                                                 ? totals.afterProduct
-                                                : Number(selectedOrder.grandTotal) - Number(selectedOrder.productWiseDiscount);
+                                                : baseSubTotal - Number(selectedOrder.productWiseDiscount);
                                             const overallAmt = totals
                                                 ? totals.overallAmt
                                                 : Number(

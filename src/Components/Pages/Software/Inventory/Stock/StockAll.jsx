@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import StockProducts from './StockProducts';
 import StockPurchase from './StockPurchase';
+import StockAdjustment from './StockAdjustment';
+import StockAlert from './StockAlert';
 
 const TABS = [
     { key: 'products', label: 'Stock Products', icon: '📦' },
     { key: 'purchase', label: 'Stock Purchase', icon: '🧾' },
+    { key: 'adjustment', label: 'Stock Adjustment', icon: '⚖️' },
+    { key: 'alert', label: 'Stock Alert', icon: '🔔' },
 ];
 
 const StockAll = () => {
-    const [activeTab, setActiveTab] = useState('products');
+    const location = useLocation();
+    const [activeTab, setActiveTab] = useState(location.state?.tab || 'products');
     const [focusEvent, setFocusEvent] = useState(null);
 
     // History theke Open click korle Stock Purchase tab e niye jabe
@@ -41,9 +47,15 @@ const StockAll = () => {
 
             {/* Active Page */}
             <div>
-                {activeTab === 'products'
-                    ? <StockProducts onOpenHistory={handleOpenHistory} />
-                    : <StockPurchase focusEvent={focusEvent} />}
+                {activeTab === 'products' ? (
+                    <StockProducts onOpenHistory={handleOpenHistory} />
+                ) : activeTab === 'purchase' ? (
+                    <StockPurchase focusEvent={focusEvent} />
+                ) : activeTab === 'adjustment' ? (
+                    <StockAdjustment />
+                ) : (
+                    <StockAlert />
+                )}
             </div>
         </div>
     );

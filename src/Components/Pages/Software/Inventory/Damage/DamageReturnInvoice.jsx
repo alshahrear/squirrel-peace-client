@@ -129,8 +129,8 @@ const DamageReturnInvoice = ({ focusEvent = null }) => {
     useEffect(() => {
         setLoading(true);
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((res) => res.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((res) => res.json()).catch(() => []),
         ])
             .then(([d, purchases]) => {
                 const list = Array.isArray(d) ? d : [];
@@ -207,7 +207,7 @@ const DamageReturnInvoice = ({ focusEvent = null }) => {
 
     const getAmount = (item) =>
         Number(item.damageAmount) ||
-        (item.items || []).reduce((s, it) => s + (Number(it.subtotal) || 0), 0);
+        (item.items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
 
     const selectedRows = filteredReturns.filter((i) => selectedIds.includes(i._id));
     const isSelectionMode = selectedRows.length > 0;
@@ -267,7 +267,7 @@ const DamageReturnInvoice = ({ focusEvent = null }) => {
                 try {
                     const damageAdj = Number(item.damageAdjustmentAmount) || 0;
                     const newPayable = Math.round(((Number(item.payableAmount) || 0) + damageAdj) * 100) / 100;
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item._id}`, {
+                    const res = await fetch(`http://localhost:5000/purchase/${item._id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -300,7 +300,7 @@ const DamageReturnInvoice = ({ focusEvent = null }) => {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
             try {
-                const delRes = await fetch(`https://squirrel-peace-server.onrender.com/damage-return/${item._id}`, { method: 'DELETE' });
+                const delRes = await fetch(`http://localhost:5000/damage-return/${item._id}`, { method: 'DELETE' });
                 if (!delRes.ok) throw new Error('Failed');
                 setReturns((prev) => prev.filter((o) => o._id !== item._id));
                 setSelectedIds((prev) => prev.filter((x) => x !== item._id));

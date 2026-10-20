@@ -70,7 +70,7 @@ const RouteExpenseForm = ({
     useEffect(() => {
         const fetchRouteExpenseHeads = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
+                const res = await fetch('http://localhost:5000/account-heads');
                 const data = await res.json();
                 const filtered = data.filter(
                     (head) => head.category === 'Expense' && head.isActive === true
@@ -89,12 +89,12 @@ const RouteExpenseForm = ({
         const fetchInvestments = async () => {
             try {
                 const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, transferRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/investment'),
-                    fetch('https://squirrel-peace-server.onrender.com/adjustment'),
-                    fetch('https://squirrel-peace-server.onrender.com/income'),
-                    fetch('https://squirrel-peace-server.onrender.com/expense'),
-                    fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
-                    fetch('https://squirrel-peace-server.onrender.com/transfer'),
+                    fetch('http://localhost:5000/investment'),
+                    fetch('http://localhost:5000/adjustment'),
+                    fetch('http://localhost:5000/income'),
+                    fetch('http://localhost:5000/expense'),
+                    fetch('http://localhost:5000/routeExpense'),
+                    fetch('http://localhost:5000/transfer'),
                 ]);
                 const data = await invRes.json();
                 const adjData = await adjRes.json();
@@ -121,7 +121,7 @@ const RouteExpenseForm = ({
     useEffect(() => {
         const fetchDeliveryMen = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/user');
+                const res = await fetch('http://localhost:5000/user');
                 const data = await res.json();
                 const filtered = data.filter(
                     (user) => user.role === 'Delivery Man' && user.isActive === true
@@ -139,7 +139,7 @@ const RouteExpenseForm = ({
     useEffect(() => {
         const fetchRoutes = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/route');
+                const res = await fetch('http://localhost:5000/route');
                 const data = await res.json();
                 const filtered = data.filter((route) => route.isActive === true);
                 setRoutes(filtered);
@@ -401,8 +401,8 @@ const RouteExpenseForm = ({
         }
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/routeExpense/${editingRouteExpense._id}`
-            : 'https://squirrel-peace-server.onrender.com/routeExpense';
+            ? `http://localhost:5000/routeExpense/${editingRouteExpense._id}`
+            : 'http://localhost:5000/routeExpense';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {

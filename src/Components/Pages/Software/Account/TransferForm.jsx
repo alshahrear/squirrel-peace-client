@@ -51,12 +51,12 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
         const fetchAccounts = async () => {
             try {
                 const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, transferRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/investment'),
-                    fetch('https://squirrel-peace-server.onrender.com/adjustment'),
-                    fetch('https://squirrel-peace-server.onrender.com/income'),
-                    fetch('https://squirrel-peace-server.onrender.com/expense'),
-                    fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
-                    fetch('https://squirrel-peace-server.onrender.com/transfer'),
+                    fetch('http://localhost:5000/investment'),
+                    fetch('http://localhost:5000/adjustment'),
+                    fetch('http://localhost:5000/income'),
+                    fetch('http://localhost:5000/expense'),
+                    fetch('http://localhost:5000/routeExpense'),
+                    fetch('http://localhost:5000/transfer'),
                 ]);
 
                 const data = invRes.ok ? await invRes.json() : [];
@@ -166,8 +166,8 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
         setLoading(true);
 
         const url = editingTransfer
-            ? `https://squirrel-peace-server.onrender.com/transfer/${editingTransfer._id}`
-            : 'https://squirrel-peace-server.onrender.com/transfer';
+            ? `http://localhost:5000/transfer/${editingTransfer._id}`
+            : 'http://localhost:5000/transfer';
 
         const method = editingTransfer ? 'PUT' : 'POST';
 

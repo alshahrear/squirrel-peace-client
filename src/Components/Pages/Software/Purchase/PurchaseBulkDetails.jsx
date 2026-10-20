@@ -22,7 +22,7 @@ const PurchaseBulkDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/purchase-bulk-return/${id}`)
+        fetch(`http://localhost:5000/purchase-bulk-return/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -171,7 +171,7 @@ const PurchaseBulkDetails = () => {
                                     <th className="py-3 px-3.5 text-right">Purchase Price</th>
                                     <th className="py-3 px-3.5 text-center">Return Qty</th>
                                     <th className="py-3 px-3.5 text-center">Return Free Qty</th>
-                                    <th className="py-3 px-3.5 text-right rounded-r-xl">Return Amount</th>
+                                    <th className="py-3 px-3.5 text-right rounded-r-xl">Item Total</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
@@ -189,7 +189,7 @@ const PurchaseBulkDetails = () => {
                                             {Number(item.freeUnitQty) || 0} {item.unit} {item.parentMode && <>{Number(item.freeSubQty) || 0} {item.subUnit} </>}{Number(item.freePcsQty) || 0} Pcs
                                             <span className="text-[10px] text-emerald-700 ml-1 font-bold">(Total: {Number(item.freeTotalQty) || 0})</span>
                                         </td>
-                                        <td className="py-4 px-3.5 text-right font-bold text-orange-600">৳{Number(item.subtotal).toFixed(2)}</td>
+                                        <td className="py-4 px-3.5 text-right font-bold text-orange-600">৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -210,11 +210,7 @@ const PurchaseBulkDetails = () => {
                         </div>
 
                         <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
-                            <div className="flex justify-between py-1 text-slate-600">
-                                <span>Grand Total:</span>
-                                <span className="font-semibold text-slate-800">৳{Number(bulkReturn.grandTotal || 0).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
+                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900">
                                 <span>Return Amount:</span>
                                 <span className="text-orange-600">৳{Number(bulkReturn.returnAmount || 0).toFixed(2)}</span>
                             </div>

@@ -44,7 +44,7 @@ const Transfer = () => {
     // Fetch Transfers
     const fetchTransfers = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/transfer');
+            const response = await fetch('http://localhost:5000/transfer');
             const data = await response.json();
             setTransfers(data);
         } catch (error) {
@@ -115,7 +115,7 @@ const Transfer = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/transfer/${id}`, {
+                    const response = await fetch(`http://localhost:5000/transfer/${id}`, {
                         method: 'DELETE',
                     });
 

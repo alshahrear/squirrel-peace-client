@@ -34,7 +34,7 @@ const OrderAdd = () => {
     // Direct Sales toggle (শুধু নতুন order এ, default ON)
     const [directSalesToggle, setDirectSalesToggle] = useState(false);
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/feature/orderDirectSales')
+        fetch('http://localhost:5000/feature/orderDirectSales')
             .then((res) => res.json())
             .then((data) => setDirectSalesToggle(data?.enabled === true))
             .catch(() => setDirectSalesToggle(false));
@@ -43,7 +43,7 @@ const OrderAdd = () => {
     // Toggle ON/OFF করলে database এ save হবে (যতক্ষণ না আবার বদলানো হয়)
     const handleDirectSalesChange = (checked) => {
         setDirectSalesToggle(checked);
-        fetch('https://squirrel-peace-server.onrender.com/feature/orderDirectSales', {
+        fetch('http://localhost:5000/feature/orderDirectSales', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled: checked }),
@@ -74,7 +74,7 @@ const OrderAdd = () => {
 
     useEffect(() => {
         if (isDeliveredEdit) return;
-        fetch('https://squirrel-peace-server.onrender.com/feature/orderPaymentMethod')
+        fetch('http://localhost:5000/feature/orderPaymentMethod')
             .then((res) => res.json())
             .then((data) => {
                 if (data?.enabled === true && data?.value?.paymentAccountType && data?.value?.selectedAccountKey) {
@@ -88,7 +88,7 @@ const OrderAdd = () => {
     }, []);
 
     const persistPaymentMethod = (checked, method, key) => {
-        fetch('https://squirrel-peace-server.onrender.com/feature/orderPaymentMethod', {
+        fetch('http://localhost:5000/feature/orderPaymentMethod', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -293,7 +293,7 @@ const OrderAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment) {
-            fetch('https://squirrel-peace-server.onrender.com/investment')
+            fetch('http://localhost:5000/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
@@ -305,17 +305,17 @@ const OrderAdd = () => {
     // Others Free Product ডেটা fetch করা (Company, Category, Product)
     // --------------------------------------------------
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setFreeCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/category')
+        fetch('http://localhost:5000/category')
             .then((res) => res.json())
             .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching categories:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -580,7 +580,7 @@ const OrderAdd = () => {
             freeSubQty: Number(item.freeSubQty) || 0,
             freePcsQty: Number(item.freePcsQty) || 0,
             freeQty: Number(item.freeQty) || 0,
-            subtotal: roundTo2(getRowGross(item)),
+            itemTotal: roundTo2(getRowGross(item)),
         }));
 
     const showToast = (message, isError = false) => {
@@ -1275,7 +1275,7 @@ const OrderAdd = () => {
         };
 
         try {
-            const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`, {
+            const res = await fetch(`http://localhost:5000/sales/${editingOrder._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -1309,7 +1309,7 @@ const OrderAdd = () => {
         };
 
         try {
-            const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`, {
+            const res = await fetch(`http://localhost:5000/sales/${editingOrder._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -1479,7 +1479,7 @@ const OrderAdd = () => {
                 discount: roundTo2(item.discount),
                 discountType: item.discountType || 'amount',
                 discountAmount: effectiveDiscount,
-                subtotal: rowSubtotal,
+                itemTotal: rowSubtotal,
             };
         });
 
@@ -1505,7 +1505,7 @@ const OrderAdd = () => {
 
             items: itemsPayload,
 
-            grandTotal: subTotal,
+            subTotal: subTotal,
             productWiseDiscount: productWiseDiscount,
             productWiseDiscountPercent: productWiseDiscountPercent,
 
@@ -1552,8 +1552,8 @@ const OrderAdd = () => {
         const sendOrder = async (confirmed = false) => {
             const res = await fetch(
                 isEditMode
-                    ? `https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`
-                    : 'https://squirrel-peace-server.onrender.com/sales',
+                    ? `http://localhost:5000/sales/${editingOrder._id}`
+                    : 'http://localhost:5000/sales',
                 {
                     method: isEditMode ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1755,7 +1755,7 @@ const OrderAdd = () => {
                 freeQty: Number(item.freeQty) || 0,
                 discount: roundTo2(item.discount),
                 discountType: item.discountType || 'amount',
-                subtotal: rowSubtotal,
+                itemTotal: rowSubtotal,
             };
         });
 
@@ -1783,7 +1783,7 @@ const OrderAdd = () => {
 
             items: itemsPayload,
 
-            grandTotal: subTotal,
+            subTotal: subTotal,
             productWiseDiscount: productWiseDiscount,
             productWiseDiscountPercent: productWiseDiscountPercent,
 
@@ -1830,8 +1830,8 @@ const OrderAdd = () => {
             const extra = confirmed ? { stockBorrowConfirmed: true } : {};
             const res = await fetch(
                 !editingOrder
-                    ? 'https://squirrel-peace-server.onrender.com/sales'
-                    : `https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`,
+                    ? 'http://localhost:5000/sales'
+                    : `http://localhost:5000/sales/${editingOrder._id}`,
                 {
                     method: !editingOrder ? 'POST' : 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -1957,7 +1957,7 @@ const OrderAdd = () => {
                                         <th className="py-3 px-3">Sell Price ({sellPriceUnitLabel})</th>
                                         <th className="py-3 px-3">Sell Price (PCS)</th>
                                         <th className="py-3 px-3">Discount</th>
-                                        <th className="py-3 px-3">Subtotal</th>
+                                        <th className="py-3 px-3">Item Total</th>
                                         <th className="py-3 px-3 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -2337,7 +2337,7 @@ const OrderAdd = () => {
                                 {/* Grand Total */}
                                 <div className="flex items-center">
                                     <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
-                                        Grand Total
+                                        Subtotal
                                     </label>
                                     <input
                                         type="text"
@@ -2910,7 +2910,7 @@ DAMAGE PRODUCT
                                                             <th className="py-3 pl-3 pr-2">Free PCS</th>
                                                             <th className="py-3 px-3">Sell Price ({damageSellPriceUnitLabel})</th>
                                                             <th className="py-3 px-3">Sell Price (PCS)</th>
-                                                            <th className="py-3 px-3">Subtotal</th>
+                                                            <th className="py-3 px-3">Item Total</th>
                                                             <th className="py-3 px-3 text-center">Action</th>
                                                         </tr>
                                                     </thead>
@@ -3338,7 +3338,7 @@ DAMAGE PRODUCT
                                                             <th className="py-3 pl-3 pr-2">Free PCS</th>
                                                             <th className="py-3 px-3">Sell Price ({returnSellPriceUnitLabel})</th>
                                                             <th className="py-3 px-3">Sell Price (PCS)</th>
-                                                            <th className="py-3 px-3">Subtotal</th>
+                                                            <th className="py-3 px-3">Item Total</th>
                                                             <th className="py-3 px-3 text-center">Action</th>
                                                         </tr>
                                                     </thead>

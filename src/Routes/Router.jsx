@@ -46,18 +46,21 @@ import SalesReturnView from "../Components/Pages/Software/Sales/SalesReturnView"
 import CompanyDetails from "../Components/Pages/Software/Contact/CompanyDetails";
 import CustomersDetails from "../Components/Pages/Software/Contact/CustomersDetails";
 import ProductDetails from "../Components/Pages/Software/Product/ProductDetails";
-import StockAll from "../Components/Pages/Software/Inventory/StockAll";
-import StockAlert from "../Components/Pages/Software/Inventory/StockAlert";
-import DamageAll from "../Components/Pages/Software/Inventory/DamageAll";
 import PurchaseBulkReturnForm from "../Components/Pages/Software/Purchase/PurchaseBulkReturnForm";
 import PurchaseBulkDetails from "../Components/Pages/Software/Purchase/PurchaseBulkDetails";
 import SalesBulkReturn from "../Components/Pages/Software/Sales/SalesBulkReturn";
 import SalesBulkReturnForm from "../Components/Pages/Software/Sales/SalesBulkReturnForm";
 import SalesBulkDetails from "../Components/Pages/Software/Sales/SalesBulkDetails";
-import DamageStockDetails from "../Components/Pages/Software/Inventory/DamageStockDetails";
-import DamageStockAdd from "../Components/Pages/Software/Inventory/DamageStockAdd";
-import DamageReturnAdd from "../Components/Pages/Software/Inventory/DamageReturnAdd";
-import DamageReturnDetails from "../Components/Pages/Software/Inventory/DamageReturnDetails";
+import DamageStockAdd from "../Components/Pages/Software/Inventory/Damage/DamageStockAdd";
+import DamageAll from "../Components/Pages/Software/Inventory/Damage/DamageAll";
+import DamageStockDetails from "../Components/Pages/Software/Inventory/Damage/DamageStockDetails";
+import DamageReturnAdd from "../Components/Pages/Software/Inventory/Damage/DamageReturnAdd";
+import DamageReturnDetails from "../Components/Pages/Software/Inventory/Damage/DamageReturnDetails";
+import StockAll from "../Components/Pages/Software/Inventory/Stock/StockAll";
+import StockAdjustmentForm from "../Components/Pages/Software/Inventory/Stock/StockAdjustmentForm";
+import StockAdjustmentDetails from "../Components/Pages/Software/Inventory/Stock/StockAdjustmentDetails";
+import PurchaseReportAll from "../Components/Pages/Software/Reports/PurchaseReport/PurchaseReportAll";
+import SalesReportAll from "../Components/Pages/Software/Reports/SalesReport/SalesReportAll";
 
 export const router = createBrowserRouter([
   {
@@ -198,8 +201,12 @@ export const router = createBrowserRouter([
         element: <ClientRoute><StockAll></StockAll></ClientRoute>
       },
       {
-        path: "/stock-alert",
-        element: <ClientRoute><StockAlert></StockAlert></ClientRoute>
+        path: "/stock-adjustment-form",
+        element: <ClientRoute><StockAdjustmentForm></StockAdjustmentForm></ClientRoute>
+      },
+      {
+        path: "/stock-adjustment-view/:id",
+        element: <ClientRoute><StockAdjustmentDetails></StockAdjustmentDetails></ClientRoute>
       },
       {
         path: "/damage-add",
@@ -220,6 +227,14 @@ export const router = createBrowserRouter([
       {
         path: "/damage-return-details/:id",
         element: <ClientRoute><DamageReturnDetails></DamageReturnDetails></ClientRoute>
+      },
+      {
+        path: "/purchase-report",
+        element: <ClientRoute><PurchaseReportAll></PurchaseReportAll></ClientRoute>
+      },
+      {
+        path: "/sales-report",
+        element: <ClientRoute><SalesReportAll></SalesReportAll></ClientRoute>
       },
       {
         path: "/software",

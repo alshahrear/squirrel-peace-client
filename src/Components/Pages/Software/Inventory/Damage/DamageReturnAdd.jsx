@@ -191,7 +191,7 @@ const DamageReturnAdd = () => {
     // ---------- Fetch ----------
     useEffect(() => {
         const load = (endpoint, setter, filterFn) =>
-            fetch(`https://squirrel-peace-server.onrender.com/${endpoint}`)
+            fetch(`http://localhost:5000/${endpoint}`)
                 .then((r) => r.json())
                 .then((d) => setter(Array.isArray(d) ? (filterFn ? d.filter(filterFn) : d) : []))
                 .catch((e) => console.error(e));
@@ -201,10 +201,10 @@ const DamageReturnAdd = () => {
 
         // Damage stock = Sales damage + Standalone damage - Purchase damage return - Damage return
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/sales').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/sales').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/sales-damage').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((r) => r.json()).catch(() => []),
         ])
             .then(([sales, dmg, purchases, returns]) => {
                 const map = new Map();
@@ -426,7 +426,7 @@ const DamageReturnAdd = () => {
             freeSubQty: Number(i.freeSubQty) || 0,
             freePcsQty: Number(i.freePcsQty) || 0,
             freeQty: Number(i.freeQty) || 0,
-            subtotal: roundTo2(getRowTotal(i)),
+            itemTotal: roundTo2(getRowTotal(i)),
         }));
 
         const payload = {
@@ -437,7 +437,6 @@ const DamageReturnAdd = () => {
             category: formData.category,
             returnDate: formData.date,
             items: itemsPayload,
-            grandTotal: subTotal,
             damageAmount,
             note,
         };
@@ -445,8 +444,8 @@ const DamageReturnAdd = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `https://squirrel-peace-server.onrender.com/damage-return/${editId}`
-                : 'https://squirrel-peace-server.onrender.com/damage-return';
+                ? `http://localhost:5000/damage-return/${editId}`
+                : 'http://localhost:5000/damage-return';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -603,7 +602,7 @@ const DamageReturnAdd = () => {
                                         <th className="py-3 pl-4 pr-1">Free Unit</th>
                                         <th className="py-3 pl-3 pr-2">Free PCS</th>
                                         <th className="py-3 px-3">Buy Price (PCS)</th>
-                                        <th className="py-3 px-3">Subtotal</th>
+                                        <th className="py-3 px-3">Item Total</th>
                                         <th className="py-3 px-3 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -704,10 +703,6 @@ const DamageReturnAdd = () => {
                         <div className="mt-6 flex justify-end">
                             <div className="w-full md:w-[700px] space-y-2.5 bg-red-50/40 border border-red-100 rounded-2xl p-5">
                                 <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">Grand Total</label>
-                                    <input type="text" readOnly value={subTotal.toFixed(2)} className="flex-1 px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm outline-none" />
-                                </div>
-                                <div className="flex items-center pt-2 mt-1 border-t border-red-200">
                                     <label className="w-56 text-right pr-3 text-sm font-bold text-red-800">Damage Amount</label>
                                     <input type="text" readOnly value={damageAmount.toFixed(2)} className="flex-1 px-3 py-2.5 border border-red-200 bg-white font-bold text-red-700 text-base rounded-lg outline-none" />
                                 </div>

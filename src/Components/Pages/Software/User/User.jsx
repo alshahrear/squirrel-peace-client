@@ -31,7 +31,7 @@ const User = () => {
     // Fetch Users
     const fetchUsers = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/user');
+            const response = await fetch('http://localhost:5000/user');
             const data = await response.json();
             setUsers(data);
         } catch (error) {
@@ -78,7 +78,7 @@ const User = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/user/${id}`, {
+                    const response = await fetch(`http://localhost:5000/user/${id}`, {
                         method: 'DELETE',
                     });
 

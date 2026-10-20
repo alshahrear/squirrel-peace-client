@@ -78,6 +78,7 @@ const StockProducts = ({ onOpenHistory }) => {
     const [bulkReturns, setBulkReturns] = useState([]);
     const [salesBulkReturns, setSalesBulkReturns] = useState([]);
     const [damages, setDamages] = useState([]);
+    const [adjustments, setAdjustments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({ product: '', company: '' });
     const [hideEmpty, setHideEmpty] = useState(false);
@@ -95,11 +96,11 @@ const StockProducts = ({ onOpenHistory }) => {
     const companyDropdownRef = useRef(null);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((data) => setProductOptions(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -163,29 +164,33 @@ const StockProducts = ({ onOpenHistory }) => {
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/stock-purchase');
+                const res = await fetch('http://localhost:5000/stock-purchase');
                 const data = await res.json();
                 setBatches(Array.isArray(data) ? data : []);
 
-                const purchaseRes = await fetch('https://squirrel-peace-server.onrender.com/purchase');
+                const purchaseRes = await fetch('http://localhost:5000/purchase');
                 const purchaseData = await purchaseRes.json();
                 setPurchases(Array.isArray(purchaseData) ? purchaseData : []);
 
-                const salesRes = await fetch('https://squirrel-peace-server.onrender.com/sales');
+                const salesRes = await fetch('http://localhost:5000/sales');
                 const salesData = await salesRes.json();
                 setSales(Array.isArray(salesData) ? salesData : []);
 
-                const bulkRes = await fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return');
+                const bulkRes = await fetch('http://localhost:5000/purchase-bulk-return');
                 const bulkData = await bulkRes.json();
                 setBulkReturns(Array.isArray(bulkData) ? bulkData : []);
 
-                const sbRes = await fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return');
+                const sbRes = await fetch('http://localhost:5000/sales-bulk-return');
                 const sbData = await sbRes.json();
                 setSalesBulkReturns(Array.isArray(sbData) ? sbData : []);
 
-                const dmgRes = await fetch('https://squirrel-peace-server.onrender.com/sales-damage');
+                const dmgRes = await fetch('http://localhost:5000/sales-damage');
                 const dmgData = await dmgRes.json();
                 setDamages(Array.isArray(dmgData) ? dmgData : []);
+
+                const adjRes = await fetch('http://localhost:5000/stock-adjustment');
+                const adjData = await adjRes.json();
+                setAdjustments(Array.isArray(adjData) ? adjData : []);
             } catch (error) {
                 console.error('Error fetching stock products:', error);
             } finally {
@@ -223,6 +228,15 @@ const StockProducts = ({ onOpenHistory }) => {
                 const cur = dmgMap.get(k) || { paid: 0, free: 0 };
                 cur[a.pool === 'paid' ? 'paid' : 'free'] += Number(a.qty) || 0;
                 dmgMap.set(k, cur);
+            })
+        );
+        const adjMap = new Map();
+        adjustments.forEach((r) =>
+            (r.stockAllocations || []).forEach((a) => {
+                const k = String(a.batchId);
+                const cur = adjMap.get(k) || { paid: 0, free: 0 };
+                cur[a.pool === 'paid' ? 'paid' : 'free'] += (a.direction === 'out' ? 1 : -1) * (Number(a.qty) || 0);
+                adjMap.set(k, cur);
             })
         );
         const soldMap = new Map();
@@ -267,7 +281,8 @@ const StockProducts = ({ onOpenHistory }) => {
             const sold0 = soldMap.get(String(b._id)) || { paid: 0, free: 0 };
             const sb = sbMap.get(String(b._id)) || { paid: 0, free: 0 };
             const dm = dmgMap.get(String(b._id)) || { paid: 0, free: 0 };
-            const sold = { paid: sold0.paid - sb.paid + dm.paid, free: sold0.free - sb.free + dm.free };
+            const ad = adjMap.get(String(b._id)) || { paid: 0, free: 0 };
+            const sold = { paid: sold0.paid - sb.paid + dm.paid + ad.paid, free: sold0.free - sb.free + dm.free + ad.free };
             const curPaid = Math.max(origPaid - retPaid, 0);
             const curFree = Math.max(origFree - retFree, 0);
 
@@ -288,7 +303,7 @@ const StockProducts = ({ onOpenHistory }) => {
                 availFreeQty: availFree,
             };
         });
-    }, [batches, purchases, sales, bulkReturns, salesBulkReturns, damages]);
+    }, [batches, purchases, sales, bulkReturns, salesBulkReturns, damages, adjustments]);
 
     // Product name + company onujayi unique row
     const products = useMemo(() => {
@@ -335,6 +350,8 @@ const StockProducts = ({ onOpenHistory }) => {
         sold: { label: 'Sold', sign: '−', cls: 'bg-orange-100 text-orange-700' },
         customer: { label: 'Customer Return', sign: '+', cls: 'bg-violet-100 text-violet-700' },
         damage: { label: 'Damage', sign: '−', cls: 'bg-red-100 text-red-700' },
+        adjIn: { label: 'Adjustment In', sign: '+', cls: 'bg-amber-100 text-amber-700' },
+        adjOut: { label: 'Adjustment Out', sign: '−', cls: 'bg-amber-100 text-amber-700' },
     };
 
     const historyEvents = useMemo(() => {
@@ -483,6 +500,26 @@ const StockProducts = ({ onOpenHistory }) => {
             });
         });
 
+        // Adjustment (In = stock plus, Out = stock minus)
+        adjustments.forEach((a) => {
+            const ts = createdTs(a) || toTime(a.adjustmentDate);
+            (a.stockAllocations || []).forEach((al) => {
+                const q = num(al.qty);
+                const isPaid = al.pool === 'paid';
+                add(
+                    al.direction === 'out' ? 'adjOut' : 'adjIn',
+                    `adj-${a._id}`,
+                    a.invoiceNo,
+                    a.adjustmentDate,
+                    ts,
+                    [batchById.get(String(al.batchId))],
+                    isPaid ? q : 0,
+                    isPaid ? 0 : q,
+                    { adjustId: a._id }
+                );
+            });
+        });
+
         // Sales Bulk Return (Customer Return, stock plus)
         salesBulkReturns.forEach((r) => {
             const refKey = `sbulk-${r._id}`;
@@ -499,7 +536,7 @@ const StockProducts = ({ onOpenHistory }) => {
             .map((e) => ({ ...e, ids: [...e.ids], orderKeys: [...e.orderKeys] }))
             .sort((a, b) => b.time - a.time || b.seq - a.seq)
             .slice(0, 30);
-    }, [stockRows, purchases, sales, products, bulkReturns, salesBulkReturns, damages]);
+    }, [stockRows, purchases, sales, products, bulkReturns, salesBulkReturns, damages, adjustments]);
     // qty -> "2 Box 4 pcs" + "(14 pcs)"
     const histQty = (total, info) => {
         const pcsText = `${fmt(total)} pcs`;

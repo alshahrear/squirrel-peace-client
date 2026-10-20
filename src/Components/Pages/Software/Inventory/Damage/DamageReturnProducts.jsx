@@ -56,8 +56,8 @@ const DamageReturnProducts = () => {
 
     useEffect(() => {
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((res) => res.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((res) => res.json()).catch(() => []),
         ])
             .then(([d, purchases]) => {
                 const fromPurchase = (Array.isArray(purchases) ? purchases : [])
@@ -95,7 +95,7 @@ const DamageReturnProducts = () => {
                 const g = map.get(key);
                 g.main += Number(it.totalQty) || 0;
                 g.free += Number(it.freeQty) || 0;
-                g.amount += Number(it.subtotal) || 0;
+                g.amount += Number(it.itemTotal ?? it.subtotal) || 0;
                 g.lastIdx = oi;
                 const per = Number(it.pcsPerUnit) || 0;
                 if (per > 1) {

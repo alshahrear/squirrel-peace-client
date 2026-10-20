@@ -227,9 +227,8 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       key: "inventory",
       label: "Inventory",
       children: [
-        { to: "/stock-all", label: "Stock All" },
-        { to: "/stock-alert", label: "Stock Alert" },
-        { to: "/damage-products", label: "Damage Products" },
+        { to: "/stock-all", label: "Stock" },
+        { to: "/damage-products", label: "Damage" },
       ],
     },
     {
@@ -251,7 +250,9 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       key: "report",
       label: "Report",
       children: [
-
+          { to: "/purchase-report", label: "Purchase Reports" },
+          { to: "/sales-report", label: "Sales Reports" },
+         
       ],
     },
     {

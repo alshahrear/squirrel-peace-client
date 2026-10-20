@@ -48,7 +48,7 @@ const SalesBulkReturn = () => {
 
     const fetchReturns = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return');
+            const res = await fetch('http://localhost:5000/sales-bulk-return');
             const data = await res.json();
             setReturns([...data].reverse());
         } catch (error) {
@@ -61,7 +61,7 @@ const SalesBulkReturn = () => {
 
     const fetchCustomers = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/customer');
+            const res = await fetch('http://localhost:5000/customer');
             const data = await res.json();
             setCustomers(Array.isArray(data) ? data.filter((c) => c.customerType === 'Wholesale Customer') : []);
         } catch (error) {
@@ -136,7 +136,7 @@ const SalesBulkReturn = () => {
         setOpenDropdownId(null);
         if (item.fromSales) {
             try {
-                const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${item.saleId}`);
+                const res = await fetch(`http://localhost:5000/sales/${item.saleId}`);
                 const sale = await res.json();
                 if (!sale || !sale._id) {
                     showToast('Order not found!', 'error');
@@ -167,11 +167,11 @@ const SalesBulkReturn = () => {
             });
             if (!confirm.isConfirmed) return;
             try {
-                const sRes = await fetch(`https://squirrel-peace-server.onrender.com/sales/${target.saleId}`);
+                const sRes = await fetch(`http://localhost:5000/sales/${target.saleId}`);
                 const sale = await sRes.json();
                 if (sale && sale._id) {
                     const retAdj = Number(sale.returnAdjustmentAmount) || 0;
-                    const upRes = await fetch(`https://squirrel-peace-server.onrender.com/sales/${target.saleId}`, {
+                    const upRes = await fetch(`http://localhost:5000/sales/${target.saleId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -182,7 +182,7 @@ const SalesBulkReturn = () => {
                     });
                     if (!upRes.ok) throw new Error('Order update failed');
                 }
-                const delRes = await fetch(`https://squirrel-peace-server.onrender.com/sales-bulk-return/${id}`, { method: 'DELETE' });
+                const delRes = await fetch(`http://localhost:5000/sales-bulk-return/${id}`, { method: 'DELETE' });
                 if (!delRes.ok) throw new Error('Delete failed');
                 showToast('Bulk return deleted successfully!', 'success');
                 setReturns((prev) => prev.filter((i) => i._id !== id));
@@ -204,7 +204,7 @@ const SalesBulkReturn = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/sales-bulk-return/${id}`, { method: 'DELETE' });
+                    const response = await fetch(`http://localhost:5000/sales-bulk-return/${id}`, { method: 'DELETE' });
                     if (response.ok) {
                         showToast('Bulk return deleted successfully!', 'success');
                         setReturns((prev) => prev.filter((i) => i._id !== id));

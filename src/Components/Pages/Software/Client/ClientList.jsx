@@ -23,7 +23,7 @@ const ClientList = ({ onEdit, refreshTrigger }) => {
     // ব্যাকএন্ড থেকে ক্লায়েন্ট ডাটা ফেচ করা
     const fetchClients = async () => {
         try {
-            const response = await fetch(`https://squirrel-peace-server.onrender.com/client?t=${Date.now()}`, {
+            const response = await fetch(`http://localhost:5000/client?t=${Date.now()}`, {
                 cache: 'no-store'
             });
             const data = await response.json();
@@ -77,7 +77,7 @@ const handleForceLogout = async (client) => {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const res = await fetch(`https://squirrel-peace-server.onrender.com/client/login-status/${client._id}`, {
+                const res = await fetch(`http://localhost:5000/client/login-status/${client._id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ login: 'no' })
@@ -120,7 +120,7 @@ const handleForceLogout = async (client) => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/client/${id}`, {
+                    const response = await fetch(`http://localhost:5000/client/${id}`, {
                         method: 'DELETE',
                     });
                     const data = await response.json();

@@ -44,7 +44,7 @@ const ProductDetails = () => {
     useEffect(() => {
         const fetchProduct = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/product');
+                const res = await fetch('http://localhost:5000/product');
                 const data = await res.json();
                 const found = data.find((p) => p._id === id);
                 if (found) {

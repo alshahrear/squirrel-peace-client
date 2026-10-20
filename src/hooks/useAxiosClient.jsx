@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useClientAuth } from "../Components/Provider/ClientAuthContext"; 
 
 const axiosClient = axios.create({
-    baseURL: 'https://squirrel-peace-server.onrender.com'
+    baseURL: 'http://localhost:5000'
 });
 
 const useAxiosClient = () => {

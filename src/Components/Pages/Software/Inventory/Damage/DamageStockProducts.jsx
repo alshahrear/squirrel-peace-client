@@ -58,11 +58,11 @@ const DamageStockProducts = ({ onOpenHistory }) => {
     const [historyShow, setHistoryShow] = useState(false);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/purchase')
+        fetch('http://localhost:5000/purchase')
             .then((res) => res.json())
             .then((d) => setPurchases(Array.isArray(d) ? d : []))
             .catch(() => setPurchases([]));
-        fetch('https://squirrel-peace-server.onrender.com/damage-return')
+        fetch('http://localhost:5000/damage-return')
             .then((res) => res.json())
             .then((d) => setDamageReturns(Array.isArray(d) ? d : []))
             .catch(() => setDamageReturns([]));
@@ -95,8 +95,8 @@ const DamageStockProducts = ({ onOpenHistory }) => {
 
     useEffect(() => {
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/sales').then((res) => res.json()),
-            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/sales').then((res) => res.json()),
+            fetch('http://localhost:5000/sales-damage').then((res) => res.json()).catch(() => []),
         ])
             .then(([sales, dmg]) =>
                 setOrders([
@@ -138,7 +138,7 @@ const DamageStockProducts = ({ onOpenHistory }) => {
                     const g = map.get(key);
                     g.main += Number(it.totalQty) || 0;
                     g.free += Number(it.freeQty) || 0;
-                    g.amount += Number(it.subtotal) || 0;
+                    g.amount += Number(it.itemTotal ?? it.subtotal) || 0;
                     g.lastIdx = oi;
                     const per = Number(it.pcsPerUnit) || 0;
                     if (per > 1) {

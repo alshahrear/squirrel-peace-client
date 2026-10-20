@@ -268,7 +268,7 @@ const KIND_STYLE = {
     others: { label: 'Others Free', cls: 'bg-violet-100 text-violet-700' },
 };
 
-const KindStack = ({ parts, align = 'left', showTotal = true, valueClass = 'text-gray-800' }) => {
+const KindStackBase = ({ parts, align = 'left', showTotal = true, valueClass = 'text-gray-800' }) => {
     const list = (parts || []).filter((p) => Number(p.value) > 0);
     if (list.length === 0) return <span className="text-gray-300">—</span>;
     const total = list.reduce((s, p) => s + Number(p.value), 0);
@@ -297,6 +297,15 @@ const KindStack = ({ parts, align = 'left', showTotal = true, valueClass = 'text
     );
 };
 
+const KindStack = ({ notes, ...rest }) => (
+    <div className="flex flex-col">
+        <KindStackBase {...rest} />
+        {(notes || []).map((n, i) => (
+            <div key={i} className="mt-1 text-[10px] font-semibold text-amber-600 whitespace-nowrap">{n}</div>
+        ))}
+    </div>
+);
+
 // Cost sudhu paid qty diye hisab hobe, free qty er kono effect nai
 const getCost = (b) => {
     if (b.isFreeProduct) return 0;
@@ -318,6 +327,7 @@ const StockPurchase = ({ focusEvent = null }) => {
     const [bulkReturns, setBulkReturns] = useState([]);
     const [salesBulkReturns, setSalesBulkReturns] = useState([]);
     const [damages, setDamages] = useState([]);
+    const [adjustments, setAdjustments] = useState([]);
     const [salesTab, setSalesTab] = useState('available');
     const [salesRow, setSalesRow] = useState(null);
     const [salesModalShow, setSalesModalShow] = useState(false);
@@ -362,7 +372,7 @@ const StockPurchase = ({ focusEvent = null }) => {
         }
         try {
             setSavingId(b._id);
-            const res = await fetch(`https://squirrel-peace-server.onrender.com/stock-purchase/${b._id}/sell-price`, {
+            const res = await fetch(`http://localhost:5000/stock-purchase/${b._id}/sell-price`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sellPrice: price }),
@@ -383,7 +393,7 @@ const StockPurchase = ({ focusEvent = null }) => {
 
     const openSalesModal = (b) => {
         setSalesRow(b);
-        const tabMap = { purchase: 'batch', company: 'company', sold: 'sold', customer: 'customer', damage: 'damage' };
+        const tabMap = { purchase: 'batch', company: 'company', sold: 'sold', customer: 'customer', damage: 'damage', adjustment: 'adjustment', adjIn: 'adjustment', adjOut: 'adjustment' };
         setSalesTab(highlight[b._id] && highlightEv ? tabMap[highlightEv.type] : 'available');
         setTimeout(() => setSalesModalShow(true), 10);
     };
@@ -429,12 +439,25 @@ const StockPurchase = ({ focusEvent = null }) => {
     const salesTotalReturned = salesRows.reduce((s, r) => s + r.returned, 0);
     const salesTotalNet = salesRows.reduce((s, r) => s + r.net, 0);
     const salesBatchTotal = salesRow ? (Number(salesRow.origPaidQty) || 0) + (Number(salesRow.origFreeQty) || 0) : 0;
+    const adjAllocs = salesRow
+        ? adjustments.flatMap((a) => (a.stockAllocations || []).filter((al) => String(al.batchId) === String(salesRow._id)))
+        : [];
+    const adjSum = (dir, paid) =>
+        adjAllocs
+            .filter((al) => al.direction === dir && (al.pool === 'paid') === paid)
+            .reduce((s, al) => s + (Number(al.qty) || 0), 0);
+    const adjInMain = adjSum('in', true);
+    const adjInFree = adjSum('in', false);
+    const adjOutMain = adjSum('out', true);
+    const adjOutFree = adjSum('out', false);
+    const adjInAll = adjInMain + adjInFree;
+    const adjOutAll = adjOutMain + adjOutFree;
     const salesPercent = salesBatchTotal > 0 ? Math.min((salesTotalNet / salesBatchTotal) * 100, 100) : 0;
     const salesAvailable = salesRow
         ? Math.max(
             salesBatchTotal -
             ((Number(salesRow.ret?.paid) || 0) + (Number(salesRow.ret?.free) || 0)) -
-            salesTotalSold - (Number(salesRow.dmgPaid) || 0) - (Number(salesRow.dmgFree) || 0) +
+            salesTotalSold - (Number(salesRow.dmgPaid) || 0) - (Number(salesRow.dmgFree) || 0) + adjInAll - adjOutAll +
             salesTotalReturned +
             (Number(salesRow.sbPaid) || 0) + (Number(salesRow.sbFree) || 0),
             0
@@ -448,29 +471,33 @@ const StockPurchase = ({ focusEvent = null }) => {
     useEffect(() => {
         const fetchStock = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/stock-purchase');
+                const res = await fetch('http://localhost:5000/stock-purchase');
                 const data = await res.json();
                 setBatches(Array.isArray(data) ? data : []);
 
-                const purchaseRes = await fetch('https://squirrel-peace-server.onrender.com/purchase');
+                const purchaseRes = await fetch('http://localhost:5000/purchase');
                 const purchaseData = await purchaseRes.json();
                 setPurchases(Array.isArray(purchaseData) ? purchaseData : []);
 
-                const salesRes = await fetch('https://squirrel-peace-server.onrender.com/sales');
+                const salesRes = await fetch('http://localhost:5000/sales');
                 const salesData = await salesRes.json();
                 setSales(Array.isArray(salesData) ? salesData : []);
 
-                const bulkRes = await fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return');
+                const bulkRes = await fetch('http://localhost:5000/purchase-bulk-return');
                 const bulkData = await bulkRes.json();
                 setBulkReturns(Array.isArray(bulkData) ? bulkData : []);
 
-                const sbRes = await fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return');
+                const sbRes = await fetch('http://localhost:5000/sales-bulk-return');
                 const sbData = await sbRes.json();
                 setSalesBulkReturns(Array.isArray(sbData) ? sbData : []);
 
-                const dmgRes = await fetch('https://squirrel-peace-server.onrender.com/sales-damage');
+                const dmgRes = await fetch('http://localhost:5000/sales-damage');
                 const dmgData = await dmgRes.json();
                 setDamages(Array.isArray(dmgData) ? dmgData : []);
+
+                const adjRes = await fetch('http://localhost:5000/stock-adjustment');
+                const adjData = await adjRes.json();
+                setAdjustments(Array.isArray(adjData) ? adjData : []);
             } catch (error) {
                 console.error('Error fetching stock purchase:', error);
             } finally {
@@ -508,6 +535,15 @@ const StockPurchase = ({ focusEvent = null }) => {
                 const cur = dmgMap.get(k) || { paid: 0, free: 0 };
                 cur[a.pool === 'paid' ? 'paid' : 'free'] += Number(a.qty) || 0;
                 dmgMap.set(k, cur);
+            })
+        );
+        const adjMap = new Map();
+        adjustments.forEach((r) =>
+            (r.stockAllocations || []).forEach((a) => {
+                const k = String(a.batchId);
+                const cur = adjMap.get(k) || { paid: 0, free: 0 };
+                cur[a.pool === 'paid' ? 'paid' : 'free'] += (a.direction === 'out' ? 1 : -1) * (Number(a.qty) || 0);
+                adjMap.set(k, cur);
             })
         );
         const soldMap = new Map();
@@ -571,7 +607,8 @@ const StockPurchase = ({ focusEvent = null }) => {
             const sold0 = soldMap.get(String(b._id)) || { paid: 0, free: 0 };
             const sb = sbMap.get(String(b._id)) || { paid: 0, free: 0 };
             const dm = dmgMap.get(String(b._id)) || { paid: 0, free: 0 };
-            const sold = { paid: sold0.paid - sb.paid + dm.paid, free: sold0.free - sb.free + dm.free };
+            const ad = adjMap.get(String(b._id)) || { paid: 0, free: 0 };
+            const sold = { paid: sold0.paid - sb.paid + dm.paid + ad.paid, free: sold0.free - sb.free + dm.free + ad.free };
             const curPaid = Math.max(origPaid - retPaid, 0);
             const curFree = Math.max(origFree - retFree, 0);
             let availPaid = 0;
@@ -601,7 +638,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                 ret: { paid: retPaid, free: retFree, amount: retAmount, dates: [...new Set(retDates)], entries: retEntries },
             };
         });
-    }, [batches, purchases, sales, bulkReturns, salesBulkReturns, damages]);
+    }, [batches, purchases, sales, bulkReturns, salesBulkReturns, damages, adjustments]);
 
     // Order (purchaseId) onujayi group + search filter
     const orders = useMemo(() => {
@@ -724,13 +761,18 @@ const StockPurchase = ({ focusEvent = null }) => {
             push('customer', r.invoiceNo, r.returnDate || r.createdAt, (r.stockAllocations || []).map((a) => a.batchId), createdTs(r) || toTime(r.returnDate), { returnId: '', bulkId: r._id, isBulk: true, saleId: r.saleId });
         });
 
+        // Adjustment (In = plus, Out = minus)
+        adjustments.forEach((a) => {
+            push('adjustment', a.invoiceNo, a.adjustmentDate || a.createdAt, (a.stockAllocations || []).map((al) => al.batchId), createdTs(a) || toTime(a.adjustmentDate), { adjustId: a._id });
+        });
+
         // Damage (stock minus)
         damages.forEach((d) => {
             push('damage', d.invoiceNo, d.damageDate || d.createdAt, (d.stockAllocations || []).map((a) => a.batchId), createdTs(d) || toTime(d.damageDate), { damageId: d._id });
         });
 
         return ev.sort((a, b) => b.time - a.time || b.seq - a.seq).slice(0, 30);
-    }, [batches, purchases, sales, bulkReturns, salesBulkReturns, damages]);
+    }, [batches, purchases, sales, bulkReturns, salesBulkReturns, damages, adjustments]);
 
     const HISTORY_STYLE = {
         purchase: { label: 'Purchase', cls: 'bg-indigo-100 text-indigo-700' },
@@ -738,6 +780,7 @@ const StockPurchase = ({ focusEvent = null }) => {
         sold: { label: 'Sold', cls: 'bg-orange-100 text-orange-700' },
         customer: { label: 'Customer Return', cls: 'bg-violet-100 text-violet-700' },
         damage: { label: 'Damage', cls: 'bg-red-100 text-red-700' },
+        adjustment: { label: 'Adjustment', cls: 'bg-amber-100 text-amber-700' },
     };
 
     const openHistory = () => {
@@ -1259,6 +1302,38 @@ const StockPurchase = ({ focusEvent = null }) => {
                                 : { key: 'available', label: 'Available', value: salesAvailable, box: 'bg-red-50 border-red-100', lbl: 'text-red-400', val: 'text-red-600', ring: 'ring-red-400' },
                         ];
                         const th = 'py-2.5 px-3';
+                        cards.splice(cards.length - 1, 0, {
+                            key: 'adjustment',
+                            label: 'Adjustment',
+                            value: adjInAll - adjOutAll,
+                            box: 'bg-amber-50 border-amber-100',
+                            lbl: 'text-amber-500',
+                            val: 'text-amber-600',
+                            ring: 'ring-amber-400',
+                        });
+                        const adjustmentGroups = adjustments
+                            .map((a) => {
+                                const allocs = (a.stockAllocations || []).filter((al) => String(al.batchId) === String(salesRow._id));
+                                if (allocs.length === 0) return null;
+                                const inn = { main: 0, free: 0 };
+                                const out = { main: 0, free: 0 };
+                                allocs.forEach((al) => {
+                                    const t = al.direction === 'out' ? out : inn;
+                                    t[al.pool === 'paid' ? 'main' : 'free'] += Number(al.qty) || 0;
+                                });
+                                return {
+                                    key: `adj-${a._id}`,
+                                    adjustId: a._id,
+                                    invoiceNo: a.invoiceNo,
+                                    date: a.adjustmentDate,
+                                    note: a.note || '',
+                                    inn,
+                                    out,
+                                    ts: Date.parse(a.createdAt) || 0,
+                                };
+                            })
+                            .filter(Boolean)
+                            .sort((x, y) => y.ts - x.ts);
                         const hv = highlight[salesRow._id] ? highlightEv : null;
                         const hlCls = 'bg-amber-100';
                         // Proti return entry alada row (company tab er moto), newest age
@@ -1496,6 +1571,25 @@ const StockPurchase = ({ focusEvent = null }) => {
                                 else if (salesRow.isFreeProduct) total.others += q;
                                 else total.free += q;
                             });
+                            // kind (ki hisebe return) onujayi abar hisab, pool (kothaw theke gese) diye borrow note
+                            total.main = 0; total.free = 0; total.others = 0; paidQ = 0;
+                            const bor = { main: 0, free: 0 };
+                            allocs.forEach((a) => {
+                                const q = Number(a.qty) || 0;
+                                const kind = a.kind || (a.pool === 'paid' ? 'main' : 'free');
+                                if (kind === 'main') {
+                                    total.main += q;
+                                    paidQ += q;
+                                    if (a.pool !== 'paid') bor.main += q;
+                                } else {
+                                    if (salesRow.isFreeProduct) total.others += q;
+                                    else total.free += q;
+                                    if (a.pool === 'paid') bor.free += q;
+                                }
+                            });
+                            const notes = [];
+                            if (bor.main > 0) notes.push(` Main-এর ${qtyTxt('free', bor.main)}, Free স্টক থেকে নেওয়া`);
+                            if (bor.free > 0) notes.push(` Free-এর ${qtyTxt('main', bor.free)}, Main স্টক থেকে নেওয়া`);
                             const it = (r.items || []).find((x) => allocs.some((a) => String(a.productId) === String(x.productId)) || x.productName === salesRow.productName);
                             return {
                                 key: `bulk-${r._id}`,
@@ -1510,6 +1604,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                 qty: {},
                                 total,
                                 value: paidQ * (Number(it?.buyPrice) || 0),
+                                notes,
                             };
                         }).filter(Boolean).reverse();
                         const oidT = (id) => (/^[0-9a-f]{24}$/i.test(String(id)) ? parseInt(String(id).slice(0, 8), 16) * 1000 : 0);
@@ -1646,8 +1741,8 @@ const StockPurchase = ({ focusEvent = null }) => {
                         const purchaseFree = Number(salesRow.origFreeQty) || 0;
                         const compRetMain = Number(salesRow.ret?.paid) || 0;
                         const compRetFree = Number(salesRow.ret?.free) || 0;
-                        const availMain = Math.max(purchaseMain - compRetMain - soldMain - (Number(salesRow.dmgPaid) || 0) + custRetMain, 0);
-                        const availFree = Math.max(purchaseFree - compRetFree - soldFree - (Number(salesRow.dmgFree) || 0) + custRetFree, 0);
+                        const availMain = Math.max(purchaseMain - compRetMain - soldMain - (Number(salesRow.dmgPaid) || 0) + custRetMain + adjInMain - adjOutMain, 0);
+                        const availFree = Math.max(purchaseFree - compRetFree - soldFree - (Number(salesRow.dmgFree) || 0) + custRetFree + adjInFree - adjOutFree, 0);
 
                         return (
                             <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${salesModalShow ? 'opacity-100' : 'opacity-0'}`}>
@@ -1668,7 +1763,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                     </div>
 
                                     <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-                                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
                                             {cards.map((c) => (
                                                 <button
                                                     key={c.key}
@@ -1787,7 +1882,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                                     <td className="py-3 px-3 whitespace-nowrap">
                                                                         <KindStack
                                                                             valueClass="text-orange-600"
-                                                                            parts={companyParts(row.total)}
+                                                                            parts={companyParts(row.total)} notes={row.notes}
                                                                         />
                                                                     </td>
                                                                     <td className="py-3 px-3 text-right font-bold text-rose-600 whitespace-nowrap">
@@ -2011,6 +2106,67 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                 </table>
                                             )}
 
+                                            {salesTab === 'adjustment' && (
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead className="sticky top-0">
+                                                        <tr className="bg-amber-50 text-amber-700 text-[11px] font-bold uppercase tracking-wide">
+                                                            <th className={th}>Invoice / Date</th>
+                                                            <th className={th}>Product</th>
+                                                            <th className={th}>In (+)</th>
+                                                            <th className={th}>Out (−)</th>
+                                                            <th className={th}>Note</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
+                                                        {adjustmentGroups.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={5} className="py-8 text-center text-gray-400 font-medium">
+                                                                    Ei batch e ekhono kono adjustment hoyni
+                                                                </td>
+                                                            </tr>
+                                                        ) : (
+                                                            adjustmentGroups.map((g) => (
+                                                                <tr key={g.key} className={`${['adjustment', 'adjIn', 'adjOut'].includes(hv?.type) && String(hv.adjustId) === String(g.adjustId) ? hlCls : 'hover:bg-amber-50/40'} transition`}>
+                                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => window.open(`/stock-adjustment-view/${g.adjustId}`, '_blank')}
+                                                                            className="font-bold text-indigo-600 hover:text-pink-600 hover:underline cursor-pointer"
+                                                                        >
+                                                                            #{g.invoiceNo}
+                                                                        </button>
+                                                                        <div className="text-[11px] text-gray-500 mt-0.5">{g.date || 'N/A'}</div>
+                                                                        <div className="text-[10px] font-bold mt-0.5 text-amber-600">(Adjustment)</div>
+                                                                    </td>
+                                                                    <td className="py-3 px-3 font-semibold text-gray-800 whitespace-nowrap">{salesRow.productName}</td>
+                                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                                        <KindStack
+                                                                            valueClass="text-emerald-600"
+                                                                            parts={toParts({
+                                                                                main: g.inn.main,
+                                                                                free: salesRow.isFreeProduct ? 0 : g.inn.free,
+                                                                                others: salesRow.isFreeProduct ? g.inn.free : 0,
+                                                                            })}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                                        <KindStack
+                                                                            valueClass="text-rose-600"
+                                                                            parts={toParts({
+                                                                                main: g.out.main,
+                                                                                free: salesRow.isFreeProduct ? 0 : g.out.free,
+                                                                                others: salesRow.isFreeProduct ? g.out.free : 0,
+                                                                            })}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="py-3 px-3 text-gray-500 text-[12px]">{g.note || <span className="text-gray-300">—</span>}</td>
+                                                                </tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            )}
+
                                             {salesTab === 'available' && (
                                                 <table className="w-full text-left border-collapse">
                                                     <thead className="sticky top-0">
@@ -2062,11 +2218,23 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                         </tr>
                                                     </tbody>
                                                     <tfoot>
-                                                        <tr className={`font-extrabold text-[13px] ${salesAvailable > 0 ? 'bg-emerald-50/60 text-emerald-700' : 'bg-red-50/60 text-red-600'}`}>
-                                                            <td className="py-3 px-3">Available</td>
-                                                            <td className="py-3 px-3"><AvCell main={availMain} free={0} valueClass={salesAvailable > 0 ? 'text-emerald-700' : 'text-red-600'} /></td>
-                                                            <td className="py-3 px-3"><AvCell main={0} free={availFree} valueClass={salesAvailable > 0 ? 'text-emerald-700' : 'text-red-600'} /></td>
-                                                            <td className="py-3 px-3"><AvTotal main={availMain} free={availFree} valueClass={salesAvailable > 0 ? 'text-emerald-700' : 'text-red-600'} /></td>
+                                                        <tr className="border-t border-gray-100 text-[13px] text-gray-700">
+                                                            <td className="py-3 px-3 font-semibold">(+) Adjustment In</td>
+                                                            <td className="py-3 px-3"><AvCell main={adjInMain} free={0} valueClass="text-indigo-600" /></td>
+                                                            <td className="py-3 px-3"><AvCell main={0} free={adjInFree} valueClass="text-emerald-600" /></td>
+                                                            <td className="py-3 px-3"><AvTotal main={adjInMain} free={adjInFree} valueClass="text-emerald-700" /></td>
+                                                        </tr>
+                                                        <tr className="border-t border-gray-100 text-[13px] text-gray-700">
+                                                            <td className="py-3 px-3 font-semibold">(-) Adjustment Out</td>
+                                                            <td className="py-3 px-3"><AvCell main={adjOutMain} free={0} valueClass="text-indigo-600" /></td>
+                                                            <td className="py-3 px-3"><AvCell main={0} free={adjOutFree} valueClass="text-emerald-600" /></td>
+                                                            <td className="py-3 px-3"><AvTotal main={adjOutMain} free={adjOutFree} valueClass="text-rose-600" /></td>
+                                                        </tr>
+                                                        <tr className={`font-extrabold text-[13px] ${salesAvailable > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                                                            <td className={`py-3 px-3 sticky bottom-0 z-10 border-t-2 ${salesAvailable > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>Available</td>
+                                                            <td className={`py-3 px-3 sticky bottom-0 z-10 border-t-2 ${salesAvailable > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}><AvCell main={availMain} free={0} valueClass={salesAvailable > 0 ? 'text-emerald-700' : 'text-red-600'} /></td>
+                                                            <td className={`py-3 px-3 sticky bottom-0 z-10 border-t-2 ${salesAvailable > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}><AvCell main={0} free={availFree} valueClass={salesAvailable > 0 ? 'text-emerald-700' : 'text-red-600'} /></td>
+                                                            <td className={`py-3 px-3 sticky bottom-0 z-10 border-t-2 ${salesAvailable > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}><AvTotal main={availMain} free={availFree} valueClass={salesAvailable > 0 ? 'text-emerald-700' : 'text-red-600'} /></td>
                                                         </tr>
                                                     </tfoot>
                                                 </table>

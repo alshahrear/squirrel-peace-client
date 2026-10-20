@@ -29,6 +29,9 @@ const PurchaseReturnDetails = () => {
     const [stockBatches, setStockBatches] = useState([]);
     const [salesList, setSalesList] = useState([]);
     const [bulkReturnList, setBulkReturnList] = useState([]);
+    const [salesBulkList, setSalesBulkList] = useState([]);
+    const [damageList, setDamageList] = useState([]);
+    const [adjustmentList, setAdjustmentList] = useState([]);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
     const showToast = (message, type = 'success') => {
@@ -46,7 +49,7 @@ const PurchaseReturnDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`)
+        fetch(`http://localhost:5000/purchase/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -79,12 +82,12 @@ const PurchaseReturnDetails = () => {
 
                     // StockPurchase এর "Per Pcs Price" এর মতো: discount/adjustment এর পর আসল cost per pcs
                     const payableNum = Number(data.payableAmount) || 0;
-                    const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.subtotal) || 0), 0);
+                    const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
                     setReturnPrices(
                         (data.items || []).map((item) => {
                             const paidQty = Number(item.totalPcs) || 0;
                             const netCost = subtotalSum > 0
-                                ? (payableNum * (Number(item.subtotal) || 0)) / subtotalSum
+                                ? (payableNum * (Number(item.itemTotal ?? item.subtotal) || 0)) / subtotalSum
                                 : 0;
                             return paidQty > 0 ? roundTo2(netCost / paidQty) : (Number(item.buyPrice) || 0);
                         })
@@ -124,20 +127,35 @@ const PurchaseReturnDetails = () => {
     // --------------------------------------------------
     // stock-purchase batch gulo anbe
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/stock-purchase')
+        fetch('http://localhost:5000/stock-purchase')
             .then((res) => res.json())
             .then((data) => setStockBatches(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching stock:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/sales')
+        fetch('http://localhost:5000/sales')
             .then((res) => res.json())
             .then((data) => setSalesList(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching sales:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return')
+        fetch('http://localhost:5000/purchase-bulk-return')
             .then((res) => res.json())
             .then((data) => setBulkReturnList(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching bulk returns:', error));
+
+        fetch('http://localhost:5000/sales-bulk-return')
+            .then((res) => res.json())
+            .then((data) => setSalesBulkList(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching sales bulk returns:', error));
+
+        fetch('http://localhost:5000/sales-damage')
+            .then((res) => res.json())
+            .then((data) => setDamageList(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching damages:', error));
+
+        fetch('http://localhost:5000/stock-adjustment')
+            .then((res) => res.json())
+            .then((data) => setAdjustmentList(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching adjustments:', error));
     }, [id]);
 
     // Ei purchase er ei product er stock a ekhon koto ache (sales e bikri howa bad diye)
@@ -200,6 +218,30 @@ const PurchaseReturnDetails = () => {
                 const net = Math.max((Number(a.qty) || 0) - (Number(a.returned) || 0), 0);
                 const pool = a.pool || ((a.kind || 'main') === 'main' ? 'paid' : 'free');
                 sold[pool] += net;
+            })
+        );
+
+        // Sales bulk return (customer return) => stock plus
+        salesBulkList.forEach((r) =>
+            (r.stockAllocations || []).forEach((a) => {
+                if (String(a.batchId) !== String(batch._id)) return;
+                sold[a.pool === 'paid' ? 'paid' : 'free'] -= Number(a.qty) || 0;
+            })
+        );
+
+        // Damage => stock minus
+        damageList.forEach((d) =>
+            (d.stockAllocations || []).forEach((a) => {
+                if (String(a.batchId) !== String(batch._id)) return;
+                sold[a.pool === 'paid' ? 'paid' : 'free'] += Number(a.qty) || 0;
+            })
+        );
+
+        // Adjustment (In = plus, Out = minus)
+        adjustmentList.forEach((r) =>
+            (r.stockAllocations || []).forEach((a) => {
+                if (String(a.batchId) !== String(batch._id)) return;
+                sold[a.pool === 'paid' ? 'paid' : 'free'] += (a.direction === 'out' ? 1 : -1) * (Number(a.qty) || 0);
             })
         );
 
@@ -688,7 +730,7 @@ const PurchaseReturnDetails = () => {
                 returnHistory: updatedReturnHistory,
             };
 
-            const response = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`, {
+            const response = await fetch(`http://localhost:5000/purchase/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedData),

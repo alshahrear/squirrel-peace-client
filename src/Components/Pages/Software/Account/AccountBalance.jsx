@@ -77,12 +77,12 @@ const AccountBalance = () => {
     const fetchAllData = useCallback(async () => {
         try {
             const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, transferRes] = await Promise.all([
-                fetch('https://squirrel-peace-server.onrender.com/investment'),
-                fetch('https://squirrel-peace-server.onrender.com/adjustment'),
-                fetch('https://squirrel-peace-server.onrender.com/income'),
-                fetch('https://squirrel-peace-server.onrender.com/expense'),
-                fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
-                fetch('https://squirrel-peace-server.onrender.com/transfer')
+                fetch('http://localhost:5000/investment'),
+                fetch('http://localhost:5000/adjustment'),
+                fetch('http://localhost:5000/income'),
+                fetch('http://localhost:5000/expense'),
+                fetch('http://localhost:5000/routeExpense'),
+                fetch('http://localhost:5000/transfer')
             ]);
             const invData = await invRes.json();
             const adjData = await adjRes.json();

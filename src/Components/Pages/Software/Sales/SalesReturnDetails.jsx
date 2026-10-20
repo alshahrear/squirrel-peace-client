@@ -44,7 +44,7 @@ const SalesReturnDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`)
+        fetch(`http://localhost:5000/sales/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -96,12 +96,12 @@ const SalesReturnDetails = () => {
                     );
                     // Discount / overall discount / adjustment er por asol net price per pcs
                     const payableNum = Number(data.payableAmount) || 0;
-                    const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.subtotal) || 0), 0);
+                    const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
                     setReturnPricesPcs(
                         (data.items || []).map((item) => {
                             const paidQty = Number(item.totalPcs) || 0;
                             const netAmount = subtotalSum > 0
-                                ? (payableNum * (Number(item.subtotal) || 0)) / subtotalSum
+                                ? (payableNum * (Number(item.itemTotal ?? item.subtotal) || 0)) / subtotalSum
                                 : 0;
                             return paidQty > 0 ? roundTo2(netAmount / paidQty) : (Number(item.sellPricePcs) || 0);
                         })
@@ -636,7 +636,7 @@ const SalesReturnDetails = () => {
                 returnHistory: updatedReturnHistory,
             };
 
-            const response = await fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`, {
+            const response = await fetch(`http://localhost:5000/sales/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedData),

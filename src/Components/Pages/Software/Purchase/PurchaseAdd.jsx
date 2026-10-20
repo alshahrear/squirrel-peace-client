@@ -75,7 +75,14 @@ const PurchaseAdd = () => {
         !!editingPurchase &&
         location.state?.mode !== 'receive' &&
         (editingPurchase.receiveStatus === 'Received' || editingPurchase.receiveStatus === 'Yes');
-    const showPayment = isReceiveMode || isReceivedEdit;
+    const isPurchaseStage = !isReceiveMode && !isReceivedEdit;
+    const hasPriorPayment =
+        !!editingPurchase &&
+        editingPurchase.paidAmount !== undefined &&
+        editingPurchase.paidAmount !== null &&
+        editingPurchase.paidAmount !== '' &&
+        !!editingPurchase.paymentMethod;
+    const showPayment = true;
     const [isEditMode] = useState(!!editingPurchase);
     const [editId] = useState(editingPurchase?._id || null);
 
@@ -88,8 +95,14 @@ const PurchaseAdd = () => {
 
     // ---------------- Payment / Receive States ----------------
     const [investments, setInvestments] = useState([]);
-    const [paymentAmount, setPaymentAmount] = useState('');
-    const [paymentAmountTouched, setPaymentAmountTouched] = useState(false); // ইউজার নিজে হাতে Payment Amount change করেছে কিনা
+    const [paymentAmount, setPaymentAmount] = useState(hasPriorPayment ? editingPurchase.paidAmount : '');
+    const [paymentAmountTouched, setPaymentAmountTouched] = useState(hasPriorPayment);
+    // Purchase-stage edit এ ইউজার নিজে হাতে Payment Amount বদলেছে কিনা
+    const [paymentManual, setPaymentManual] = useState(false);
+    // Purchase er somoy payment skip kora hoyeche kina
+    const [paymentSkipped, setPaymentSkipped] = useState(
+        !!editingPurchase && isPurchaseStage && !hasPriorPayment
+    ); // ইউজার নিজে হাতে Payment Amount change করেছে কিনা
     const [paymentAccountType, setPaymentAccountType] = useState('');
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
     const [paymentNote, setPaymentNote] = useState('');
@@ -99,8 +112,8 @@ const PurchaseAdd = () => {
     const [savePaymentMethod, setSavePaymentMethod] = useState(false);
 
     useEffect(() => {
-        if (isReceivedEdit) return;
-        fetch('https://squirrel-peace-server.onrender.com/feature/purchasePaymentMethod')
+        if (isReceivedEdit || hasPriorPayment) return;
+        fetch('http://localhost:5000/feature/purchasePaymentMethod')
             .then((res) => res.json())
             .then((data) => {
                 if (data?.enabled === true && data?.value?.paymentAccountType && data?.value?.selectedAccountKey) {
@@ -114,7 +127,7 @@ const PurchaseAdd = () => {
     }, []);
 
     const persistPaymentMethod = (checked, method, key) => {
-        fetch('https://squirrel-peace-server.onrender.com/feature/purchasePaymentMethod', {
+        fetch('http://localhost:5000/feature/purchasePaymentMethod', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -190,10 +203,10 @@ const PurchaseAdd = () => {
     const [damageStockList, setDamageStockList] = useState(null);
     useEffect(() => {
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/sales').then((r) => r.json()),
-            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/sales').then((r) => r.json()),
+            fetch('http://localhost:5000/sales-damage').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((r) => r.json()).catch(() => []),
         ])
             .then(([sales, dmg, purchases, damageReturns]) => {
                 const map = new Map();
@@ -248,7 +261,7 @@ const PurchaseAdd = () => {
     // Bulk Return stock (main / free)
     const [stockMap, setStockMap] = useState(null);
     useEffect(() => {
-        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${location.state?.bulkId ? `?excludeId=${location.state.bulkId}` : ''}`)
+        fetch(`http://localhost:5000/bulk-return-stock${location.state?.bulkId ? `?excludeId=${location.state.bulkId}` : ''}`)
             .then((res) => res.json())
             .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
             .catch((error) => console.error('Error fetching bulk return stock:', error));
@@ -332,6 +345,12 @@ const PurchaseAdd = () => {
                     baseFreePcsQty,
                     discount: Number(item.discount) || 0,
                     discountType: item.discountType || 'amount',
+                    orderQty:
+                        Number(
+                            (editingPurchase.orderSnapshot?.items || editingPurchase.items || []).find(
+                                (o) => o.productName === item.productName
+                            )?.totalPcs
+                        ) || 0,
                 };
             });
 
@@ -342,6 +361,36 @@ const PurchaseAdd = () => {
             setAdjustmentAmount(editingPurchase.adjustment?.amount || 0);
             setAdjustmentType(editingPurchase.adjustment?.type || '+');
             setOrderNote(editingPurchase.orderNote || '');
+
+            if (hasPriorPayment && !isReceivedEdit) {
+                setPaymentAmount(editingPurchase.paidAmount);
+                setPaymentAmountTouched(true);
+                setPaymentAccountType(editingPurchase.paymentMethod || '');
+                setPaymentNote(editingPurchase.paymentNote || '');
+                const ppa = editingPurchase.paymentAccount || {};
+                if (editingPurchase.paymentMethod === 'Bank') {
+                    setSelectedAccountKey(`${ppa.bankName}-${ppa.accountNumber}-${ppa.accountBranch}`);
+                } else if (editingPurchase.paymentMethod === 'Mobile Banking') {
+                    setSelectedAccountKey(`${ppa.accountName}-${ppa.accountNumber}`);
+                } else {
+                    setSelectedAccountKey('cash');
+                }
+            }
+
+            if (hasPriorPayment && !isReceivedEdit) {
+                setPaymentAmount(editingPurchase.paidAmount);
+                setPaymentAmountTouched(true);
+                setPaymentAccountType(editingPurchase.paymentMethod || '');
+                setPaymentNote(editingPurchase.paymentNote || '');
+                const ppa = editingPurchase.paymentAccount || {};
+                if (editingPurchase.paymentMethod === 'Bank') {
+                    setSelectedAccountKey(`${ppa.bankName}-${ppa.accountNumber}-${ppa.accountBranch}`);
+                } else if (editingPurchase.paymentMethod === 'Mobile Banking') {
+                    setSelectedAccountKey(`${ppa.accountName}-${ppa.accountNumber}`);
+                } else {
+                    setSelectedAccountKey('cash');
+                }
+            }
 
             if (isReceivedEdit) {
                 setPaymentAmount(editingPurchase.paidAmount ?? '');
@@ -442,7 +491,7 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment) {
-            fetch('https://squirrel-peace-server.onrender.com/investment')
+            fetch('http://localhost:5000/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
@@ -456,16 +505,30 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
     const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
+    // Receive er somoy original order er item/limit ber korar helper
+    const getOrderItem = (name) =>
+        (editingPurchase?.orderSnapshot?.items || editingPurchase?.items || []).find(
+            (o) => o.productName === name
+        );
+    const getOrderFreeItem = (name) =>
+        (editingPurchase?.orderSnapshot?.freeItems || editingPurchase?.freeItems || []).find(
+            (o) => o.productName === name
+        );
+    const showLimitToast = (message) => {
+        setToast({ show: true, message, isError: true });
+        setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+    };
+
     // --------------------------------------------------
     // Others Free Product — Category / Product fetch
     // --------------------------------------------------
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/category')
+        fetch('http://localhost:5000/category')
             .then((res) => res.json())
             .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching categories:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -494,6 +557,10 @@ const PurchaseAdd = () => {
     const getFreeRowTotal = (item) => getFreePcsTotal(item);
 
     const handleAddFreeProduct = (product) => {
+        if (isReceiveMode && !getOrderFreeItem(product.productName)) {
+            showLimitToast('Receive er somoy notun free product add kora jabe na!');
+            return;
+        }
         const newItem = {
             uniqueId: Date.now() + Math.random(),
             _id: product._id,
@@ -519,6 +586,22 @@ const PurchaseAdd = () => {
     };
 
     const handleFreeItemChange = (uniqueId, field, value) => {
+        if (isReceiveMode && ['unitQty', 'subQty', 'pcsQty'].includes(field)) {
+            const cur = freeProductItems.find((i) => i.uniqueId === uniqueId);
+            const orig = cur && getOrderFreeItem(cur.productName);
+            if (cur && orig) {
+                const n = { ...cur, [field]: value === '' ? '' : Number(value) || 0 };
+                const total =
+                    (Number(n.unitQty) || 0) * (Number(n.pcsPerUnit) || 1) +
+                    (Number(n.subQty) || 0) * (Number(n.pcsPerSub) || 0) +
+                    (Number(n.pcsQty) || 0);
+                const maxQty = Number(orig.totalQty) || 0;
+                if (total > maxQty) {
+                    showLimitToast(`Order e matro ${maxQty} pcs chilo, er beshi kora jabe na!`);
+                    return;
+                }
+            }
+        }
         if (value !== '' && Number(value) < 0) return;
 
         setFreeProductItems((prev) =>
@@ -745,7 +828,7 @@ const PurchaseAdd = () => {
         freeSubQty: Number(item.freeSubQty) || 0,
         freePcsQty: Number(item.freePcsQty) || 0,
         freeQty: Number(item.freeQty) || 0,
-        subtotal: roundTo2(getReturnRowTotal(item)),
+        itemTotal: roundTo2(getReturnRowTotal(item)),
     }));
 
     // --------------------------------------------------
@@ -878,7 +961,7 @@ const PurchaseAdd = () => {
         freeSubQty: Number(item.freeSubQty) || 0,
         freePcsQty: Number(item.freePcsQty) || 0,
         freeQty: Number(item.freeQty) || 0,
-        subtotal: roundTo2(getDamageRowTotal(item)),
+        itemTotal: roundTo2(getDamageRowTotal(item)),
     }));
 
     const damageTotalValue = roundTo2(
@@ -921,7 +1004,7 @@ const PurchaseAdd = () => {
         pcsPerUnit: Number(item.pcsPerUnit) || 1,
         totalQty: Number(item.totalQty) || 0,
         sellPricePcs: roundTo2(item.sellPricePcs),
-        subtotal: roundTo2(getFreeRowTotal(item)),
+        itemTotal: roundTo2(getFreeRowTotal(item)),
     }));
 
     // --------------------------------------------------
@@ -963,6 +1046,10 @@ const PurchaseAdd = () => {
     // Product Add
     // --------------------------------------------------
     const handleAddProduct = (product) => {
+        if (isReceiveMode && !getOrderItem(product.productName)) {
+            showLimitToast('Receive er somoy notun product add kora jabe na!');
+            return;
+        }
         const initialUnitQty = '';
         const initialPcsQty = '';
         const isParent = product.parentUnitUse === true;
@@ -1011,6 +1098,7 @@ const PurchaseAdd = () => {
             // Product Discount
             discount: 0,
             discountType: 'amount', // 'amount' | 'percent'
+            orderQty: Number(getOrderItem(product.productName)?.totalPcs) || 0,
         };
 
         setPurchaseItems((prev) => [...prev, newItem]);
@@ -1029,6 +1117,70 @@ const PurchaseAdd = () => {
     // Item Change
     // --------------------------------------------------
     const handleItemChange = (uniqueId, field, value) => {
+        if (
+            isReceiveMode &&
+            ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)
+        ) {
+            const cur = purchaseItems.find((i) => i.uniqueId === uniqueId);
+            const orderItem = cur && getOrderItem(cur.productName);
+            if (cur && orderItem) {
+                const n = { ...cur, [field]: value === '' ? '' : Number(value) || 0 };
+                const ppu = Number(n.pcsPerUnit) || 1;
+                const pps = Number(n.pcsPerSub) || 0;
+                const total =
+                    (Number(n.unitQty) || 0) * ppu +
+                    (Number(n.subQty) || 0) * pps +
+                    (Number(n.pcsQty) || 0);
+                const maxQty = Number(orderItem.totalPcs) || 0;
+                if (total > maxQty) {
+                    showLimitToast(`Order e matro ${maxQty} pcs chilo, er beshi kora jabe na!`);
+                    return;
+                }
+                if (['freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)) {
+                    const freeTotal =
+                        (Number(n.freeUnitQty) || 0) * ppu +
+                        (Number(n.freeSubQty) || 0) * pps +
+                        (Number(n.freePcsQty) || 0);
+                    const maxFree = Number(orderItem.freeTotalQty ?? orderItem.freeQty) || 0;
+                    if (freeTotal > maxFree) {
+                        showLimitToast(`Order e matro ${maxFree} pcs free chilo, er beshi kora jabe na!`);
+                        return;
+                    }
+                }
+            }
+        }
+        if (
+            isReceiveMode &&
+            ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)
+        ) {
+            const cur = purchaseItems.find((i) => i.uniqueId === uniqueId);
+            const orderItem = cur && getOrderItem(cur.productName);
+            if (cur && orderItem) {
+                const n = { ...cur, [field]: value === '' ? '' : Number(value) || 0 };
+                const ppu = Number(n.pcsPerUnit) || 1;
+                const pps = Number(n.pcsPerSub) || 0;
+                const total =
+                    (Number(n.unitQty) || 0) * ppu +
+                    (Number(n.subQty) || 0) * pps +
+                    (Number(n.pcsQty) || 0);
+                const maxQty = Number(orderItem.totalPcs) || 0;
+                if (total > maxQty) {
+                    showLimitToast(`Order e matro ${maxQty} pcs chilo, er beshi kora jabe na!`);
+                    return;
+                }
+                if (['freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)) {
+                    const freeTotal =
+                        (Number(n.freeUnitQty) || 0) * ppu +
+                        (Number(n.freeSubQty) || 0) * pps +
+                        (Number(n.freePcsQty) || 0);
+                    const maxFree = Number(orderItem.freeTotalQty ?? orderItem.freeQty) || 0;
+                    if (freeTotal > maxFree) {
+                        showLimitToast(`Order e matro ${maxFree} pcs free chilo, er beshi kora jabe na!`);
+                        return;
+                    }
+                }
+            }
+        }
         // Negative value allow করবে না
         if (value !== '' && Number(value) < 0) return;
 
@@ -1323,11 +1475,13 @@ const PurchaseAdd = () => {
     // sync থাকবে, যতক্ষণ না ইউজার নিজে হাতে সেটা edit করছে
     // --------------------------------------------------
     useEffect(() => {
-        if (isReceiveMode && !paymentAmountTouched) {
+        const autoSync =
+            isPurchaseStage && hasPriorPayment ? !paymentManual : !paymentAmountTouched;
+        if ((isReceiveMode || isPurchaseStage) && autoSync) {
             setPaymentAmount(payableAmount);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [payableAmount, isReceiveMode, paymentAmountTouched]);
+    }, [payableAmount, isReceiveMode, paymentAmountTouched, paymentManual]);
 
     // --------------------------------------------------
     // Submit
@@ -1353,7 +1507,7 @@ const PurchaseAdd = () => {
                 0
             );
             try {
-                const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
+                const res = await fetch(`http://localhost:5000/purchase/${editId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1415,6 +1569,45 @@ const PurchaseAdd = () => {
             return;
         }
         let receivedPaymentData = {};
+        if (isPurchaseStage && !paymentSkipped) {
+            const showErr = (message) => {
+                setToast({ show: true, message, isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+            };
+            if (paymentAmount === '' || paymentAmount === null) {
+                showErr('Payment amount is required! (or Skip payment)');
+                return;
+            }
+            if (!paymentAccountType) {
+                showErr('Please select a payment method! (or Skip payment)');
+                return;
+            }
+            if (!selectedAccountInfo) {
+                showErr('Please select an account! (or Skip payment)');
+                return;
+            }
+            let stageAccInfo = {};
+            if (paymentAccountType === 'Bank') {
+                stageAccInfo = {
+                    bankName: selectedAccountInfo.bankName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                    accountBranch: selectedAccountInfo.accountBranch || '',
+                };
+            } else if (paymentAccountType === 'Mobile Banking') {
+                stageAccInfo = {
+                    accountName: selectedAccountInfo.accountName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                };
+            } else {
+                stageAccInfo = { accountName: 'Cash' };
+            }
+            receivedPaymentData = {
+                paidAmount: roundTo2(paymentAmount),
+                paymentMethod: paymentAccountType,
+                paymentAccount: stageAccInfo,
+                paymentNote: paymentNote,
+            };
+        }
         if (isReceivedEdit) {
             if (paymentAmount === '' || paymentAmount === null) {
                 setToast({ show: true, message: 'Payment amount is required!', isError: true });
@@ -1491,7 +1684,7 @@ const PurchaseAdd = () => {
                 discount: roundTo2(item.discount),
                 discountType: item.discountType || 'amount',
                 discountAmount: effectiveDiscount,
-                subtotal: rowSubtotal,
+                itemTotal: rowSubtotal,
             };
         });
 
@@ -1506,7 +1699,7 @@ const PurchaseAdd = () => {
 
             items: itemsPayload,
 
-            grandTotal: subTotal,
+            subTotal: subTotal,
             productWiseDiscount: productWiseDiscount,
             productWiseDiscountPercent: productWiseDiscountPercent,
 
@@ -1543,9 +1736,18 @@ const PurchaseAdd = () => {
         };
 
         try {
+            if (isEditMode && isPurchaseStage && paymentSkipped) {
+                purchaseData.unsetFields = [
+                    ...(purchaseData.unsetFields || []),
+                    'paidAmount',
+                    'paymentMethod',
+                    'paymentAccount',
+                    'paymentNote',
+                ];
+            }
             const url = isEditMode
-                ? `https://squirrel-peace-server.onrender.com/purchase/${editId}`
-                : 'https://squirrel-peace-server.onrender.com/purchase';
+                ? `http://localhost:5000/purchase/${editId}`
+                : 'http://localhost:5000/purchase';
             const method = isEditMode ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
@@ -1677,7 +1879,7 @@ const PurchaseAdd = () => {
                 freeTotalQty: item.freeQty,
                 discount: roundTo2(item.discount),
                 discountType: item.discountType || 'amount',
-                subtotal: rowSubtotal,
+                itemTotal: rowSubtotal,
             };
         });
 
@@ -1691,7 +1893,7 @@ const PurchaseAdd = () => {
 
             items: itemsPayload,
 
-            grandTotal: subTotal,
+            subTotal: subTotal,
             productWiseDiscount: productWiseDiscount,
             productWiseDiscountPercent: productWiseDiscountPercent,
 
@@ -1728,7 +1930,7 @@ const PurchaseAdd = () => {
 
         try {
             setIsReceiving(true);
-            const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
+            const res = await fetch(`http://localhost:5000/purchase/${editId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(receiveData),
@@ -1869,7 +2071,7 @@ const PurchaseAdd = () => {
                                             </th>
 
                                             <th className="py-3 px-3">
-                                                Subtotal
+                                                Item Total
                                             </th>
 
                                             <th className="py-3 px-3 text-center">
@@ -1974,7 +2176,7 @@ const PurchaseAdd = () => {
                                                                 className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
                                                                     }`}
                                                             >
-                                                                Total: {item.totalQty}
+                                                                Total: {item.totalQty}{(isReceiveMode || isReceivedEdit) && item.orderQty > 0 ? ` (Order: ${item.orderQty})` : ''}
                                                             </div>
                                                             <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
                                                                 <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
@@ -2263,7 +2465,7 @@ const PurchaseAdd = () => {
                                     {/* Grand Total */}
                                     <div className="flex items-center">
                                         <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">
-                                            Grand Total
+                                            Subtotal
                                         </label>
                                         <input
                                             type="text"
@@ -2541,7 +2743,7 @@ const PurchaseAdd = () => {
                                                             <th className="py-3 px-3">PCS Qty</th>
                                                             <th className="py-3 px-3">Total Qty</th>
                                                             <th className="py-3 px-3">Sell Price (PCS)</th>
-                                                            <th className="py-3 px-3">Subtotal</th>
+                                                            <th className="py-3 px-3">Item Total</th>
                                                             <th className="py-3 px-3 text-center">Action</th>
                                                         </tr>
                                                     </thead>
@@ -2819,7 +3021,7 @@ const PurchaseAdd = () => {
                                                         <th className="py-3 pl-4 pr-1">Free Unit</th>
                                                         <th className="py-3 pl-3 pr-2">Free PCS</th>
                                                         <th className="py-3 px-3">Buy Price (PCS)</th>
-                                                        <th className="py-3 px-3">Subtotal</th>
+                                                        <th className="py-3 px-3">Item Total</th>
                                                         <th className="py-3 px-3 text-center">Action</th>
                                                     </tr>
                                                 </thead>
@@ -3128,7 +3330,7 @@ const PurchaseAdd = () => {
                                                             <th className="py-3 pl-4 pr-1">Free Unit</th>
                                                             <th className="py-3 pl-3 pr-2">Free PCS</th>
                                                             <th className="py-3 px-3">Buy Price (PCS)</th>
-                                                            <th className="py-3 px-3">Subtotal</th>
+                                                            <th className="py-3 px-3">Item Total</th>
                                                             <th className="py-3 px-3 text-center">Action</th>
                                                         </tr>
                                                     </thead>
@@ -3341,7 +3543,21 @@ const PurchaseAdd = () => {
                             {showPayment && (
                                 <div className="mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
                                     <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                                        <h3 className="text-base font-bold text-emerald-800">Payment</h3>
+                                        <div className="flex items-center gap-3">
+                                            <h3 className="text-base font-bold text-emerald-800">Payment</h3>
+                                            {isPurchaseStage && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPaymentSkipped((prev) => !prev)}
+                                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${paymentSkipped
+                                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                                        }`}
+                                                >
+                                                    {paymentSkipped ? 'Undo' : 'Skip'}
+                                                </button>
+                                            )}
+                                        </div>
 
                                         <label
                                             className={`flex items-center gap-2 text-sm font-semibold ${paymentAccountType && selectedAccountKey ? 'text-emerald-700 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`}
@@ -3350,7 +3566,7 @@ const PurchaseAdd = () => {
                                             <input
                                                 type="checkbox"
                                                 checked={savePaymentMethod}
-                                                disabled={!(paymentAccountType && selectedAccountKey)}
+                                                disabled={paymentSkipped || !(paymentAccountType && selectedAccountKey)}
                                                 onChange={(e) => handleSavePaymentToggle(e.target.checked)}
                                                 className="w-4 h-4 accent-emerald-600 disabled:cursor-not-allowed"
                                             />
@@ -3358,90 +3574,96 @@ const PurchaseAdd = () => {
                                         </label>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className={paymentSkipped ? 'opacity-50 pointer-events-none' : ''}>
+                                        <fieldset disabled={paymentSkipped} className="contents">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-                                        {/* Payment Amount */}
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Payment Amount <span className="text-rose-500">*</span>
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={paymentAmount}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
+                                                {/* Payment Amount */}
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                        Payment Amount <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={paymentAmount}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
 
-                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                        setPaymentAmount(value);
-                                                        setPaymentAmountTouched(true);
-                                                    }
-                                                }}
-                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
-                                            />
-                                        </div>
+                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                setPaymentAmount(value);
+                                                                setPaymentAmountTouched(true);
+                                                                setPaymentManual(true);
+                                                            }
+                                                        }}
+                                                        className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                                    />
+                                                </div>
 
-                                        {/* Payment Method */}
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Payment Method <span className="text-rose-500">*</span>
-                                            </label>
-                                            <select
-                                                value={paymentAccountType}
-                                                onChange={(e) => {
-                                                    setPaymentAccountType(e.target.value);
-                                                    setSelectedAccountKey('');
-                                                    if (savePaymentMethod) {
-                                                        setSavePaymentMethod(false);
-                                                        persistPaymentMethod(false, '', '');
-                                                    }
-                                                }}
-                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
-                                            >
-                                                <option value="">Select method...</option>
-                                                {accountTypes.map((type) => (
-                                                    <option key={type} value={type}>{type}</option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                                {/* Payment Method */}
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                        Payment Method <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={paymentAccountType}
+                                                        onChange={(e) => {
+                                                            setPaymentAccountType(e.target.value);
+                                                            setSelectedAccountKey('');
+                                                            if (savePaymentMethod) {
+                                                                setSavePaymentMethod(false);
+                                                                persistPaymentMethod(false, '', '');
+                                                            }
+                                                        }}
+                                                        className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
+                                                    >
+                                                        <option value="">Select method...</option>
+                                                        {accountTypes.map((type) => (
+                                                            <option key={type} value={type}>{type}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
 
-                                        {/* Account Selection */}
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Account <span className="text-rose-500">*</span>
-                                            </label>
-                                            <select
-                                                value={selectedAccountKey}
-                                                onChange={(e) => {
-                                                    setSelectedAccountKey(e.target.value);
-                                                    if (savePaymentMethod) {
-                                                        persistPaymentMethod(true, paymentAccountType, e.target.value);
-                                                    }
-                                                }}
-                                                disabled={!paymentAccountType}
-                                                className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
-                                                    ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
-                                                    : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                    }`}
-                                            >
-                                                <option value="">
-                                                    {paymentAccountType ? 'Select account...' : 'Select method first'}
-                                                </option>
-                                                {uniqueAccounts.map((inv) => {
-                                                    const key = getAccountKey(inv);
-                                                    const label =
-                                                        inv.accountType === 'Bank'
-                                                            ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
-                                                            : inv.accountType === 'Mobile Banking'
-                                                                ? `${inv.accountName} - ${inv.accountNumber}`
-                                                                : 'Cash';
-                                                    return (
-                                                        <option key={key} value={key}>{label}</option>
-                                                    );
-                                                })}
-                                            </select>
-                                        </div>
+                                                {/* Account Selection */}
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                        Account <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={selectedAccountKey}
+                                                        onChange={(e) => {
+                                                            setSelectedAccountKey(e.target.value);
+                                                            if (savePaymentMethod) {
+                                                                persistPaymentMethod(true, paymentAccountType, e.target.value);
+                                                            }
+                                                        }}
+                                                        disabled={!paymentAccountType}
+                                                        className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
+                                                            ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
+                                                            : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                            }`}
+                                                    >
+                                                        <option value="">
+                                                            {paymentAccountType ? 'Select account...' : 'Select method first'}
+                                                        </option>
+                                                        {uniqueAccounts.map((inv) => {
+                                                            const key = getAccountKey(inv);
+                                                            const label =
+                                                                inv.accountType === 'Bank'
+                                                                    ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
+                                                                    : inv.accountType === 'Mobile Banking'
+                                                                        ? `${inv.accountName} - ${inv.accountNumber}`
+                                                                        : 'Cash';
+                                                            return (
+                                                                <option key={key} value={key}>{label}</option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                        </fieldset>
                                     </div>
 
                                     {/* Payment Note (Optional) */}

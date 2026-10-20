@@ -16,7 +16,7 @@ const UserRole = () => {
     const itemsPerPage = 30;
     const fetchRoles = async () => {
         try {
-            const response = await axios.get('https://squirrel-peace-server.onrender.com/userRole');
+            const response = await axios.get('http://localhost:5000/userRole');
             setRoles(response.data);
         } catch (error) {
             toast.error('Failed to load roles');
@@ -56,7 +56,7 @@ const UserRole = () => {
         setLoading(true);
         try {
             if (editingId) {
-                const response = await axios.put(`https://squirrel-peace-server.onrender.com/userRole/${editingId}`, {
+                const response = await axios.put(`http://localhost:5000/userRole/${editingId}`, {
                     role: roleInput,
                 });
                 if (response.data.modifiedCount > 0) {
@@ -64,7 +64,7 @@ const UserRole = () => {
                 }
                 setEditingId(null);
             } else {
-                const response = await axios.post('https://squirrel-peace-server.onrender.com/userRole', {
+                const response = await axios.post('http://localhost:5000/userRole', {
                     role: roleInput,
                 });
                 if (response.data.insertedId) {
@@ -106,7 +106,7 @@ const UserRole = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await axios.delete(`https://squirrel-peace-server.onrender.com/userRole/${id}`);
+                    const res = await axios.delete(`http://localhost:5000/userRole/${id}`);
                     if (res.data.deletedCount > 0) {
                         toast.success('Role deleted!');
                         fetchRoles();

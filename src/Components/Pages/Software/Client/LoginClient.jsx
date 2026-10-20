@@ -38,7 +38,7 @@ const LoginClient = () => {
 
         try {
             // সরাসরি ব্যাকএন্ডের লগইন এপিআই-তে রিকোয়েস্ট পাঠানো
-            const loginRes = await fetch('https://squirrel-peace-server.onrender.com/client/login', {
+            const loginRes = await fetch('http://localhost:5000/client/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -64,7 +64,7 @@ const LoginClient = () => {
 
           // টোকেন এবং ক্লায়েন্টের তথ্য localStorage-এ সেভ করার আগে ব্যাকএন্ডে স্ট্যাটাস 'yes' করে নেওয়া বা পাঠানো নিশ্চিত করা
             const clientId = loginData.client._id || loginData.client.id;
-            await fetch(`https://squirrel-peace-server.onrender.com/client/login-status/${clientId}`, {
+            await fetch(`http://localhost:5000/client/login-status/${clientId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ login: 'yes' })

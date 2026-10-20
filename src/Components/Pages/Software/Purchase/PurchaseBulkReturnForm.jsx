@@ -63,19 +63,19 @@ const PurchaseBulkReturnForm = () => {
 
     // ---------- Fetch ----------
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((r) => r.json())
             .then((d) => setCompanies(Array.isArray(d) ? d : []))
             .catch((e) => console.error(e));
-        fetch('https://squirrel-peace-server.onrender.com/category')
+        fetch('http://localhost:5000/category')
             .then((r) => r.json())
             .then((d) => setCategories(Array.isArray(d) ? d.filter((c) => c.isActive === true) : []))
             .catch((e) => console.error(e));
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((r) => r.json())
             .then((d) => setProducts(Array.isArray(d) ? d : []))
             .catch((e) => console.error(e));
-        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${isEditMode ? `?excludeId=${editId}` : ''}`)
+        fetch(`http://localhost:5000/bulk-return-stock${isEditMode ? `?excludeId=${editId}` : ''}`)
             .then((r) => r.json())
             .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
             .catch((e) => console.error(e));
@@ -105,6 +105,8 @@ const PurchaseBulkReturnForm = () => {
                 freePcsQty: Number(it.freePcsQty) || '',
                 totalQty: Number(it.totalPcs) || 0,
                 freeQty: Number(it.freeTotalQty) || 0,
+                borrowMain: it.borrowMain === true,
+                borrowFree: it.borrowFree === true,
             }));
             setItems(mapped);
         }
@@ -220,6 +222,8 @@ const PurchaseBulkReturnForm = () => {
             freePcsQty: '',
             totalQty: 0,
             freeQty: 0,
+            borrowMain: false,
+            borrowFree: false,
         };
         setItems((prev) => [...prev, newItem]);
         setProductSearch('');
@@ -233,6 +237,49 @@ const PurchaseBulkReturnForm = () => {
         stockMap
             ? stockMap[String(item._id)] || stockMap[`name:${item.productName}`] || { paid: 0, free: 0 }
             : null;
+
+    // main/free ghatti hole onno pool theke koto nite hobe
+    const calcBorrow = (it) => {
+        const st = getStock(it);
+        if (!st) return { mainFromFree: 0, freeFromMain: 0 };
+        const mainShort = Math.max((Number(it.totalQty) || 0) - st.paid, 0);
+        const freeShort = Math.max((Number(it.freeQty) || 0) - st.free, 0);
+        return {
+            mainFromFree: it.borrowMain ? mainShort : 0,
+            freeFromMain: it.borrowFree ? freeShort : 0,
+        };
+    };
+
+    // stock thik ache kina check (error message return kore, thik thakle null)
+    const checkStock = (it) => {
+        const st = getStock(it);
+        if (!st) return null;
+        const total = Number(it.totalQty) || 0;
+        const free = Number(it.freeQty) || 0;
+        const mainShort = Math.max(total - st.paid, 0);
+        const freeShort = Math.max(free - st.free, 0);
+        const surplusFree = Math.max(st.free - free, 0);
+        const surplusPaid = Math.max(st.paid - total, 0);
+        if (mainShort > 0) {
+            if (!it.borrowMain) return `Main stock e matro ${st.paid} pcs ache! Free theke nite "Free +" click korun.`;
+            if (surplusFree < mainShort) return `Main er jonno Free soho matro ${st.paid + surplusFree} pcs ache!`;
+        }
+        if (freeShort > 0) {
+            if (!it.borrowFree) return `Free stock e matro ${st.free} pcs ache! Main theke nite "Main +" click korun.`;
+            if (surplusPaid < freeShort) return `Free er jonno Main soho matro ${st.free + surplusPaid} pcs ache!`;
+        }
+        return null;
+    };
+
+    const handleToggleBorrow = (uniqueId, field) => {
+        const item = items.find((i) => i.uniqueId === uniqueId);
+        if (!item) return;
+        const next = { ...item, [field]: !item[field] };
+        if (item[field]) {
+            if (checkStock(next)) return showToast('Age quantity komiye nin, tarpor off korun!', true);
+        }
+        setItems((prev) => prev.map((i) => (i.uniqueId === uniqueId ? next : i)));
+    };
 
     const handleItemChange = (uniqueId, field, value) => {
         if (value !== '' && Number(value) < 0) return;
@@ -256,15 +303,8 @@ const PurchaseBulkReturnForm = () => {
             (Number(next.freePcsQty) || 0);
 
         if (numFields.includes(field)) {
-            const stock = getStock(item);
-            if (stock) {
-                if (next.totalQty > stock.paid) {
-                    return showToast(`Main stock e matro ${stock.paid} pcs ache!`, true);
-                }
-                if (next.freeQty > stock.free) {
-                    return showToast(`Free stock e matro ${stock.free} pcs ache!`, true);
-                }
-            }
+            const msg = checkStock(next);
+            if (msg) return showToast(msg, true);
         }
 
         setItems((prev) => prev.map((i) => (i.uniqueId === uniqueId ? next : i)));
@@ -295,6 +335,10 @@ const PurchaseBulkReturnForm = () => {
             sellPrice: roundTo2(i.sellPrice),
             unit: i.unit || 'Pcs',
             parentMode: i.parentMode === true,
+            borrowMain: i.borrowMain === true,
+            borrowFree: i.borrowFree === true,
+            mainFromFree: calcBorrow(i).mainFromFree,
+            freeFromMain: calcBorrow(i).freeFromMain,
             subUnit: i.subUnit || '',
             pcsPerUnit: Number(i.pcsPerUnit) || 1,
             pcsPerSub: Number(i.pcsPerSub) || 0,
@@ -306,7 +350,7 @@ const PurchaseBulkReturnForm = () => {
             freeSubQty: Number(i.freeSubQty) || 0,
             freePcsQty: Number(i.freePcsQty) || 0,
             freeTotalQty: Number(i.freeQty) || 0,
-            subtotal: roundTo2((Number(i.buyPrice) || 0) * (Number(i.totalQty) || 0)),
+            itemTotal: roundTo2((Number(i.buyPrice) || 0) * (Number(i.totalQty) || 0)),
         }));
 
         const payload = {
@@ -317,7 +361,6 @@ const PurchaseBulkReturnForm = () => {
             category: formData.category,
             returnDate: formData.date,
             items: itemsPayload,
-            grandTotal: subTotal,
             returnAmount,
             note,
         };
@@ -325,8 +368,8 @@ const PurchaseBulkReturnForm = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `https://squirrel-peace-server.onrender.com/purchase-bulk-return/${editId}`
-                : 'https://squirrel-peace-server.onrender.com/purchase-bulk-return';
+                ? `http://localhost:5000/purchase-bulk-return/${editId}`
+                : 'http://localhost:5000/purchase-bulk-return';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -541,7 +584,7 @@ const PurchaseBulkReturnForm = () => {
                                         <th className="py-3 pl-3 pr-2">PCS Qty</th>
                                         <th className="py-3 pl-4 pr-1">Free Unit</th>
                                         <th className="py-3 pl-3 pr-2">Free PCS</th>
-                                        <th className="py-3 px-3">Subtotal</th>
+                                        <th className="py-3 px-3">Item Total</th>
                                         <th className="py-3 px-3 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -564,7 +607,17 @@ const PurchaseBulkReturnForm = () => {
                                                     {/* Unit Qty */}
                                                     <td className="relative py-3 pl-2 pr-0">
                                                         <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.totalQty} | Stock: {getStock(item)?.paid ?? '...'}
+                                                            Total: {item.totalQty} | Stock: {getStock(item) ? getStock(item).paid - calcBorrow(item).freeFromMain : '...'}
+                                                            {calcBorrow(item).mainFromFree > 0 && (
+                                                                <span className="ml-1 text-amber-600">(Free theke: {calcBorrow(item).mainFromFree})</span>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleToggleBorrow(item.uniqueId, 'borrowMain')}
+                                                                className={`pointer-events-auto ml-1.5 px-1.5 rounded-full text-[9px] font-extrabold cursor-pointer ${item.borrowMain ? 'bg-amber-500 text-white' : 'bg-white border border-indigo-300 text-indigo-600 hover:bg-indigo-500 hover:text-white'}`}
+                                                            >
+                                                                Free {item.borrowMain ? '✓' : '+'}
+                                                            </button>
                                                         </div>
                                                         <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
                                                             <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
@@ -609,7 +662,17 @@ const PurchaseBulkReturnForm = () => {
                                                     {/* Free Unit */}
                                                     <td className="relative py-3 pl-2 pr-0">
                                                         <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.freeQty} | Stock: {getStock(item)?.free ?? '...'}
+                                                            Total: {item.freeQty} | Stock: {getStock(item) ? getStock(item).free - calcBorrow(item).mainFromFree : '...'}
+                                                            {calcBorrow(item).freeFromMain > 0 && (
+                                                                <span className="ml-1 text-amber-600">(Main theke: {calcBorrow(item).freeFromMain})</span>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleToggleBorrow(item.uniqueId, 'borrowFree')}
+                                                                className={`pointer-events-auto ml-1.5 px-1.5 rounded-full text-[9px] font-extrabold cursor-pointer ${item.borrowFree ? 'bg-amber-500 text-white' : 'bg-white border border-emerald-300 text-emerald-600 hover:bg-emerald-500 hover:text-white'}`}
+                                                            >
+                                                                Main {item.borrowFree ? '✓' : '+'}
+                                                            </button>
                                                         </div>
                                                         <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
                                                             <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
@@ -678,11 +741,6 @@ const PurchaseBulkReturnForm = () => {
                         <div className="mt-6 flex justify-end">
                             <div className="w-full md:w-[700px] space-y-2.5 bg-teal-50/40 border border-teal-100 rounded-2xl p-5">
                                 <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">Grand Total</label>
-                                    <input type="text" readOnly value={subTotal.toFixed(2)} className="flex-1 px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm outline-none" />
-                                </div>
-
-                                <div className="flex items-center pt-2 mt-1 border-t border-teal-200">
                                     <label className="w-56 text-right pr-3 text-sm font-bold text-teal-800">Return Amount</label>
                                     <input type="text" readOnly value={returnAmount.toFixed(2)} className="flex-1 px-3 py-2.5 border border-teal-200 bg-white font-bold text-emerald-700 text-base rounded-lg outline-none" />
                                 </div>

@@ -330,7 +330,7 @@ const SalesBulkReturnForm = () => {
     // ---------- Fetch ----------
     useEffect(() => {
         const load = (endpoint, setter, filterFn) =>
-            fetch(`https://squirrel-peace-server.onrender.com/${endpoint}`)
+            fetch(`http://localhost:5000/${endpoint}`)
                 .then((r) => r.json())
                 .then((d) => setter(Array.isArray(d) ? (filterFn ? d.filter(filterFn) : d) : []))
                 .catch((e) => console.error(e));
@@ -477,7 +477,7 @@ const SalesBulkReturnForm = () => {
             freeSubQty: Number(i.freeSubQty) || 0,
             freePcsQty: Number(i.freePcsQty) || 0,
             freeQty: Number(i.freeQty) || 0,
-            subtotal: roundTo2(getRowGross(i)),
+            itemTotal: roundTo2(getRowGross(i)),
         }));
 
         const payload = {
@@ -490,7 +490,6 @@ const SalesBulkReturnForm = () => {
             category: formData.category,
             returnDate: formData.date,
             items: itemsPayload,
-            grandTotal: subTotal,
             returnAmount,
             note,
         };
@@ -498,8 +497,8 @@ const SalesBulkReturnForm = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `https://squirrel-peace-server.onrender.com/sales-bulk-return/${editId}`
-                : 'https://squirrel-peace-server.onrender.com/sales-bulk-return';
+                ? `http://localhost:5000/sales-bulk-return/${editId}`
+                : 'http://localhost:5000/sales-bulk-return';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -692,7 +691,7 @@ const SalesBulkReturnForm = () => {
                                         <th className="py-3 pl-3 pr-2">Free PCS</th>
                                         <th className="py-3 px-3">Sell Price ({sellPriceUnitLabel})</th>
                                         <th className="py-3 px-3">Sell Price (PCS)</th>
-                                        <th className="py-3 px-3">Subtotal</th>
+                                        <th className="py-3 px-3">Item Total</th>
                                         <th className="py-3 px-3 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -830,10 +829,6 @@ const SalesBulkReturnForm = () => {
                         <div className="mt-6 flex justify-end">
                             <div className="w-full md:w-[700px] space-y-2.5 bg-teal-50/40 border border-teal-100 rounded-2xl p-5">
                                 <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-medium text-slate-600">Grand Total</label>
-                                    <input type="text" readOnly value={subTotal.toFixed(2)} className="flex-1 px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm outline-none" />
-                                </div>
-                                <div className="flex items-center pt-2 mt-1 border-t border-teal-200">
                                     <label className="w-56 text-right pr-3 text-sm font-bold text-teal-800">Return Amount</label>
                                     <input type="text" readOnly value={returnAmount.toFixed(2)} className="flex-1 px-3 py-2.5 border border-teal-200 bg-white font-bold text-emerald-700 text-base rounded-lg outline-none" />
                                 </div>
