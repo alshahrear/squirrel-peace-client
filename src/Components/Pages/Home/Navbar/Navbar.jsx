@@ -103,7 +103,7 @@ const Navbar = () => {
 
   useEffect(() => {
     const loadFeatures = () => {
-      fetch("http://localhost:5000/feature")
+      fetch("https://squirrel-peace-server.onrender.com/feature")
         .then((res) => res.json())
         .then((data) => {
           const on = data?.saveDraft === true;

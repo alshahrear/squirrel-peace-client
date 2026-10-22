@@ -215,6 +215,30 @@ const PurchaseDetails = () => {
         return { remTotal, remUnit, remSub, remPcs };
     };
 
+    // Main + Free + Others Free = Total Quantity
+    const getCombinedQty = (item) => {
+        const rem = getRemainingInfo(item);
+        let others = 0;
+        (selectedInvoice?.freeItems || [])
+            .filter((f) => f.productId === item.productId)
+            .forEach((f) => {
+                others += showRemaining ? getFreeItemRemaining(f).remTotal : Number(f.totalQty) || 0;
+            });
+        const main = showRemaining ? rem.remQty : Number(item.totalPcs) || 0;
+        const free = showRemaining ? rem.remFree : Number(item.freeTotalQty ?? item.freeQty) || 0;
+        const total = main + free + others;
+        const parentMode = item.parentMode === true;
+        const perSub = Number(item.pcsPerSub) || 0;
+        const uQ = Number(item.unitQty) || 0;
+        const sQ = Number(item.subQty) || 0;
+        const pQ = Number(item.pcsQty) || 0;
+        const perUnit = Number(item.pcsPerUnit) > 0
+            ? Number(item.pcsPerUnit)
+            : (uQ > 0 ? ((Number(item.totalPcs) || 0) - pQ - sQ * perSub) / uQ : 0);
+        const [u, s, p] = splitQty(total, perUnit, perSub, parentMode);
+        return { u, s, p, total };
+    };
+
     // (পুরনো ফাংশন - এটা ডিলিট করে দিতে পারেন)
     const getFreeItemRemainingOld = (item) => {
         let retTotal = 0;
@@ -247,7 +271,7 @@ const PurchaseDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`http://localhost:5000/purchase/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -495,7 +519,7 @@ const PurchaseDetails = () => {
                                     <th className="py-3 px-3.5">Product Name</th>
                                     <th className="py-3 px-3.5">Company</th>
                                     <th className="py-3 px-3.5">Quantity</th>
-                                    <th className="py-3 px-3.5">Free Quantity</th>
+                                    <th className="py-3 px-3.5">Total Quantity</th>
                                     <th className="py-3 px-3.5 text-right">Total Cost Price</th>
                                     <th className="py-3 px-3.5 text-right">Total Sell Price</th>
                                     <th className="py-3 px-3.5 text-right">Discount</th>
@@ -508,31 +532,43 @@ const PurchaseDetails = () => {
                                         <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
                                         <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
                                         <td className="py-4 px-3.5 text-slate-600">{selectedInvoice.company}</td>
-                                        <td className="py-4 px-3.5 font-semibold text-orange-600">
-                                            {showRemaining ? (
-                                                <>
-                                                    {getRemainingInfo(item).remUnit} {item.unit} {item.parentMode && <>{getRemainingInfo(item).remSub} {item.subUnit} </>}{getRemainingInfo(item).remPcs} Pcs
-                                                    <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {getRemainingInfo(item).remQty})</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
-                                                    <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalPcs})</span>
-                                                </>
-                                            )}
+                                        <td className="py-4 px-3.5">
+                                            {(() => {
+                                                const r = getRemainingInfo(item);
+                                                const mU = showRemaining ? r.remUnit : (item.unitQty || 0);
+                                                const mS = showRemaining ? r.remSub : (item.subQty || 0);
+                                                const mP = showRemaining ? r.remPcs : (item.pcsQty || 0);
+                                                const mT = showRemaining ? r.remQty : (item.totalPcs || 0);
+                                                const fU = showRemaining ? r.remFreeUnit : (item.freeUnitQty || 0);
+                                                const fS = showRemaining ? r.remFreeSub : (item.freeSubQty || 0);
+                                                const fP = showRemaining ? r.remFreePcs : (item.freePcsQty || 0);
+                                                const fT = showRemaining ? r.remFree : (item.freeTotalQty ?? item.freeQty ?? 0);
+                                                return (
+                                                    <div className="space-y-0.5">
+                                                        <div className="font-semibold text-orange-600">
+                                                            <span className="font-bold mr-1">Main:</span>
+                                                            {mU} {item.unit} {item.parentMode && <>{mS} {item.subUnit} </>}{mP} Pcs
+                                                            <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({mT})</b>
+                                                        </div>
+                                                        <div className="font-semibold text-emerald-600">
+                                                            <span className="font-bold mr-1">Free:</span>
+                                                            {fU} {item.unit} {item.parentMode && <>{fS} {item.subUnit} </>}{fP} Pcs
+                                                            <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({fT})</b>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
-                                        <td className="py-4 px-3.5 font-semibold text-emerald-600">
-                                            {showRemaining ? (
-                                                <>
-                                                    {getRemainingInfo(item).remFreeUnit} {item.unit} {item.parentMode && <>{getRemainingInfo(item).remFreeSub} {item.subUnit} </>}{getRemainingInfo(item).remFreePcs} Pcs
-                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {getRemainingInfo(item).remFree})</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
-                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeTotalQty ?? item.freeQty ?? 0})</span>
-                                                </>
-                                            )}
+                                        <td className="py-4 px-3.5 font-semibold text-indigo-600">
+                                            {(() => {
+                                                const c = getCombinedQty(item);
+                                                return (
+                                                    <>
+                                                        {c.u} {item.unit} {item.parentMode && <>{c.s} {item.subUnit} </>}{c.p} Pcs
+                                                        <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({c.total})</b>
+                                                    </>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="py-4 px-3.5 text-center font-medium text-slate-600">
                                             ৳{(Number(item.buyPrice) * (showRemaining ? getRemainingInfo(item).remQty : Number(item.totalPcs))).toFixed(2)}

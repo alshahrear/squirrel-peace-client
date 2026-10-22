@@ -58,11 +58,11 @@ const DamageStockProducts = ({ onOpenHistory }) => {
     const [historyShow, setHistoryShow] = useState(false);
 
     useEffect(() => {
-        fetch('http://localhost:5000/purchase')
+        fetch('https://squirrel-peace-server.onrender.com/purchase')
             .then((res) => res.json())
             .then((d) => setPurchases(Array.isArray(d) ? d : []))
             .catch(() => setPurchases([]));
-        fetch('http://localhost:5000/damage-return')
+        fetch('https://squirrel-peace-server.onrender.com/damage-return')
             .then((res) => res.json())
             .then((d) => setDamageReturns(Array.isArray(d) ? d : []))
             .catch(() => setDamageReturns([]));
@@ -95,8 +95,8 @@ const DamageStockProducts = ({ onOpenHistory }) => {
 
     useEffect(() => {
         Promise.all([
-            fetch('http://localhost:5000/sales').then((res) => res.json()),
-            fetch('http://localhost:5000/sales-damage').then((res) => res.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/sales').then((res) => res.json()),
+            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((res) => res.json()).catch(() => []),
         ])
             .then(([sales, dmg]) =>
                 setOrders([

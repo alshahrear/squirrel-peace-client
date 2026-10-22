@@ -76,10 +76,10 @@ const StockAdjustmentForm = () => {
     };
 
     useEffect(() => {
-        fetch('http://localhost:5000/company').then((r) => r.json()).then((d) => setCompanies(Array.isArray(d) ? d : [])).catch(console.error);
-        fetch('http://localhost:5000/category').then((r) => r.json()).then((d) => setCategories(Array.isArray(d) ? d.filter((c) => c.isActive === true) : [])).catch(console.error);
-        fetch('http://localhost:5000/product').then((r) => r.json()).then((d) => setProducts(Array.isArray(d) ? d : [])).catch(console.error);
-        fetch(`http://localhost:5000/adjustment-stock${isEditMode ? `?excludeId=${editId}` : ''}`)
+        fetch('https://squirrel-peace-server.onrender.com/company').then((r) => r.json()).then((d) => setCompanies(Array.isArray(d) ? d : [])).catch(console.error);
+        fetch('https://squirrel-peace-server.onrender.com/category').then((r) => r.json()).then((d) => setCategories(Array.isArray(d) ? d.filter((c) => c.isActive === true) : [])).catch(console.error);
+        fetch('https://squirrel-peace-server.onrender.com/product').then((r) => r.json()).then((d) => setProducts(Array.isArray(d) ? d : [])).catch(console.error);
+        fetch(`https://squirrel-peace-server.onrender.com/adjustment-stock${isEditMode ? `?excludeId=${editId}` : ''}`)
             .then((r) => r.json())
             .then((d) => setPools(Array.isArray(d) ? d : []))
             .catch(console.error);
@@ -131,7 +131,7 @@ const StockAdjustmentForm = () => {
     // Page refresh dile state hariye jay, tai ?edit=id theke abar load kore
     useEffect(() => {
         if (editingAdj || !editParamId) return;
-        fetch(`http://localhost:5000/stock-adjustment/${editParamId}`)
+        fetch(`https://squirrel-peace-server.onrender.com/stock-adjustment/${editParamId}`)
             .then((r) => r.json())
             .then((d) => {
                 if (!d || !d._id) return;
@@ -404,7 +404,7 @@ const StockAdjustmentForm = () => {
 
         try {
             setIsSaving(true);
-            const url = isEditMode ? `http://localhost:5000/stock-adjustment/${editId}` : 'http://localhost:5000/stock-adjustment';
+            const url = isEditMode ? `https://squirrel-peace-server.onrender.com/stock-adjustment/${editId}` : 'https://squirrel-peace-server.onrender.com/stock-adjustment';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },

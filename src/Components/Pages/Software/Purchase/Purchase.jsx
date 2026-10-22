@@ -45,7 +45,7 @@ const Purchase = () => {
     // Multi Return feature (default OFF)
     const [multiReturnEnabled, setMultiReturnEnabled] = useState(false);
     useEffect(() => {
-        fetch('http://localhost:5000/feature')
+        fetch('https://squirrel-peace-server.onrender.com/feature')
             .then((res) => res.json())
             .then((data) => setMultiReturnEnabled(data?.purchaseMultiReturn === true))
             .catch(() => setMultiReturnEnabled(false));
@@ -85,7 +85,7 @@ const Purchase = () => {
     // Fetch Purchases Data
     const fetchPurchases = async () => {
         try {
-            const response = await fetch('http://localhost:5000/purchase');
+            const response = await fetch('https://squirrel-peace-server.onrender.com/purchase');
             const data = await response.json();
             // নতুন add হওয়া purchase সবার উপরে দেখাবে
             setPurchases([...data].reverse());
@@ -100,7 +100,7 @@ const Purchase = () => {
     // Fetch Companies data for filter dropdown
     const fetchCompanies = async () => {
         try {
-            const res = await fetch('http://localhost:5000/company');
+            const res = await fetch('https://squirrel-peace-server.onrender.com/company');
             const data = await res.json();
             setCompanies(data);
         } catch (error) {
@@ -114,9 +114,9 @@ const Purchase = () => {
         const loadSold = async () => {
             try {
                 const [stockRes, salesRes, bulkRes] = await Promise.all([
-                    fetch('http://localhost:5000/stock-purchase'),
-                    fetch('http://localhost:5000/sales'),
-                    fetch('http://localhost:5000/purchase-bulk-return'),
+                    fetch('https://squirrel-peace-server.onrender.com/stock-purchase'),
+                    fetch('https://squirrel-peace-server.onrender.com/sales'),
+                    fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
                 ]);
                 const stock = await stockRes.json();
                 const sales = await salesRes.json();
@@ -276,7 +276,7 @@ const Purchase = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`http://localhost:5000/purchase/${id}`, {
+                    const response = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`, {
                         method: 'DELETE',
                     });
 

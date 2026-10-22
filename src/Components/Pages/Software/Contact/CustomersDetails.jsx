@@ -43,7 +43,7 @@ const CustomersDetails = () => {
     useEffect(() => {
         const fetchCustomer = async () => {
             try {
-                const res = await fetch('http://localhost:5000/customer', { cache: 'no-store' });
+                const res = await fetch('https://squirrel-peace-server.onrender.com/customer', { cache: 'no-store' });
                 const data = await res.json();
                 const found = (Array.isArray(data) ? data : []).find((c) => String(c._id) === String(id));
                 if (found) {

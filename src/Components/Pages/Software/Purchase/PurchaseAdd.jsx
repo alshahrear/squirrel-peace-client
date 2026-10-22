@@ -113,7 +113,7 @@ const PurchaseAdd = () => {
 
     useEffect(() => {
         if (isReceivedEdit || hasPriorPayment) return;
-        fetch('http://localhost:5000/feature/purchasePaymentMethod')
+        fetch('https://squirrel-peace-server.onrender.com/feature/purchasePaymentMethod')
             .then((res) => res.json())
             .then((data) => {
                 if (data?.enabled === true && data?.value?.paymentAccountType && data?.value?.selectedAccountKey) {
@@ -127,7 +127,7 @@ const PurchaseAdd = () => {
     }, []);
 
     const persistPaymentMethod = (checked, method, key) => {
-        fetch('http://localhost:5000/feature/purchasePaymentMethod', {
+        fetch('https://squirrel-peace-server.onrender.com/feature/purchasePaymentMethod', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -203,10 +203,10 @@ const PurchaseAdd = () => {
     const [damageStockList, setDamageStockList] = useState(null);
     useEffect(() => {
         Promise.all([
-            fetch('http://localhost:5000/sales').then((r) => r.json()),
-            fetch('http://localhost:5000/sales-damage').then((r) => r.json()).catch(() => []),
-            fetch('http://localhost:5000/purchase').then((r) => r.json()).catch(() => []),
-            fetch('http://localhost:5000/damage-return').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/sales').then((r) => r.json()),
+            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
         ])
             .then(([sales, dmg, purchases, damageReturns]) => {
                 const map = new Map();
@@ -261,7 +261,7 @@ const PurchaseAdd = () => {
     // Bulk Return stock (main / free)
     const [stockMap, setStockMap] = useState(null);
     useEffect(() => {
-        fetch(`http://localhost:5000/bulk-return-stock${location.state?.bulkId ? `?excludeId=${location.state.bulkId}` : ''}`)
+        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${location.state?.bulkId ? `?excludeId=${location.state.bulkId}` : ''}`)
             .then((res) => res.json())
             .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
             .catch((error) => console.error('Error fetching bulk return stock:', error));
@@ -491,7 +491,7 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment) {
-            fetch('http://localhost:5000/investment')
+            fetch('https://squirrel-peace-server.onrender.com/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
@@ -523,12 +523,12 @@ const PurchaseAdd = () => {
     // Others Free Product — Category / Product fetch
     // --------------------------------------------------
     useEffect(() => {
-        fetch('http://localhost:5000/category')
+        fetch('https://squirrel-peace-server.onrender.com/category')
             .then((res) => res.json())
             .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching categories:', error));
 
-        fetch('http://localhost:5000/product')
+        fetch('https://squirrel-peace-server.onrender.com/product')
             .then((res) => res.json())
             .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -1507,7 +1507,7 @@ const PurchaseAdd = () => {
                 0
             );
             try {
-                const res = await fetch(`http://localhost:5000/purchase/${editId}`, {
+                const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1746,8 +1746,8 @@ const PurchaseAdd = () => {
                 ];
             }
             const url = isEditMode
-                ? `http://localhost:5000/purchase/${editId}`
-                : 'http://localhost:5000/purchase';
+                ? `https://squirrel-peace-server.onrender.com/purchase/${editId}`
+                : 'https://squirrel-peace-server.onrender.com/purchase';
             const method = isEditMode ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
@@ -1930,7 +1930,7 @@ const PurchaseAdd = () => {
 
         try {
             setIsReceiving(true);
-            const res = await fetch(`http://localhost:5000/purchase/${editId}`, {
+            const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(receiveData),
@@ -2631,6 +2631,21 @@ const PurchaseAdd = () => {
                                                 readOnly
                                                 value={`- ৳${returnTotalValue.toFixed(2)}`}
                                                 className="flex-1 px-3 py-2 border border-violet-200 bg-violet-50 text-violet-700 font-semibold rounded-lg text-sm outline-none"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Damage Amount (Toggle On হলে দেখাবে) */}
+                                    {addDamageToAdjustment && damageTotalValue > 0 && (
+                                        <div className="flex items-center">
+                                            <label className="w-56 text-right pr-3 text-sm font-medium text-red-600">
+                                                Damage Products Amount
+                                            </label>
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={`- ৳${damageTotalValue.toFixed(2)}`}
+                                                className="flex-1 px-3 py-2 border border-red-200 bg-red-50 text-red-700 font-semibold rounded-lg text-sm outline-none"
                                             />
                                         </div>
                                     )}

@@ -63,19 +63,19 @@ const PurchaseBulkReturnForm = () => {
 
     // ---------- Fetch ----------
     useEffect(() => {
-        fetch('http://localhost:5000/company')
+        fetch('https://squirrel-peace-server.onrender.com/company')
             .then((r) => r.json())
             .then((d) => setCompanies(Array.isArray(d) ? d : []))
             .catch((e) => console.error(e));
-        fetch('http://localhost:5000/category')
+        fetch('https://squirrel-peace-server.onrender.com/category')
             .then((r) => r.json())
             .then((d) => setCategories(Array.isArray(d) ? d.filter((c) => c.isActive === true) : []))
             .catch((e) => console.error(e));
-        fetch('http://localhost:5000/product')
+        fetch('https://squirrel-peace-server.onrender.com/product')
             .then((r) => r.json())
             .then((d) => setProducts(Array.isArray(d) ? d : []))
             .catch((e) => console.error(e));
-        fetch(`http://localhost:5000/bulk-return-stock${isEditMode ? `?excludeId=${editId}` : ''}`)
+        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${isEditMode ? `?excludeId=${editId}` : ''}`)
             .then((r) => r.json())
             .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
             .catch((e) => console.error(e));
@@ -368,8 +368,8 @@ const PurchaseBulkReturnForm = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `http://localhost:5000/purchase-bulk-return/${editId}`
-                : 'http://localhost:5000/purchase-bulk-return';
+                ? `https://squirrel-peace-server.onrender.com/purchase-bulk-return/${editId}`
+                : 'https://squirrel-peace-server.onrender.com/purchase-bulk-return';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },

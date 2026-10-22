@@ -44,7 +44,7 @@ const SalesReturnDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`http://localhost:5000/sales/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -636,7 +636,7 @@ const SalesReturnDetails = () => {
                 returnHistory: updatedReturnHistory,
             };
 
-            const response = await fetch(`http://localhost:5000/sales/${id}`, {
+            const response = await fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedData),

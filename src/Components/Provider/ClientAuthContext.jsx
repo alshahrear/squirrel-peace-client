@@ -37,7 +37,7 @@ export const ClientAuthProvider = ({ children }) => {
         try {
           const user = JSON.parse(storedUser);
           if (user && user._id) {
-            const response = await fetch(`http://localhost:5000/client?t=${Date.now()}`, {
+            const response = await fetch(`https://squirrel-peace-server.onrender.com/client?t=${Date.now()}`, {
               cache: 'no-store'
             });
             const clients = await response.json();
@@ -82,7 +82,7 @@ export const ClientAuthProvider = ({ children }) => {
   const clientLogout = async () => {
     if (clientUser && clientUser._id) {
       try {
-        await fetch(`http://localhost:5000/client/login-status/${clientUser._id}`, {
+        await fetch(`https://squirrel-peace-server.onrender.com/client/login-status/${clientUser._id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ login: 'no' })

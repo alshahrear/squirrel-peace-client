@@ -34,7 +34,7 @@ const Expense = () => {
     // Fetch Expenses
     const fetchExpenses = async () => {
         try {
-            const response = await fetch('http://localhost:5000/expense');
+            const response = await fetch('https://squirrel-peace-server.onrender.com/expense');
             const data = await response.json();
             setExpenses(data);
         } catch (error) {
@@ -94,7 +94,7 @@ const Expense = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`http://localhost:5000/expense/${id}`, {
+                    const response = await fetch(`https://squirrel-peace-server.onrender.com/expense/${id}`, {
                         method: 'DELETE',
                     });
 

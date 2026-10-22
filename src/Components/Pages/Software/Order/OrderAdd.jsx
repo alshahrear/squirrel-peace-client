@@ -34,7 +34,7 @@ const OrderAdd = () => {
     // Direct Sales toggle (শুধু নতুন order এ, default ON)
     const [directSalesToggle, setDirectSalesToggle] = useState(false);
     useEffect(() => {
-        fetch('http://localhost:5000/feature/orderDirectSales')
+        fetch('https://squirrel-peace-server.onrender.com/feature/orderDirectSales')
             .then((res) => res.json())
             .then((data) => setDirectSalesToggle(data?.enabled === true))
             .catch(() => setDirectSalesToggle(false));
@@ -43,7 +43,7 @@ const OrderAdd = () => {
     // Toggle ON/OFF করলে database এ save হবে (যতক্ষণ না আবার বদলানো হয়)
     const handleDirectSalesChange = (checked) => {
         setDirectSalesToggle(checked);
-        fetch('http://localhost:5000/feature/orderDirectSales', {
+        fetch('https://squirrel-peace-server.onrender.com/feature/orderDirectSales', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled: checked }),
@@ -56,6 +56,12 @@ const OrderAdd = () => {
     // Edit mode e order er nijer directSales flag dhorbe, notun order e toggle
     const directSales = editingOrder ? editingOrder.directSales === true : directSalesToggle;
     const isDeliveredEdit = !!editingOrder && !isDeliveryMode && editingOrder.status === 'Delivered';
+
+    // Delivery / Delivered-edit er somoy original order er limit
+    const orderSource = isDeliveryMode ? editingOrder : (editingOrder?.orderSnapshot || null);
+    const isLimitMode = !!orderSource && !editingOrder?.directSales && (isDeliveryMode || isDeliveredEdit);
+    const getOrderItem = (name) => (orderSource?.items || []).find((o) => o.productName === name);
+    const getOrderFreeItem = (name) => (orderSource?.freeItems || []).find((o) => o.productName === name);
     const showPayment = isDeliveryMode || directSales || isDeliveredEdit;
 
     // সিলেক্ট করা প্রোডাক্টগুলো রাখার স্টেট
@@ -74,7 +80,7 @@ const OrderAdd = () => {
 
     useEffect(() => {
         if (isDeliveredEdit) return;
-        fetch('http://localhost:5000/feature/orderPaymentMethod')
+        fetch('https://squirrel-peace-server.onrender.com/feature/orderPaymentMethod')
             .then((res) => res.json())
             .then((data) => {
                 if (data?.enabled === true && data?.value?.paymentAccountType && data?.value?.selectedAccountKey) {
@@ -88,7 +94,7 @@ const OrderAdd = () => {
     }, []);
 
     const persistPaymentMethod = (checked, method, key) => {
-        fetch('http://localhost:5000/feature/orderPaymentMethod', {
+        fetch('https://squirrel-peace-server.onrender.com/feature/orderPaymentMethod', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -293,7 +299,7 @@ const OrderAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment) {
-            fetch('http://localhost:5000/investment')
+            fetch('https://squirrel-peace-server.onrender.com/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
@@ -305,17 +311,17 @@ const OrderAdd = () => {
     // Others Free Product ডেটা fetch করা (Company, Category, Product)
     // --------------------------------------------------
     useEffect(() => {
-        fetch('http://localhost:5000/company')
+        fetch('https://squirrel-peace-server.onrender.com/company')
             .then((res) => res.json())
             .then((data) => setFreeCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
 
-        fetch('http://localhost:5000/category')
+        fetch('https://squirrel-peace-server.onrender.com/category')
             .then((res) => res.json())
             .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching categories:', error));
 
-        fetch('http://localhost:5000/product')
+        fetch('https://squirrel-peace-server.onrender.com/product')
             .then((res) => res.json())
             .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -649,6 +655,10 @@ const OrderAdd = () => {
     // Product Add
     // --------------------------------------------------
     const handleAddProduct = (product) => {
+        if (isLimitMode && !getOrderItem(product.productName)) {
+            showToast('Delivery er somoy notun product add kora jabe na!', true);
+            return;
+        }
         const initialUnitQty = '';
         const initialPcsQty = '';
         const isParent = product.parentUnitUse === true;
@@ -713,6 +723,38 @@ const OrderAdd = () => {
     // Item Change
     // --------------------------------------------------
     const handleItemChange = (uniqueId, field, value) => {
+        if (
+            isLimitMode &&
+            ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)
+        ) {
+            const cur = orderItems.find((i) => i.uniqueId === uniqueId);
+            const orderItem = cur && getOrderItem(cur.productName);
+            if (cur && orderItem) {
+                const n = { ...cur, [field]: value === '' ? '' : Number(value) || 0 };
+                const ppu = Number(n.pcsPerUnit) || 1;
+                const pps = Number(n.pcsPerSub) || 0;
+                const total =
+                    (Number(n.unitQty) || 0) * ppu +
+                    (Number(n.subQty) || 0) * pps +
+                    (Number(n.pcsQty) || 0);
+                const maxQty = Number(orderItem.totalPcs) || 0;
+                if (total > maxQty) {
+                    showToast(`Order e matro ${maxQty} pcs chilo, er beshi kora jabe na!`, true);
+                    return;
+                }
+                if (['freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)) {
+                    const freeTotal =
+                        (Number(n.freeUnitQty) || 0) * ppu +
+                        (Number(n.freeSubQty) || 0) * pps +
+                        (Number(n.freePcsQty) || 0);
+                    const maxFree = Number(orderItem.freeQty) || 0;
+                    if (freeTotal > maxFree) {
+                        showToast(`Order e matro ${maxFree} pcs free chilo, er beshi kora jabe na!`, true);
+                        return;
+                    }
+                }
+            }
+        }
         // Negative value allow করবে না
         if (value !== '' && Number(value) < 0) return;
 
@@ -884,6 +926,10 @@ const OrderAdd = () => {
     // Others Free Product — Add / Remove / Change
     // --------------------------------------------------
     const handleAddFreeProduct = (product) => {
+        if (isLimitMode && !getOrderFreeItem(product.productName)) {
+            showToast('Delivery er somoy notun free product add kora jabe na!', true);
+            return;
+        }
         const pcsPerUnit = Number(product.pcsOfUnit) || 1;
         const isParent = product.parentUnitUse === true;
 
@@ -912,6 +958,22 @@ const OrderAdd = () => {
     };
 
     const handleFreeItemChange = (uniqueId, field, value) => {
+        if (isLimitMode && ['unitQty', 'subQty', 'pcsQty'].includes(field)) {
+            const cur = freeProductItems.find((i) => i.uniqueId === uniqueId);
+            const orig = cur && getOrderFreeItem(cur.productName);
+            if (cur && orig) {
+                const n = { ...cur, [field]: value === '' ? '' : Number(value) || 0 };
+                const total =
+                    (Number(n.unitQty) || 0) * (Number(n.pcsPerUnit) || 1) +
+                    (Number(n.subQty) || 0) * (Number(n.pcsPerSub) || 0) +
+                    (Number(n.pcsQty) || 0);
+                const maxQty = Number(orig.totalQty) || 0;
+                if (total > maxQty) {
+                    showToast(`Order e matro ${maxQty} pcs chilo, er beshi kora jabe na!`, true);
+                    return;
+                }
+            }
+        }
         if (value !== '' && Number(value) < 0) return;
 
         setFreeProductItems((prev) =>
@@ -1275,7 +1337,7 @@ const OrderAdd = () => {
         };
 
         try {
-            const res = await fetch(`http://localhost:5000/sales/${editingOrder._id}`, {
+            const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -1309,7 +1371,7 @@ const OrderAdd = () => {
         };
 
         try {
-            const res = await fetch(`http://localhost:5000/sales/${editingOrder._id}`, {
+            const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -1552,8 +1614,8 @@ const OrderAdd = () => {
         const sendOrder = async (confirmed = false) => {
             const res = await fetch(
                 isEditMode
-                    ? `http://localhost:5000/sales/${editingOrder._id}`
-                    : 'http://localhost:5000/sales',
+                    ? `https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`
+                    : 'https://squirrel-peace-server.onrender.com/sales',
                 {
                     method: isEditMode ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1830,8 +1892,8 @@ const OrderAdd = () => {
             const extra = confirmed ? { stockBorrowConfirmed: true } : {};
             const res = await fetch(
                 !editingOrder
-                    ? 'http://localhost:5000/sales'
-                    : `http://localhost:5000/sales/${editingOrder._id}`,
+                    ? 'https://squirrel-peace-server.onrender.com/sales'
+                    : `https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`,
                 {
                     method: !editingOrder ? 'POST' : 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -2008,7 +2070,7 @@ const OrderAdd = () => {
                                                             className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'
                                                                 }`}
                                                         >
-                                                            Total: {item.totalQty}
+                                                            Total: {item.totalQty}{isLimitMode && getOrderItem(item.productName) ? ` (Order: ${getOrderItem(item.productName).totalPcs})` : ''}
                                                         </div>
                                                         <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
                                                             <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">

@@ -4,6 +4,7 @@ import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-
 
 const n = (v) => Number(v) || 0;
 const round2 = (v) => Math.round(n(v) * 100) / 100;
+const getStatus = (o) => (o.status === 'Delivered' ? 'Delivered' : 'New Order');
 const fmt = (v) => n(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 const parseToLocalDate = (dateStr) => {
@@ -120,7 +121,9 @@ const SaleProductWiseRepo = () => {
     const location = useLocation();
 
     const [orders, setOrders] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -134,8 +137,13 @@ const SaleProductWiseRepo = () => {
         product: '',
         company: '',
         customer: '',
+        sr: '',
+        deliveredBy: '',
+        route: '',
+        status: '',
     };
     const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [directOnly, setDirectOnly] = useState(false);
 
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
@@ -146,8 +154,13 @@ const SaleProductWiseRepo = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch('http://localhost:5000/sales');
+                const [res, uRes] = await Promise.all([
+                    fetch('https://squirrel-peace-server.onrender.com/sales'),
+                    fetch('https://squirrel-peace-server.onrender.com/user'),
+                ]);
                 const data = await res.json();
+                const uData = await uRes.json().catch(() => []);
+                setUsers(Array.isArray(uData) ? uData : []);
                 // নতুন order সবার উপরে
                 setOrders(Array.isArray(data) ? [...data].reverse() : []);
             } catch (error) {
@@ -176,6 +189,7 @@ const SaleProductWiseRepo = () => {
 
     const handleClearFilters = () => {
         setFilters(EMPTY_FILTERS);
+        setDirectOnly(false);
         setCurrentPage(1);
     };
 
@@ -261,12 +275,16 @@ const SaleProductWiseRepo = () => {
     const productOptions = uniq(rows.map((r) => r.productName));
     const companyOptions = uniq(rows.map((r) => r.company));
     const customerOptions = uniq(rows.map((r) => r.order.customer));
+    const srOptions = uniq(users.filter((u) => u.role === 'SR').map((u) => u.name));
+    const deliveryOptions = uniq(users.filter((u) => u.role === 'Delivery Man').map((u) => u.name));
+    const routeOptions = uniq(orders.map((o) => o.route));
 
     const has = (val, q) => String(val || '').toLowerCase().includes(String(q).toLowerCase());
 
     // Filtering
     const filteredRows = rows.filter((r) => {
         const o = r.order;
+        if (directOnly && !o.directSales) return false;
         if (filters.startDate || filters.endDate) {
             const d = parseToLocalDate(o.orderDate);
             if (!d) return false;
@@ -283,6 +301,10 @@ const SaleProductWiseRepo = () => {
         if (filters.product && !has(r.productName, filters.product)) return false;
         if (filters.company && !has(r.company, filters.company)) return false;
         if (filters.customer && !has(o.customer, filters.customer)) return false;
+        if (filters.sr && !has(o.sr, filters.sr)) return false;
+        if (filters.deliveredBy && !has(o.deliveredBy, filters.deliveredBy)) return false;
+        if (filters.route && !has(o.route, filters.route)) return false;
+        if (filters.status && getStatus(o) !== filters.status) return false;
         return true;
     });
 
@@ -360,7 +382,7 @@ const SaleProductWiseRepo = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                             {/* Start Date */}
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
@@ -411,9 +433,23 @@ const SaleProductWiseRepo = () => {
                                 </div>
                             </div>
 
-                            {/* Invoice */}
+                            {/* Invoice + Direct Sales */}
                             <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-gray-600 text-[11px] font-semibold">Invoice Number</label>
+                                    <label className="flex items-center gap-1 text-[10px] font-semibold text-teal-700 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={directOnly}
+                                            onChange={(e) => {
+                                                setDirectOnly(e.target.checked);
+                                                setCurrentPage(1);
+                                            }}
+                                            className="w-3 h-3 accent-teal-600 cursor-pointer"
+                                        />
+                                        Direct Sales
+                                    </label>
+                                </div>
                                 <input
                                     type="text"
                                     name="invoiceNo"
@@ -450,6 +486,47 @@ const SaleProductWiseRepo = () => {
                                 onChange={(v) => setFilter('customer', v)}
                                 emptyText="No customer found"
                             />
+
+                            <FilterSelect
+                                label="SR"
+                                placeholder="Search or select SR..."
+                                value={filters.sr}
+                                options={srOptions}
+                                onChange={(v) => setFilter('sr', v)}
+                                emptyText="No SR found"
+                            />
+
+                            <FilterSelect
+                                label="Delivered By"
+                                placeholder="Search or select delivery man..."
+                                value={filters.deliveredBy}
+                                options={deliveryOptions}
+                                onChange={(v) => setFilter('deliveredBy', v)}
+                                emptyText="No delivery man found"
+                            />
+
+                            <FilterSelect
+                                label="Route"
+                                placeholder="Search or select route..."
+                                value={filters.route}
+                                options={routeOptions}
+                                onChange={(v) => setFilter('route', v)}
+                                emptyText="No route found"
+                            />
+
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
+                                <select
+                                    name="status"
+                                    value={filters.status}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">All</option>
+                                    <option value="New Order">New Order</option>
+                                    <option value="Delivered">Delivered</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 

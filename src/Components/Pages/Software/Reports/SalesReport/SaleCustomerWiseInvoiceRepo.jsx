@@ -1,10 +1,68 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const n = (v) => Number(v) || 0;
-const round2 = (v) => Math.round(n(v) * 100) / 100;
+
 const fmt = (v) => n(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+const getRowGross = (it) =>
+    n(it.unitQty) * n(it.sellPriceUnit) + n(it.subQty) * n(it.sellPriceSub) + n(it.pcsQty) * n(it.sellPricePcs);
+
+// Subtotal (discount er age)
+const getSubTotal = (o) => {
+    if (o.subTotal !== undefined && o.subTotal !== null && o.subTotal !== '') return n(o.subTotal);
+    if (o.grandTotal !== undefined && o.grandTotal !== null && o.grandTotal !== '') return n(o.grandTotal);
+    return (o.items || []).reduce((s, it) => s + getRowGross(it), 0);
+};
+
+// Product wise discount + Overall discount
+const getDiscount = (o) => {
+    const subTotal = getSubTotal(o);
+    let pwd;
+    if (o.productWiseDiscount !== undefined && o.productWiseDiscount !== null && o.productWiseDiscount !== '') {
+        pwd = n(o.productWiseDiscount);
+    } else {
+        pwd = (o.items || []).reduce((s, it) => {
+            if (it.discountAmount !== undefined && it.discountAmount !== null) return s + n(it.discountAmount);
+            const gross = getRowGross(it);
+            return s + (it.discountType === 'percent' ? (gross * n(it.discount)) / 100 : n(it.discount));
+        }, 0);
+    }
+    const afterProduct = subTotal - pwd;
+    let overall;
+    if (o.overallDiscountValue !== undefined && o.overallDiscountValue !== null && o.overallDiscountValue !== '') {
+        overall = n(o.overallDiscountValue);
+    } else {
+        overall =
+            o.overallDiscountType === 'percent'
+                ? (afterProduct * n(o.overallDiscount)) / 100
+                : n(o.overallDiscount);
+    }
+    return Math.round((pwd + overall) * 100) / 100;
+};
+
+// Normal adjustment (+ hole add, - hole minus)
+const getAdjustment = (o) => {
+    const amt = n(o.adjustment?.amount);
+    return o.adjustment?.type === '-' ? -amt : amt;
+};
+
+const getReturnAmt = (o) => n(o.returnAdjustmentAmount);
+const getDamageAmt = (o) => n(o.damageAdjustmentAmount);
+
+// Grand Total = Payable Amount (na thakle Subtotal - Discount ± Adjustment - Return - Damage)
+const getGrandTotal = (o) => {
+    if (o.payableAmount !== undefined && o.payableAmount !== null && o.payableAmount !== '') {
+        return Math.max(n(o.payableAmount), 0);
+    }
+    return Math.max(
+        Math.round((getSubTotal(o) - getDiscount(o) + getAdjustment(o) - getReturnAmt(o) - getDamageAmt(o)) * 100) / 100,
+        0
+    );
+};
+
+const getStatus = (o) => (o.status === 'Delivered' ? 'Delivered' : 'New Order');
 
 const parseToLocalDate = (dateStr) => {
     if (!dateStr) return null;
@@ -22,51 +80,13 @@ const parseToLocalDate = (dateStr) => {
     return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
 };
 
-// total pcs ke Unit / Sub Unit / Pcs e bhangar helper
-const splitQty = (total, perUnit, perSub, parentMode) => {
-    if (perUnit > 0) {
-        const u = Math.floor(total / perUnit);
-        let rest = total - u * perUnit;
-        let s = 0;
-        if (parentMode && perSub > 0) {
-            s = Math.floor(rest / perSub);
-            rest = rest - s * perSub;
-        }
-        return [u, s, round2(rest)];
-    }
-    return [0, 0, total];
-};
+const dateKeyOf = (d) =>
+    d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : 'nodate';
 
-const getPerUnit = (it, total) => {
-    if (!it) return 0;
-    if (n(it.pcsPerUnit) > 0) return n(it.pcsPerUnit);
-    const unitQty = n(it.unitQty);
-    return unitQty > 0 ? (total - n(it.pcsQty) - n(it.subQty) * n(it.pcsPerSub)) / unitQty : 0;
-};
+const fmtDate = (d) =>
+    d ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
-const LINE_COLORS = {
-    Main: 'text-orange-600',
-    Free: 'text-emerald-600',
-    'Others Free': 'text-amber-600',
-};
-
-// "Main: 2 Bundle 3 Pcs (11)"
-const QtyCell = ({ lines, unit, subUnit, parentMode }) => (
-    <div className="space-y-0.5">
-        {lines.map((l) => {
-            const [u, s, p, t] = l.tuple;
-            return (
-                <div key={l.label} className={`font-semibold ${LINE_COLORS[l.label]}`}>
-                    <span className="font-bold mr-1">{l.label}:</span>
-                    {u} {unit || 'Unit'} {parentMode && <>{s} {subUnit} </>}{p} Pcs
-                    <b className="ml-1 px-1.5 py-0.5 rounded-md text-[12px] font-extrabold bg-indigo-100 text-indigo-700">({t})</b>
-                </div>
-            );
-        })}
-    </div>
-);
-
-// Searchable dropdown
+// Searchable dropdown (Customer / SR / Delivery Man / Route)
 const FilterSelect = ({ label, placeholder, value, options, onChange, emptyText }) => {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
@@ -136,12 +156,13 @@ const FilterSelect = ({ label, placeholder, value, options, onChange, emptyText 
     );
 };
 
-const RouteWiseTopChart = () => {
+const SaleCustomerWiseInvoiceRepo = () => {
     const location = useLocation();
+    const navigate = useNavigate();
 
     const [orders, setOrders] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [isPriceView, setIsPriceView] = useState(false);
+    const [customers, setCustomers] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Pagination
@@ -152,12 +173,15 @@ const RouteWiseTopChart = () => {
     const EMPTY_FILTERS = {
         startDate: '',
         endDate: '',
-        product: '',
-        company: '',
+        invoiceNo: '',
+        customer: '',
+        sr: '',
+        deliveredBy: '',
         route: '',
-        status: 'Mix',
+        status: '',
     };
     const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [directOnly, setDirectOnly] = useState(false);
 
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
@@ -168,16 +192,19 @@ const RouteWiseTopChart = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const [sRes, pRes] = await Promise.all([
-                    fetch('http://localhost:5000/sales'),
-                    fetch('http://localhost:5000/product'),
+                const [oRes, cRes, uRes] = await Promise.all([
+                    fetch('https://squirrel-peace-server.onrender.com/sales'),
+                    fetch('https://squirrel-peace-server.onrender.com/customer'),
+                    fetch('https://squirrel-peace-server.onrender.com/user'),
                 ]);
-                const sData = await sRes.json();
-                const pData = await pRes.json();
-                setOrders(Array.isArray(sData) ? sData : []);
-                setProducts(Array.isArray(pData) ? pData : []);
+                const oData = await oRes.json();
+                const cData = await cRes.json().catch(() => []);
+                const uData = await uRes.json().catch(() => []);
+                setOrders(Array.isArray(oData) ? oData : []);
+                setCustomers(Array.isArray(cData) ? cData : []);
+                setUsers(Array.isArray(uData) ? uData : []);
             } catch (error) {
-                console.error('Error fetching route wise top chart data:', error);
+                console.error('Error fetching customer wise invoice data:', error);
             } finally {
                 setLoading(false);
             }
@@ -202,231 +229,140 @@ const RouteWiseTopChart = () => {
 
     const handleClearFilters = () => {
         setFilters(EMPTY_FILTERS);
+        setDirectOnly(false);
         setCurrentPage(1);
     };
 
-    const isDelivered = (o) => o.status === 'Delivered';
-    const getRoute = (o) => String(o.route || o.routeName || o.deliveryRoute || '').trim();
-
-    // Route nei emon order ei report a ashbe na
-    // New Order => order date, Delivered => delivery date, Mix/All => order date
-    const filteredOrders = orders.filter((o) => {
-        if (!getRoute(o)) return false;
-        if (filters.route && !getRoute(o).toLowerCase().includes(filters.route.toLowerCase())) return false;
-        if (filters.status === 'Delivered' && !isDelivered(o)) return false;
-        if (filters.status === 'New Order' && isDelivered(o)) return false;
-        if (!filters.startDate && !filters.endDate) return true;
-        const dateField = filters.status === 'Delivered' ? o.deliveryDate : o.orderDate;
-        const d = parseToLocalDate(dateField);
-        if (!d) return false;
-        if (filters.startDate) {
-            const s = parseToLocalDate(filters.startDate);
-            if (s && d < s) return false;
-        }
-        if (filters.endDate) {
-            const e = parseToLocalDate(filters.endDate);
-            if (e && d > e) return false;
-        }
-        return true;
-    });
-
-    // Same date + same route + same company + same product = ek row
-    const map = new Map();
-    const getEntry = (o, company, name, base, total) => {
-        const orderDate = o.orderDate || '';
-        const route = getRoute(o);
-        const isMix = filters.status === 'Mix';
-        const deliveryDate = !isMix && isDelivered(o) ? (o.deliveryDate || '') : '';
-        const key = isMix
-            ? `${orderDate}|${route}|${company}|${name}`
-            : `${orderDate}|${deliveryDate}|${route}|${company}|${name}`;
-        if (!map.has(key)) {
-            map.set(key, {
-                rowId: key,
-                orderDate,
-                deliveryDate,
-                route,
-                isMix,
-                productName: name,
-                company,
-                unit: base?.unit,
-                subUnit: base?.subUnit,
-                parentMode: base?.parentMode === true,
-                perUnit: getPerUnit(base, total),
-                perSub: n(base?.pcsPerSub),
-                productId: base?.productId,
-                sellPrice: 0,
-                byPrice: new Map(),
-                mainQty: 0,
-                freeQty: 0,
-                othersQty: 0,
-                subtotal: 0,
-                discount: 0,
-                grandTotal: 0,
-            });
-        }
-        const e = map.get(key);
-        if (!e.perUnit) e.perUnit = getPerUnit(base, total);
-        return e;
-    };
-
-    filteredOrders.forEach((o) => {
-        // Main products
-        (o.items || []).forEach((it) => {
-            if (!it.productName) return;
-            const totalPcs = n(it.totalPcs ?? it.totalQty);
-            const freeTotal = n(it.freeQty);
-            const e = getEntry(o, it.company || '', it.productName, it, totalPcs);
-
-            const gross =
-                n(it.unitQty) * n(it.sellPriceUnit) +
-                n(it.subQty) * n(it.sellPriceSub) +
-                n(it.pcsQty) * n(it.sellPricePcs);
-            const itemTotal = n(it.itemTotal ?? it.subtotal);
-            let disc = n(
-                it.discountAmount ??
-                (it.discountType === 'percent' ? (gross * n(it.discount)) / 100 : it.discount)
-            );
-            if (!disc && itemTotal > 0 && gross > itemTotal) disc = gross - itemTotal;
-            const price = n(it.sellPricePcs);
-
-            e.mainQty += totalPcs;
-            e.freeQty += freeTotal;
-            e.subtotal += gross;
-            e.discount += disc;
-            e.grandTotal += itemTotal;
-            if (!e.sellPrice && price > 0) e.sellPrice = price;
-
-            // sell price onujayi alada alada joma
-            const c = e.byPrice.get(price) || { sellPrice: price, mainQty: 0, freeQty: 0, othersQty: 0, subtotal: 0, discount: 0, grandTotal: 0 };
-            c.mainQty += totalPcs;
-            c.freeQty += freeTotal;
-            c.subtotal += gross;
-            c.discount += disc;
-            c.grandTotal += itemTotal;
-            e.byPrice.set(price, c);
-        });
-
-        // Others Free products
-        (o.freeItems || []).forEach((it) => {
-            if (!it.productName) return;
-            const qty = n(it.totalQty);
-            const e = getEntry(o, it.company || '', it.productName, it, qty);
-            e.othersQty += qty;
-
-            const c = e.byPrice.get(0) || { sellPrice: 0, mainQty: 0, freeQty: 0, othersQty: 0, subtotal: 0, discount: 0, grandTotal: 0 };
-            c.othersQty += qty;
-            e.byPrice.set(0, c);
-        });
-    });
-
-    // product list theke sell price (sellingPrice)
-    const productPriceById = new Map(products.map((p) => [String(p._id), n(p.sellingPrice)]));
-    const productPriceByName = new Map(products.map((p) => [p.productName, n(p.sellingPrice)]));
-
-    const rows = Array.from(map.values())
-        .map((e) => {
-            const mk = (total) => [...splitQty(total, e.perUnit, e.perSub, e.parentMode), total];
-            const buildLines = (m, f, ot) => {
-                const l = [];
-                if (m > 0 || (f <= 0 && ot <= 0)) l.push({ label: 'Main', tuple: mk(m) });
-                if (f > 0) l.push({ label: 'Free', tuple: mk(f) });
-                if (ot > 0) l.push({ label: 'Others Free', tuple: mk(ot) });
-                return l;
-            };
-            return {
-                ...e,
-                lines: buildLines(e.mainQty, e.freeQty, e.othersQty),
-                sellPrice: productPriceById.get(String(e.productId)) ?? productPriceByName.get(e.productName) ?? e.sellPrice,
-                priceRows: Array.from(e.byPrice.values())
-                    .sort((a, b) => b.sellPrice - a.sellPrice)
-                    .map((c) => ({
-                        ...c,
-                        lines: buildLines(c.mainQty, c.freeQty, c.othersQty),
-                        subtotal: round2(c.subtotal),
-                        discount: round2(c.discount),
-                        grandTotal: round2(c.grandTotal),
-                    })),
-                totalQty: e.mainQty + e.freeQty + e.othersQty,
-                subtotal: round2(e.subtotal),
-                discount: round2(e.discount),
-                grandTotal: round2(e.grandTotal),
-            };
-        })
-        .sort((a, b) => {
-            const da = parseToLocalDate(a.orderDate)?.getTime() || 0;
-            const db = parseToLocalDate(b.orderDate)?.getTime() || 0;
-            return (
-                db - da ||
-                a.route.localeCompare(b.route) ||
-                b.grandTotal - a.grandTotal ||
-                a.productName.localeCompare(b.productName)
-            );
-        });
-
     const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-    const productOptions = uniq(rows.map((r) => r.productName));
-    const companyOptions = uniq(rows.map((r) => r.company));
-    const routeOptions = uniq(orders.map(getRoute));
+    const customerOptions = uniq(customers.map((c) => c.name));
+    const srOptions = uniq(users.filter((u) => u.role === 'SR').map((u) => u.name));
+    const deliveryOptions = uniq(users.filter((u) => u.role === 'Delivery Man').map((u) => u.name));
+    const routeOptions = uniq(orders.map((o) => o.route));
 
     const has = (val, q) => String(val || '').toLowerCase().includes(String(q).toLowerCase());
 
-    // Filtering
-    const baseFilteredRows = rows.filter((r) => {
-        if (filters.product && !has(r.productName, filters.product)) return false;
-        if (filters.company && !has(r.company, filters.company)) return false;
+    // 1) Age invoice level e filter
+    const filteredOrders = orders.filter((o) => {
+        if (directOnly && !o.directSales) return false;
+
+        if (filters.startDate || filters.endDate) {
+            const d = parseToLocalDate(o.orderDate);
+            if (!d) return false;
+            if (filters.startDate) {
+                const s = parseToLocalDate(filters.startDate);
+                if (s && d < s) return false;
+            }
+            if (filters.endDate) {
+                const e = parseToLocalDate(filters.endDate);
+                if (e && d > e) return false;
+            }
+        }
+
+        if (filters.invoiceNo && !has(o.invoiceNo || o.orderNo, filters.invoiceNo)) return false;
+        if (filters.customer && !has(o.customer, filters.customer)) return false;
+        if (filters.sr && !has(o.sr, filters.sr)) return false;
+        if (filters.deliveredBy && !has(o.deliveredBy, filters.deliveredBy)) return false;
+        if (filters.route && !has(o.route, filters.route)) return false;
+        if (filters.status && getStatus(o) !== filters.status) return false;
         return true;
     });
 
-    // Sell price view on thakle proti sell price er jonno alada row
-    const filteredRows = isPriceView
-        ? baseFilteredRows.flatMap((r) =>
-            r.priceRows.map((c) => ({
-                ...r,
-                rowId: `${r.rowId}|${c.sellPrice}`,
-                lines: c.lines,
-                sellPrice: c.sellPrice,
-                subtotal: c.subtotal,
-                discount: c.discount,
-                grandTotal: c.grandTotal,
-                totalQty: c.mainQty + c.freeQty + c.othersQty,
-            }))
-        )
-        : baseFilteredRows;
+    // 2) Same date + same customer = ek row (sob sum hobe)
+    const groupMap = new Map();
+    filteredOrders.forEach((o) => {
+        const d = parseToLocalDate(o.orderDate);
+        const key = `${dateKeyOf(d)}|${o.customerId || o.customer || 'unknown'}`;
+        if (!groupMap.has(key)) {
+            groupMap.set(key, {
+                key,
+                date: d,
+                customer: o.customer || 'N/A',
+                routes: [],
+                directCount: 0,
+                invoiceCount: 0,
+                orderIds: [],
+                subTotal: 0,
+                discount: 0,
+                adjustment: 0,
+                returnAmt: 0,
+                damageAmt: 0,
+                grand: 0,
+            });
+        }
+        const g = groupMap.get(key);
+        g.invoiceCount += 1;
+        g.orderIds.push(o._id);
+        if (o.directSales === true) g.directCount += 1;
+        else if (o.route && !g.routes.includes(o.route)) g.routes.push(o.route);
+        g.subTotal += getSubTotal(o);
+        g.discount += getDiscount(o);
+        g.adjustment += getAdjustment(o);
+        g.returnAmt += getReturnAmt(o);
+        g.damageAmt += getDamageAmt(o);
+        g.grand += getGrandTotal(o);
+    });
+
+    const rows = Array.from(groupMap.values()).sort((a, b) => {
+        const ta = a.date ? a.date.getTime() : 0;
+        const tb = b.date ? b.date.getTime() : 0;
+        if (tb !== ta) return tb - ta;
+        return a.customer.localeCompare(b.customer);
+    });
 
     // Pagination
-    const totalPages = Math.ceil(filteredRows.length / itemsPerPage) || 1;
+    const totalPages = Math.ceil(rows.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentRows = filteredRows.slice(indexOfFirstItem, indexOfLastItem);
+    const currentRows = rows.slice(indexOfFirstItem, indexOfLastItem);
 
     const handlePageChange = (num) => {
         if (num >= 1 && num <= totalPages) setCurrentPage(num);
     };
 
     // Checkbox
-    const isAllSelected =
-        currentRows.length > 0 && currentRows.every((r) => selectedIds.includes(r.rowId));
+    const isAllSelected = currentRows.length > 0 && currentRows.every((r) => selectedIds.includes(r.key));
 
     const handleSelectAll = () => {
-        const ids = currentRows.map((r) => r.rowId);
+        const ids = currentRows.map((r) => r.key);
         if (isAllSelected) setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
         else setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
     };
 
-    const handleSelectRow = (id) => {
-        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    const handleSelectRow = (key) => {
+        setSelectedIds((prev) => (prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]));
     };
 
     // Summary
-    const selectedRows = filteredRows.filter((r) => selectedIds.includes(r.rowId));
+    const selectedRows = rows.filter((r) => selectedIds.includes(r.key));
     const isSelectionMode = selectedRows.length > 0;
-    const summaryRows = isSelectionMode ? selectedRows : filteredRows;
+    const summaryRows = isSelectionMode ? selectedRows : rows;
 
-    const summaryQty = summaryRows.reduce((s, r) => s + r.totalQty, 0);
-    const summarySubtotal = summaryRows.reduce((s, r) => s + r.subtotal, 0);
-    const summaryDiscount = summaryRows.reduce((s, r) => s + r.discount, 0);
-    const summaryGrand = summaryRows.reduce((s, r) => s + r.grandTotal, 0);
+    const sum = (field) => summaryRows.reduce((s, r) => s + r[field], 0);
+    const summaryInvoices = sum('invoiceCount');
+    const summarySubTotal = sum('subTotal');
+    const summaryDiscount = sum('discount');
+    const summaryAdjustment = sum('adjustment');
+    const summaryReturn = sum('returnAmt');
+    const summaryDamage = sum('damageAmt');
+    const summaryGrand = sum('grand');
+
+    const NA = <span className="text-gray-300 font-semibold">N/A</span>;
+
+    const AdjCell = ({ value }) =>
+        Math.abs(value) < 0.005 ? (
+            NA
+        ) : (
+            <span className={`font-bold ${value > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                {value > 0 ? '+' : '-'}৳{fmt(Math.abs(value))}
+            </span>
+        );
+
+    const MinusCell = ({ value }) =>
+        value <= 0 ? (
+            NA
+        ) : (
+            <span className="font-bold text-rose-500">-৳{fmt(value)}</span>
+        );
 
     return (
         <div className="p-4 md:p-6">
@@ -435,17 +371,17 @@ const RouteWiseTopChart = () => {
                 {/* Title */}
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white">
                     <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                        Route Wise Top Chart
+                        Customer Wise Invoice Summary
                     </h2>
-                    <p className="text-gray-500 text-sm mt-1">একই তারিখে একই route এর একই product (company সহ) একসাথে দেখাবে — মোট Qty, Subtotal, Discount এবং Grand Total</p>
+                    <p className="text-gray-500 text-sm mt-1">একই তারিখে একই customer এর সব invoice মিলিয়ে একটি row</p>
                 </div>
 
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
 
                     <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-gray-800">Route Wise Top Chart</h3>
+                        <h3 className="text-xl font-bold text-gray-800">Customer Summary</h3>
                         <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                            Showing: {filteredRows.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredRows.length)}` : 0} of {filteredRows.length} ({rows.length} total)
+                            Showing: {rows.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, rows.length)}` : 0} of {rows.length} rows ({filteredOrders.length} invoices)
                         </span>
                     </div>
 
@@ -463,7 +399,7 @@ const RouteWiseTopChart = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             {/* Start Date */}
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
@@ -514,24 +450,64 @@ const RouteWiseTopChart = () => {
                                 </div>
                             </div>
 
+                            {/* Invoice + Direct Sales */}
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-gray-600 text-[11px] font-semibold">Invoice Number</label>
+                                    <label className="flex items-center gap-1 text-[10px] font-semibold text-teal-700 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={directOnly}
+                                            onChange={(e) => {
+                                                setDirectOnly(e.target.checked);
+                                                setCurrentPage(1);
+                                            }}
+                                            className="w-3 h-3 accent-teal-600 cursor-pointer"
+                                        />
+                                        Direct Sales
+                                    </label>
+                                </div>
+                                <input
+                                    type="text"
+                                    name="invoiceNo"
+                                    placeholder="Search invoice..."
+                                    value={filters.invoiceNo}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                />
+                            </div>
+
+                            {/* Customer */}
                             <FilterSelect
-                                label="Product"
-                                placeholder="Search or select product..."
-                                value={filters.product}
-                                options={productOptions}
-                                onChange={(v) => setFilter('product', v)}
-                                emptyText="No product found"
+                                label="Customer"
+                                placeholder="Search or select customer..."
+                                value={filters.customer}
+                                options={customerOptions}
+                                onChange={(v) => setFilter('customer', v)}
+                                emptyText="No customer found"
                             />
 
+                            {/* SR */}
                             <FilterSelect
-                                label="Company"
-                                placeholder="Search or select company..."
-                                value={filters.company}
-                                options={companyOptions}
-                                onChange={(v) => setFilter('company', v)}
-                                emptyText="No company found"
+                                label="SR"
+                                placeholder="Search or select SR..."
+                                value={filters.sr}
+                                options={srOptions}
+                                onChange={(v) => setFilter('sr', v)}
+                                emptyText="No SR found"
                             />
 
+                            {/* Delivered By */}
+                            <FilterSelect
+                                label="Delivered By"
+                                placeholder="Search or select delivery man..."
+                                value={filters.deliveredBy}
+                                options={deliveryOptions}
+                                onChange={(v) => setFilter('deliveredBy', v)}
+                                emptyText="No delivery man found"
+                            />
+
+                            {/* Route */}
                             <FilterSelect
                                 label="Route"
                                 placeholder="Search or select route..."
@@ -541,7 +517,7 @@ const RouteWiseTopChart = () => {
                                 emptyText="No route found"
                             />
 
-                            {/* Status Select */}
+                            {/* Status */}
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
                                 <select
@@ -550,7 +526,6 @@ const RouteWiseTopChart = () => {
                                     onChange={handleFilterChange}
                                     className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
                                 >
-                                    <option value="Mix">Mix</option>
                                     <option value="">All</option>
                                     <option value="New Order">New Order</option>
                                     <option value="Delivered">Delivered</option>
@@ -568,13 +543,29 @@ const RouteWiseTopChart = () => {
                             Rows: <b className="text-gray-800">{summaryRows.length}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
-                            Total Qty: <b className="text-orange-600">{fmt(summaryQty)}</b>
+                            Invoices: <b className="text-gray-800">{summaryInvoices}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
-                            Subtotal: <b className="text-slate-700">৳{fmt(summarySubtotal)}</b>
+                            Subtotal: <b className="text-gray-800">৳{fmt(summarySubTotal)}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
-                            Total Discount: <b className="text-rose-600">৳{fmt(summaryDiscount)}</b>
+                            Discount: <b className="text-rose-600">৳{fmt(summaryDiscount)}</b>
+                        </span>
+                        <span className="font-semibold text-gray-600">
+                            Adjustment:{' '}
+                            {Math.abs(summaryAdjustment) < 0.005 ? (
+                                <b className="text-gray-400">N/A</b>
+                            ) : (
+                                <b className={summaryAdjustment > 0 ? 'text-emerald-600' : 'text-rose-500'}>
+                                    {summaryAdjustment > 0 ? '+' : '-'}৳{fmt(Math.abs(summaryAdjustment))}
+                                </b>
+                            )}
+                        </span>
+                        <span className="font-semibold text-gray-600">
+                            Return: <b className="text-violet-600">৳{fmt(summaryReturn)}</b>
+                        </span>
+                        <span className="font-semibold text-gray-600">
+                            Damage: <b className="text-red-600">৳{fmt(summaryDamage)}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
                             Grand Total: <b className="text-indigo-600">৳{fmt(summaryGrand)}</b>
@@ -592,70 +583,110 @@ const RouteWiseTopChart = () => {
                     {/* Table */}
                     {loading ? (
                         <div className="text-center py-20 text-gray-500 font-medium">Loading report...</div>
-                    ) : filteredRows.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400 font-medium">No products found!</div>
+                    ) : rows.length === 0 ? (
+                        <div className="text-center py-20 text-gray-400 font-medium">No data found!</div>
                     ) : (
                         <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full text-left border-collapse [&_th]:px-2 [&_th]:py-2.5 [&_th]:text-[11px] [&_td]:px-2 [&_td]:py-2.5 [&_td]:text-xs [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_td]:align-top">
+                            <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white uppercase tracking-wide">
-                                        <th className="w-7 text-center">
+                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[11px] uppercase tracking-wide whitespace-nowrap">
+                                        <th className="w-10 px-2 py-3 text-center">
                                             <input
                                                 type="checkbox"
                                                 checked={isAllSelected}
                                                 onChange={handleSelectAll}
-                                                className="w-3.5 h-3.5 accent-pink-500 cursor-pointer"
+                                                className="w-4 h-4 accent-pink-500 cursor-pointer"
                                             />
                                         </th>
-                                        <th>Date</th>
-                                        <th>Product</th>
-                                        <th>Company</th>
-                                        <th>Route</th>
-                                        <th>Qty</th>
-                                        <th
-                                            onClick={() => setIsPriceView((v) => !v)}
-                                            className="cursor-pointer select-none hover:underline"
-                                            title="Click to see sell wise sell prices"
-                                        >
-                                            Sell Price
-                                        </th>
-                                        <th>Subtotal</th>
-                                        <th>Discount</th>
-                                        <th>Grand Total</th>
+                                        <th className="px-3 py-3">Date</th>
+                                        <th className="px-3 py-3">Customer</th>
+                                        <th className="px-3 py-3">Route</th>
+                                        <th className="px-3 py-3">Subtotal</th>
+                                        <th className="px-3 py-3">Discount</th>
+                                        <th className="px-3 py-3">Adjustment</th>
+                                        <th className="px-3 py-3">Return</th>
+                                        <th className="px-3 py-3">Damage</th>
+                                        <th className="px-3 py-3">Grand Total</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 text-gray-700">
+                                <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                                     {currentRows.map((r) => (
                                         <tr
-                                            key={r.rowId}
-                                            className={`transition duration-150 ${selectedIds.includes(r.rowId) ? 'bg-pink-50/70' : 'hover:bg-indigo-50/40'}`}
+                                            key={r.key}
+                                            className={`transition duration-150 ${selectedIds.includes(r.key) ? 'bg-pink-50/70' : 'hover:bg-indigo-50/40'}`}
                                         >
-                                            <td className="text-center">
+                                            <td className="px-2 py-3 text-center">
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedIds.includes(r.rowId)}
-                                                    onChange={() => handleSelectRow(r.rowId)}
-                                                    className="w-3.5 h-3.5 accent-pink-500 cursor-pointer"
+                                                    checked={selectedIds.includes(r.key)}
+                                                    onChange={() => handleSelectRow(r.key)}
+                                                    className="w-4 h-4 accent-pink-500 cursor-pointer"
                                                 />
                                             </td>
-                                            <td className="text-gray-600">
-                                                <div className="font-medium">Order: {r.orderDate || 'N/A'}</div>
-                                                {!r.isMix && (
-                                                    <div className="text-[11px]">
-                                                        {r.deliveryDate ? `Delivered: ${r.deliveryDate}` : <span className="text-gray-400">Delivered: N/A</span>}
-                                                    </div>
+
+                                            {/* Date */}
+                                            <td className="px-3 py-3 whitespace-nowrap text-gray-600 font-medium">
+                                                {fmtDate(r.date)}
+                                            </td>
+
+                                            {/* Customer */}
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        navigate('/sale-customer-sum-details', {
+                                                            state: { ids: r.orderIds },
+                                                        })
+                                                    }
+                                                    className="font-bold text-indigo-700 hover:text-pink-600 hover:underline cursor-pointer transition-colors text-left"
+                                                >
+                                                    {r.customer}
+                                                </button>
+                                                <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
+                                                    {r.invoiceCount} invoice{r.invoiceCount > 1 ? 's' : ''}
+                                                </div>
+                                            </td>
+
+                                            {/* Route */}
+                                            <td className="px-3 py-3 whitespace-nowrap text-gray-600">
+                                                {r.routes.length === 0 && r.directCount === 0 && NA}
+                                                {r.routes.length > 0 && <div>{r.routes.join(', ')}</div>}
+                                                {r.directCount > 0 && (
+                                                    <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-[9px] leading-none whitespace-nowrap shadow-sm">
+                                                        ⚡ Direct Sales{r.directCount > 1 ? ` (${r.directCount})` : ''}
+                                                    </span>
                                                 )}
                                             </td>
-                                            <td className="font-bold text-gray-800">{r.productName}</td>
-                                            <td className="text-gray-600">{r.company || 'N/A'}</td>
-                                            <td className="text-gray-700 font-medium">{r.route}</td>
-                                            <td>
-                                                <QtyCell lines={r.lines} unit={r.unit} subUnit={r.subUnit} parentMode={r.parentMode} />
+
+                                            {/* Subtotal */}
+                                            <td className="px-3 py-3 whitespace-nowrap font-semibold text-gray-700">
+                                                ৳{fmt(r.subTotal)}
                                             </td>
-                                            <td className="font-medium text-slate-600">৳{n(r.sellPrice).toFixed(2)}</td>
-                                            <td className="font-semibold text-slate-700">৳{r.subtotal.toFixed(2)}</td>
-                                            <td className="font-semibold text-rose-600">৳{r.discount.toFixed(2)}</td>
-                                            <td className="font-bold text-slate-900">৳{r.grandTotal.toFixed(2)}</td>
+
+                                            {/* Discount */}
+                                            <td className="px-3 py-3 whitespace-nowrap font-semibold text-rose-600">
+                                                ৳{fmt(r.discount)}
+                                            </td>
+
+                                            {/* Adjustment */}
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <AdjCell value={r.adjustment} />
+                                            </td>
+
+                                            {/* Return */}
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <MinusCell value={r.returnAmt} />
+                                            </td>
+
+                                            {/* Damage */}
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <MinusCell value={r.damageAmt} />
+                                            </td>
+
+                                            {/* Grand Total */}
+                                            <td className="px-3 py-3 whitespace-nowrap font-bold text-indigo-600">
+                                                ৳{fmt(r.grand)}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -664,7 +695,7 @@ const RouteWiseTopChart = () => {
                     )}
 
                     {/* Pagination */}
-                    {!loading && filteredRows.length > 0 && (
+                    {!loading && rows.length > 0 && (
                         <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <span className="text-xs text-gray-500 font-medium">
                                 Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
@@ -728,4 +759,4 @@ const RouteWiseTopChart = () => {
     );
 };
 
-export default RouteWiseTopChart;
+export default SaleCustomerWiseInvoiceRepo;

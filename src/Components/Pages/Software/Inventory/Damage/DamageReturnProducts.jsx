@@ -56,8 +56,8 @@ const DamageReturnProducts = () => {
 
     useEffect(() => {
         Promise.all([
-            fetch('http://localhost:5000/damage-return').then((res) => res.json()).catch(() => []),
-            fetch('http://localhost:5000/purchase').then((res) => res.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((res) => res.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/purchase').then((res) => res.json()).catch(() => []),
         ])
             .then(([d, purchases]) => {
                 const fromPurchase = (Array.isArray(purchases) ? purchases : [])

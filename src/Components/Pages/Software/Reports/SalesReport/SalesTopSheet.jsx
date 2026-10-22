@@ -141,6 +141,7 @@ const SalesTopSheet = () => {
 
     const [orders, setOrders] = useState([]);
     const [products, setProducts] = useState([]);
+    const [users, setUsers] = useState([]);
     const [isPriceView, setIsPriceView] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -154,9 +155,13 @@ const SalesTopSheet = () => {
         endDate: '',
         product: '',
         company: '',
+        sr: '',
+        deliveredBy: '',
+        route: '',
         status: 'Mix',
     };
     const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [directOnly, setDirectOnly] = useState(false);
 
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
@@ -167,12 +172,15 @@ const SalesTopSheet = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const [sRes, pRes] = await Promise.all([
-                    fetch('http://localhost:5000/sales'),
-                    fetch('http://localhost:5000/product'),
+                const [sRes, pRes, uRes] = await Promise.all([
+                    fetch('https://squirrel-peace-server.onrender.com/sales'),
+                    fetch('https://squirrel-peace-server.onrender.com/product'),
+                    fetch('https://squirrel-peace-server.onrender.com/user'),
                 ]);
                 const sData = await sRes.json();
                 const pData = await pRes.json();
+                const uData = await uRes.json().catch(() => []);
+                setUsers(Array.isArray(uData) ? uData : []);
                 setOrders(Array.isArray(sData) ? sData : []);
                 setProducts(Array.isArray(pData) ? pData : []);
             } catch (error) {
@@ -201,6 +209,7 @@ const SalesTopSheet = () => {
 
     const handleClearFilters = () => {
         setFilters(EMPTY_FILTERS);
+        setDirectOnly(false);
         setCurrentPage(1);
     };
 
@@ -208,6 +217,10 @@ const SalesTopSheet = () => {
 
     // New Order => order date, Delivered => delivery date, Mix/All => order date
     const filteredOrders = orders.filter((o) => {
+        if (directOnly && !o.directSales) return false;
+        if (filters.sr && !String(o.sr || '').toLowerCase().includes(filters.sr.toLowerCase())) return false;
+        if (filters.deliveredBy && !String(o.deliveredBy || '').toLowerCase().includes(filters.deliveredBy.toLowerCase())) return false;
+        if (filters.route && !String(o.route || '').toLowerCase().includes(filters.route.toLowerCase())) return false;
         if (filters.status === 'Delivered' && !isDelivered(o)) return false;
         if (filters.status === 'New Order' && isDelivered(o)) return false;
         if (!filters.startDate && !filters.endDate) return true;
@@ -343,6 +356,9 @@ const SalesTopSheet = () => {
     const uniq = (arr) => [...new Set(arr.filter(Boolean))];
     const productOptions = uniq(rows.map((r) => r.productName));
     const companyOptions = uniq(rows.map((r) => r.company));
+    const srOptions = uniq(users.filter((u) => u.role === 'SR').map((u) => u.name));
+    const deliveryOptions = uniq(users.filter((u) => u.role === 'Delivery Man').map((u) => u.name));
+    const routeOptions = uniq(orders.map((o) => o.route));
 
     const has = (val, q) => String(val || '').toLowerCase().includes(String(q).toLowerCase());
 
@@ -438,7 +454,7 @@ const SalesTopSheet = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             {/* Start Date */}
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
@@ -507,9 +523,50 @@ const SalesTopSheet = () => {
                                 emptyText="No company found"
                             />
 
-                            {/* Status Select */}
+                            <FilterSelect
+                                label="SR"
+                                placeholder="Search or select SR..."
+                                value={filters.sr}
+                                options={srOptions}
+                                onChange={(v) => setFilter('sr', v)}
+                                emptyText="No SR found"
+                            />
+
+                            <FilterSelect
+                                label="Delivered By"
+                                placeholder="Search or select delivery man..."
+                                value={filters.deliveredBy}
+                                options={deliveryOptions}
+                                onChange={(v) => setFilter('deliveredBy', v)}
+                                emptyText="No delivery man found"
+                            />
+
+                            <FilterSelect
+                                label="Route"
+                                placeholder="Search or select route..."
+                                value={filters.route}
+                                options={routeOptions}
+                                onChange={(v) => setFilter('route', v)}
+                                emptyText="No route found"
+                            />
+
+                            {/* Status Select + Direct Sales */}
                             <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-gray-600 text-[11px] font-semibold">Status</label>
+                                    <label className="flex items-center gap-1 text-[10px] font-semibold text-teal-700 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={directOnly}
+                                            onChange={(e) => {
+                                                setDirectOnly(e.target.checked);
+                                                setCurrentPage(1);
+                                            }}
+                                            className="w-3 h-3 accent-teal-600 cursor-pointer"
+                                        />
+                                        Direct Sales
+                                    </label>
+                                </div>
                                 <select
                                     name="status"
                                     value={filters.status}
@@ -575,7 +632,7 @@ const SalesTopSheet = () => {
                                         </th>
                                         <th>Product</th>
                                         <th>Company</th>
-                                        <th>Qty</th>
+                                        <th>Total Qty</th>
                                         <th
                                             onClick={() => setIsPriceView((v) => !v)}
                                             className="cursor-pointer select-none hover:underline"

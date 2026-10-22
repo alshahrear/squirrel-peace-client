@@ -250,9 +250,9 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       key: "report",
       label: "Report",
       children: [
+        { to: "/sales-report", label: "Sales Reports" },
           { to: "/purchase-report", label: "Purchase Reports" },
-          { to: "/sales-report", label: "Sales Reports" },
-         
+          { to: "/stock-report", label: "Stock Reports" },
       ],
     },
     {

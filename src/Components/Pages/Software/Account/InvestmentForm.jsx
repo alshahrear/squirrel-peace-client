@@ -160,8 +160,8 @@ const InvestmentForm = ({
         }
 
         const url = isEditing
-            ? `http://localhost:5000/investment/${editingInvestment._id}`
-            : 'http://localhost:5000/investment';
+            ? `https://squirrel-peace-server.onrender.com/investment/${editingInvestment._id}`
+            : 'https://squirrel-peace-server.onrender.com/investment';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {

@@ -42,8 +42,35 @@ const getDiscount = (o) => {
     return Math.round((pwd + overall) * 100) / 100;
 };
 
-// Grand Total = Subtotal - Discount
-const getGrandTotal = (o) => Math.max(Math.round((getSubTotal(o) - getDiscount(o)) * 100) / 100, 0);
+// Normal adjustment (+ hole add, - hole minus)
+const getAdjustment = (o) => {
+    const amt = n(o.adjustment?.amount);
+    return o.adjustment?.type === '-' ? -amt : amt;
+};
+
+// Adjustment er sob line (Normal + Return + Damage)
+const getAdjustmentLines = (o) => {
+    const lines = [];
+    const adj = getAdjustment(o);
+    if (adj !== 0) lines.push({ label: o.adjustment?.text || 'Adjustment', value: adj });
+    const ret = n(o.returnAdjustmentAmount);
+    if (ret > 0) lines.push({ label: 'Return Adj', value: -ret });
+    const dmg = n(o.damageAdjustmentAmount);
+    if (dmg > 0) lines.push({ label: 'Damage Adj', value: -dmg });
+    return lines;
+};
+
+// Total adjustment (signed)
+const getTotalAdjustment = (o) =>
+    Math.round(getAdjustmentLines(o).reduce((s, l) => s + l.value, 0) * 100) / 100;
+
+// Grand Total = Payable Amount (na thakle Subtotal - Discount ± Adjustment)
+const getGrandTotal = (o) => {
+    if (o.payableAmount !== undefined && o.payableAmount !== null && o.payableAmount !== '') {
+        return Math.max(n(o.payableAmount), 0);
+    }
+    return Math.max(Math.round((getSubTotal(o) - getDiscount(o) + getTotalAdjustment(o)) * 100) / 100, 0);
+};
 
 const getStatus = (o) => (o.status === 'Delivered' ? 'Delivered' : 'New Order');
 
@@ -170,9 +197,9 @@ const WholesalesRepo = () => {
         const load = async () => {
             try {
                 const [oRes, cRes, uRes] = await Promise.all([
-                    fetch('http://localhost:5000/sales'),
-                    fetch('http://localhost:5000/customer'),
-                    fetch('http://localhost:5000/user'),
+                    fetch('https://squirrel-peace-server.onrender.com/sales'),
+                    fetch('https://squirrel-peace-server.onrender.com/customer'),
+                    fetch('https://squirrel-peace-server.onrender.com/user'),
                 ]);
                 const oData = await oRes.json();
                 const cData = await cRes.json().catch(() => []);
@@ -277,6 +304,7 @@ const WholesalesRepo = () => {
     const summarySubTotal = summaryRows.reduce((s, o) => s + getSubTotal(o), 0);
     const summaryDiscount = summaryRows.reduce((s, o) => s + getDiscount(o), 0);
     const summaryGrand = summaryRows.reduce((s, o) => s + getGrandTotal(o), 0);
+    const summaryAdjustment = summaryRows.reduce((s, o) => s + getTotalAdjustment(o), 0);
     const summaryDelivered = summaryRows.filter((o) => getStatus(o) === 'Delivered').length;
     const summaryNew = summaryRows.length - summaryDelivered;
 
@@ -477,6 +505,16 @@ const WholesalesRepo = () => {
                             Total Discount: <b className="text-rose-600">৳{fmt(summaryDiscount)}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
+                            Total Adjustment:{' '}
+                            {summaryAdjustment === 0 ? (
+                                <b className="text-gray-400">N/A</b>
+                            ) : (
+                                <b className={summaryAdjustment > 0 ? 'text-emerald-600' : 'text-rose-500'}>
+                                    {summaryAdjustment > 0 ? '+' : '-'}৳{fmt(Math.abs(summaryAdjustment))}
+                                </b>
+                            )}
+                        </span>
+                        <span className="font-semibold text-gray-600">
                             Grand Total: <b className="text-indigo-600">৳{fmt(summaryGrand)}</b>
                         </span>
                         {isSelectionMode && (
@@ -515,6 +553,7 @@ const WholesalesRepo = () => {
                                         <th className="px-3 py-3">Route</th>
                                         <th className="px-3 py-3">Subtotal</th>
                                         <th className="px-3 py-3">Discount</th>
+                                        <th className="px-3 py-3">Adjustment</th>
                                         <th className="px-3 py-3">Grand Total</th>
                                         <th className="px-3 py-3">Status</th>
                                         <th className="px-3 py-3">Created By</th>
@@ -593,6 +632,25 @@ const WholesalesRepo = () => {
                                                 {/* Discount */}
                                                 <td className="px-3 py-3 whitespace-nowrap font-semibold text-rose-600">
                                                     ৳{fmt(getDiscount(o))}
+                                                </td>
+
+                                                {/* Adjustment (Normal + Return + Damage) */}
+                                                <td className="px-3 py-3 whitespace-nowrap">
+                                                    {getAdjustmentLines(o).length === 0 ? (
+                                                        NA
+                                                    ) : (
+                                                        <div className="space-y-0.5">
+                                                            {getAdjustmentLines(o).map((l, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className={`text-[11px] font-bold ${l.value > 0 ? 'text-emerald-600' : 'text-rose-500'}`}
+                                                                >
+                                                                    <span className="text-gray-500 font-semibold">{l.label}: </span>
+                                                                    {l.value > 0 ? '+' : '-'}৳{fmt(Math.abs(l.value))}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </td>
 
                                                 {/* Grand Total */}

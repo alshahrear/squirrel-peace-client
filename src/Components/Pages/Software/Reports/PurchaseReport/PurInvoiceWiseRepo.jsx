@@ -37,8 +37,8 @@ const PurInvoiceWiseRepo = () => {
         const load = async () => {
             try {
                 const [pRes, cRes] = await Promise.all([
-                    fetch('http://localhost:5000/purchase'),
-                    fetch('http://localhost:5000/company'),
+                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
+                    fetch('https://squirrel-peace-server.onrender.com/company'),
                 ]);
                 const pData = await pRes.json();
                 const cData = await cRes.json();
@@ -142,6 +142,37 @@ const PurInvoiceWiseRepo = () => {
     // Purchase/Receive এর সময়ের Total Amount (return/sales এ বদলায় না)
     const getTotal = (item) => Number(item.payableAmount) || 0;
 
+    // Subtotal (discount er age)
+    const getSubTotal = (item) => {
+        if (item.subTotal !== undefined && item.subTotal !== null && item.subTotal !== '') return Number(item.subTotal) || 0;
+        return (item.items || []).reduce(
+            (s, it) => s + (Number(it.buyPrice) || 0) * (Number(it.totalPcs) || 0),
+            0
+        );
+    };
+
+    // Adjustment er sob line (Normal + Return + Damage)
+    const getAdjustmentLines = (item) => {
+        const lines = [];
+        const amt = Number(item.adjustment?.amount) || 0;
+        if (amt > 0) {
+            lines.push({
+                label: item.adjustment?.text || 'Adjustment',
+                value: item.adjustment?.type === '-' ? -amt : amt,
+            });
+        }
+        const ret = Number(item.returnAdjustmentAmount) || 0;
+        if (ret > 0) lines.push({ label: 'Return Adj', value: -ret });
+        const dmg = Number(item.damageAdjustmentAmount) || 0;
+        if (dmg > 0) lines.push({ label: 'Damage Adj', value: -dmg });
+        return lines;
+    };
+
+    const getTotalAdjustment = (item) =>
+        Math.round(getAdjustmentLines(item).reduce((s, l) => s + l.value, 0) * 100) / 100;
+
+    const NA = <span className="text-gray-300 font-semibold">N/A</span>;
+
     // Filtering
     const filteredPurchases = purchases.filter((item) => {
         if (filters.startDate || filters.endDate) {
@@ -193,6 +224,8 @@ const PurInvoiceWiseRepo = () => {
 
     const summaryTotal = summaryRows.reduce((s, i) => s + getTotal(i), 0);
     const summaryDiscount = summaryRows.reduce((s, i) => s + getTotalDiscount(i), 0);
+    const summarySubTotal = summaryRows.reduce((s, i) => s + getSubTotal(i), 0);
+    const summaryAdjustment = summaryRows.reduce((s, i) => s + getTotalAdjustment(i), 0);
     const fmt = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
     const handleInvoiceClick = (id) => {
@@ -200,7 +233,7 @@ const PurInvoiceWiseRepo = () => {
     };
 
     return (
-               <div className="p-6 md:p-8">
+        <div className="p-6 md:p-8">
             <div className="max-w-[1600px] mx-auto space-y-6">
 
                 {/* Title */}
@@ -367,10 +400,23 @@ const PurInvoiceWiseRepo = () => {
                             Rows: <b className="text-gray-800">{summaryRows.length}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
+                            Subtotal: <b className="text-gray-800">৳{fmt(summarySubTotal)}</b>
+                        </span>
+                        <span className="font-semibold text-gray-600">
                             Total Discount: <b className="text-rose-600">৳{fmt(summaryDiscount)}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
-                            Total Amount: <b className="text-indigo-600">৳{fmt(summaryTotal)}</b>
+                            Total Adjustment:{' '}
+                            {summaryAdjustment === 0 ? (
+                                <b className="text-gray-400">N/A</b>
+                            ) : (
+                                <b className={summaryAdjustment > 0 ? 'text-emerald-600' : 'text-rose-500'}>
+                                    {summaryAdjustment > 0 ? '+' : '-'}৳{fmt(Math.abs(summaryAdjustment))}
+                                </b>
+                            )}
+                        </span>
+                        <span className="font-semibold text-gray-600">
+                            Grand Total: <b className="text-indigo-600">৳{fmt(summaryTotal)}</b>
                         </span>
                         {isSelectionMode && (
                             <button
@@ -403,8 +449,10 @@ const PurInvoiceWiseRepo = () => {
                                         <th className="px-3 py-3">Date</th>
                                         <th className="px-3 py-3">Invoice</th>
                                         <th className="px-3 py-3">Company</th>
+                                        <th className="px-3 py-3">Subtotal</th>
                                         <th className="px-3 py-3">Discount</th>
-                                        <th className="px-3 py-3">Total Amount</th>
+                                        <th className="px-3 py-3">Adjustment</th>
+                                        <th className="px-3 py-3">Grand Total</th>
                                         <th className="px-3 py-3">Status</th>
                                         <th className="px-3 py-3">Created By</th>
                                     </tr>
@@ -442,8 +490,28 @@ const PurInvoiceWiseRepo = () => {
                                                 </button>
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap font-bold text-gray-800">{item.company}</td>
+                                            <td className="px-3 py-3 whitespace-nowrap font-semibold text-gray-700">
+                                                ৳{fmt(getSubTotal(item))}
+                                            </td>
                                             <td className="px-3 py-3 whitespace-nowrap font-semibold text-rose-600">
                                                 ৳{fmt(getTotalDiscount(item))}
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                {getAdjustmentLines(item).length === 0 ? (
+                                                    NA
+                                                ) : (
+                                                    <div className="space-y-0.5">
+                                                        {getAdjustmentLines(item).map((l, i) => (
+                                                            <div
+                                                                key={i}
+                                                                className={`text-[11px] font-bold ${l.value > 0 ? 'text-emerald-600' : 'text-rose-500'}`}
+                                                            >
+                                                                <span className="text-gray-500 font-semibold">{l.label}: </span>
+                                                                {l.value > 0 ? '+' : '-'}৳{fmt(Math.abs(l.value))}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap font-bold text-indigo-600">
                                                 ৳{fmt(getTotal(item))}

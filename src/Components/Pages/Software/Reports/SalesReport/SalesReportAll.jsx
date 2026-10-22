@@ -1,24 +1,42 @@
-import React, { useState } from 'react';
-import { FaFileInvoice, FaBoxes, FaChartBar, FaRoute, FaListOl, FaBookOpen } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaFileInvoice, FaBoxes, FaChartBar, FaListOl, FaBookOpen, FaUndoAlt, FaUserTag, FaTruck } from 'react-icons/fa';
 import WholesalesRepo from './WholesalesRepo';
 import SaleProductWiseRepo from './SaleProductWiseRepo';
 import SaleDateWiseTopChart from './SaleDateWiseTopChart';
-import RouteWiseTopChart from './RouteWiseTopChart';
+import SaleNetDeliveryRepo from './SaleNetDeliveryRepo';
 import SalesTopSheet from './SalesTopSheet';
 import SaleCustomerLedgerRepo from './SaleCustomerLedgerRepo';
+import SaleCustomerReturnRepo from './SaleCustomerReturnRepo';
+import SaleCustomerWiseInvoiceRepo from './SaleCustomerWiseInvoiceRepo';
 
 
 const TABS = [
     { key: 'wholesales', label: 'Wholesales Report', icon: FaFileInvoice },
+    { key: 'customerinvoice', label: 'Customer Invoice Summary', icon: FaUserTag },
     { key: 'productwise', label: 'Product Wise Sales', icon: FaBoxes },
     { key: 'datewisetop', label: 'Date Wise Top Chart', icon: FaChartBar },
-    { key: 'routewisetop', label: 'Route Wise Top Chart', icon: FaRoute },
+    { key: 'netdelivery', label: 'Net Delivery', icon: FaTruck },
     { key: 'salestopsheet', label: 'Sales Top Sheet', icon: FaListOl },
     { key: 'customerledger', label: 'Customer Ledger', icon: FaBookOpen },
+    { key: 'salesreturn', label: 'Sales Return Report', icon: FaUndoAlt },
 ];
 
 const SalesReportAll = () => {
-    const [activeTab, setActiveTab] = useState('wholesales');
+    const [activeTab, setActiveTab] = useState(() => {
+        try {
+            return sessionStorage.getItem('salesReportTab') || 'wholesales';
+        } catch (e) {
+            return 'wholesales';
+        }
+    });
+
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('salesReportTab', activeTab);
+        } catch (e) {
+            // ignore
+        }
+    }, [activeTab]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
@@ -48,11 +66,13 @@ const SalesReportAll = () => {
 
             {/* Tab Content */}
             {activeTab === 'wholesales' && <WholesalesRepo />}
+            {activeTab === 'customerinvoice' && <SaleCustomerWiseInvoiceRepo />}
             {activeTab === 'productwise' && <SaleProductWiseRepo />}
             {activeTab === 'datewisetop' && <SaleDateWiseTopChart />}
-            {activeTab === 'routewisetop' && <RouteWiseTopChart />}
+            {activeTab === 'netdelivery' && <SaleNetDeliveryRepo />}
             {activeTab === 'salestopsheet' && <SalesTopSheet />}
             {activeTab === 'customerledger' && <SaleCustomerLedgerRepo />}
+            {activeTab === 'salesreturn' && <SaleCustomerReturnRepo />}
         </div>
     );
 };

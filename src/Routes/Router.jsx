@@ -61,6 +61,9 @@ import StockAdjustmentForm from "../Components/Pages/Software/Inventory/Stock/St
 import StockAdjustmentDetails from "../Components/Pages/Software/Inventory/Stock/StockAdjustmentDetails";
 import PurchaseReportAll from "../Components/Pages/Software/Reports/PurchaseReport/PurchaseReportAll";
 import SalesReportAll from "../Components/Pages/Software/Reports/SalesReport/SalesReportAll";
+import SaleCustomerSumDetails from "../Components/Pages/Software/Reports/SalesReport/SaleCustomersumDetails";
+import StockReportAll from "../Components/Pages/Software/Reports/StockReport/StockReportAll";
+
 
 export const router = createBrowserRouter([
   {
@@ -149,10 +152,6 @@ export const router = createBrowserRouter([
         element: <ClientRoute><SalesReturnView></SalesReturnView></ClientRoute>
       },
       {
-        path: "/purchase-bulk-return-view/:id",
-        element: <ClientRoute><PurchaseBulkDetails></PurchaseBulkDetails></ClientRoute>
-      },
-      {
         path: "/sales-bulk-return",
         element: <ClientRoute><SalesBulkReturn></SalesBulkReturn></ClientRoute>
       },
@@ -235,6 +234,14 @@ export const router = createBrowserRouter([
       {
         path: "/sales-report",
         element: <ClientRoute><SalesReportAll></SalesReportAll></ClientRoute>
+      },
+      {
+        path: "/sale-customer-sum-details",
+        element: <ClientRoute><SaleCustomerSumDetails></SaleCustomerSumDetails></ClientRoute>
+      },
+      {
+        path: "/stock-report",
+        element: <ClientRoute><StockReportAll></StockReportAll></ClientRoute>
       },
       {
         path: "/software",

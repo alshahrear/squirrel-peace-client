@@ -191,7 +191,7 @@ const DamageReturnAdd = () => {
     // ---------- Fetch ----------
     useEffect(() => {
         const load = (endpoint, setter, filterFn) =>
-            fetch(`http://localhost:5000/${endpoint}`)
+            fetch(`https://squirrel-peace-server.onrender.com/${endpoint}`)
                 .then((r) => r.json())
                 .then((d) => setter(Array.isArray(d) ? (filterFn ? d.filter(filterFn) : d) : []))
                 .catch((e) => console.error(e));
@@ -201,10 +201,10 @@ const DamageReturnAdd = () => {
 
         // Damage stock = Sales damage + Standalone damage - Purchase damage return - Damage return
         Promise.all([
-            fetch('http://localhost:5000/sales').then((r) => r.json()).catch(() => []),
-            fetch('http://localhost:5000/sales-damage').then((r) => r.json()).catch(() => []),
-            fetch('http://localhost:5000/purchase').then((r) => r.json()).catch(() => []),
-            fetch('http://localhost:5000/damage-return').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/sales').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
         ])
             .then(([sales, dmg, purchases, returns]) => {
                 const map = new Map();
@@ -444,8 +444,8 @@ const DamageReturnAdd = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `http://localhost:5000/damage-return/${editId}`
-                : 'http://localhost:5000/damage-return';
+                ? `https://squirrel-peace-server.onrender.com/damage-return/${editId}`
+                : 'https://squirrel-peace-server.onrender.com/damage-return';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },

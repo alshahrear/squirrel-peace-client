@@ -330,7 +330,7 @@ const SalesBulkReturnForm = () => {
     // ---------- Fetch ----------
     useEffect(() => {
         const load = (endpoint, setter, filterFn) =>
-            fetch(`http://localhost:5000/${endpoint}`)
+            fetch(`https://squirrel-peace-server.onrender.com/${endpoint}`)
                 .then((r) => r.json())
                 .then((d) => setter(Array.isArray(d) ? (filterFn ? d.filter(filterFn) : d) : []))
                 .catch((e) => console.error(e));
@@ -497,8 +497,8 @@ const SalesBulkReturnForm = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `http://localhost:5000/sales-bulk-return/${editId}`
-                : 'http://localhost:5000/sales-bulk-return';
+                ? `https://squirrel-peace-server.onrender.com/sales-bulk-return/${editId}`
+                : 'https://squirrel-peace-server.onrender.com/sales-bulk-return';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },

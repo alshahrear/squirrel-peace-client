@@ -331,7 +331,7 @@ const DamageStockAdd = () => {
     // ---------- Fetch ----------
     useEffect(() => {
         const load = (endpoint, setter, filterFn) =>
-            fetch(`http://localhost:5000/${endpoint}`)
+            fetch(`https://squirrel-peace-server.onrender.com/${endpoint}`)
                 .then((r) => r.json())
                 .then((d) => setter(Array.isArray(d) ? (filterFn ? d.filter(filterFn) : d) : []))
                 .catch((e) => console.error(e));
@@ -339,7 +339,7 @@ const DamageStockAdd = () => {
         load('company', setCompanies);
         load('category', setCategories, (c) => c.isActive === true);
         load('product', setProducts);
-        fetch(`http://localhost:5000/bulk-return-stock${editId ? `?excludeDamageId=${editId}` : ''}`)
+        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${editId ? `?excludeDamageId=${editId}` : ''}`)
             .then((r) => r.json())
             .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
             .catch((e) => console.error(e));
@@ -534,8 +534,8 @@ const DamageStockAdd = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `http://localhost:5000/sales-damage/${editId}`
-                : 'http://localhost:5000/sales-damage';
+                ? `https://squirrel-peace-server.onrender.com/sales-damage/${editId}`
+                : 'https://squirrel-peace-server.onrender.com/sales-damage';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },

@@ -22,7 +22,7 @@ const PurchaseBulkDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`http://localhost:5000/purchase-bulk-return/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/purchase-bulk-return/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {

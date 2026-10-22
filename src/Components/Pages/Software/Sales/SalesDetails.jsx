@@ -21,7 +21,40 @@ const SalesDetails = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
-    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [rawOrder, setSelectedOrder] = useState(null);
+    const [showOrder, setShowOrder] = useState(false);
+
+    // Order r Delivery er moddhe parthokko thakle tobei toggle dekhabe
+    const hasOrderSnapshot = (() => {
+        const snap = rawOrder?.orderSnapshot;
+        if (!snap) return false;
+        const n = (v) => Number(v) || 0;
+        const mainSig = (list) =>
+            (list || [])
+                .map((i) =>
+                    [i.productName, n(i.totalPcs), n(i.freeQty), n(i.sellPriceUnit), n(i.sellPriceSub), n(i.sellPricePcs), n(i.discount), i.discountType || 'amount'].join('|')
+                )
+                .join(';');
+        const freeSig = (list) => (list || []).map((i) => [i.productName, n(i.totalQty)].join('|')).join(';');
+        const totalSig = (o) =>
+            [n(o.subTotal ?? o.grandTotal), n(o.overallDiscount), o.overallDiscountType || 'amount', n(o.adjustment?.amount), o.adjustment?.type || '+', n(o.payableAmount)].join('|');
+        return (
+            mainSig(snap.items) !== mainSig(rawOrder.items) ||
+            freeSig(snap.freeItems) !== freeSig(rawOrder.freeItems) ||
+            totalSig(snap) !== totalSig(rawOrder)
+        );
+    })();
+    const orderView = showOrder && hasOrderSnapshot;
+    const selectedOrder = orderView
+        ? {
+            ...rawOrder,
+            ...rawOrder.orderSnapshot,
+            subTotal: rawOrder.orderSnapshot.subTotal ?? rawOrder.orderSnapshot.grandTotal,
+            returnHistory: [],
+            paidAmount: 0,
+            paymentNote: '',
+        }
+        : rawOrder;
     const [notFound, setNotFound] = useState(false);
     const [showRemainingToggle, setShowRemaining] = useState(true); // default ON
 
@@ -138,6 +171,30 @@ const SalesDetails = () => {
         return { remTotal, remUnit, remSub, remPcs };
     };
 
+    // Main + Free + Others Free = ekshathe Quantity
+    const getCombinedQty = (item) => {
+        const rem = getRemainingInfo(item);
+        let others = 0;
+        (selectedOrder?.freeItems || [])
+            .filter((f) => f.productId === item.productId)
+            .forEach((f) => {
+                others += showRemaining ? getFreeItemRemaining(f).remTotal : Number(f.totalQty) || 0;
+            });
+        const main = showRemaining ? rem.remQty : Number(item.totalPcs) || 0;
+        const free = showRemaining ? rem.remFree : Number(item.freeQty) || 0;
+        const total = main + free + others;
+        const parentMode = item.parentMode === true;
+        const perSub = Number(item.pcsPerSub) || 0;
+        const uQ = Number(item.unitQty) || 0;
+        const sQ = Number(item.subQty) || 0;
+        const pQ = Number(item.pcsQty) || 0;
+        const perUnit = Number(item.pcsPerUnit) > 0
+            ? Number(item.pcsPerUnit)
+            : (uQ > 0 ? ((Number(item.totalPcs) || 0) - pQ - sQ * perSub) / uQ : 0);
+        const [u, s, p] = splitQty(total, perUnit, perSub, parentMode);
+        return { u, s, p, total };
+    };
+
     // Return বাদ দিয়ে Grand Total / Discount / Payable / Due হিসাব
     const getTotals = () => {
         const inv = selectedOrder;
@@ -187,7 +244,7 @@ const SalesDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`http://localhost:5000/sales/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -390,22 +447,43 @@ const SalesDetails = () => {
                         </div>
                     </div>
 
-                    {/* Remaining After Return Toggle */}
-                    <div className={`px-6 sm:px-8 pt-6 sm:pt-8 items-center gap-3 print:hidden ${hasReturn ? 'flex' : 'hidden'}`}>
-                        <span className="text-sm font-bold text-slate-700">Remaining After Return</span>
-                        <button
-                            type="button"
-                            onClick={() => setShowRemaining((prev) => !prev)}
-                            title={showRemaining ? 'ON' : 'OFF'}
-                            className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
-                        >
-                            <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showRemaining ? 'bg-emerald-500' : 'bg-gray-300'}`}>
-                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showRemaining ? 'translate-x-5' : ''}`} />
-                            </span>
-                            <span className={`text-xs font-bold ${showRemaining ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                {showRemaining ? 'ON' : 'OFF'}
-                            </span>
-                        </button>
+                    {/* Remaining After Return Toggle (left) + Original Order View Toggle (right) */}
+                    <div className={`px-6 sm:px-8 pt-6 sm:pt-8 items-center justify-between gap-3 print:hidden ${(hasReturn || hasOrderSnapshot) ? 'flex' : 'hidden'}`}>
+                        <div className={`items-center gap-3 ${hasReturn ? 'flex' : 'invisible flex'}`}>
+                            <span className="text-sm font-bold text-slate-700">Remaining After Return</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowRemaining((prev) => !prev)}
+                                title={showRemaining ? 'ON' : 'OFF'}
+                                className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
+                            >
+                                <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showRemaining ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+                                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showRemaining ? 'translate-x-5' : ''}`} />
+                                </span>
+                                <span className={`text-xs font-bold ${showRemaining ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                    {showRemaining ? 'ON' : 'OFF'}
+                                </span>
+                            </button>
+                        </div>
+
+                        {hasOrderSnapshot && (
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-bold text-slate-700">Original Order View</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOrder((prev) => !prev)}
+                                    title={showOrder ? 'ON' : 'OFF'}
+                                    className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
+                                >
+                                    <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showOrder ? 'bg-amber-500' : 'bg-gray-300'}`}>
+                                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showOrder ? 'translate-x-5' : ''}`} />
+                                    </span>
+                                    <span className={`text-xs font-bold ${showOrder ? 'text-amber-600' : 'text-gray-400'}`}>
+                                        {showOrder ? 'ON' : 'OFF'}
+                                    </span>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Products Table */}
@@ -417,7 +495,7 @@ const SalesDetails = () => {
                                     <th className="py-2.5 px-2 whitespace-nowrap">Product</th>
                                     <th className="py-2.5 px-2 whitespace-nowrap">Company</th>
                                     <th className="py-2.5 px-2 whitespace-nowrap">Quantity</th>
-                                    <th className="py-2.5 px-2 whitespace-nowrap">Free Quantity</th>
+                                    <th className="py-2.5 px-2 whitespace-nowrap">Total Quantity</th>
                                     <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (Unit)</th>
                                     <th className="py-2.5 px-2 text-right whitespace-nowrap">Price (PCS)</th>
                                     <th className="py-2.5 px-2 text-right whitespace-nowrap">Discount</th>
@@ -460,13 +538,30 @@ const SalesDetails = () => {
                                             <td className="py-3 px-2 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
                                             <td className="py-3 px-2 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
                                             <td className="py-3 px-2 text-slate-600 whitespace-nowrap">{item.company}</td>
-                                            <td className="py-3 px-2 font-semibold text-orange-600 whitespace-nowrap">
-                                                {qUnit} {item.unit} {item.parentMode && <>{qSub} {item.subUnit} </>}{qPcs} Pcs
-                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {qTotal})</span>
+                                            <td className="py-3 px-2 whitespace-nowrap">
+                                                <div className="space-y-0.5">
+                                                    <div className="font-semibold text-orange-600">
+                                                        <span className="font-bold mr-1">Main:</span>
+                                                        {qUnit} {item.unit} {item.parentMode && <>{qSub} {item.subUnit} </>}{qPcs} Pcs
+                                                        <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({qTotal})</b>
+                                                    </div>
+                                                    <div className="font-semibold text-emerald-600">
+                                                        <span className="font-bold mr-1">Free:</span>
+                                                        {fUnit} {item.unit} {item.parentMode && <>{fSub} {item.subUnit} </>}{fPcs} Pcs
+                                                        <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({fTotal})</b>
+                                                    </div>
+                                                </div>
                                             </td>
-                                            <td className="py-3 px-2 font-semibold text-emerald-600 whitespace-nowrap">
-                                                {fUnit} {item.unit} {item.parentMode && <>{fSub} {item.subUnit} </>}{fPcs} Pcs
-                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {fTotal})</span>
+                                            <td className="py-3 px-2 font-semibold text-indigo-600 whitespace-nowrap">
+                                                {(() => {
+                                                    const c = getCombinedQty(item);
+                                                    return (
+                                                        <>
+                                                            {c.u} {item.unit} {item.parentMode && <>{c.s} {item.subUnit} </>}{c.p} Pcs
+                                                            <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({c.total})</b>
+                                                        </>
+                                                    );
+                                                })()}
                                             </td>
                                             <td className="py-3 px-2 text-right font-medium text-slate-600 whitespace-nowrap">
                                                 ৳{unitTotal.toFixed(2)}

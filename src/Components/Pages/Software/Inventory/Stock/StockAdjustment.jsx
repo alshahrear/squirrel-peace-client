@@ -60,7 +60,7 @@ const StockAdjustment = () => {
     useEffect(() => {
         if (fetched.current) return;
         fetched.current = true;
-        fetch('http://localhost:5000/stock-adjustment')
+        fetch('https://squirrel-peace-server.onrender.com/stock-adjustment')
             .then((res) => res.json())
             .then((data) => setRows(Array.isArray(data) ? [...data].reverse() : []))
             .catch((err) => {
@@ -92,7 +92,7 @@ const StockAdjustment = () => {
         });
         if (!result.isConfirmed) return;
         try {
-            const res = await fetch(`http://localhost:5000/stock-adjustment/${id}`, { method: 'DELETE' });
+            const res = await fetch(`https://squirrel-peace-server.onrender.com/stock-adjustment/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 showToast('Adjustment deleted successfully!');
                 setRows((prev) => prev.filter((r) => r._id !== id));

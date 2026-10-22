@@ -39,7 +39,7 @@ const StockAdjustmentDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`http://localhost:5000/stock-adjustment/${id}`)
+        fetch(`https://squirrel-peace-server.onrender.com/stock-adjustment/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) setAdj(data);

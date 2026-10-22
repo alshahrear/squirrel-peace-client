@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://squirrel-peace-server.onrender.com';
 
 // নতুন feature যোগ করতে শুধু এই লিস্টে একটা আইটেম যোগ করুন (key = database key)
 const FEATURES = [

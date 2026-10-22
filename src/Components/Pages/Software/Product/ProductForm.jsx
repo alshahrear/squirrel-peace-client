@@ -32,13 +32,13 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
 
     useEffect(() => {
         // Company Fetch
-        fetch('http://localhost:5000/company')
+        fetch('https://squirrel-peace-server.onrender.com/company')
             .then(res => res.json())
             .then(data => setCompanies(data))
             .catch(err => console.error('Error fetching companies:', err));
 
         // Category Fetch
-        fetch('http://localhost:5000/category')
+        fetch('https://squirrel-peace-server.onrender.com/category')
             .then(res => res.json())
             .then(data => {
                 const activeCategories = data.filter(cat => cat.isActive === true);
@@ -47,7 +47,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
             .catch(err => console.error('Error fetching categories:', err));
 
         // Unit Fetch
-        fetch('http://localhost:5000/unit')
+        fetch('https://squirrel-peace-server.onrender.com/unit')
             .then(res => res.json())
             .then(data => {
                 const activeUnits = data.filter(u => u.isActive === true);
@@ -178,13 +178,13 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
         try {
             let response;
             if (isEditing) {
-                response = await fetch(`http://localhost:5000/product/${editingId}`, {
+                response = await fetch(`https://squirrel-peace-server.onrender.com/product/${editingId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(finalData),
                 });
             } else {
-                response = await fetch('http://localhost:5000/product', {
+                response = await fetch('https://squirrel-peace-server.onrender.com/product', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(finalData),

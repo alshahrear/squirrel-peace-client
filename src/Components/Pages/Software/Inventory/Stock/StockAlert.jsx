@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { FaChevronLeft, FaChevronRight, FaRedo, FaTimes } from 'react-icons/fa';
 
-const API = 'http://localhost:5000';
+const API = 'https://squirrel-peace-server.onrender.com';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 

@@ -108,8 +108,8 @@ const Client = () => {
 
         try {
             const url = editingId 
-                ? `http://localhost:5000/client/${editingId}` 
-                : 'http://localhost:5000/client';
+                ? `https://squirrel-peace-server.onrender.com/client/${editingId}` 
+                : 'https://squirrel-peace-server.onrender.com/client';
             
             const method = editingId ? 'PUT' : 'POST';
 

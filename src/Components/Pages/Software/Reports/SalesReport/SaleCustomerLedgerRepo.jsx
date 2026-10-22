@@ -59,12 +59,85 @@ const getAccountLabel = (p) => {
     return a.accountName || 'Cash';
 };
 
+const getStatus = (o) => (o.status === 'Delivered' ? 'Delivered' : 'New Order');
+
+// Searchable dropdown (SR / Delivery Man / Route)
+const FilterSelect = ({ label, placeholder, value, options, onChange, emptyText }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+
+    const list = options.filter((o) => o.toLowerCase().includes((value || '').toLowerCase()));
+
+    return (
+        <div className="relative" ref={ref}>
+            <label className="block text-gray-600 text-[11px] font-semibold mb-1">{label}</label>
+            <div
+                onClick={() => setOpen(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+            >
+                <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => {
+                        onChange(e.target.value);
+                        setOpen(true);
+                    }}
+                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onChange('');
+                            setOpen(false);
+                        }}
+                        className="text-gray-400 hover:text-red-500 pl-1"
+                    >
+                        <FaTimes size={10} />
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                    {list.length > 0 ? (
+                        list.map((o) => (
+                            <div
+                                key={o}
+                                onClick={() => {
+                                    onChange(o);
+                                    setOpen(false);
+                                }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                            >
+                                {o}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">{emptyText}</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const SaleCustomerLedgerRepo = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
     const [orders, setOrders] = useState([]);
     const [customers, setCustomers] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Pagination
@@ -72,7 +145,7 @@ const SaleCustomerLedgerRepo = () => {
     const itemsPerPage = 30;
 
     // Filters
-    const [filters, setFilters] = useState({
+    const EMPTY_FILTERS = {
         startDate: '',
         endDate: '',
         invoiceNo: '',
@@ -80,7 +153,13 @@ const SaleCustomerLedgerRepo = () => {
         method: '',
         account: '',
         dueStatus: '',
-    });
+        sr: '',
+        deliveredBy: '',
+        route: '',
+        status: 'Delivered', // default Delivered
+    };
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [directOnly, setDirectOnly] = useState(false);
 
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
@@ -119,14 +198,17 @@ const SaleCustomerLedgerRepo = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const [sRes, cRes] = await Promise.all([
-                    fetch('http://localhost:5000/sales'),
-                    fetch('http://localhost:5000/customer'),
+                const [sRes, cRes, uRes] = await Promise.all([
+                    fetch('https://squirrel-peace-server.onrender.com/sales'),
+                    fetch('https://squirrel-peace-server.onrender.com/customer'),
+                    fetch('https://squirrel-peace-server.onrender.com/user'),
                 ]);
                 const sData = await sRes.json();
                 const cData = await cRes.json();
+                const uData = await uRes.json().catch(() => []);
                 setOrders(Array.isArray(sData) ? sData : []);
                 setCustomers(Array.isArray(cData) ? cData : []);
+                setUsers(Array.isArray(uData) ? uData : []);
             } catch (error) {
                 console.error('Error fetching customer ledger data:', error);
             } finally {
@@ -150,7 +232,8 @@ const SaleCustomerLedgerRepo = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', invoiceNo: '', customer: '', method: '', account: '', dueStatus: '' });
+        setFilters(EMPTY_FILTERS);
+        setDirectOnly(false);
         setCurrentPage(1);
     };
 
@@ -171,12 +254,16 @@ const SaleCustomerLedgerRepo = () => {
         setIsCustomerOpen(false);
     };
 
-    // Jei order e payment kora hoyeche (Delivered) sheguloi ledger e ashbe (notun payment age)
+    // Delivered (payment kora) + New Order sob ashbe, status filter e alada hobe
     const rows = orders
         .map((o, idx) => ({ o, idx }))
-        .filter(({ o }) => o.status === 'Delivered' && n(o.paidAmount) > 0)
+        .filter(({ o }) => getStatus(o) === 'New Order' || n(o.paidAmount) > 0)
         .map(({ o, idx }) => {
-            const payDate = o.deliveredAt || o.deliveryDate || o.orderDate || '';
+            const status = getStatus(o);
+            const payDate =
+                status === 'Delivered'
+                    ? o.deliveredAt || o.deliveryDate || o.orderDate || ''
+                    : o.createdAt || o.orderDate || '';
             const payable = n(o.payableAmount ?? o.grandTotal);
             const paid = n(o.paidAmount);
             return {
@@ -187,6 +274,11 @@ const SaleCustomerLedgerRepo = () => {
                 payTime: getTime(payDate),
                 invoiceNo: o.invoiceNo || o.orderNo || '',
                 customer: o.customer || '',
+                sr: o.sr || '',
+                deliveredBy: o.deliveredBy || '',
+                route: o.route || '',
+                direct: o.directSales === true,
+                status,
                 method: o.paymentMethod || '',
                 account: getAccountLabel(o),
                 payable,
@@ -197,6 +289,11 @@ const SaleCustomerLedgerRepo = () => {
         .sort((a, b) => b.payTime - a.payTime || b.idx - a.idx);
 
     const methodOptions = [...new Set(rows.map((r) => r.method).filter(Boolean))];
+
+    const uniq = (arr) => [...new Set(arr.filter(Boolean))];
+    const srOptions = uniq(users.filter((u) => u.role === 'SR').map((u) => u.name));
+    const deliveryOptions = uniq(users.filter((u) => u.role === 'Delivery Man').map((u) => u.name));
+    const routeOptions = uniq(orders.map((o) => o.route));
 
     // Account dropdown er list (unique)
     const accountOptions = [...new Set(rows.map((r) => r.account).filter(Boolean))];
@@ -237,6 +334,11 @@ const SaleCustomerLedgerRepo = () => {
         if (filters.account && !r.account?.toLowerCase().includes(filters.account.toLowerCase())) return false;
         if (filters.dueStatus === 'Due' && !(r.due > 0)) return false;
         if (filters.dueStatus === 'NoDue' && !(r.due <= 0)) return false;
+        if (directOnly && !r.direct) return false;
+        if (filters.sr && !r.sr?.toLowerCase().includes(filters.sr.toLowerCase())) return false;
+        if (filters.deliveredBy && !r.deliveredBy?.toLowerCase().includes(filters.deliveredBy.toLowerCase())) return false;
+        if (filters.route && !r.route?.toLowerCase().includes(filters.route.toLowerCase())) return false;
+        if (filters.status && r.status !== filters.status) return false;
         return true;
     });
 
@@ -363,9 +465,23 @@ const SaleCustomerLedgerRepo = () => {
                                 </div>
                             </div>
 
-                            {/* Invoice */}
+                            {/* Invoice + Direct Sales */}
                             <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-gray-600 text-[11px] font-semibold">Invoice Number</label>
+                                    <label className="flex items-center gap-1 text-[10px] font-semibold text-teal-700 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={directOnly}
+                                            onChange={(e) => {
+                                                setDirectOnly(e.target.checked);
+                                                setCurrentPage(1);
+                                            }}
+                                            className="w-3 h-3 accent-teal-600 cursor-pointer"
+                                        />
+                                        Direct Sales
+                                    </label>
+                                </div>
                                 <input
                                     type="text"
                                     name="invoiceNo"
@@ -478,6 +594,60 @@ const SaleCustomerLedgerRepo = () => {
                                 )}
                             </div>
 
+                            {/* SR */}
+                            <FilterSelect
+                                label="SR"
+                                placeholder="Search or select SR..."
+                                value={filters.sr}
+                                options={srOptions}
+                                onChange={(v) => {
+                                    setFilters((prev) => ({ ...prev, sr: v }));
+                                    setCurrentPage(1);
+                                }}
+                                emptyText="No SR found"
+                            />
+
+                            {/* Delivered By */}
+                            <FilterSelect
+                                label="Delivered By"
+                                placeholder="Search or select delivery man..."
+                                value={filters.deliveredBy}
+                                options={deliveryOptions}
+                                onChange={(v) => {
+                                    setFilters((prev) => ({ ...prev, deliveredBy: v }));
+                                    setCurrentPage(1);
+                                }}
+                                emptyText="No delivery man found"
+                            />
+
+                            {/* Route */}
+                            <FilterSelect
+                                label="Route"
+                                placeholder="Search or select route..."
+                                value={filters.route}
+                                options={routeOptions}
+                                onChange={(v) => {
+                                    setFilters((prev) => ({ ...prev, route: v }));
+                                    setCurrentPage(1);
+                                }}
+                                emptyText="No route found"
+                            />
+
+                            {/* Status */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
+                                <select
+                                    name="status"
+                                    value={filters.status}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">All</option>
+                                    <option value="New Order">New Order</option>
+                                    <option value="Delivered">Delivered</option>
+                                </select>
+                            </div>
+
                             {/* Due Status */}
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Due Status</label>
@@ -542,12 +712,14 @@ const SaleCustomerLedgerRepo = () => {
                                         </th>
                                         <th>Date</th>
                                         <th>Invoice</th>
+                                        <th>Info</th>
                                         <th>Customer</th>
                                         <th>Payment Method</th>
                                         <th>Account</th>
                                         <th>Payable Amount</th>
                                         <th>Payment Amount</th>
                                         <th>Due Amount</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -575,12 +747,30 @@ const SaleCustomerLedgerRepo = () => {
                                                     {r.invoiceNo}
                                                 </button>
                                             </td>
+                                            <td className="text-gray-600">
+                                                {r.direct ? (
+                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-[9px] leading-none shadow-sm">
+                                                        ⚡ Direct Sales
+                                                    </span>
+                                                ) : (
+                                                    <div className="space-y-0.5 leading-tight">
+                                                        <div>SR: <b className="text-gray-700">{r.sr || 'N/A'}</b></div>
+                                                        <div>Delivery By: <b className="text-gray-700">{r.deliveredBy || 'N/A'}</b></div>
+                                                        <div>Route: <b className="text-gray-700">{r.route || 'N/A'}</b></div>
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td className="text-gray-600">{r.customer}</td>
                                             <td className="font-semibold text-gray-700">{r.method || 'N/A'}</td>
                                             <td className="text-gray-600">{r.account || 'N/A'}</td>
                                             <td className="font-semibold text-indigo-600">৳{r.payable.toFixed(2)}</td>
                                             <td className="font-bold text-emerald-600">৳{r.paid.toFixed(2)}</td>
                                             <td className={`font-bold ${r.due > 0 ? 'text-rose-600' : 'text-slate-400'}`}>৳{r.due.toFixed(2)}</td>
+                                            <td>
+                                                <span className={`inline-block px-2 py-0.5 rounded-full font-semibold text-[11px] ${r.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    {r.status}
+                                                </span>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
