@@ -243,7 +243,7 @@ const Navbar = () => {
                 <span>Menu</span>
               </button>
             )}
-            <h4>check</h4>
+            <h4>checck</h4>
           </div>
 
           {/* Desktop Nav */}
