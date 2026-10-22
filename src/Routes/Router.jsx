@@ -61,7 +61,7 @@ import StockAdjustmentForm from "../Components/Pages/Software/Inventory/Stock/St
 import StockAdjustmentDetails from "../Components/Pages/Software/Inventory/Stock/StockAdjustmentDetails";
 import PurchaseReportAll from "../Components/Pages/Software/Reports/PurchaseReport/PurchaseReportAll";
 import SalesReportAll from "../Components/Pages/Software/Reports/SalesReport/SalesReportAll";
-import SaleCustomerSumDetails from "../Components/Pages/Software/Reports/SalesReport/SaleCustomersumDetails";
+import SaleCustomerSumDetails from "../Components/Pages/Software/Reports/SalesReport/SaleCustomerSumDetails";
 import StockReportAll from "../Components/Pages/Software/Reports/StockReport/StockReportAll";
 
 
