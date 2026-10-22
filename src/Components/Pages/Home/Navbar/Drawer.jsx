@@ -253,6 +253,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/sales-report", label: "Sales Reports" },
           { to: "/purchase-report", label: "Purchase Reports" },
           { to: "/stock-report", label: "Stock Reports" },
+          { to: "/stock-report", label: "Account Reports" },
       ],
     },
     {
