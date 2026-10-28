@@ -59,11 +59,12 @@ const FilterSelect = ({ label, placeholder, value, options, onChange }) => {
     );
 };
 
-const DamageStockInvoice = ({ focusEvent = null }) => {
+const DamageStockInvoice = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const location = useLocation();
+    const focusEvent = location.state?.focusEvent || null;
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
@@ -194,6 +195,8 @@ const DamageStockInvoice = ({ focusEvent = null }) => {
         return true;
     });
 
+
+
     // History theke Open korle oi invoice highlight hobe
     useEffect(() => {
         if (focusEvent?.id) setHighlightId(String(focusEvent.id));
@@ -222,13 +225,10 @@ const DamageStockInvoice = ({ focusEvent = null }) => {
         return () => document.removeEventListener('mousedown', onDown);
     }, [highlightId]);
 
-    const getDamageAmount = (item) =>
-        (item.damageItems || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
 
     const selectedRows = damageOrders.filter((i) => selectedIds.includes(i._id));
     const isSelectionMode = selectedRows.length > 0;
-    const summaryRows = isSelectionMode ? selectedRows : damageOrders;
-    const grandAmount = summaryRows.reduce((s, i) => s + getDamageAmount(i), 0);
+
 
     const totalPages = Math.ceil(damageOrders.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -380,14 +380,7 @@ const DamageStockInvoice = ({ focusEvent = null }) => {
                         </h2>
                         <p className="text-gray-500 text-sm mt-1">Delivered orders with damage products</p>
                     </div>
-                    <div className="px-4 py-2 rounded-2xl bg-red-50 border border-red-100 text-center">
-                        <div className="text-[10px] font-bold uppercase text-red-400">
-                            {isSelectionMode ? 'Selected Total Amount' : 'Total Amount'}
-                        </div>
-                        <div className="text-lg font-extrabold text-red-600">
-                            ৳{grandAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                        </div>
-                    </div>
+
                 </div>
 
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
@@ -540,7 +533,7 @@ const DamageStockInvoice = ({ focusEvent = null }) => {
                                         <th className="py-3 px-2.5">Delivery Address</th>
                                         <th className="py-3 px-2.5">SR</th>
                                         <th className="py-3 px-2.5">Delivery Man</th>
-                                        <th className="py-3 px-2.5">Total Amount</th>
+
                                         <th className="py-3 px-2.5 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -584,9 +577,7 @@ const DamageStockInvoice = ({ focusEvent = null }) => {
                                             </td>
                                             <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.sr || 'N/A'}</td>
                                             <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.deliveredBy || 'N/A'}</td>
-                                            <td className="py-3 px-2.5 font-bold text-red-600 whitespace-nowrap">
-                                                ৳{getDamageAmount(item).toFixed(2)}
-                                            </td>
+
                                             <td className="py-3 px-2.5 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
                                                     <button

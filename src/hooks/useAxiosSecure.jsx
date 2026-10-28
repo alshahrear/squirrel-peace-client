@@ -1,10 +1,14 @@
 import axios from "axios";
+import { patchAxios } from "../Components/Layout/DataRefresh";
 import { useNavigate } from "react-router-dom";
 import useAuth from "./useAuth";
 
 const axiosSecure = axios.create({
     baseURL: 'https://squirrel-peace-server.onrender.com'
 })
+patchAxios(axiosSecure);
+
+
 const useAxiosSecure = () => {
     const navigate = useNavigate();
     const { logOut } = useAuth();

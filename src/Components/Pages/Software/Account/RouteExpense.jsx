@@ -327,7 +327,7 @@ const RouteExpense = () => {
     const grandTotal = filteredRouteExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-cyan-100 via-blue-50 to-sky-100 p-6 md:p-8 relative">
+        <div className="p-4 md:p-6 relative">
 
             {/* Top Right Toast Notification */}
             {toast.show && (

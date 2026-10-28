@@ -5,6 +5,17 @@ import ProductForm from './ProductForm';
 import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../hooks/useDraftState';
 
+// "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
+const formatCreatedDate = (value) => {
+    if (!value) return '';
+    const datePart = value.split(/[ ,]/)[0];
+    const [day, month, year] = datePart.split('/');
+    if (!day || !month || !year) return value;
+    const dateObj = new Date(year, month - 1, day);
+    if (isNaN(dateObj)) return value;
+    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const ProductAll = () => {
     const navigate = useNavigate();
     const [products, setProducts] = useState([]);
@@ -746,17 +757,15 @@ const ProductAll = () => {
                                 <tr>
                                     <th className="px-3 py-3 text-left">Product Name</th>
                                     <th className="px-3 py-3 text-left">Company</th>
-                                    <th className="px-3 py-3 text-left">SKU</th>
+
                                     <th className="px-3 py-3 text-left">Category</th>
-                                    <th className="px-3 py-3 text-center">Alert Qty</th>
+
                                     <th className="px-3 py-3 text-left">Purchase</th>
                                     <th className="px-3 py-3 text-left">Selling</th>
                                     <th className="px-3 py-3 text-left">MRP</th>
                                     <th className="px-3 py-3 text-left">Unit / Pcs</th>
                                     <th className="px-3 py-3 text-left">Free Item</th>
-                                    <th className="px-3 py-3 text-center">Note</th>
-                                    <th className="px-3 py-3 text-center">Status</th>
-                                    <th className="px-3 py-3 text-left">Created At</th>
+
                                     <th className="px-3 py-3 text-center">Action</th>
                                 </tr>
                             </thead>
@@ -775,17 +784,11 @@ const ProductAll = () => {
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
                                                 {product.company || 'N/A'}
                                             </td>
-                                            <td className="px-3 py-3 whitespace-nowrap">
-                                                <span className="bg-gray-100 px-2 py-0.5 rounded font-mono text-gray-700">
-                                                    {product.sku || 'N/A'}
-                                                </span>
-                                            </td>
+
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
                                                 {product.category || 'N/A'}
                                             </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-center text-amber-600 font-semibold">
-                                                {product.alertQuantity || '0'}
-                                            </td>
+
                                             <td className="px-3 py-3 whitespace-nowrap font-semibold text-rose-600">
                                                 ৳ {product.purchasePrice ? Number(product.purchasePrice).toLocaleString() : '0'}
                                             </td>
@@ -823,32 +826,7 @@ const ProductAll = () => {
                                                 ) : 'None'}
                                             </td>
 
-                                            <td className="px-3 py-3 whitespace-nowrap text-center">
-                                                <button
-                                                    onClick={() => handleOpenModal(product.note)}
-                                                    className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded transition-all font-semibold"
-                                                >
-                                                    <FaEye size={11} /> Note
-                                                </button>
-                                            </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-center">
-                                                <span className={`px-2 py-0.5 rounded-full font-bold ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                    {product.isActive ? 'Active' : 'Inactive'}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 py-2 whitespace-nowrap text-gray-500">
-                                                {product.createdAt ? (
-                                                    <div className="inline-flex flex-col items-start gap-0.5 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                                        <span className="flex items-center gap-1 text-[11px]">
-                                                            <FaClock className="text-indigo-400" size={9} /> {product.createdAt.split(',')[0]}
-                                                        </span>
-                                                        <span className="text-[11px] text-gray-400 pl-3.5">
-                                                            {product.createdAt.split(',')[1]?.trim()}
-                                                        </span>
-                                                    </div>
-                                                ) : 'N/A'}
-                                            </td>
+
                                             <td className="px-3 py-3 whitespace-nowrap text-center font-medium relative">
                                                 <div className="relative inline-block action-dropdown-container">
                                                     <button
@@ -911,7 +889,7 @@ const ProductAll = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="14" className="text-center py-10 text-gray-400 text-sm">
+                                        <td colSpan="9" className="text-center py-10 text-gray-400 text-sm">
                                             No matching products found!
                                         </td>
                                     </tr>

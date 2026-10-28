@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -307,17 +307,84 @@ const KindStack = ({ notes, ...rest }) => (
 );
 
 // Cost sudhu paid qty diye hisab hobe, free qty er kono effect nai
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const getCost = (b) => {
     if (b.isFreeProduct) return 0;
     const origPaid = Number(b.origPaidQty ?? b.paidQty) || 0;
-    return origPaid > 0 ? (Number(b.netCost) || 0) / origPaid : 0;
+    return origPaid > 0 ? r2((Number(b.netCost) || 0) / origPaid) : 0;
 };
 const getValue = (b) => {
     if (b.isFreeProduct) return 0;
-    return getCost(b) * (Number(b.availPaidQty) || 0);
+    return r2(getCost(b) * (Number(b.availPaidQty) || 0));
 };
 
-const StockPurchase = ({ focusEvent = null }) => {
+// Batch theke bikri hoyeche tar profit (main sell = revenue, cost = paid pool er cost)
+const calcProfit = (b, sales, unitCost) => {
+    const map = new Map();
+    let revenue = 0;
+    let cost = 0;
+    let pcs = 0;
+    let costPcs = 0;
+    let sellPcs = 0;
+    (sales || []).forEach((s) =>
+        (s.stockAllocations || []).forEach((a) => {
+            if (String(a.batchId) !== String(b._id)) return;
+            const net = Math.max((Number(a.qty) || 0) - (Number(a.returned) || 0), 0);
+            if (net <= 0) return;
+            const kind = a.kind || 'main';
+            let r = 0;
+            if (kind === 'main') {
+                const it = (s.items || []).find((x) => String(x.productId) === String(a.productId));
+                if (it) {
+                    const tp = Number(it.totalPcs) || 0;
+                    const tot = Number(it.itemTotal ?? it.subtotal);
+                    // product discount er por sob item er total
+                    const itemsSum = (s.items || []).reduce((sum, x) => sum + (Number(x.itemTotal ?? x.subtotal) || 0), 0);
+                    // overall discount + adjustment er por amount (damage/return adjustment bad diye)
+                    const hasPayable = s.payableAmount !== undefined && s.payableAmount !== null && s.payableAmount !== '';
+                    const base =
+                        (Number(s.payableAmount) || 0) +
+                        (Number(s.damageAdjustmentAmount) || 0) +
+                        (Number(s.returnAdjustmentAmount) || 0);
+                    const ratio = hasPayable && itemsSum > 0 ? base / itemsSum : 1;
+                    const unit = tp > 0 && !isNaN(tot) ? (tot * ratio) / tp : Number(it.sellPricePcs ?? it.sellPrice) || 0;
+                    r = r2(unit * net);
+                }
+            }
+            const c = getPool(a) === 'paid' && !b.isFreeProduct ? r2(unitCost * net) : 0;
+            const rq = r > 0 ? net : 0;
+            const cq = c > 0 ? net : 0;
+            revenue += r;
+            cost += c;
+            pcs += net;
+            sellPcs += rq;
+            costPcs += cq;
+            const k = String(s._id);
+            if (!map.has(k)) {
+                map.set(k, { key: k, saleId: s._id, orderNo: s.orderNo, customer: s.customer, date: s.deliveryDate || s.orderDate, pcs: 0, revenue: 0, cost: 0, costPcs: 0, sellPcs: 0 });
+            }
+            const g = map.get(k);
+            g.pcs += net;
+            g.revenue += r;
+            g.cost += c;
+            g.sellPcs += rq;
+            g.costPcs += cq;
+        })
+    );
+    return {
+        revenue: r2(revenue),
+        cost: r2(cost),
+        profit: r2(r2(revenue) - r2(cost)),
+        pcs,
+        costPcs,
+        sellPcs,
+        lines: Array.from(map.values()).map((g) => ({ ...g, revenue: r2(g.revenue), cost: r2(g.cost) })).reverse(),
+    };
+};
+
+const StockPurchase = () => {
+    const location = useLocation();
+    const focusEvent = location.state?.focusEvent || null;
     const [batches, setBatches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -631,6 +698,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                 availPaidQty: availPaid,
                 availFreeQty: availFree,
                 hasReturn: retTotal > 0,
+                profitInfo: calcProfit(b, sales, origPaid > 0 ? r2((Number(b.netCost) || 0) / origPaid) : 0),
                 sbPaid: sb.paid,
                 sbFree: sb.free,
                 dmgPaid: dm.paid,
@@ -671,7 +739,9 @@ const StockPurchase = ({ focusEvent = null }) => {
                 totalQty: o.rows.reduce((s, r) => s + (Number(r.availableQty) || 0), 0),
                 totalFree: 0,
                 totalOthersFree: 0,
-                totalValue: o.rows.reduce((s, r) => s + getValue(r), 0),
+                totalValue: r2(o.rows.reduce((s, r) => s + getValue(r), 0)),
+                totalProfit: r2(o.rows.reduce((s, r) => s + (r.profitInfo?.profit || 0), 0)),
+                totalSoldPcs: o.rows.reduce((s, r) => s + (r.profitInfo?.pcs || 0), 0),
             }))
             .reverse(); // notun order upore
     }, [stockRows, search]);
@@ -862,7 +932,7 @@ const StockPurchase = ({ focusEvent = null }) => {
     const grandQty = orders.reduce((s, o) => s + o.totalQty, 0);
     const grandFree = orders.reduce((s, o) => s + (o.totalFree || 0), 0);
     const grandOthersFree = orders.reduce((s, o) => s + (o.totalOthersFree || 0), 0);
-    const grandValue = orders.reduce((s, o) => s + o.totalValue, 0);
+    const grandValue = r2(orders.reduce((s, o) => s + o.totalValue, 0));
 
     const toggleOrder = (key) => setOpenOrders((prev) => ({ ...prev, [key]: !prev[key] }));
     const allOpen = orders.length > 0 && orders.every((o) => openOrders[o.key]);
@@ -959,6 +1029,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                 <th className="py-3 px-3">Available Qty</th>
                                                 <th className="py-3 px-3 text-center">Per Pcs Price </th>
 
+                                                <th className="py-3 px-3 text-right">Profit</th>
                                                 <th className="py-3 px-3 text-right">Total Value</th>
                                             </tr>
                                         </thead>
@@ -1040,6 +1111,9 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                             >
                                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                                             </svg>
+                                                        </td>
+                                                        <td className={`py-3 px-3 text-right text-sm font-extrabold whitespace-nowrap ${order.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                            ৳{fmt(order.totalProfit)} <span className="text-[11px] text-gray-500 font-bold">({fmt(order.totalSoldPcs)} pcs)</span>
                                                         </td>
                                                         <td className="py-3 px-3 text-right text-sm font-extrabold text-emerald-700 whitespace-nowrap">
                                                             ৳{fmt(order.totalValue)}
@@ -1140,6 +1214,13 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                                         )}
                                                                     </td>
 
+                                                                    <td className={`py-2.5 px-3 text-right font-bold whitespace-nowrap ${(b.profitInfo?.profit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                                        {(b.profitInfo?.pcs || 0) > 0 ? (
+                                                                            <>৳{fmt(b.profitInfo.profit)} <span className="text-[11px] text-gray-500">({fmt(b.profitInfo.pcs)} pcs)</span></>
+                                                                        ) : (
+                                                                            <span className="text-gray-300">—</span>
+                                                                        )}
+                                                                    </td>
                                                                     <td className="py-2.5 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">
                                                                         {b.isFreeProduct ? <span className="text-gray-300">—</span> : `৳${fmt(value)}`}
                                                                     </td>
@@ -1334,6 +1415,17 @@ const StockPurchase = ({ focusEvent = null }) => {
                             })
                             .filter(Boolean)
                             .sort((x, y) => y.ts - x.ts);
+                        const pInfo = salesRow.profitInfo || { revenue: 0, cost: 0, profit: 0, pcs: 0, lines: [] };
+                        cards.splice(cards.length - 1, 0, {
+                            key: 'profit',
+                            label: 'Profit',
+                            value: pInfo.profit,
+                            money: true,
+                            box: pInfo.profit >= 0 ? 'bg-lime-50 border-lime-100' : 'bg-red-50 border-red-100',
+                            lbl: pInfo.profit >= 0 ? 'text-lime-500' : 'text-red-400',
+                            val: pInfo.profit >= 0 ? 'text-lime-600' : 'text-red-600',
+                            ring: 'ring-lime-400',
+                        });
                         const hv = highlight[salesRow._id] ? highlightEv : null;
                         const hlCls = 'bg-amber-100';
                         // Proti return entry alada row (company tab er moto), newest age
@@ -1603,7 +1695,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                 name: salesRow.productName,
                                 qty: {},
                                 total,
-                                value: paidQ * (Number(it?.buyPrice) || 0),
+                                value: r2(paidQ * (Number(it?.buyPrice) || 0)),
                                 notes,
                             };
                         }).filter(Boolean).reverse();
@@ -1652,7 +1744,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                     date: d.damageDate,
                                     note: d.note || '',
                                     total,
-                                    value: paidQ * getCost(salesRow),
+                                    value: r2(paidQ * getCost(salesRow)),
                                 };
                             })
                             .filter(Boolean)
@@ -1763,7 +1855,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                     </div>
 
                                     <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-                                        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-8 gap-3">
                                             {cards.map((c) => (
                                                 <button
                                                     key={c.key}
@@ -1772,7 +1864,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                     className={`rounded-2xl border px-3 py-3 text-center transition cursor-pointer hover:shadow-md ${c.box} ${salesTab === c.key ? `ring-2 ${c.ring} shadow-md` : ''}`}
                                                 >
                                                     <div className={`text-[10px] font-bold uppercase ${c.lbl}`}>{c.label}</div>
-                                                    <div className={`text-base font-extrabold ${c.val}`}>{fmt(c.value)} pcs</div>
+                                                    <div className={`text-base font-extrabold ${c.val}`}>{c.money ? `৳${fmt(c.value)}` : `${fmt(c.value)} pcs`}</div>
                                                 </button>
                                             ))}
                                         </div>
@@ -1899,7 +1991,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                                 <td className="py-3 px-3 whitespace-nowrap">
                                                                     <KindStack valueClass="text-orange-600" parts={companyParts(compTotals)} />
                                                                 </td>
-                                                                <td className="py-3 px-3 text-right text-rose-600 whitespace-nowrap">৳{fmt(companyGroups.reduce((s, g) => s + (Number(g.value) || 0), 0))}</td>
+                                                                <td className="py-3 px-3 text-right text-rose-600 whitespace-nowrap">৳{fmt(r2(companyGroups.reduce((s, g) => s + (Number(g.value) || 0), 0)))}</td>
                                                             </tr>
                                                         </tfoot>
                                                     )}
@@ -2099,7 +2191,7 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                                     <KindStack valueClass="text-red-600" parts={toParts(damTotals)} />
                                                                 </td>
                                                                 <td className="py-3 px-3"></td>
-                                                                <td className="py-3 px-3 text-right text-red-600 whitespace-nowrap">৳{fmt(damageGroups.reduce((s, g) => s + (Number(g.value) || 0), 0))}</td>
+                                                                <td className="py-3 px-3 text-right text-red-600 whitespace-nowrap">৳{fmt(r2(damageGroups.reduce((s, g) => s + (Number(g.value) || 0), 0)))}</td>
                                                             </tr>
                                                         </tfoot>
                                                     )}
@@ -2167,6 +2259,72 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                 </table>
                                             )}
 
+                                            {salesTab === 'profit' && (
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead className="sticky top-0">
+                                                        <tr className="bg-lime-50 text-lime-700 text-[11px] font-bold uppercase tracking-wide">
+                                                            <th className={th}>Order No / Date</th>
+                                                            <th className={th}>Customer</th>
+                                                            <th className={`${th} text-right`}>Net Sold</th>
+                                                            <th className={`${th} text-right`}>Cost Amount</th>
+                                                            <th className={`${th} text-right`}>Sell Amount</th>
+                                                            <th className={`${th} text-right`}>Profit</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
+                                                        {pInfo.lines.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
+                                                                    Ei batch theke ekhono kono bikri hoyni
+                                                                </td>
+                                                            </tr>
+                                                        ) : (
+                                                            pInfo.lines.map((l) => {
+                                                                const p = r2(l.revenue - l.cost);
+                                                                return (
+                                                                    <tr key={l.key} className="hover:bg-lime-50/40 transition">
+                                                                        <td className="py-2.5 px-3 whitespace-nowrap">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => window.open(`/sales-details/${l.saleId}`, '_blank')}
+                                                                                className="font-bold text-indigo-600 hover:text-pink-600 hover:underline cursor-pointer"
+                                                                            >
+                                                                                #{l.orderNo}
+                                                                            </button>
+                                                                            <div className="text-[11px] text-gray-500 mt-0.5">{l.date || 'N/A'}</div>
+                                                                        </td>
+                                                                        <td className="py-2.5 px-3 font-semibold text-gray-800 whitespace-nowrap">{l.customer}</td>
+                                                                        <td className="py-2.5 px-3 text-right font-bold text-orange-600 whitespace-nowrap">{fmt(l.pcs)} pcs</td>
+                                                                        <td className="py-2.5 px-3 text-right font-bold text-violet-600 whitespace-nowrap">
+                                                                            ৳{fmt(l.cost)} <span className="text-[11px] text-gray-500">(৳{fmt(l.costPcs > 0 ? l.cost / l.costPcs : 0)}/pcs)</span>
+                                                                        </td>
+                                                                        <td className="py-2.5 px-3 text-right font-bold text-indigo-600 whitespace-nowrap">
+                                                                            ৳{fmt(l.revenue)} <span className="text-[11px] text-gray-500">(৳{fmt(l.sellPcs > 0 ? l.revenue / l.sellPcs : 0)}/pcs)</span>
+                                                                        </td>
+                                                                        <td className={`py-2.5 px-3 text-right font-extrabold whitespace-nowrap ${p >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{fmt(p)}</td>
+                                                                    </tr>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </tbody>
+                                                    {pInfo.lines.length > 0 && (
+                                                        <tfoot>
+                                                            <tr className="bg-lime-50/60 font-extrabold text-[13px]">
+                                                                <td className="py-3 px-3 text-gray-700" colSpan={2}>Total</td>
+                                                                <td className="py-3 px-3 text-right text-orange-600 whitespace-nowrap">{fmt(pInfo.pcs)} pcs</td>
+                                                                <td className="py-3 px-3 text-right text-violet-600 whitespace-nowrap">
+                                                                    ৳{fmt(pInfo.cost)} <span className="text-[11px] text-gray-500">(৳{fmt(pInfo.costPcs > 0 ? pInfo.cost / pInfo.costPcs : 0)}/pcs)</span>
+                                                                </td>
+                                                                <td className="py-3 px-3 text-right text-indigo-600 whitespace-nowrap">
+                                                                    ৳{fmt(pInfo.revenue)} <span className="text-[11px] text-gray-500">(৳{fmt(pInfo.sellPcs > 0 ? pInfo.revenue / pInfo.sellPcs : 0)}/pcs)</span>
+                                                                </td>
+                                                                <td className={`py-3 px-3 text-right whitespace-nowrap ${pInfo.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{fmt(pInfo.profit)}</td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    )}
+                                                </table>
+                                            )}
+
                                             {salesTab === 'available' && (
                                                 <table className="w-full text-left border-collapse">
                                                     <thead className="sticky top-0">
@@ -2229,6 +2387,12 @@ const StockPurchase = ({ focusEvent = null }) => {
                                                             <td className="py-3 px-3"><AvCell main={adjOutMain} free={0} valueClass="text-indigo-600" /></td>
                                                             <td className="py-3 px-3"><AvCell main={0} free={adjOutFree} valueClass="text-emerald-600" /></td>
                                                             <td className="py-3 px-3"><AvTotal main={adjOutMain} free={adjOutFree} valueClass="text-rose-600" /></td>
+                                                        </tr>
+                                                        <tr className="border-t border-gray-100 text-[13px] text-gray-700">
+                                                            <td className="py-3 px-3 font-semibold">Profit (Net Sold: {fmt(pInfo.pcs)} pcs)</td>
+                                                            <td className="py-3 px-3 text-[12px] font-semibold text-violet-600">Cost: ৳{fmt(pInfo.cost)}</td>
+                                                            <td className="py-3 px-3 text-[12px] font-semibold text-indigo-600">Sell: ৳{fmt(pInfo.revenue)}</td>
+                                                            <td className={`py-3 px-3 font-extrabold ${pInfo.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{fmt(pInfo.profit)}</td>
                                                         </tr>
                                                         <tr className={`font-extrabold text-[13px] ${salesAvailable > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                                                             <td className={`py-3 px-3 sticky bottom-0 z-10 border-t-2 ${salesAvailable > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>Available</td>

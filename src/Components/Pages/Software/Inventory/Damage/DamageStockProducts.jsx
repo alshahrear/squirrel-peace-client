@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo } from 'react-icons/fa';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -46,7 +47,8 @@ const QtyBlock = ({ total, info, valueClass = 'text-gray-800', chipClass = 'bg-g
     );
 };
 
-const DamageStockProducts = ({ onOpenHistory }) => {
+const DamageStockProducts = () => {
+    const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -56,6 +58,8 @@ const DamageStockProducts = ({ onOpenHistory }) => {
     const [damageReturns, setDamageReturns] = useState([]);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [historyShow, setHistoryShow] = useState(false);
+    const [productList, setProductList] = useState([]);
+
 
     useEffect(() => {
         fetch('https://squirrel-peace-server.onrender.com/purchase')
@@ -66,6 +70,10 @@ const DamageStockProducts = ({ onOpenHistory }) => {
             .then((res) => res.json())
             .then((d) => setDamageReturns(Array.isArray(d) ? d : []))
             .catch(() => setDamageReturns([]));
+        fetch('https://squirrel-peace-server.onrender.com/product')
+            .then((res) => res.json())
+            .then((d) => setProductList(Array.isArray(d) ? d : []))
+            .catch(() => setProductList([]));
     }, []);
 
     // Received purchase er damage return (stock theke kome)
@@ -130,7 +138,7 @@ const DamageStockProducts = ({ onOpenHistory }) => {
                             company: company || 'N/A',
                             main: 0,
                             free: 0,
-                            amount: 0,
+                            productId: it.productId,
                             lastIdx: -1,
                             info: null,
                         });
@@ -138,7 +146,7 @@ const DamageStockProducts = ({ onOpenHistory }) => {
                     const g = map.get(key);
                     g.main += Number(it.totalQty) || 0;
                     g.free += Number(it.freeQty) || 0;
-                    g.amount += Number(it.itemTotal ?? it.subtotal) || 0;
+                    if (!g.productId && it.productId) g.productId = it.productId;
                     g.lastIdx = oi;
                     const per = Number(it.pcsPerUnit) || 0;
                     if (per > 1) {
@@ -154,6 +162,13 @@ const DamageStockProducts = ({ onOpenHistory }) => {
         return Array.from(map.values())
             .map((g) => {
                 const r = returnedMap.get(g.key) || { main: 0, free: 0 };
+                const prod =
+                    productList.find((pr) => g.productId && String(pr._id) === String(g.productId)) ||
+                    productList.find(
+                        (pr) =>
+                            `${(pr.productName || '').toString().trim().toLowerCase()}|${(pr.company || '').toString().trim().toLowerCase()}` === g.key
+                    );
+                const unitPrice = Number(prod?.purchasePrice) || 0;
                 const main = Math.max(g.main - r.main, 0);
                 const free = Math.max(g.free - r.free, 0);
                 const oldTotal = g.main + g.free;
@@ -162,12 +177,13 @@ const DamageStockProducts = ({ onOpenHistory }) => {
                     main,
                     free,
                     total: main + free,
-                    amount: oldTotal > 0 ? g.amount * ((main + free) / oldTotal) : 0,
+                    unitPrice,
+                    estimateValue: Math.round(unitPrice * (main + free) * 100) / 100,
                 };
             })
             .filter((g) => g.total > 0)
             .sort((a, b) => b.lastIdx - a.lastIdx);
-    }, [orders, returnedMap]);
+    }, [orders, returnedMap, productList]);
 
     // ===== Overall History (Stock In / Stock Out, latest 30) =====
     const HISTORY_STYLE = {
@@ -284,7 +300,7 @@ const DamageStockProducts = ({ onOpenHistory }) => {
         setHistoryShow(false);
         setTimeout(() => {
             setHistoryOpen(false);
-            if (onOpenHistory) onOpenHistory(e);
+            navigate('/damage-stock-single-invoice', { state: { focusEvent: e } });
         }, 300);
     };
 
@@ -306,7 +322,7 @@ const DamageStockProducts = ({ onOpenHistory }) => {
 
     const grandMain = summaryRows.reduce((s, p) => s + p.main, 0);
     const grandFree = summaryRows.reduce((s, p) => s + p.free, 0);
-    const grandAmount = summaryRows.reduce((s, p) => s + p.amount, 0);
+    const grandEstimate = summaryRows.reduce((s, p) => s + p.estimateValue, 0);
     const grandTotal = grandMain + grandFree;
 
     return (
@@ -429,8 +445,8 @@ const DamageStockProducts = ({ onOpenHistory }) => {
                             <div className="text-lg font-extrabold text-pink-700">{fmt(grandTotal)} pcs</div>
                         </div>
                         <div className="px-4 py-2 rounded-2xl bg-red-50 border border-red-100 text-center">
-                            <div className="text-[10px] font-bold uppercase text-red-400">Total Amount</div>
-                            <div className="text-lg font-extrabold text-red-600">৳{fmt(grandAmount)}</div>
+                            <div className="text-[10px] font-bold uppercase text-red-400">Estimate Damage Value</div>
+                            <div className="text-lg font-extrabold text-red-600">৳{fmt(grandEstimate)}</div>
                         </div>
                     </div>
                 </div>
@@ -504,7 +520,7 @@ const DamageStockProducts = ({ onOpenHistory }) => {
                                         <th className="py-3 px-3">Main Qty</th>
                                         <th className="py-3 px-3">Free Qty</th>
                                         <th className="py-3 px-3">Total Qty</th>
-                                        <th className="py-3 px-3 text-right">Total Amount</th>
+                                        <th className="py-3 px-3 text-right">Estimate Damage Value</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -526,7 +542,14 @@ const DamageStockProducts = ({ onOpenHistory }) => {
                                                 <QtyBlock total={p.total} info={p.info} valueClass="text-violet-700" chipClass="bg-gradient-to-r from-violet-50 to-pink-100 border-violet-200 text-violet-600" />
                                             </td>
                                             <td className="py-3 px-3 text-right font-extrabold text-red-600 whitespace-nowrap">
-                                                ৳{fmt(p.amount)}
+                                                {p.estimateValue > 0 ? (
+                                                    <>
+                                                        ৳{fmt(p.estimateValue)}
+                                                        <span className="ml-1 text-[11px] text-gray-500 font-semibold">(৳{fmt(p.unitPrice)}/pcs)</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-gray-300">—</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

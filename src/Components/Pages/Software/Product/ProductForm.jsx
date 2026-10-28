@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FaBox, FaBuilding, FaBarcode, FaTags, FaExclamationTriangle, FaDollarSign, FaBalanceScale, FaGift, FaStickyNote, FaTimes, FaEdit, FaSave, FaChevronDown } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaBox, FaBuilding, FaBarcode, FaTags, FaExclamationTriangle, FaDollarSign, FaBalanceScale, FaGift, FaStickyNote, FaTimes, FaEdit, FaSave, FaChevronDown, FaPlus } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProducts, setIsFormOpen, showToast, products = [] }) => {
+    const navigate = useNavigate();
     const [companies, setCompanies] = useState([]);
     const [categories, setCategories] = useState([]);
     const [units, setUnits] = useState([]);
@@ -250,9 +252,19 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
 
                     {/* Company */}
                     <div className="relative">
-                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                            <FaBuilding className="text-indigo-500" /> Company <span className="text-red-500">*</span>
-                        </label>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-gray-700 text-xs font-semibold flex items-center gap-1.5">
+                                <FaBuilding className="text-indigo-500" /> Company <span className="text-red-500">*</span>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/company')}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-pink-600 transition-colors cursor-pointer"
+                            >
+                                <FaPlus size={10} />
+                                Add Company
+                            </button>
+                        </div>
                         <div className="relative">
                             <input
                                 type="text"
@@ -320,9 +332,19 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
 
                     {/* Category */}
                     <div className="relative">
-                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                            <FaTags className="text-indigo-500" /> Category
-                        </label>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-gray-700 text-xs font-semibold flex items-center gap-1.5">
+                                <FaTags className="text-indigo-500" /> Category
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/category')}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-pink-600 transition-colors cursor-pointer"
+                            >
+                                <FaPlus size={10} />
+                                Add Category
+                            </button>
+                        </div>
                         <div className="relative">
                             <input
                                 type="text"
@@ -475,9 +497,19 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                         {/* Unit */}
                         <div className="relative">
                             <div className="flex items-center justify-between mb-1.5 h-6">
-                                <label className="block text-gray-700 text-xs font-semibold flex items-center gap-1.5">
-                                    <FaBalanceScale className="text-indigo-500" /> Unit <span className="text-red-500">*</span>
-                                </label>
+                                <div className="flex items-center gap-2">
+                                    <label className="block text-gray-700 text-xs font-semibold flex items-center gap-1.5">
+                                        <FaBalanceScale className="text-indigo-500" /> Unit <span className="text-red-500">*</span>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/units')}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-pink-600 transition-colors cursor-pointer"
+                                    >
+                                        <FaPlus size={10} />
+                                        Add Unit
+                                    </button>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() =>
@@ -784,7 +816,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
                             }`}
                     >
-                        {editingId ? 'Update Product Details' : 'Submit Product'}
+                        {editingId ? 'Update Product Details' : 'Add Product'}
                     </button>
                 </div>
             </form>

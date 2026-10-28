@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
 
 const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved }) => {
+    const navigate = useNavigate();
     const draftKey = editingUser ? `userForm:${editingUser._id}` : 'userForm:new';
     const [formData, setFormData] = useDraftState(draftKey, () => ({
         name: editingUser?.name || '',
@@ -192,7 +194,19 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Role <span className="text-red-500">*</span></label>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-semibold text-gray-700">Role <span className="text-red-500">*</span></label>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/user-role')}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-pink-600 transition-colors cursor-pointer"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                Add Role
+                            </button>
+                        </div>
                         <select
                             name="role"
                             value={formData.role}
@@ -277,7 +291,7 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
                             disabled={loading}
                             className="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                         >
-                            {loading ? (editingUser ? 'Updating User...' : 'Saving User...') : (editingUser ? 'Update User' : 'Submit User')}
+                            {loading ? (editingUser ? 'Adding User...' : 'Saving User...') : (editingUser ? 'Update User' : 'Add User')}
                         </button>
                     </div>
                 </div>

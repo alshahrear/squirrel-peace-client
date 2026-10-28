@@ -833,6 +833,16 @@ const SalesDetails = () => {
                                     </span>
                                     <span className={`font-semibold shrink-0 ${selectedOrder.adjustment.type === '-' ? 'text-rose-600' : 'text-slate-800'}`}>
                                         {selectedOrder.adjustment.type === '-' ? '- ' : '+ '}৳{Number(selectedOrder.adjustment.amount).toFixed(2)}
+                                        <span className="text-[10px] text-slate-400 ml-1">
+                                            ({(() => {
+                                                const base = totals
+                                                    ? totals.afterProduct - totals.overallAmt
+                                                    : baseSubTotal - Number(selectedOrder.productWiseDiscount) - Number(selectedOrder.overallDiscountValue ?? 0);
+                                                return base > 0
+                                                    ? ((Number(selectedOrder.adjustment.amount) / base) * 100).toFixed(2)
+                                                    : '0.00';
+                                            })()}%)
+                                        </span>
                                     </span>
                                 </div>
                             )}

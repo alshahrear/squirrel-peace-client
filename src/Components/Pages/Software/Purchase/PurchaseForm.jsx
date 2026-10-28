@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../hooks/useDraftState';
 
 const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initialData = null, onCompanyClear, draftKey = 'purchaseNew' }) => {
+    const navigate = useNavigate();
+
     // আজকের ডেট ফরম্যাট করার ফাংশন (যেমন: "06 Sep 2026")
     const getFormattedToday = () => {
         const today = new Date();
@@ -260,7 +263,21 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         {/* Company Selection */}
                         <div className="relative" ref={dropdownRef}>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Company <span className="text-rose-500">*</span></label>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-semibold text-slate-700">Company <span className="text-rose-500">*</span></label>
+                                {!isCompanyLocked && (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/company')}
+                                        className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-teal-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                        </svg>
+                                        Add Company
+                                    </button>
+                                )}
+                            </div>
                             <div
                                 onClick={() => {
                                     if (!isCompanyLocked) setIsCompanyOpen(true);
@@ -331,7 +348,19 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
 
                         {/* Category Selection */}
                         <div className="relative" ref={categoryDropdownRef}>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-semibold text-slate-700">Category</label>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/category')}
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-teal-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                    Add Category
+                                </button>
+                            </div>
                             <div
                                 onClick={() => setIsCategoryOpen(true)}
                                 className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm text-slate-700 shadow-sm cursor-pointer flex items-center justify-between transition-colors focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100"
@@ -409,9 +438,21 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
                     {/* Product Selection Row */}
                     <div className="grid grid-cols-1">
                         <div className="relative" ref={productDropdownRef}>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Select Product <span className="text-rose-500">*</span> {!formData.company && <span className="text-xs text-amber-500 font-normal">(Please select a company first)</span>}
-                            </label>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-semibold text-slate-700">
+                                    Select Product <span className="text-rose-500">*</span> {!formData.company && <span className="text-xs text-amber-500 font-normal">(Please select a company first)</span>}
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/product')}
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-teal-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                    Add Product
+                                </button>
+                            </div>
                             <div
                                 onClick={() => {
                                     if (formData.company) setIsProductOpen(true);

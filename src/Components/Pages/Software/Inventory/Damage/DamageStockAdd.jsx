@@ -285,6 +285,27 @@ const getPcsTotal = (i) => (Number(i.pcsQty) || 0) * (Number(i.sellPricePcs) || 
 const getSubTotal = (i) => (Number(i.subQty) || 0) * (Number(i.sellPriceSub) || 0);
 const getRowGross = (i) => getUnitTotal(i) + getSubTotal(i) + getPcsTotal(i);
 
+// Stock er batch (FIFO) onujayi main qty er cost hisab
+const getCostBreakdown = (stock, qty) => {
+    let remaining = Number(qty) || 0;
+    const lines = [];
+    (stock?.batches || []).forEach((b) => {
+        if (remaining <= 0) return;
+        const take = Math.min(Number(b.paid) || 0, remaining);
+        if (take <= 0) return;
+        const cost = Number(b.cost) || 0;
+        lines.push({
+            batchNo: b.batchNo,
+            invoiceNo: b.invoiceNo,
+            qty: take,
+            cost,
+            amount: roundTo2(take * cost),
+        });
+        remaining -= take;
+    });
+    return lines;
+};
+
 const DamageStockAdd = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -467,7 +488,13 @@ const DamageStockAdd = () => {
     };
 
     // ---------- Totals ----------
-    const subTotal = roundTo2(items.reduce((t, i) => t + getRowGross(i), 0));
+    const isStockMode = !formData.customerId;
+    const getItemBreakdown = (item) => getCostBreakdown(getStock(item), item.totalQty);
+    const getItemAmount = (item) =>
+        isStockMode
+            ? roundTo2(getItemBreakdown(item).reduce((s, l) => s + l.amount, 0))
+            : roundTo2(getRowGross(item));
+    const subTotal = roundTo2(items.reduce((t, i) => t + getItemAmount(i), 0));
     const damageAmount = subTotal;
     const uniqueUnits = [...new Set(items.map((i) => i.unit || 'Pcs'))];
     const sellPriceUnitLabel = uniqueUnits.length === 1 ? uniqueUnits[0] : 'Unit';
@@ -498,9 +525,9 @@ const DamageStockAdd = () => {
             productName: i.productName,
             company: i.company,
             sku: i.sku,
-            sellPricePcs: roundTo2(i.sellPricePcs),
-            sellPriceUnit: roundTo2(i.sellPriceUnit),
-            sellPriceSub: roundTo2(i.sellPriceSub),
+            sellPricePcs: isStockMode ? 0 : roundTo2(i.sellPricePcs),
+            sellPriceUnit: isStockMode ? 0 : roundTo2(i.sellPriceUnit),
+            sellPriceSub: isStockMode ? 0 : roundTo2(i.sellPriceSub),
             unit: i.unit || 'Pcs',
             parentMode: i.parentMode === true,
             subUnit: i.subUnit || '',
@@ -514,7 +541,8 @@ const DamageStockAdd = () => {
             freeSubQty: Number(i.freeSubQty) || 0,
             freePcsQty: Number(i.freePcsQty) || 0,
             freeQty: Number(i.freeQty) || 0,
-            itemTotal: roundTo2(getRowGross(i)),
+            itemTotal: getItemAmount(i),
+            costBreakdown: isStockMode ? getItemBreakdown(i) : [],
         }));
 
         const payload = {
@@ -554,7 +582,7 @@ const DamageStockAdd = () => {
             }
             await res.json();
             showToast(isEditMode ? 'Damage updated successfully!' : 'Damage added successfully!');
-            setTimeout(() => navigate('/damage-products', { replace: true, state: null }), 1000);
+            setTimeout(() => navigate('/damage-stock-invoice', { replace: true }), 1000);
         } catch (error) {
             console.error(error);
             setIsSaving(false);
@@ -708,18 +736,31 @@ const DamageStockAdd = () => {
                     <form onSubmit={handleSubmit}>
                         <div className="overflow-x-auto rounded-2xl border border-red-200">
                             <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
-                                <colgroup>
-                                    <col style={{ width: '13%' }} />
-                                    <col style={{ width: '8%' }} />
-                                    <col style={{ width: '12%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '12%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '10%' }} />
-                                    <col style={{ width: '5%' }} />
-                                </colgroup>
+                                {isStockMode ? (
+                                    <colgroup>
+                                        <col style={{ width: '18%' }} />
+                                        <col style={{ width: '10%' }} />
+                                        <col style={{ width: '15%' }} />
+                                        <col style={{ width: '12%' }} />
+                                        <col style={{ width: '15%' }} />
+                                        <col style={{ width: '12%' }} />
+                                        <col style={{ width: '13%' }} />
+                                        <col style={{ width: '5%' }} />
+                                    </colgroup>
+                                ) : (
+                                    <colgroup>
+                                        <col style={{ width: '13%' }} />
+                                        <col style={{ width: '8%' }} />
+                                        <col style={{ width: '12%' }} />
+                                        <col style={{ width: '9%' }} />
+                                        <col style={{ width: '12%' }} />
+                                        <col style={{ width: '9%' }} />
+                                        <col style={{ width: '11%' }} />
+                                        <col style={{ width: '11%' }} />
+                                        <col style={{ width: '10%' }} />
+                                        <col style={{ width: '5%' }} />
+                                    </colgroup>
+                                )}
                                 <thead>
                                     <tr className="bg-red-100/70 border-b-2 border-red-200 text-xs font-semibold text-red-800">
                                         <th className="py-3 px-3">Product Name</th>
@@ -728,16 +769,17 @@ const DamageStockAdd = () => {
                                         <th className="py-3 pl-3 pr-2">PCS Qty</th>
                                         <th className="py-3 pl-4 pr-1">Free Unit</th>
                                         <th className="py-3 pl-3 pr-2">Free PCS</th>
-                                        <th className="py-3 px-3">Sell Price ({sellPriceUnitLabel})</th>
-                                        <th className="py-3 px-3">Sell Price (PCS)</th>
-                                        <th className="py-3 px-3">Item Total</th>
+                                        <th className={isStockMode ? 'hidden' : 'py-3 px-3'}>Sell Price ({sellPriceUnitLabel})</th>
+                                        <th className={isStockMode ? 'hidden' : 'py-3 px-3'}>Sell Price (PCS)</th>
+                                        <th className="py-3 px-3">{isStockMode ? 'Cost Total' : 'Item Total'}</th>
                                         <th className="py-3 px-3 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-red-100 text-sm">
                                     {items.length > 0 ? (
                                         items.map((item) => {
-                                            const rowGross = getRowGross(item);
+                                            const rowGross = getItemAmount(item);
+                                            const breakdown = isStockMode ? getItemBreakdown(item) : [];
                                             const unitLabel = item.unit || 'Pcs';
                                             const ch = (field) => (v) => handleItemChange(item.uniqueId, field, v);
                                             return (
@@ -797,7 +839,7 @@ const DamageStockAdd = () => {
                                                         </div>
                                                     </td>
 
-                                                    <td className="relative py-3 px-2">
+                                                    <td className={isStockMode ? 'hidden' : 'relative py-3 px-2'}>
                                                         <div className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
                                                             ৳{getUnitTotal(item).toFixed(2)}
                                                         </div>
@@ -824,7 +866,7 @@ const DamageStockAdd = () => {
                                                         )}
                                                     </td>
 
-                                                    <td className="relative py-3 px-2">
+                                                    <td className={isStockMode ? 'hidden' : 'relative py-3 px-2'}>
                                                         <div className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getPcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}>
                                                             ৳{getPcsTotal(item).toFixed(2)}
                                                         </div>
@@ -837,7 +879,18 @@ const DamageStockAdd = () => {
                                                         />
                                                     </td>
 
-                                                    <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">{rowGross.toFixed(2)}</td>
+                                                    <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
+                                                        {rowGross.toFixed(2)}
+                                                        {breakdown.length > 0 && (
+                                                            <div className="mt-1 space-y-0.5 font-normal">
+                                                                {breakdown.map((l) => (
+                                                                    <div key={l.batchNo} className="text-[10px] text-slate-500">
+                                                                        #{l.invoiceNo}: {l.qty} × ৳{l.cost}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </td>
 
                                                     <td className="py-3 px-1 text-center">
                                                         <button type="button" onClick={() => handleRemoveItem(item.uniqueId)} className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition cursor-pointer">
@@ -849,7 +902,7 @@ const DamageStockAdd = () => {
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan="10" className="text-center py-8 text-slate-400 text-sm">
+                                            <td colSpan={isStockMode ? 8 : 10} className="text-center py-8 text-slate-400 text-sm">
                                                 No products added yet. Please select a product above.
                                             </td>
                                         </tr>

@@ -32,6 +32,17 @@ const InfoCard = ({ icon, label, children, iconBg = 'bg-indigo-50 text-indigo-60
 
 const NA = () => <span className="text-gray-400 italic font-normal">N/A</span>;
 
+// "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
+const formatCreatedDate = (value) => {
+    if (!value) return '';
+    const datePart = value.split(/[ ,]/)[0];
+    const [day, month, year] = datePart.split('/');
+    if (!day || !month || !year) return value;
+    const dateObj = new Date(year, month - 1, day);
+    if (isNaN(dateObj)) return value;
+    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const CustomersDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -216,7 +227,7 @@ const CustomersDetails = () => {
                         iconBg="bg-indigo-50 text-indigo-600"
                         className="sm:col-span-2"
                     >
-                        {customer.createdAt || <NA />}
+                        {customer.createdAt ? formatCreatedDate(customer.createdAt) : <NA />}
                     </InfoCard>
                 </div>
 

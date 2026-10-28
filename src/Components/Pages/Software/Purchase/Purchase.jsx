@@ -35,6 +35,8 @@ const Purchase = () => {
 
     // Action Dropdown state (কোন রো এর ড্রপডাউন ওপেন আছে তা ট্র্যাক করার জন্য)
     const [openDropdownId, setOpenDropdownId] = useState(null);
+    // Received purchase er Edit submenu (Purchase Edit / Receive Edit)
+    const [editMenuId, setEditMenuId] = useState(null);
 
     // Checkbox selection state
     const [selectedIds, setSelectedIds] = useState([]);
@@ -242,6 +244,20 @@ const Purchase = () => {
     // Edit Purchase Handler -> navigate to /add-purchase with data
     const handleEdit = (item) => {
         setOpenDropdownId(null);
+        navigate('/add-purchase', { state: { purchase: item } });
+    };
+
+    // Purchase Edit (original order edit) -> save er por shorashori Receive page e jabe
+    const handleEditOrder = (item) => {
+        setOpenDropdownId(null);
+        setEditMenuId(null);
+        navigate('/add-purchase', { state: { purchase: item, mode: 'orderEdit' } });
+    };
+
+    // Receive Edit (received qty edit)
+    const handleEditReceived = (item) => {
+        setOpenDropdownId(null);
+        setEditMenuId(null);
         navigate('/add-purchase', { state: { purchase: item } });
     };
 
@@ -976,7 +992,7 @@ const Purchase = () => {
                                                                     </button>
                                                                 )}
 
-                                                            {item.receiveStatus !== 'Received' && (
+                                                            {!isReceived(item) && (
                                                                 <button
                                                                     onClick={() => handleReceive(item)}
                                                                     className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
@@ -1001,7 +1017,11 @@ const Purchase = () => {
 
                                                             {!soldPurchaseIds.has(String(item._id)) && (item.returnHistory || []).length === 0 && (
                                                                 <button
-                                                                    onClick={() => handleEdit(item)}
+                                                                    onClick={() =>
+                                                                        isReceived(item)
+                                                                            ? setEditMenuId(editMenuId === item._id ? null : item._id)
+                                                                            : handleEdit(item)
+                                                                    }
                                                                     className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
                                                                 >
                                                                     <svg
@@ -1020,6 +1040,22 @@ const Purchase = () => {
                                                                     </svg>
                                                                     Edit
                                                                 </button>
+                                                            )}
+                                                            {isReceived(item) && editMenuId === item._id && !soldPurchaseIds.has(String(item._id)) && (item.returnHistory || []).length === 0 && (
+                                                                <div className="mx-3 mb-1 rounded-xl border border-indigo-100 bg-indigo-50/60 overflow-hidden">
+                                                                    <button
+                                                                        onClick={() => handleEditOrder(item)}
+                                                                        className="w-full px-3 py-2 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 text-left cursor-pointer"
+                                                                    >
+                                                                        Purchase Edit
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleEditReceived(item)}
+                                                                        className="w-full px-3 py-2 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 text-left border-t border-indigo-100 cursor-pointer"
+                                                                    >
+                                                                        Receive Edit
+                                                                    </button>
+                                                                </div>
                                                             )}
                                                             <button
                                                                 onClick={() => handleDelete(item._id)}

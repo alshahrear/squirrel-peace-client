@@ -53,7 +53,7 @@ const StockAdjustmentDetails = () => {
             });
     }, [id]);
 
-    const goBack = () => navigate('/stock-all', { state: { tab: 'adjustment' } });
+       const goBack = () => navigate('/stock-adjustment');
 
     if (loading) {
         return (

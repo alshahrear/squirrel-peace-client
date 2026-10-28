@@ -17,7 +17,7 @@ const UserRole = () => {
     const fetchRoles = async () => {
         try {
             const response = await axios.get('https://squirrel-peace-server.onrender.com/userRole');
-            setRoles(response.data);
+            setRoles([...response.data].reverse());
         } catch (error) {
             toast.error('Failed to load roles');
         }
@@ -44,7 +44,7 @@ const UserRole = () => {
             return;
         }
 
-               const trimmedRole = roleInput.trim().toLowerCase();
+        const trimmedRole = roleInput.trim().toLowerCase();
         const isDuplicate = roles.some(
             (r) => r.role.trim().toLowerCase() === trimmedRole && r._id !== editingId
         );
@@ -171,7 +171,7 @@ const UserRole = () => {
                                     : 'bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white shadow-indigo-200'
                                     }`}
                             >
-                                {editingId ? <><FaSave /> Update</> : <><FaPlus /> Save Role</>}
+                                {editingId ? <><FaSave /> Update</> : <><FaPlus /> Add Role</>}
                             </button>
                             {editingId && (
                                 <button
@@ -214,9 +214,9 @@ const UserRole = () => {
 
                     {/* Table Container */}
                     <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm p-1">
-                        <div className="max-h-96 overflow-y-auto overflow-x-visible rounded-xl">
+                        <div className="rounded-xl">
                             <table className="w-full text-left border-collapse">
-                                <thead className="sticky top-0 z-10">
+                                <thead>
                                     <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
                                         <th className="py-4 px-5 w-16">#</th>
                                         <th className="py-4 px-5">Role Name</th>

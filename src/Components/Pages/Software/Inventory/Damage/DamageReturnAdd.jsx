@@ -208,7 +208,7 @@ const DamageReturnAdd = () => {
         ])
             .then(([sales, dmg, purchases, returns]) => {
                 const map = new Map();
-                const addRow = (it, sign) => {
+                const addRow = (it, sign, src = {}) => {
                     const key = damageKey(it.productName, it.company);
                     if (!map.has(key)) {
                         map.set(key, {
@@ -228,6 +228,19 @@ const DamageReturnAdd = () => {
                     const g = map.get(key);
                     g.paid += sign * (Number(it.totalQty) || 0);
                     g.free += sign * (Number(it.freeQty) || 0);
+                    if (!g.lots) { g.lots = []; g.retMain = 0; }
+                    if (sign > 0) {
+                        const lq = Number(it.totalQty) || 0;
+                        if (Array.isArray(it.costBreakdown) && it.costBreakdown.length > 0) {
+                            it.costBreakdown.forEach((l) =>
+                                g.lots.push({ qty: Number(l.qty) || 0, cost: Number(l.cost) || 0, label: src.label || l.invoiceNo, time: src.time || 0 })
+                            );
+                        } else if (lq > 0) {
+                            g.lots.push({ qty: lq, cost: null, label: src.label || '', time: src.time || 0 });
+                        }
+                    } else {
+                        g.retMain += Number(it.totalQty) || 0;
+                    }
                     if (sign > 0) {
                         g.pcsPerUnit = Number(it.pcsPerUnit) || g.pcsPerUnit;
                         g.parentMode = it.parentMode === true;
@@ -238,8 +251,16 @@ const DamageReturnAdd = () => {
                 };
                 (Array.isArray(sales) ? sales : [])
                     .filter((s) => s.status === 'Delivered')
-                    .forEach((s) => (s.damageItems || []).forEach((it) => addRow(it, 1)));
-                (Array.isArray(dmg) ? dmg : []).forEach((d) => (d.items || []).forEach((it) => addRow(it, 1)));
+                    .forEach((s) =>
+                        (s.damageItems || []).forEach((it) =>
+                            addRow(it, 1, { label: s.orderNo, time: Date.parse(s.damageAt || s.createdAt) || 0 })
+                        )
+                    );
+                (Array.isArray(dmg) ? dmg : []).forEach((d) =>
+                    (d.items || []).forEach((it) =>
+                        addRow(it, 1, { label: d.invoiceNo, time: Date.parse(d.createdAt) || 0 })
+                    )
+                );
                 (Array.isArray(purchases) ? purchases : []).forEach((p) => {
                     if (!(p.receiveStatus === 'Received' || p.receiveStatus === 'Yes')) return;
                     (p.damageItems || []).forEach((it) => addRow(it, -1));
@@ -249,7 +270,22 @@ const DamageReturnAdd = () => {
                     (r.items || []).forEach((it) => addRow(it, -1));
                 });
                 setStockList(
-                    Array.from(map.values()).map((g) => ({ ...g, paid: Math.max(g.paid, 0), free: Math.max(g.free, 0) }))
+                    Array.from(map.values()).map((g) => {
+                        const lots = (g.lots || []).slice().sort((a, b) => a.time - b.time).map((l) => ({ ...l }));
+                        let consume = g.retMain || 0;
+                        for (const l of lots) {
+                            if (consume <= 0) break;
+                            const t = Math.min(l.qty, consume);
+                            l.qty -= t;
+                            consume -= t;
+                        }
+                        return {
+                            ...g,
+                            lots: lots.filter((l) => l.qty > 0),
+                            paid: Math.max(g.paid, 0),
+                            free: Math.max(g.free, 0),
+                        };
+                    })
                 );
             })
             .catch((e) => console.error('Error fetching damage stock:', e));
@@ -388,6 +424,70 @@ const DamageReturnAdd = () => {
     const subTotal = roundTo2(items.reduce((t, i) => t + getRowTotal(i), 0));
     const damageAmount = subTotal;
 
+    // ---------- Stock cost (FIFO, damage stock er source onujayi) ----------
+    const getCostBreakdown = (item) => {
+        const key = damageKey(item.productName, item.company);
+        const lots = stockList?.find((d) => d.key === key)?.lots || [];
+        const master = products.find((p) => damageKey(p.productName, p.company) === key);
+        const fallback = Number(master?.purchasePrice) || 0;
+        let remaining = Number(item.totalQty) || 0;
+        const lines = [];
+        lots.forEach((l) => {
+            if (remaining <= 0) return;
+            const take = Math.min(l.qty, remaining);
+            if (take <= 0) return;
+            const cost = l.cost ?? fallback;
+            lines.push({ invoiceNo: l.label, qty: take, cost: roundTo2(cost), amount: roundTo2(take * cost) });
+            remaining -= take;
+        });
+        return lines;
+    };
+    
+
+    // ---------- Payment (optional, default disabled) ----------
+    const savedPay = editing?.payment || null;
+    const [investments, setInvestments] = useState([]);
+    const [paymentOpen, setPaymentOpen] = useState(!!savedPay);
+    const [paymentAmount, setPaymentAmount] = useState(savedPay?.amount ?? '');
+    const [paymentAmountTouched, setPaymentAmountTouched] = useState(!!savedPay);
+    const [paymentAccountType, setPaymentAccountType] = useState(savedPay?.method || '');
+    const [selectedAccountKey, setSelectedAccountKey] = useState(() => {
+        if (!savedPay) return '';
+        const a = savedPay.account || {};
+        if (savedPay.method === 'Bank') return `${a.bankName}-${a.accountNumber}-${a.accountBranch}`;
+        if (savedPay.method === 'Mobile Banking') return `${a.accountName}-${a.accountNumber}`;
+        return 'cash';
+    });
+    const [paymentNote, setPaymentNote] = useState(savedPay?.note || '');
+
+    useEffect(() => {
+        fetch('https://squirrel-peace-server.onrender.com/investment')
+            .then((res) => res.json())
+            .then((data) => setInvestments(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching investments:', error));
+    }, []);
+
+    const accountTypes = [...new Set(investments.map((inv) => inv.accountType).filter(Boolean))];
+    const getAccountKey = (inv) => {
+        if (inv.accountType === 'Bank') return `${inv.bankName}-${inv.accountNumber}-${inv.accountBranch}`;
+        if (inv.accountType === 'Mobile Banking') return `${inv.accountName}-${inv.accountNumber}`;
+        return 'cash';
+    };
+    const uniqueAccountsMap = new Map();
+    investments
+        .filter((inv) => inv.accountType === paymentAccountType)
+        .forEach((inv) => {
+            const k = getAccountKey(inv);
+            if (!uniqueAccountsMap.has(k)) uniqueAccountsMap.set(k, inv);
+        });
+    const uniqueAccounts = Array.from(uniqueAccountsMap.values());
+    const selectedAccountInfo = uniqueAccounts.find((inv) => getAccountKey(inv) === selectedAccountKey);
+
+    useEffect(() => {
+        if (!paymentAmountTouched) setPaymentAmount(roundTo2(damageAmount));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [damageAmount, paymentAmountTouched]);
+
     // ---------- Submit ----------
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -406,6 +506,41 @@ const DamageReturnAdd = () => {
             if (Number(i.totalQty) > st.paid || Number(i.freeQty) > st.free) {
                 return showToast(`${i.productName}: damage stock e Main ${st.paid}, Free ${st.free} pcs ache!`, true);
             }
+        }
+
+        // ---------- Payment validation (shudhu Payment open thakle) ----------
+        let paymentData = null;
+        if (paymentOpen) {
+            if (paymentAmount === '' || paymentAmount === null) {
+                return showToast('Payment amount is required! (or close Payment)', true);
+            }
+            if (!paymentAccountType) {
+                return showToast('Please select a payment method! (or close Payment)', true);
+            }
+            if (!selectedAccountInfo) {
+                return showToast('Please select an account! (or close Payment)', true);
+            }
+            let accInfo = {};
+            if (paymentAccountType === 'Bank') {
+                accInfo = {
+                    bankName: selectedAccountInfo.bankName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                    accountBranch: selectedAccountInfo.accountBranch || '',
+                };
+            } else if (paymentAccountType === 'Mobile Banking') {
+                accInfo = {
+                    accountName: selectedAccountInfo.accountName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                };
+            } else {
+                accInfo = { accountName: 'Cash' };
+            }
+            paymentData = {
+                amount: roundTo2(paymentAmount),
+                method: paymentAccountType,
+                account: accInfo,
+                note: paymentNote,
+            };
         }
 
         const itemsPayload = items.map((i) => ({
@@ -427,6 +562,7 @@ const DamageReturnAdd = () => {
             freePcsQty: Number(i.freePcsQty) || 0,
             freeQty: Number(i.freeQty) || 0,
             itemTotal: roundTo2(getRowTotal(i)),
+            costBreakdown: getCostBreakdown(i),
         }));
 
         const payload = {
@@ -438,7 +574,9 @@ const DamageReturnAdd = () => {
             returnDate: formData.date,
             items: itemsPayload,
             damageAmount,
+            returnAmount: damageAmount,
             note,
+            payment: paymentData,
         };
 
         try {
@@ -455,7 +593,7 @@ const DamageReturnAdd = () => {
             await res.json();
             showToast(isEditMode ? 'Damage return updated successfully!' : 'Damage return added successfully!');
             setTimeout(
-                () => navigate('/damage-products', { replace: true, state: { tab: 'returnInvoice' } }),
+                () => navigate('/damage-return-invoice', { replace: true }),
                 1000
             );
         } catch (error) {
@@ -703,9 +841,124 @@ const DamageReturnAdd = () => {
                         <div className="mt-6 flex justify-end">
                             <div className="w-full md:w-[700px] space-y-2.5 bg-red-50/40 border border-red-100 rounded-2xl p-5">
                                 <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-bold text-red-800">Damage Amount</label>
+                                    <label className="w-56 text-right pr-3 text-sm font-bold text-red-800">Return Amount</label>
                                     <input type="text" readOnly value={damageAmount.toFixed(2)} className="flex-1 px-3 py-2.5 border border-red-200 bg-white font-bold text-red-700 text-base rounded-lg outline-none" />
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Return Payment (Optional, default disabled) */}
+                        <div className="mt-8">
+                            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
+                                <div className="flex items-center justify-between flex-wrap gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-base font-bold text-emerald-800">Return Payment</h3>
+                                        <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
+                                            Return Amount: ৳{damageAmount.toFixed(2)}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPaymentOpen((prev) => !prev)}
+                                        className="flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
+                                    >
+                                        {paymentOpen ? 'Enabled' : 'Disabled'}
+                                        <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                            <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </span>
+                                    </button>
+                                </div>
+
+                                {paymentOpen && (
+                                    <div className="mt-5">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                    Payment Amount <span className="text-rose-500">*</span>
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={paymentAmount}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                            setPaymentAmount(value);
+                                                            setPaymentAmountTouched(true);
+                                                        }
+                                                    }}
+                                                    className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                    Payment Method <span className="text-rose-500">*</span>
+                                                </label>
+                                                <select
+                                                    value={paymentAccountType}
+                                                    onChange={(e) => {
+                                                        setPaymentAccountType(e.target.value);
+                                                        setSelectedAccountKey(
+                                                            e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
+                                                                ? 'cash'
+                                                                : ''
+                                                        );
+                                                    }}
+                                                    className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
+                                                >
+                                                    <option value="">Select method...</option>
+                                                    {accountTypes.map((type) => (
+                                                        <option key={type} value={type}>{type}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                    Account <span className="text-rose-500">*</span>
+                                                </label>
+                                                <select
+                                                    value={selectedAccountKey}
+                                                    onChange={(e) => setSelectedAccountKey(e.target.value)}
+                                                    disabled={!paymentAccountType}
+                                                    className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
+                                                        ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
+                                                        : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                        }`}
+                                                >
+                                                    <option value="">
+                                                        {paymentAccountType ? 'Select account...' : 'Select method first'}
+                                                    </option>
+                                                    {uniqueAccounts.map((inv) => {
+                                                        const k = getAccountKey(inv);
+                                                        const label =
+                                                            inv.accountType === 'Bank'
+                                                                ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
+                                                                : inv.accountType === 'Mobile Banking'
+                                                                    ? `${inv.accountName} - ${inv.accountNumber}`
+                                                                    : 'Cash';
+                                                        return <option key={k} value={k}>{label}</option>;
+                                                    })}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-6">
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
+                                            </label>
+                                            <textarea
+                                                rows="2"
+                                                placeholder="Write any note about this payment..."
+                                                value={paymentNote}
+                                                onChange={(e) => setPaymentNote(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

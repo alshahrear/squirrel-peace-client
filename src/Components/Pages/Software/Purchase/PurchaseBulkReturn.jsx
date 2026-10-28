@@ -24,6 +24,30 @@ const PurchaseBulkReturn = () => {
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const [selectedIds, setSelectedIds] = useState([]);
+    const [stockBatches, setStockBatches] = useState([]);
+    const [costRow, setCostRow] = useState(null);
+    const [costModalShow, setCostModalShow] = useState(false);
+
+    const openCostModal = (row) => {
+        setOpenDropdownId(null);
+        setCostRow(row);
+        setTimeout(() => setCostModalShow(true), 10);
+    };
+
+    const closeCostModal = () => {
+        setCostModalShow(false);
+        setTimeout(() => setCostRow(null), 300);
+    };
+
+    const fetchBatches = async () => {
+        try {
+            const res = await fetch('https://squirrel-peace-server.onrender.com/stock-purchase');
+            const data = await res.json();
+            setStockBatches(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
@@ -74,6 +98,7 @@ const PurchaseBulkReturn = () => {
     useEffect(() => {
         fetchReturns();
         fetchCompanies();
+        fetchBatches();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname]);
 
@@ -144,7 +169,7 @@ const PurchaseBulkReturn = () => {
                     showToast('Purchase not found!', 'error');
                     return;
                 }
-               navigate('/add-purchase', { state: { purchase, returnOnly: true, bulkId: item._id } });
+                navigate('/add-purchase', { state: { purchase, returnOnly: true, bulkId: item._id } });
             } catch (error) {
                 console.error(error);
                 showToast('Failed to load purchase!', 'error');
@@ -157,7 +182,7 @@ const PurchaseBulkReturn = () => {
     const handleDelete = async (id) => {
         setOpenDropdownId(null);
         const target = returns.find((r) => r._id === id);
-              if (target?.fromPurchase) {
+        if (target?.fromPurchase) {
             const confirm = await Swal.fire({
                 title: 'Are you sure?',
                 text: 'Ei invoice er Bulk Return Product gulo remove hobe. Main/Others Free product thik thakbe.',
@@ -269,6 +294,60 @@ const PurchaseBulkReturn = () => {
 
     const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
     const totalReturnAmount = summaryRows.reduce((s, i) => s + (Number(i.returnAmount) || 0), 0);
+
+    // ---------- Cost Calculation (Stock Cost vs Bulk Cost) ----------
+    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+    // Stock Total beshi = Loss, Bulk Total beshi = Profit
+    const costStatus = (d) =>
+        d > 0
+            ? { label: 'Loss', box: 'bg-rose-50 border-rose-200 text-rose-700', card: 'bg-rose-50 border-rose-100', lbl: 'text-rose-400', val: 'text-rose-600', sub: 'text-rose-500', tag: 'bg-rose-500 text-white' }
+            : d < 0
+                ? { label: 'Profit', box: 'bg-emerald-50 border-emerald-200 text-emerald-700', card: 'bg-emerald-50 border-emerald-100', lbl: 'text-emerald-400', val: 'text-emerald-600', sub: 'text-emerald-500', tag: 'bg-emerald-500 text-white' }
+                : { label: 'Even', box: 'bg-gray-50 border-gray-200 text-gray-600', card: 'bg-gray-50 border-gray-100', lbl: 'text-gray-400', val: 'text-gray-600', sub: 'text-gray-500', tag: 'bg-gray-400 text-white' };
+
+    const batchCostMap = new Map(
+        stockBatches.map((b) => {
+            const paidQ = Number(b.paidQty) || 0;
+            const c = b.isFreeProduct || paidQ <= 0 ? 0 : (Number(b.netCost) || 0) / paidQ;
+            return [String(b._id), c];
+        })
+    );
+
+    const calcCost = (row) => {
+        const lines = (row.items || [])
+            .map((it) => {
+                const qty = Number(it.totalPcs) || 0;
+                const allocs = (row.stockAllocations || []).filter((a) => {
+                    const kind = a.kind || (a.pool === 'paid' ? 'main' : 'free');
+                    return String(a.productId) === String(it.productId) && kind === 'main';
+                });
+                const allocQty = allocs.reduce((s, a) => s + (Number(a.qty) || 0), 0);
+                const stockTotal = allocs.reduce(
+                    (s, a) => s + (batchCostMap.get(String(a.batchId)) || 0) * (Number(a.qty) || 0),
+                    0
+                );
+                const bulkPerPcs = Number(it.buyPrice) || 0;
+                return {
+                    name: it.productName,
+                    qty,
+                    stockPerPcs: allocQty > 0 ? stockTotal / allocQty : 0,
+                    bulkPerPcs,
+                    stockTotal: r2(stockTotal),
+                    bulkTotal: r2(bulkPerPcs * qty),
+                    batches: allocs.map((a) => ({
+                        batchNo: a.batchNo,
+                        invoiceNo: a.invoiceNo,
+                        qty: Number(a.qty) || 0,
+                        perPcs: batchCostMap.get(String(a.batchId)) || 0,
+                    })),
+                };
+            })
+            .filter((l) => l.qty > 0);
+        const stockTotal = r2(lines.reduce((s, l) => s + l.stockTotal, 0));
+        const bulkTotal = r2(lines.reduce((s, l) => s + l.bulkTotal, 0));
+        return { lines, stockTotal, bulkTotal, diff: r2(stockTotal - bulkTotal) };
+    };
 
     // proti product er jonno alada line (unit, sub unit, pcs, total)
     const buildLines = (row, unitKey, subKey, pcsKey, totalKey) => {
@@ -510,6 +589,7 @@ const PurchaseBulkReturn = () => {
                                         <th className="py-3 px-2.5">Return Quantity</th>
                                         <th className="py-3 px-2.5">Return Free Quantity</th>
                                         <th className="py-3 px-2.5">Return Amount</th>
+                                        <th className="py-3 px-2.5">Cost Calculation</th>
                                         <th className="py-3 px-2.5 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -517,6 +597,7 @@ const PurchaseBulkReturn = () => {
                                     {currentReturns.map((item, index) => {
                                         const retLines = buildLines(item, 'unitQty', 'subQty', 'pcsQty', 'totalPcs');
                                         const freeLines = buildLines(item, 'freeUnitQty', 'freeSubQty', 'freePcsQty', 'freeTotalQty');
+                                        const cost = calcCost(item);
                                         return (
                                             <tr key={item._id || index} className={`transition duration-150 ${selectedIds.includes(item._id) ? 'bg-pink-50/70' : 'hover:bg-indigo-50/40'}`}>
                                                 <td className="text-center">
@@ -538,7 +619,37 @@ const PurchaseBulkReturn = () => {
                                                 <td className="px-2.5 font-semibold text-emerald-600 whitespace-nowrap">
                                                     {renderLines(freeLines, 'text-emerald-700')}
                                                 </td>
-                                                <td className="px-2.5 font-bold text-orange-600 whitespace-nowrap">৳{Number(item.returnAmount).toFixed(2)}</td>
+                                                                                               <td className="px-2.5 font-bold text-orange-600 whitespace-nowrap">
+                                                    <div>৳{Number(item.returnAmount).toFixed(2)}</div>
+                                                    {item.payment ? (
+                                                        <div className="text-[10px] font-bold mt-0.5">
+                                                            <span className="text-emerald-600">Received: ৳{fmt(item.payment.amount)}</span>
+                                                            <span className="text-rose-600 ml-1">
+                                                                (Due: {fmt(Math.max((Number(item.returnAmount) || 0) - (Number(item.payment.amount) || 0), 0))})
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full font-semibold text-[9px]">
+                                                            Not Received
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-2.5 align-top whitespace-nowrap">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openCostModal(item)}
+                                                        className="flex items-center gap-1.5 cursor-pointer"
+                                                    >
+                                                        <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-extrabold ${costStatus(cost.diff).box}`}>
+                                                            {fmt(Math.abs(cost.diff))}
+                                                            <span className={`ml-1 px-1.5 rounded-full text-[9px] ${costStatus(cost.diff).tag}`}>{costStatus(cost.diff).label}</span>
+                                                        </span>
+                                                        <span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-600 text-[10px] font-bold hover:bg-indigo-500 hover:text-white transition">
+                                                            🧮 Details
+                                                        </span>
+                                                    </button>
+
+                                                </td>
                                                 <td className="px-2.5 text-center relative">
                                                     <div className="relative inline-block action-dropdown-container">
                                                         <button
@@ -629,6 +740,139 @@ const PurchaseBulkReturn = () => {
                     )}
                 </div>
             </div>
+            {/* ---------- Cost Calculation Modal ---------- */}
+            {costRow && (() => {
+                const c = calcCost(costRow);
+                const st = costStatus(c.diff);
+                const th = 'py-2.5 px-3';
+                return (
+                    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${costModalShow ? 'opacity-100' : 'opacity-0'}`}>
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeCostModal} />
+                        <div className={`relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 ease-out ${costModalShow ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-600 to-pink-600 text-white">
+                                <div>
+                                    <h3 className="text-base font-extrabold">🧮 Cost Calculation</h3>
+                                    <p className="text-[11px] text-white/80 mt-0.5">
+                                        Invoice: #{costRow.invoiceNo} | {costRow.company} | {costRow.returnDate || 'N/A'}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={closeCostModal}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/30 transition cursor-pointer"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+                                {/* Summary cards */}
+                                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                    <div className="rounded-2xl border border-violet-100 bg-violet-50 px-3 py-3 text-center">
+                                        <div className="text-[10px] font-bold uppercase text-violet-400">Stock Cost</div>
+                                        <div className="text-base font-extrabold text-violet-700">৳{fmt(c.stockTotal)}</div>
+                                        <div className="text-[10px] text-violet-400 mt-0.5">Jei invoice theke product ashse</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-3 text-center">
+                                        <div className="text-[10px] font-bold uppercase text-amber-500">Bulk Cost</div>
+                                        <div className="text-base font-extrabold text-amber-700">৳{fmt(c.bulkTotal)}</div>
+                                        <div className="text-[10px] text-amber-500 mt-0.5">Bulk return dewar somoy</div>
+                                    </div>
+                                    <div className={`rounded-2xl border px-3 py-3 text-center ${st.card}`}>
+                                        <div className={`text-[10px] font-bold uppercase ${st.lbl}`}>{st.label}</div>
+                                        <div className={`text-base font-extrabold ${st.val}`}>৳{fmt(Math.abs(c.diff))}</div>
+                                        <div className={`text-[10px] mt-0.5 ${st.sub}`}>{c.diff > 0 ? 'Stock Cost beshi' : c.diff < 0 ? 'Bulk Cost beshi' : 'Soman soman'}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-3 text-center">
+                                        <div className="text-[10px] font-bold uppercase text-indigo-400">Return Amount</div>
+                                        <div className="text-base font-extrabold text-indigo-700">৳{fmt(costRow.returnAmount)}</div>
+                                        <div className="text-[10px] text-indigo-400 mt-0.5">{c.lines.length} product</div>
+                                    </div>
+                                </div>
+
+                                {/* Formula */}
+                                <div className={`rounded-2xl border px-4 py-3 text-center text-sm font-extrabold ${st.box}`}>
+                                    Stock ৳{fmt(c.stockTotal)} vs Bulk ৳{fmt(c.bulkTotal)} → ৳{fmt(Math.abs(c.diff))}
+                                    <span className={`ml-2 px-2.5 py-0.5 rounded-full text-[11px] ${st.tag}`}>{st.label}</span>
+                                </div>
+
+                                {/* Product wise table */}
+                                <div className="overflow-x-auto rounded-2xl border border-gray-100">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-indigo-50 text-indigo-700 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap">
+                                                <th className={th}>Product</th>
+                                                <th className={`${th} text-center`}>Qty</th>
+                                                <th className={`${th} text-right`}>Stock Cost / pcs</th>
+                                                <th className={`${th} text-right`}>Stock Total</th>
+                                                <th className={`${th} text-right`}>Bulk Cost / pcs</th>
+                                                <th className={`${th} text-right`}>Bulk Total</th>
+                                                <th className={`${th} text-right`}>Difference</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
+                                            {c.lines.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={7} className="py-8 text-center text-gray-400 font-medium">Kono product nai</td>
+                                                </tr>
+                                            ) : (
+                                                c.lines.map((l, i) => {
+                                                    const d = r2(l.stockTotal - l.bulkTotal);
+                                                    return (
+                                                        <React.Fragment key={i}>
+                                                            <tr className="hover:bg-indigo-50/40 transition">
+                                                                <td className="py-3 px-3 font-semibold text-gray-800">{l.name}</td>
+                                                                <td className="py-3 px-3 text-center font-bold text-orange-600 whitespace-nowrap">{fmt(l.qty)} pcs</td>
+                                                                <td className="py-3 px-3 text-right font-bold text-violet-600 whitespace-nowrap">৳{fmt(l.stockPerPcs)}</td>
+                                                                <td className="py-3 px-3 text-right font-bold text-violet-700 whitespace-nowrap">৳{fmt(l.stockTotal)}</td>
+                                                                <td className="py-3 px-3 text-right font-bold text-amber-600 whitespace-nowrap">৳{fmt(l.bulkPerPcs)}</td>
+                                                                <td className="py-3 px-3 text-right font-bold text-amber-700 whitespace-nowrap">৳{fmt(l.bulkTotal)}</td>
+                                                                <td className={`py-3 px-3 text-right font-extrabold whitespace-nowrap ${costStatus(d).val}`}>
+                                                                    ৳{fmt(Math.abs(d))}
+                                                                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] ${costStatus(d).tag}`}>{costStatus(d).label}</span>
+                                                                </td>
+                                                            </tr>
+                                                            {l.batches && l.batches.length > 0 && (
+                                                                <tr className="bg-gray-50/60">
+                                                                    <td colSpan={7} className="px-3 py-2">
+                                                                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                                                                            <span className="font-bold text-gray-500 uppercase text-[10px]">Stock source:</span>
+                                                                            {l.batches.map((b, bi) => (
+                                                                                <span key={bi} className="px-2 py-0.5 rounded-md border border-violet-200 bg-violet-50 text-violet-700 font-semibold whitespace-nowrap">
+                                                                                    #{b.invoiceNo} ({b.batchNo}) · {fmt(b.qty)} pcs × ৳{fmt(b.perPcs)}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </React.Fragment>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                        {c.lines.length > 0 && (
+                                            <tfoot>
+                                                <tr className="bg-indigo-50/60 font-extrabold text-[13px]">
+                                                    <td className="py-3 px-3 text-gray-700" colSpan={3}>Total</td>
+                                                    <td className="py-3 px-3 text-right text-violet-700 whitespace-nowrap">৳{fmt(c.stockTotal)}</td>
+                                                    <td className="py-3 px-3"></td>
+                                                    <td className="py-3 px-3 text-right text-amber-700 whitespace-nowrap">৳{fmt(c.bulkTotal)}</td>
+                                                    <td className={`py-3 px-3 text-right whitespace-nowrap ${st.val}`}>
+                                                        ৳{fmt(Math.abs(c.diff))}
+                                                        <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] ${st.tag}`}>{st.label}</span>
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };

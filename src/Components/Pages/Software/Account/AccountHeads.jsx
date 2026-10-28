@@ -4,12 +4,23 @@ import { FaFilter, FaRedo, FaEdit, FaTrash, FaChevronLeft, FaChevronRight, FaChe
 import AccountHeadForm from './HeadsForm';
 import useDraftState from '../../../../hooks/useDraftState';
 
+// "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
+const formatCreatedDate = (value) => {
+    if (!value) return '';
+    const datePart = value.split(/[ ,]/)[0];
+    const [day, month, year] = datePart.split('/');
+    if (!day || !month || !year) return value;
+    const dateObj = new Date(year, month - 1, day);
+    if (isNaN(dateObj)) return value;
+    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const AccountHeads = () => {
     const [accountHeads, setAccountHeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
-        const [showForm, setShowForm] = useDraftState('headFormOpen', false);
+    const [showForm, setShowForm] = useDraftState('headFormOpen', false);
     const [editingHeadId, setEditingHeadId] = useDraftState('headEditingId', null);
     const editingHead = accountHeads.find((h) => h._id === editingHeadId) || null;
     const setEditingHead = (h) => setEditingHeadId(h ? h._id : null);
@@ -178,7 +189,7 @@ const AccountHeads = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
+        <div className="p-4 md:p-6 relative">
 
             {toast.show && (
                 <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
@@ -221,7 +232,7 @@ const AccountHeads = () => {
                     </button>
                 </div>
 
-                               {showForm && !loading && (
+                {showForm && !loading && (
                     <div ref={formSectionRef}>
                         <AccountHeadForm
                             key={editingHead?._id || 'new'}
@@ -386,7 +397,7 @@ const AccountHeads = () => {
                                                     {head.isActive ? 'Active' : 'Inactive'}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-5 text-xs text-gray-500">{head.createdAt}</td>
+                                            <td className="py-4 px-5 text-xs text-gray-500">{formatCreatedDate(head.createdAt)}</td>
                                             <td className="py-4 px-5 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
                                                     <button

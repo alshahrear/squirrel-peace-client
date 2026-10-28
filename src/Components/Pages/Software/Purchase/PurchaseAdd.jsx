@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PurchaseForm from "./PurchaseForm";
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
@@ -65,24 +65,30 @@ const SearchSelect = ({ label, placeholder, searchValue, onSearchChange, onClear
     );
 };
 
-const PurchaseAdd = () => {
+const PurchaseAddInner = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const editingPurchase = location.state?.purchase || null;
     const isReceiveMode = location.state?.mode === 'receive';
     const isReturnOnly = location.state?.returnOnly === true;
+    // Received purchase er original order edit (save korle Receive page e jabe)
+    const isOrderEdit = !!editingPurchase && location.state?.mode === 'orderEdit';
+    const itemsSource = isOrderEdit ? (editingPurchase?.orderSnapshot || editingPurchase) : editingPurchase;
     const isReceivedEdit =
         !!editingPurchase &&
         location.state?.mode !== 'receive' &&
+        location.state?.mode !== 'orderEdit' &&
         (editingPurchase.receiveStatus === 'Received' || editingPurchase.receiveStatus === 'Yes');
     const isPurchaseStage = !isReceiveMode && !isReceivedEdit;
+    // Receive korar por Edit korleo Receive er moto original order er limit kaj korbe
+    const isLimitMode = isReceiveMode || isReceivedEdit;
     const hasPriorPayment =
         !!editingPurchase &&
         editingPurchase.paidAmount !== undefined &&
         editingPurchase.paidAmount !== null &&
         editingPurchase.paidAmount !== '' &&
         !!editingPurchase.paymentMethod;
-    const showPayment = true;
+    const showPayment = !isOrderEdit;
     const [isEditMode] = useState(!!editingPurchase);
     const [editId] = useState(editingPurchase?._id || null);
 
@@ -107,6 +113,18 @@ const PurchaseAdd = () => {
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
     const [paymentNote, setPaymentNote] = useState('');
     const [isReceiving, setIsReceiving] = useState(false);
+    const submitLock = useRef(false);
+    const paymentSectionRef = useRef(null);
+
+    // Receive mode e page open hole Payment section e auto scroll
+    useEffect(() => {
+        if (!isReceiveMode) return;
+        const timer = setTimeout(() => {
+            paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 400);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Save Payment Method checkbox (database এ save থাকবে)
     const [savePaymentMethod, setSavePaymentMethod] = useState(false);
@@ -294,7 +312,7 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (editingPurchase) {
-            const mappedItems = (editingPurchase.items || []).map((item, index) => {
+            const mappedItems = (itemsSource.items || []).map((item, index) => {
                 const qtyNum = Number(item.unitQty ?? item.qty) || 0;
                 const pcsQtyNum = Number(item.pcsQty) || 0;
                 const totalQtyNum =
@@ -407,7 +425,7 @@ const PurchaseAdd = () => {
                 }
             }
 
-            const restoredFreeItems = (editingPurchase.freeItems || []).map((item, index) => {
+            const restoredFreeItems = (itemsSource.freeItems || []).map((item, index) => {
                 const unitQty = Number(item.unitQty) || 0;
                 const pcsQty = Number(item.pcsQty) || 0;
                 const totalQty = Number(item.totalQty) || 0;
@@ -557,7 +575,7 @@ const PurchaseAdd = () => {
     const getFreeRowTotal = (item) => getFreePcsTotal(item);
 
     const handleAddFreeProduct = (product) => {
-        if (isReceiveMode && !getOrderFreeItem(product.productName)) {
+        if (isLimitMode && !getOrderFreeItem(product.productName)) {
             showLimitToast('Receive er somoy notun free product add kora jabe na!');
             return;
         }
@@ -586,7 +604,7 @@ const PurchaseAdd = () => {
     };
 
     const handleFreeItemChange = (uniqueId, field, value) => {
-        if (isReceiveMode && ['unitQty', 'subQty', 'pcsQty'].includes(field)) {
+        if (isLimitMode && ['unitQty', 'subQty', 'pcsQty'].includes(field)) {
             const cur = freeProductItems.find((i) => i.uniqueId === uniqueId);
             const orig = cur && getOrderFreeItem(cur.productName);
             if (cur && orig) {
@@ -1046,7 +1064,7 @@ const PurchaseAdd = () => {
     // Product Add
     // --------------------------------------------------
     const handleAddProduct = (product) => {
-        if (isReceiveMode && !getOrderItem(product.productName)) {
+        if (isLimitMode && !getOrderItem(product.productName)) {
             showLimitToast('Receive er somoy notun product add kora jabe na!');
             return;
         }
@@ -1118,7 +1136,7 @@ const PurchaseAdd = () => {
     // --------------------------------------------------
     const handleItemChange = (uniqueId, field, value) => {
         if (
-            isReceiveMode &&
+            isLimitMode &&
             ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'].includes(field)
         ) {
             const cur = purchaseItems.find((i) => i.uniqueId === uniqueId);
@@ -1487,6 +1505,17 @@ const PurchaseAdd = () => {
     // Submit
     // --------------------------------------------------
     const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (submitLock.current) return;
+        submitLock.current = true;
+        try {
+            await handleSubmitInner(e);
+        } finally {
+            setTimeout(() => { submitLock.current = false; }, 1500);
+        }
+    };
+
+    const handleSubmitInner = async (e) => {
         if (isReturnOnly) {
             e.preventDefault();
             const badRet = returnItems.some(
@@ -1569,7 +1598,7 @@ const PurchaseAdd = () => {
             return;
         }
         let receivedPaymentData = {};
-        if (isPurchaseStage && !paymentSkipped) {
+        if (isPurchaseStage && !isOrderEdit && !paymentSkipped) {
             const showErr = (message) => {
                 setToast({ show: true, message, isError: true });
                 setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
@@ -1736,6 +1765,37 @@ const PurchaseAdd = () => {
         };
 
         try {
+            // Purchase Edit (received purchase er order edit) -> save na kore edited order niye Receive page e jabe
+            if (isOrderEdit) {
+                const { unsetFields: _unsetFields, ...restData } = purchaseData;
+                const editedPurchase = {
+                    ...editingPurchase,
+                    ...restData,
+                    paidAmount: undefined,
+                    paymentMethod: undefined,
+                    paymentAccount: undefined,
+                    paymentNote: undefined,
+                    receiveStatus: editingPurchase.receiveStatus,
+                    orderSnapshot: {
+                        items: itemsPayload,
+                        freeItems: freeItemsPayload,
+                        subTotal: purchaseData.subTotal,
+                        productWiseDiscount: purchaseData.productWiseDiscount,
+                        productWiseDiscountPercent: purchaseData.productWiseDiscountPercent,
+                        overallDiscount: purchaseData.overallDiscount,
+                        overallDiscountType: purchaseData.overallDiscountType,
+                        overallDiscountValue: purchaseData.overallDiscountValue,
+                        adjustment: purchaseData.adjustment,
+                        payableAmount: purchaseData.payableAmount,
+                    },
+                };
+                clearPurchaseDrafts();
+                navigate('/add-purchase', {
+                    replace: true,
+                    state: { purchase: editedPurchase, mode: 'receive', fromOrderEdit: true },
+                });
+                return;
+            }
             if (isEditMode && isPurchaseStage && paymentSkipped) {
                 purchaseData.unsetFields = [
                     ...(purchaseData.unsetFields || []),
@@ -1802,6 +1862,16 @@ const PurchaseAdd = () => {
     // Receive Submit
     // --------------------------------------------------
     const handleReceiveSubmit = async () => {
+        if (submitLock.current) return;
+        submitLock.current = true;
+        try {
+            await handleReceiveSubmitInner();
+        } finally {
+            setTimeout(() => { submitLock.current = false; }, 1500);
+        }
+    };
+
+    const handleReceiveSubmitInner = async () => {
         if (isReceiving) return;
         // ---------------- Validation ----------------
         if (paymentAmount === '' || paymentAmount === null) {
@@ -1913,6 +1983,8 @@ const PurchaseAdd = () => {
 
             paidAmount: roundTo2(paymentAmount),
             receiveDate: receiveDate,
+            overallDiscountValue: overallDiscountValue,
+            ...(location.state?.fromOrderEdit ? { orderSnapshot: editingPurchase.orderSnapshot } : {}),
 
             returnItems: returnItemsPayload,
             ...(addReturnToAdjustment && returnTotalValue > 0 ? { returnAdjustmentAmount: returnTotalValue } : {}),
@@ -3556,7 +3628,7 @@ const PurchaseAdd = () => {
                             PAYMENT (Receive Mode Only)
                         ================================= */}
                             {showPayment && (
-                                <div className="mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
+                                <div ref={paymentSectionRef} className="mt-8 scroll-mt-6 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
                                     <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                                         <div className="flex items-center gap-3">
                                             <h3 className="text-base font-bold text-emerald-800">Payment</h3>
@@ -3625,7 +3697,11 @@ const PurchaseAdd = () => {
                                                         value={paymentAccountType}
                                                         onChange={(e) => {
                                                             setPaymentAccountType(e.target.value);
-                                                            setSelectedAccountKey('');
+                                                            setSelectedAccountKey(
+                                                                e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
+                                                                    ? 'cash'
+                                                                    : ''
+                                                            );
                                                             if (savePaymentMethod) {
                                                                 setSavePaymentMethod(false);
                                                                 persistPaymentMethod(false, '', '');
@@ -3719,7 +3795,7 @@ const PurchaseAdd = () => {
                                     type="submit"
                                     className="px-10 py-3 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 hover:from-teal-700 hover:to-emerald-600 text-sm font-semibold text-white shadow-md shadow-teal-200 transition cursor-pointer"
                                 >
-                                    {isReturnOnly ? 'Update Return' : isEditMode ? 'Update Purchase' : 'Purchase'}
+                                    {isReturnOnly ? 'Update Return' : isOrderEdit ? 'Update & Go to Receive' : isEditMode ? 'Update Purchase' : 'Purchase'}
                                 </button>
                             )}
                         </div>
@@ -3728,6 +3804,12 @@ const PurchaseAdd = () => {
             </div>
         </div>
     );
+};
+
+// Same route e state bodle (Purchase Edit -> Receive) component fresh load hoyar jonno key
+const PurchaseAdd = () => {
+    const location = useLocation();
+    return <PurchaseAddInner key={location.key} />;
 };
 
 export default PurchaseAdd;

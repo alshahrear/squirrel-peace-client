@@ -17,7 +17,6 @@ import {
 } from 'react-icons/fi';
 import { FaRoute } from 'react-icons/fa';
 import { IoWalletOutline } from 'react-icons/io5';
-import Swal from 'sweetalert2';
 
 // প্রতি কত সেকেন্ড পর পর ডাটা অটো-রিফ্রেশ হবে (পেজ রিলোড ছাড়াই)
 const POLL_INTERVAL = 5000;
@@ -42,32 +41,11 @@ const AccountBalance = () => {
     const [activeTab, setActiveTab] = useState('accounts');
     const isFirstLoad = useRef(true);
 
-    const loadStoredIds = (key) => {
+    const [seenTime, setSeenTime] = useState(() => {
         try {
-            const saved = localStorage.getItem(key);
-            if (!saved) return null;
-            const arr = JSON.parse(saved);
-            return Array.isArray(arr) ? new Set(arr) : null;
+            return Number(localStorage.getItem('notifSeenTime')) || 0;
         } catch {
-            return null;
-        }
-    };
-
-    const prevInvestmentIds = useRef(loadStoredIds('prevInvestmentIds'));
-    const prevIncomeIds = useRef(loadStoredIds('prevIncomeIds'));
-    const prevExpenseIds = useRef(loadStoredIds('prevExpenseIds'));
-    const prevRouteExpenseIds = useRef(loadStoredIds('prevRouteExpenseIds'));
-    const prevTransferIds = useRef(loadStoredIds('prevTransferIds'));
-    const prevAdjustmentIds = useRef(loadStoredIds('prevAdjustmentIds'));
-    const MAX_NOTIFICATIONS = 20;
-    const NOTIF_STORAGE_KEY = 'accountBalanceNotifications';
-
-    const [notifications, setNotifications] = useState(() => {
-        try {
-            const saved = localStorage.getItem(NOTIF_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : [];
-        } catch {
-            return [];
+            return 0;
         }
     });
     const [showNotifications, setShowNotifications] = useState(false);
@@ -98,100 +76,7 @@ const AccountBalance = () => {
             const safeRouteExpense = Array.isArray(routeExpenseData) ? routeExpenseData : [];
             const safeTransfer = Array.isArray(transferData) ? transferData : [];
 
-            // ---- Notification detection: notun kono record ashle notification banano ----
-            const detectNewItems = (list, prevIdsRef, storageKey) => {
-                const currentIds = new Set(list.map((i) => i._id));
-                let newItems = [];
-                if (prevIdsRef.current !== null) {
-                    newItems = list.filter((i) => i._id && !prevIdsRef.current.has(i._id));
-                }
-                prevIdsRef.current = currentIds;
-                try {
-                    localStorage.setItem(storageKey, JSON.stringify(Array.from(currentIds)));
-                } catch (error) {
-                    console.error('Error saving ids to localStorage:', error);
-                }
-                return newItems;
-            };
 
-            const getAccName = (item) => item.accountName || item.bankName || 'Cash';
-
-            const newInvestments = detectNewItems(safeInv, prevInvestmentIds, 'prevInvestmentIds');
-            const newAdjustments = detectNewItems(safeAdj, prevAdjustmentIds, 'prevAdjustmentIds');
-            const newIncomes = detectNewItems(safeIncome, prevIncomeIds, 'prevIncomeIds');
-            const newExpenses = detectNewItems(safeExpense, prevExpenseIds, 'prevExpenseIds');
-            const newRouteExpenses = detectNewItems(safeRouteExpense, prevRouteExpenseIds, 'prevRouteExpenseIds');
-            const newTransfers = detectNewItems(safeTransfer, prevTransferIds, 'prevTransferIds');
-
-            const newNotifs = [
-                ...newInvestments.map((item) => ({
-                    id: `accounts-${item._id}-${Date.now()}-${Math.random()}`,
-                    tab: 'Account',
-                    accountName: getAccName(item),
-                    amount: Number(item.amount) || 0,
-                    isPositive: true,
-                    isTransfer: false,
-                    read: false,
-                    time: new Date(),
-                })),
-                ...newAdjustments.map((item) => {
-                    const relatedInv = safeInv.find((inv) => inv._id === item.adjustmentID);
-                    return {
-                        id: `adjustment-${item._id}-${Date.now()}-${Math.random()}`,
-                        tab: 'Adjustment',
-                        accountName: relatedInv ? getAccName(relatedInv) : 'Cash',
-                        amount: Number(item.amount) || 0,
-                        isPositive: item.mode === 'Deposit',
-                        isTransfer: false,
-                        read: false,
-                        time: new Date(),
-                    };
-                }),
-                ...newIncomes.map((item) => ({
-                    id: `income-${item._id}-${Date.now()}-${Math.random()}`,
-                    tab: 'Income',
-                    accountName: getAccName(item),
-                    amount: Number(item.amount) || 0,
-                    isPositive: true,
-                    isTransfer: false,
-                    read: false,
-                    time: new Date(),
-                })),
-                ...newExpenses.map((item) => ({
-                    id: `expense-${item._id}-${Date.now()}-${Math.random()}`,
-                    tab: 'Expense',
-                    accountName: getAccName(item),
-                    amount: Number(item.amount) || 0,
-                    isPositive: false,
-                    isTransfer: false,
-                    read: false,
-                    time: new Date(),
-                })),
-                ...newRouteExpenses.map((item) => ({
-                    id: `routeExpense-${item._id}-${Date.now()}-${Math.random()}`,
-                    tab: 'Route Expense',
-                    accountName: getAccName(item),
-                    amount: Number(item.amount) || 0,
-                    isPositive: false,
-                    isTransfer: false,
-                    read: false,
-                    time: new Date(),
-                })),
-                ...newTransfers.map((item) => ({
-                    id: `transfer-${item._id}-${Date.now()}-${Math.random()}`,
-                    tab: 'Transfer',
-                    fromLabel: item.fromAccount || item.transferFrom || 'Cash',
-                    toLabel: item.toAccount || item.transferTo || 'Cash',
-                    amount: Number(item.amount) || 0,
-                    isTransfer: true,
-                    read: false,
-                    time: new Date(),
-                })),
-            ];
-
-            if (newNotifs.length > 0) {
-                setNotifications((prev) => [...newNotifs, ...prev].slice(0, MAX_NOTIFICATIONS));
-            }
 
             setInvestments(safeInv);
             setAdjustments(safeAdj);
@@ -214,15 +99,6 @@ const AccountBalance = () => {
         const intervalId = setInterval(fetchAllData, POLL_INTERVAL);
         return () => clearInterval(intervalId);
     }, [fetchAllData]);
-
-    // ---- notifications localStorage a save kora (max 50 ta, page refresh a jate na hariye jai) ----
-    useEffect(() => {
-        try {
-            localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(notifications));
-        } catch (error) {
-            console.error('Error saving notifications to localStorage:', error);
-        }
-    }, [notifications]);
 
     // OpeningInvestment.jsx এর মতোই remaining amount হিসাব (Deposit/Withdraw ধরে)
     const getRemainingAmount = (investment) => {
@@ -467,12 +343,88 @@ const AccountBalance = () => {
     const flowColors = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6', '#ef4444', '#14b8a6', '#84cc16', '#f97316'];
 
     // ---- Notification Bell er jonno unread count ----
-    const unreadCount = notifications.filter((n) => !n.read).length;
+    // Database er data theke latest 30 ta notification (notun upore)
+    const oidTime = (id) => (/^[0-9a-f]{24}$/i.test(String(id)) ? parseInt(String(id).slice(0, 8), 16) * 1000 : 0);
+    const getTs = (o) => {
+        const c = o?.createdAt ? Date.parse(o.createdAt) : NaN;
+        return !isNaN(c) ? c : oidTime(o?._id);
+    };
+    const getAccName = (item) => item.accountName || item.bankName || 'Cash';
+
+    const notifications = [
+        ...investments.map((item) => ({
+            id: `accounts-${item._id}`,
+            tab: 'Account',
+            accountName: getAccName(item),
+            amount: Number(item.amount) || 0,
+            isPositive: true,
+            isTransfer: false,
+            time: getTs(item),
+        })),
+        ...adjustments.map((item) => {
+            const relatedInv = investments.find((inv) => inv._id === item.adjustmentID);
+            return {
+                id: `adjustment-${item._id}`,
+                tab: 'Adjustment',
+                accountName: relatedInv ? getAccName(relatedInv) : 'Cash',
+                amount: Number(item.amount) || 0,
+                isPositive: item.mode === 'Deposit',
+                isTransfer: false,
+                time: getTs(item),
+            };
+        }),
+        ...incomes.map((item) => ({
+            id: `income-${item._id}`,
+            tab: 'Income',
+            accountName: getAccName(item),
+            amount: Number(item.amount) || 0,
+            isPositive: true,
+            isTransfer: false,
+            time: getTs(item),
+        })),
+        ...expenses.map((item) => ({
+            id: `expense-${item._id}`,
+            tab: 'Expense',
+            accountName: getAccName(item),
+            amount: Number(item.amount) || 0,
+            isPositive: false,
+            isTransfer: false,
+            time: getTs(item),
+        })),
+        ...routeExpenses.map((item) => ({
+            id: `routeExpense-${item._id}`,
+            tab: 'Route Expense',
+            accountName: getAccName(item),
+            amount: Number(item.amount) || 0,
+            isPositive: false,
+            isTransfer: false,
+            time: getTs(item),
+        })),
+        ...transfers.map((item) => ({
+            id: `transfer-${item._id}`,
+            tab: 'Transfer',
+            fromLabel: item.fromAccount || item.transferFrom || 'Cash',
+            toLabel: item.toAccount || item.transferTo || 'Cash',
+            amount: Number(item.amount) || 0,
+            isTransfer: true,
+            time: getTs(item),
+        })),
+    ]
+        .sort((a, b) => b.time - a.time)
+        .slice(0, 30);
+
+    const unreadCount = notifications.filter((n) => n.time > seenTime).length;
 
     const openNotifications = () => {
         setShowNotifications(true);
         setTimeout(() => setNotifVisible(true), 10);
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        const latest = Math.max(0, ...notifications.map((n) => n.time));
+        setSeenTime(latest);
+        try {
+            localStorage.setItem('notifSeenTime', String(latest));
+        } catch (error) {
+            console.error(error);
+        }
     };
 
     const closeNotifications = () => {
@@ -480,39 +432,6 @@ const AccountBalance = () => {
         setTimeout(() => setShowNotifications(false), 250);
     };
 
-   const clearNotifications = () => {
-    Swal.fire({
-        title: 'Clear all notifications?',
-        text: 'All notifications will be permanently removed.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, clear them',
-        cancelButtonText: 'Cancel',
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#6c757d',
-    }).then((result) => {
-        if (result.isConfirmed) {
-            setNotifications([]);
-
-            try {
-                localStorage.removeItem(NOTIF_STORAGE_KEY);
-
-                Swal.fire({
-                    title: 'Cleared!',
-                    text: 'All notifications have been removed.',
-                    icon: 'success',
-                    timer: 1500,
-                    showConfirmButton: false,
-                });
-            } catch (error) {
-                console.error(
-                    'Error clearing notifications from localStorage:',
-                    error
-                );
-            }
-        }
-    });
-};
 
     const formatNotifTime = (date) => {
         try {
@@ -753,14 +672,6 @@ const AccountBalance = () => {
                                 <p className="text-indigo-100 text-xs mt-0.5">সাম্প্রতিক সব transaction ও update এর তালিকা</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                {notifications.length > 0 && (
-                                    <button
-                                        onClick={clearNotifications}
-                                        className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold rounded-xl transition duration-200 cursor-pointer"
-                                    >
-                                        Clear Notification
-                                    </button>
-                                )}
                                 <button
                                     onClick={closeNotifications}
                                     className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition duration-200 cursor-pointer"

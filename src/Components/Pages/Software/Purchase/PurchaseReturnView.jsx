@@ -280,6 +280,53 @@ const PurchaseReturnView = () => {
                     {/* Totals + Note */}
                     <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col sm:flex-row justify-between items-start gap-6 print:bg-white">
                         <div className="w-full sm:w-1/2">
+                            {(() => {
+                                const totalRet = Number(returnEntry?.totalReturnAmount) || 0;
+                                const pay = returnEntry?.payment;
+                                const paid = pay ? Number(pay.amount) || 0 : 0;
+                                const diff = Math.round((totalRet - paid) * 100) / 100;
+                                const pa = pay?.account || {};
+                                const accText =
+                                    pay?.method === 'Bank'
+                                        ? `${pa.bankName} - ${pa.accountNumber} (${pa.accountBranch})`
+                                        : pay?.method === 'Mobile Banking'
+                                            ? `${pa.accountName} - ${pa.accountNumber}`
+                                            : pay?.method
+                                                ? 'Cash'
+                                                : '';
+                                return (
+                                    <div className="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-sm mb-4 space-y-2 text-xs sm:text-sm">
+                                        <div className="flex justify-between text-slate-600">
+                                            <span>Total Return Amount:</span>
+                                            <span className="font-bold text-orange-600">৳{totalRet.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-slate-600">
+                                            <span>Return Payment Received:</span>
+                                            {pay ? (
+                                                <span className="font-bold text-emerald-600">৳{paid.toFixed(2)}</span>
+                                            ) : (
+                                                <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold text-[10px]">
+                                                    Not Received
+                                                </span>
+                                            )}
+                                        </div>
+                                        {pay && (
+                                            <div className="flex justify-between text-slate-600 border-t border-dashed border-slate-300 pt-2">
+                                                <span>{diff > 0 ? 'Still Receivable:' : diff < 0 ? 'Extra Received:' : 'Status:'}</span>
+                                                <span className={`font-bold ${diff > 0 ? 'text-rose-600' : diff < 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                                    {diff === 0 ? 'Fully Received' : `৳${Math.abs(diff).toFixed(2)}`}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {pay && (
+                                            <div className="text-[11px] text-slate-500 border-t border-slate-200 pt-2">
+                                                <div>Method: <b className="text-slate-700">{pay.method}</b>{accText && pay.method !== 'Cash' ? ` | ${accText}` : ''}</div>
+                                                {pay.note && <div className="italic mt-1">Note: {pay.note}</div>}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                             {returnEntry?.returnNote && (
                                 <div className="bg-orange-50/60 border border-orange-200/70 p-4 rounded-2xl shadow-sm mb-4">
                                     <h4 className="text-xs font-bold text-orange-800 uppercase mb-1.5 flex items-center gap-1.5">

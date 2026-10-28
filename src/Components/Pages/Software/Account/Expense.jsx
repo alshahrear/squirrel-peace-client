@@ -223,7 +223,7 @@ const Expense = () => {
     const grandTotal = filteredExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-rose-100 via-orange-50 to-amber-100 p-6 md:p-8 relative">
+       <div className="p-4 md:p-6 relative">
 
             {/* Top Right Toast Notification */}
             {toast.show && (

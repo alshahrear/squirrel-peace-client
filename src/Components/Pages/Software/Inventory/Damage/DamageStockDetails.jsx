@@ -64,7 +64,7 @@ const DamageStockDetails = () => {
                     <h2 className="text-xl font-bold text-gray-800">Damage Not Found</h2>
                     <p className="text-gray-500 text-sm mt-2">This damage record couldn't be found. It may have been deleted.</p>
                     <button
-                        onClick={() => navigate('/damage-products')}
+                        onClick={() => navigate('/damage-stock-invoice')}
                         className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
                     >
                         <ArrowLeft className="w-4 h-4" /> Back to Damage
@@ -83,7 +83,7 @@ const DamageStockDetails = () => {
                 {/* Top action bar */}
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-5 border border-white flex flex-col sm:flex-row justify-between items-center gap-4 print:hidden">
                     <button
-                        onClick={() => navigate('/damage-products')}
+                        onClick={() => navigate('/damage-stock-invoice')}
                         className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-semibold text-sm hover:bg-indigo-100 transition cursor-pointer"
                     >
                         <ArrowLeft className="w-4 h-4" /> Back to Damage
@@ -171,7 +171,7 @@ const DamageStockDetails = () => {
                                     <th className="py-3 px-3.5 rounded-l-xl">SL</th>
                                     <th className="py-3 px-3.5">Product Name</th>
                                     <th className="py-3 px-3.5">Company</th>
-                                    <th className="py-3 px-3.5 text-right">Sell Price</th>
+                                    <th className="py-3 px-3.5 text-right">{damage.customerId ? 'Sell Price' : 'Cost Price'}</th>
                                     <th className="py-3 px-3.5 text-center">Damage Qty</th>
                                     <th className="py-3 px-3.5 text-center">Damage Free Qty</th>
                                     <th className="py-3 px-3.5 text-right rounded-r-xl">Item Total</th>
@@ -184,8 +184,20 @@ const DamageStockDetails = () => {
                                         <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
                                         <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
                                         <td className="py-4 px-3.5 text-right font-medium text-slate-600">
-                                            <div>{item.unit}: ৳{Number(item.sellPriceUnit).toFixed(2)}</div>
-                                            <div className="text-[11px] text-slate-400">Pcs: ৳{Number(item.sellPricePcs).toFixed(2)}</div>
+                                            {damage.customerId ? (
+                                                <>
+                                                    <div>{item.unit}: ৳{Number(item.sellPriceUnit).toFixed(2)}</div>
+                                                    <div className="text-[11px] text-slate-400">Pcs: ৳{Number(item.sellPricePcs).toFixed(2)}</div>
+                                                </>
+                                            ) : (item.costBreakdown || []).length > 0 ? (
+                                                (item.costBreakdown || []).map((l, i) => (
+                                                    <div key={i} className="text-[11px] text-slate-500">
+                                                        #{l.invoiceNo}: {l.qty} pcs × ৳{Number(l.cost).toFixed(2)} = <span className="font-semibold text-slate-700">৳{Number(l.amount).toFixed(2)}</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <span className="text-slate-300">—</span>
+                                            )}
                                         </td>
                                         <td className="py-4 px-3.5 text-center font-semibold text-orange-600">
                                             {Number(item.unitQty) || 0} {item.unit} {item.parentMode && <>{Number(item.subQty) || 0} {item.subUnit} </>}{Number(item.pcsQty) || 0} Pcs

@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaPlus } from 'react-icons/fa';
 import { FaUser, FaPhone, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave, FaStore, FaRoute, FaCreditCard, FaChevronDown } from 'react-icons/fa';
 
 const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handleCancelEdit, routes = [] }) => {
+    const navigate = useNavigate();
     const [routeSearch, setRouteSearch] = useState('');
     const [isRouteOpen, setIsRouteOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -19,6 +22,14 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
     useEffect(() => {
         setRouteSearch(formData.route || '');
     }, [formData.route]);
+
+    useEffect(() => {
+        if (formData.customerType !== 'Wholesale Customer') {
+            handleChange({
+                target: { name: 'customerType', value: 'Wholesale Customer' }
+            });
+        }
+    }, [formData.customerType]);
 
     const filteredRoutes = routes
         .filter(rt => rt.isActive !== false)
@@ -57,7 +68,6 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                         className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
                     >
                         <option value="Wholesale Customer">Wholesale Customer</option>
-                        <option value="Retail Customer">Retail Customer</option>
                     </select>
                 </div>
 
@@ -140,14 +150,27 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
 
                 {/* Opening Balance */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaWallet className="text-indigo-500" /> Opening Balance
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5 gap-2 h-4">
+                        <label className="text-gray-700 text-xs font-semibold flex items-center gap-1.5">
+                            <FaWallet className="text-indigo-500" /> Opening Balance
+                        </label>
+                        <select
+                            name="openingBalanceType"
+                            value={formData.openingBalanceType || ''}
+                            onChange={handleChange}
+                            className="h-5 px-1.5 py-0 text-[11px] leading-none rounded-md border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 text-gray-700 cursor-pointer"
+                        >
+                            <option value="" disabled>Select type</option>
+                            <option value="Receivable">Receivable</option>
+                            <option value="Payable">Payable</option>
+                        </select>
+                    </div>
                     <input
                         type="number"
                         name="openingBalance"
-                        placeholder="0.00"
+                        placeholder={formData.openingBalanceType ? '0.00' : 'Select type first'}
                         value={formData.openingBalance}
+                        disabled={!formData.openingBalanceType}
                         onChange={(e) => {
                             const value = e.target.value;
 
@@ -157,14 +180,14 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                         }}
                         step="0.01"
                         min="0"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                     />
                 </div>
 
                 {/* Credit Limit */}
                 <div>
                     <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaCreditCard className="text-indigo-500" /> Credit Limit
+                        <FaCreditCard className="text-indigo-500" /> Due Limit
                     </label>
                     <input
                         type="number"
@@ -187,9 +210,19 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                 {/* Route (Conditional: Searchable Select for Wholesale Customer) */}
                 {formData.customerType === 'Wholesale Customer' && (
                     <div className="relative" ref={dropdownRef}>
-                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                            <FaRoute className="text-indigo-500" /> Route <span className="text-red-500">*</span>
-                        </label>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-gray-700 text-xs font-semibold flex items-center gap-1.5">
+                                <FaRoute className="text-indigo-500" /> Route <span className="text-red-500">*</span>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/routes')}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-pink-600 transition-colors cursor-pointer"
+                            >
+                                <FaPlus size={10} />
+                                Add Route
+                            </button>
+                        </div>
                         <div className="relative">
                             <input
                                 type="text"
@@ -282,7 +315,7 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
                             }`}
                     >
-                        {editingId ? 'Update Customer Details' : 'Save Customer'}
+                        {editingId ? 'Update Customer Details' : 'Add Customer'}
                     </button>
                 </div>
             </form>

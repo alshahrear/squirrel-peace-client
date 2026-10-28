@@ -5,6 +5,17 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import useAxiosClient from "../../../../hooks/useAxiosClient";
 
+// "23/10/2026 08:03:51 pm" -> "23 Oct 2026"
+const formatCreatedDate = (value) => {
+    if (!value) return '';
+    const datePart = value.split(' ')[0];
+    const [day, month, year] = datePart.split('/');
+    if (!day || !month || !year) return value;
+    const dateObj = new Date(year, month - 1, day);
+    if (isNaN(dateObj)) return value;
+    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const Units = () => {
     const [units, setUnits] = useState([]);
     const [formData, setFormData] = useState({ name: "", isActive: true });
@@ -246,7 +257,7 @@ const Units = () => {
 
                                             {item.createdAt && (
                                                 <span className="text-[12px] font-medium text-gray-400 hidden sm:inline">
-                                                    {item.createdAt}
+                                                    {formatCreatedDate(item.createdAt)}
                                                 </span>
                                             )}
                                         </div>

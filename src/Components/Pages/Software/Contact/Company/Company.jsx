@@ -1,21 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
+
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-import CustomerForm from './CustomersFrom';
+import CompanyForm from './CompanyForm';
 import { useNavigate } from 'react-router-dom';
-import useDraftState from '../../../../hooks/useDraftState';
+import useDraftState from '../../../../../hooks/useDraftState';
 
-const Customers = () => {
+// "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
+const formatCreatedDate = (value) => {
+    if (!value) return '';
+    const datePart = value.split(/[ ,]/)[0];
+    const [day, month, year] = datePart.split('/');
+    if (!day || !month || !year) return value;
+    const dateObj = new Date(year, month - 1, day);
+    if (isNaN(dateObj)) return value;
+    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const Company = () => {
     const navigate = useNavigate();
-    const [customers, setCustomers] = useState([]);
-    const [routes, setRoutes] = useState([]); // Routes state
-    const [editingId, setEditingId] = useDraftState('customerEditingId', null);
+    const [companies, setCompanies] = useState([]);
+    const [editingId, setEditingId] = useDraftState('companyEditingId', null);
+
     // Action Dropdown state
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
 
     // Toggle Form State (Default false/off)
-    const [isFormOpen, setIsFormOpen] = useDraftState('customerFormOpen', false);
+    const [isFormOpen, setIsFormOpen] = useDraftState('companyFormOpen', false);
 
     // Modal State for Note
     const [selectedNote, setSelectedNote] = useState('');
@@ -23,6 +35,7 @@ const Customers = () => {
 
     // Toast State
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
+
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
@@ -31,38 +44,30 @@ const Customers = () => {
     const [filters, setFilters] = useState({
         startDate: '',
         endDate: '',
-        customerType: '',
         businessName: '',
-        email: '',
         contactNumber: '',
+        email: '',
         contactName: '',
         businessNumber: '',
-        address: '',
-        route: ''
+        address: ''
     });
 
-    // Form state with new fields and default customerType
-    const [formData, setFormData] = useDraftState('customerFormData', {
-        customerType: 'Wholesale Customer',
+    // Form state
+    const [formData, setFormData] = useDraftState('companyFormData', {
         businessName: '',
         contactNumber: '',
         email: '',
         contactName: '',
         businessNumber: '',
         openingBalance: '',
-        creditLimit: '',
+        openingBalanceType: '',
         address: '',
-        route: '',
         note: ''
     });
 
     // Refs for triggering date pickers
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
-
-    // Route searchable-select state
-    const [isRouteOpen, setIsRouteOpen] = useState(false);
-    const routeDropdownRef = useRef(null);
 
     // Show Toast Notification
     const showToast = (message, type = 'success') => {
@@ -89,42 +94,30 @@ const Customers = () => {
         return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
     };
 
-    // Fetch customers data
-    const fetchCustomers = async () => {
+    // Fetch companies data
+    const fetchCompanies = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/customer');
+            const res = await fetch('https://squirrel-peace-server.onrender.com/company');
             const data = await res.json();
-            setCustomers(data);
+            setCompanies(data);
         } catch (error) {
-            console.error('Error fetching customers:', error);
-        }
-    };
-
-    // Fetch routes data from API
-    const fetchRoutes = async () => {
-        try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/route');
-            const data = await res.json();
-            setRoutes(data);
-        } catch (error) {
-            console.error('Error fetching routes:', error);
+            console.error('Error fetching companies:', error);
         }
     };
 
     useEffect(() => {
-        fetchCustomers();
-        fetchRoutes();
+        fetchCompanies();
     }, []);
 
-    // Action dropdown er baire click korle close hobe
+    // Dropdown er baire click korle close hobe
     useEffect(() => {
-        const handleClickOutsideAction = (event) => {
+        const handleClickOutside = (event) => {
             if (!event.target.closest('.action-dropdown-container')) {
                 setOpenDropdownId(null);
             }
         };
-        document.addEventListener('mousedown', handleClickOutsideAction);
-        return () => document.removeEventListener('mousedown', handleClickOutsideAction);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     // Scroll korle dropdown auto close hoye jabe
@@ -139,49 +132,14 @@ const Customers = () => {
         return () => window.removeEventListener('scroll', handleScroll, true);
     }, [openDropdownId]);
 
-    // Close Route dropdown on outside click
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (routeDropdownRef.current && !routeDropdownRef.current.contains(event.target)) {
-                setIsRouteOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    // Filter routes (active only) based on search typing
-    const filteredRoutes = routes
-        .filter(r => r.isActive !== false)
-        .filter((r) => {
-            const routeName = r.routeName || r.name || r;
-            return routeName?.toLowerCase().includes(filters.route.toLowerCase());
-        });
-
-    const handleSelectRoute = (routeName) => {
-        setFilters({ ...filters, route: routeName });
-        setCurrentPage(1);
-        setIsRouteOpen(false);
-    };
-
-    const handleClearRoute = (e) => {
-        e.stopPropagation();
-        setFilters({ ...filters, route: '' });
-        setCurrentPage(1);
-        setIsRouteOpen(false);
-    };
-
     // Handle input change
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => {
-            const updated = { ...prev, [name]: value };
-            // If customerType changes to Retail, clear route
-            if (name === 'customerType' && value === 'Retail Customer') {
-                updated.route = '';
-            }
-            return updated;
-        });
+        if (name === 'openingBalanceType' && !value) {
+            setFormData({ ...formData, openingBalanceType: '', openingBalance: '' });
+            return;
+        }
+        setFormData({ ...formData, [name]: value });
     };
 
     // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
@@ -192,7 +150,7 @@ const Customers = () => {
 
         const dateObj = new Date(year, month - 1, day);
         const options = { day: '2-digit', month: 'short', year: 'numeric' };
-        return dateObj.toLocaleDateString('en-GB', options);
+        return dateObj.toLocaleDateString('en-GB', options); // e.g., 05 Aug 2026
     };
 
     // Handle Filter input change
@@ -206,14 +164,12 @@ const Customers = () => {
         setFilters({
             startDate: '',
             endDate: '',
-            customerType: '',
             businessName: '',
-            email: '',
             contactNumber: '',
+            email: '',
             contactName: '',
             businessNumber: '',
-            address: '',
-            route: ''
+            address: ''
         });
         setCurrentPage(1);
     };
@@ -225,7 +181,7 @@ const Customers = () => {
         const contactInput = formData.contactNumber.trim();
         const businessNoInput = formData.businessNumber.trim().toLowerCase();
 
-        const contactExists = customers.some(
+        const contactExists = companies.some(
             (c) => c.contactNumber?.trim() === contactInput && c._id !== editingId
         );
         if (contactExists) {
@@ -234,7 +190,7 @@ const Customers = () => {
         }
 
         if (businessNoInput) {
-            const businessNoExists = customers.some(
+            const businessNoExists = companies.some(
                 (c) => c.businessNumber?.trim().toLowerCase() === businessNoInput && c._id !== editingId
             );
             if (businessNoExists) {
@@ -248,8 +204,8 @@ const Customers = () => {
             : { ...formData, createdAt: formatDateTime(new Date()) };
 
         const url = editingId
-            ? `https://squirrel-peace-server.onrender.com/customer/${editingId}`
-            : 'https://squirrel-peace-server.onrender.com/customer';
+            ? `https://squirrel-peace-server.onrender.com/company/${editingId}`
+            : 'https://squirrel-peace-server.onrender.com/company';
 
         const method = editingId ? 'PUT' : 'POST';
 
@@ -264,28 +220,26 @@ const Customers = () => {
 
             const data = await res.json();
             if (data.insertedId || data.modifiedCount > 0) {
-                showToast(editingId ? 'Customer updated successfully!' : 'Customer added successfully!', 'success');
+                showToast(editingId ? 'Company updated successfully!' : 'Company added successfully!', 'success');
 
                 // Reset form & Close it
                 setFormData({
-                    customerType: 'Wholesale Customer',
                     businessName: '',
                     contactNumber: '',
                     email: '',
                     contactName: '',
                     businessNumber: '',
                     openingBalance: '',
-                    creditLimit: '',
+                    openingBalanceType: '',
                     address: '',
-                    route: '',
                     note: ''
                 });
                 setEditingId(null);
                 setIsFormOpen(false);
-                fetchCustomers();
+                fetchCompanies();
             }
         } catch (error) {
-            console.error('Error saving customer:', error);
+            console.error('Error saving company:', error);
         }
     };
 
@@ -303,38 +257,36 @@ const Customers = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/customer/${id}`, {
+                    const res = await fetch(`https://squirrel-peace-server.onrender.com/company/${id}`, {
                         method: 'DELETE',
                     });
                     const data = await res.json();
                     if (data.deletedCount > 0) {
-                        showToast('Customer deleted successfully!', 'success');
-                        fetchCustomers();
+                        showToast('Company deleted successfully!', 'success');
+                        fetchCompanies();
                     }
                 } catch (error) {
-                    console.error('Error deleting customer:', error);
+                    console.error('Error deleting company:', error);
                 }
             }
         });
     };
 
     // Handle Edit (Load data to form & Open form)
-    const handleEdit = (customer) => {
+    const handleEdit = (company) => {
         setOpenDropdownId(null);
         setFormData({
-            customerType: customer.customerType || 'Wholesale Customer',
-            businessName: customer.businessName || '',
-            contactNumber: customer.contactNumber || '',
-            email: customer.email || '',
-            contactName: customer.contactName || '',
-            businessNumber: customer.businessNumber || '',
-            openingBalance: customer.openingBalance || '',
-            creditLimit: customer.creditLimit || '',
-            address: customer.address || '',
-            route: customer.route || '',
-            note: customer.note || ''
+            businessName: company.businessName || '',
+            contactNumber: company.contactNumber || '',
+            email: company.email || '',
+            contactName: company.contactName || '',
+            businessNumber: company.businessNumber || '',
+            openingBalance: company.openingBalance || '',
+            openingBalanceType: company.openingBalanceType || '',
+            address: company.address || '',
+            note: company.note || ''
         });
-        setEditingId(customer._id);
+        setEditingId(company._id);
         setIsFormOpen(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -342,69 +294,59 @@ const Customers = () => {
     // Handle Cancel Edit
     const handleCancelEdit = () => {
         setEditingId(null);
-        setFormData({
-            customerType: 'Wholesale Customer',
-            businessName: '',
-            contactNumber: '',
-            email: '',
-            contactName: '',
-            businessNumber: '',
-            openingBalance: '',
-            creditLimit: '',
-            address: '',
-            route: '',
-            note: ''
-        });
+        setFormData({ businessName: '', contactNumber: '', email: '', contactName: '', businessNumber: '', openingBalance: '', openingBalanceType: '', address: '', note: '' });
         setIsFormOpen(false);
     };
 
     // Open Note Modal
     const handleOpenModal = (noteText) => {
-        setSelectedNote(noteText || 'No note available for this customer.');
+        setSelectedNote(noteText || 'No note available for this company.');
         setIsModalOpen(true);
     };
 
     // Advanced Multi-field & Date Range Filtering Logic
-    const filteredCustomers = customers.filter((customer) => {
+    const filteredCompanies = companies.filter((company) => {
+        // Date Range Filter (YYYY-MM-DD backend to formatted check)
         if (filters.startDate || filters.endDate) {
-            if (!customer.createdAt) return false;
+            if (!company.createdAt) return false;
 
-            const datePart = customer.createdAt.split(',')[0].trim();
+            const datePart = company.createdAt.split(',')[0].trim(); // DD/MM/YYYY
             const [cDay, cMonth, cYear] = datePart.split('/');
-            const customerDate = new Date(`${cYear}-${cMonth}-${cDay}`);
+            const companyDate = new Date(`${cYear}-${cMonth}-${cDay}`);
 
             if (filters.startDate) {
                 const startDateObj = new Date(filters.startDate);
-                if (!isNaN(startDateObj) && customerDate < startDateObj) return false;
+                if (!isNaN(startDateObj) && companyDate < startDateObj) return false;
             }
 
             if (filters.endDate) {
                 const endDateObj = new Date(filters.endDate);
-                if (!isNaN(endDateObj) && customerDate > endDateObj) return false;
+                if (!isNaN(endDateObj) && companyDate > endDateObj) return false;
             }
         }
-        if (filters.customerType && customer.customerType !== filters.customerType) {
+
+        // Business Name Filter
+        if (filters.businessName && !company.businessName?.toLowerCase().includes(filters.businessName.toLowerCase())) {
             return false;
         }
-        if (filters.businessName && !customer.businessName?.toLowerCase().includes(filters.businessName.toLowerCase())) {
+        // Contact Number Filter
+        if (filters.contactNumber && !company.contactNumber?.toLowerCase().includes(filters.contactNumber.toLowerCase())) {
             return false;
         }
-        if (filters.email && !customer.email?.toLowerCase().includes(filters.email.toLowerCase())) {
+        // Email Filter
+        if (filters.email && !company.email?.toLowerCase().includes(filters.email.toLowerCase())) {
             return false;
         }
-        if (filters.contactNumber && !customer.contactNumber?.toLowerCase().includes(filters.contactNumber.toLowerCase())) {
+        // Contact Name Filter
+        if (filters.contactName && !company.contactName?.toLowerCase().includes(filters.contactName.toLowerCase())) {
             return false;
         }
-        if (filters.contactName && !customer.contactName?.toLowerCase().includes(filters.contactName.toLowerCase())) {
+        // Business Number Filter
+        if (filters.businessNumber && !company.businessNumber?.toLowerCase().includes(filters.businessNumber.toLowerCase())) {
             return false;
         }
-        if (filters.businessNumber && !customer.businessNumber?.toLowerCase().includes(filters.businessNumber.toLowerCase())) {
-            return false;
-        }
-        if (filters.address && !customer.address?.toLowerCase().includes(filters.address.toLowerCase())) {
-            return false;
-        }
-        if (filters.route && customer.route !== filters.route) {
+        // Address Filter
+        if (filters.address && !company.address?.toLowerCase().includes(filters.address.toLowerCase())) {
             return false;
         }
 
@@ -412,10 +354,10 @@ const Customers = () => {
     });
 
     // Pagination Calculations
-    const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage) || 1;
+    const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentCustomers = filteredCustomers.slice(indexOfFirstItem, indexOfLastItem);
+    const currentCompanies = filteredCompanies.slice(indexOfFirstItem, indexOfLastItem);
 
     // Handle page change
     const handlePageChange = (pageNumber) => {
@@ -435,15 +377,17 @@ const Customers = () => {
             )}
 
             <div className="max-w-7xl mx-auto">
+
                 {/* Header Title & Add New Button */}
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
                     <div>
                         <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                            Customer Management
+                            Company Management
                         </h1>
-                        <p className="text-gray-500 text-sm mt-1">Manage your customer contacts, balances, and details efficiently.</p>
+                        <p className="text-gray-500 text-sm mt-1">Manage your business contacts, balances, and details efficiently.</p>
                     </div>
 
+                    {/* Toggle Button for Form */}
                     <button
                         onClick={() => {
                             if (isFormOpen && editingId) {
@@ -457,26 +401,25 @@ const Customers = () => {
                             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
                             }`}
                     >
-                        {isFormOpen ? <><FaMinus /> Close Form</> : <><FaPlus /> Add New Customer</>}
+                        {isFormOpen ? <><FaMinus /> Close Form</> : <><FaPlus /> Add New Company</>}
                     </button>
                 </div>
 
                 {/* Smooth Collapsible Form Component */}
                 <div
-                    className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormOpen ? 'max-h-[1200px] opacity-100 mb-8' : 'max-h-0 opacity-0 mb-0'
+                    className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormOpen ? 'max-h-[1000px] opacity-100 mb-8' : 'max-h-0 opacity-0 mb-0'
                         }`}
                 >
-                    <CustomerForm
+                    <CompanyForm
                         formData={formData}
                         handleChange={handleChange}
                         handleSubmit={handleSubmit}
                         editingId={editingId}
                         handleCancelEdit={handleCancelEdit}
-                        routes={routes}
                     />
                 </div>
 
-                {/* Filter & Search Panel */}
+                {/* Separate Multi-Search Filter Panel (Above Table) */}
                 <div className="bg-white shadow-lg rounded-2xl p-5 mb-6 border border-indigo-100">
                     <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
                         <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
@@ -541,21 +484,6 @@ const Customers = () => {
                             </div>
                         </div>
 
-                        {/* Customer Type Select */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer Type</label>
-                            <select
-                                name="customerType"
-                                value={filters.customerType}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700"
-                            >
-                                <option value="">All Types</option>
-                                <option value="Wholesale Customer">Wholesale Customer</option>
-                                <option value="Retail Customer">Retail Customer</option>
-                            </select>
-                        </div>
-
                         {/* Business Name Search */}
                         <div>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Business Name</label>
@@ -564,19 +492,6 @@ const Customers = () => {
                                 name="businessName"
                                 placeholder="Search business..."
                                 value={filters.businessName}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
-                        </div>
-
-                        {/* Email Search */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Email</label>
-                            <input
-                                type="text"
-                                name="email"
-                                placeholder="Search email..."
-                                value={filters.email}
                                 onChange={handleFilterChange}
                                 className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
                             />
@@ -595,13 +510,26 @@ const Customers = () => {
                             />
                         </div>
 
+                        {/* Email Search */}
+                        <div>
+                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Email</label>
+                            <input
+                                type="text"
+                                name="email"
+                                placeholder="Search email..."
+                                value={filters.email}
+                                onChange={handleFilterChange}
+                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                            />
+                        </div>
+
                         {/* Contact Name Search */}
                         <div>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Contact Name</label>
                             <input
                                 type="text"
                                 name="contactName"
-                                placeholder="Search contact name..."
+                                placeholder="Search contact..."
                                 value={filters.contactName}
                                 onChange={handleFilterChange}
                                 className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
@@ -614,7 +542,7 @@ const Customers = () => {
                             <input
                                 type="text"
                                 name="businessNumber"
-                                placeholder="Search business no..."
+                                placeholder="Search reg / ID..."
                                 value={filters.businessNumber}
                                 onChange={handleFilterChange}
                                 className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
@@ -633,152 +561,69 @@ const Customers = () => {
                                 className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
                             />
                         </div>
-
-                        {/* Route Searchable Select (Active only) */}
-                        <div className="relative" ref={routeDropdownRef}>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Route</label>
-                            <div
-                                onClick={() => setIsRouteOpen(true)}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                            >
-                                <input
-                                    type="text"
-                                    placeholder="Search or select route..."
-                                    value={filters.route}
-                                    onChange={(e) => {
-                                        handleFilterChange({ target: { name: 'route', value: e.target.value } });
-                                        setIsRouteOpen(true);
-                                    }}
-                                    className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                />
-                                {filters.route && (
-                                    <button type="button" onClick={handleClearRoute} className="text-gray-400 hover:text-red-500 pl-1">
-                                        <FaTimes size={10} />
-                                    </button>
-                                )}
-                            </div>
-
-                            {isRouteOpen && (
-                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                    {filteredRoutes.length > 0 ? (
-                                        filteredRoutes.map((r, idx) => {
-                                            const routeName = r.routeName || r.name || r;
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    onClick={() => handleSelectRoute(routeName)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
-                                                >
-                                                    {routeName}
-                                                </div>
-                                            );
-                                        })
-                                    ) : (
-                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No route found</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </div>
 
                 {/* Table Section */}
                 <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
                     <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center">
-                        <h2 className="text-xl font-bold">Customer Directory</h2>
+                        <h2 className="text-xl font-bold">Company Directory</h2>
                         <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                            Showing: {filteredCustomers.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredCustomers.length)}` : 0} of {filteredCustomers.length} ({customers.length} total)
+                            Showing: {filteredCompanies.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredCompanies.length)}` : 0} of {filteredCompanies.length} ({companies.length} total)
                         </span>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto overflow-y-visible">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Business Name</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact Number</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Email</th>
+
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Business No</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Route</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Opening Bal.</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Credit Limit</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Business Number</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Opening Balance</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Address</th>
-                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Note</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Created At</th>
+
                                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
-                                {currentCustomers.length > 0 ? (
-                                    currentCustomers.map((customer) => (
-                                        <tr key={customer._id} className="hover:bg-indigo-50/50 transition-colors">
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs">
-                                                <span className={`px-2 py-1 rounded-full font-semibold ${customer.customerType === 'Wholesale Customer'
-                                                    ? 'bg-purple-100 text-purple-700'
-                                                    : 'bg-blue-100 text-blue-700'
-                                                    }`}>
-                                                    {customer.customerType || 'Wholesale'}
-                                                </span>
-                                            </td>
+                                {currentCompanies.length > 0 ? (
+                                    currentCompanies.map((company) => (
+                                        <tr key={company._id} className="hover:bg-indigo-50/50 transition-colors">
                                             <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
                                                 <button
-                                                    onClick={() => navigate(`/customer-details/${customer._id}`)}
+                                                    onClick={() => navigate(`/company-details/${company._id}`)}
                                                     className="text-indigo-700 hover:text-purple-600 hover:underline font-bold text-left cursor-pointer transition-colors"
                                                 >
-                                                    {customer.businessName}
+                                                    {company.businessName}
                                                 </button>
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                                 <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">
-                                                    {customer.contactNumber}
+                                                    {company.contactNumber}
                                                 </span>
                                             </td>
+
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {customer.email || <span className="text-gray-400 italic text-xs">N/A</span>}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-medium">
-                                                {customer.contactName || <span className="text-gray-400 italic text-xs">N/A</span>}
+                                                {company.contactName || <span className="text-gray-400 italic">N/A</span>}
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {customer.businessNumber || <span className="text-gray-400 italic text-xs">N/A</span>}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {customer.route ? (
-                                                    <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-semibold">
-                                                        {customer.route}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400 italic text-xs">N/A</span>
-                                                )}
+                                                {company.businessNumber || <span className="text-gray-400 italic">N/A</span>}
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
-                                                ৳ {customer.openingBalance ? Number(customer.openingBalance).toLocaleString() : '0'}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-amber-600">
-                                                ৳ {customer.creditLimit ? Number(customer.creditLimit).toLocaleString() : '0'}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {customer.address || <span className="text-gray-400 italic">N/A</span>}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
-                                                <button
-                                                    onClick={() => handleOpenModal(customer.note)}
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-lg transition-all text-xs font-semibold shadow-sm"
-                                                >
-                                                    <FaEye size={12} /> View Note
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {customer.createdAt ? (
-                                                    <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
-                                                        <FaClock className="text-indigo-400" size={11} /> {customer.createdAt}
+                                                ৳ {company.openingBalance ? Number(company.openingBalance).toLocaleString() : '0'}
+                                                {company.openingBalanceType && (
+                                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${company.openingBalanceType === 'Get' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                                        {company.openingBalanceType}
                                                     </span>
-                                                ) : (
-                                                    <span className="text-gray-400 italic text-xs">N/A</span>
                                                 )}
                                             </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                                {company.address || <span className="text-gray-400 italic">N/A</span>}
+                                            </td>
+
                                             <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium relative">
                                                 <div className="relative inline-block action-dropdown-container">
                                                     <button
@@ -786,7 +631,7 @@ const Customers = () => {
                                                             const rect = e.currentTarget.getBoundingClientRect();
                                                             setDropdownPos({ top: rect.top - 8, left: rect.right });
                                                             setOpenDropdownId(
-                                                                openDropdownId === customer._id ? null : customer._id
+                                                                openDropdownId === company._id ? null : company._id
                                                             );
                                                         }}
                                                         className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -798,13 +643,13 @@ const Customers = () => {
                                                             viewBox="0 0 24 24"
                                                             strokeWidth={2}
                                                             stroke="currentColor"
-                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === customer._id ? 'rotate-180' : ''}`}
+                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === company._id ? 'rotate-180' : ''}`}
                                                         >
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                                         </svg>
                                                     </button>
 
-                                                    {openDropdownId === customer._id && (
+                                                    {openDropdownId === company._id && (
                                                         <div
                                                             style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
                                                             className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150"
@@ -812,7 +657,7 @@ const Customers = () => {
                                                             <button
                                                                 onClick={() => {
                                                                     setOpenDropdownId(null);
-                                                                    navigate(`/customer-details/${customer._id}`);
+                                                                    navigate(`/company-details/${company._id}`);
                                                                 }}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
                                                             >
@@ -820,14 +665,14 @@ const Customers = () => {
                                                                 View Details
                                                             </button>
                                                             <button
-                                                                onClick={() => handleEdit(customer)}
+                                                                onClick={() => handleEdit(company)}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
                                                             >
                                                                 <FaEdit size={12} className="text-indigo-500" />
                                                                 Edit
                                                             </button>
                                                             <button
-                                                                onClick={() => handleDelete(customer._id)}
+                                                                onClick={() => handleDelete(company._id)}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
                                                             >
                                                                 <FaTrash size={12} className="text-rose-500" />
@@ -841,8 +686,8 @@ const Customers = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="13" className="text-center py-10 text-gray-400 text-sm">
-                                            No matching customers found!
+                                        <td colSpan="7" className="text-center py-10 text-gray-400 text-sm">
+                                            No matching companies found!
                                         </td>
                                     </tr>
                                 )}
@@ -851,7 +696,7 @@ const Customers = () => {
                     </div>
 
                     {/* Pagination Footer */}
-                    {filteredCustomers.length > 0 && (
+                    {filteredCompanies.length > 0 && (
                         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <span className="text-xs text-gray-500 font-medium">
                                 Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
@@ -872,6 +717,7 @@ const Customers = () => {
                                 <div className="hidden sm:flex items-center gap-1">
                                     {[...Array(totalPages)].map((_, index) => {
                                         const pageNum = index + 1;
+                                        // Show first, last, current, and surrounding pages
                                         if (
                                             pageNum === 1 ||
                                             pageNum === totalPages ||
@@ -925,7 +771,7 @@ const Customers = () => {
                     >
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
                             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <FaStickyNote className="text-indigo-600" /> Customer Note
+                                <FaStickyNote className="text-indigo-600" /> Company Note
                             </h3>
                             <button
                                 onClick={() => setIsModalOpen(false)}
@@ -947,10 +793,9 @@ const Customers = () => {
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );
 };
 
-export default Customers;
+export default Company;

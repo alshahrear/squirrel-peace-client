@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaTimes } from 'react-icons/fa';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -71,7 +72,8 @@ const QtyBlock = ({ total, info, valueClass = 'text-gray-800', chipClass = 'bg-g
     );
 };
 
-const StockProducts = ({ onOpenHistory }) => {
+const StockProducts = () => {
+    const navigate = useNavigate();
     const [batches, setBatches] = useState([]);
     const [purchases, setPurchases] = useState([]);
     const [sales, setSales] = useState([]);
@@ -562,7 +564,7 @@ const StockProducts = ({ onOpenHistory }) => {
         setHistoryShow(false);
         setTimeout(() => {
             setHistoryOpen(false);
-            if (onOpenHistory) onOpenHistory(e);
+            navigate('/stock-purchase', { state: { focusEvent: { ...e, nonce: Date.now() } } });
         }, 300);
     };
 

@@ -1,38 +1,41 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import DamageProducts from './DamageStockProducts';
-import DamageInvoice from './DamageStockInvoice';
-import DamageReturnInvoice from './DamageReturnInvoice';
-import DamageReturnProducts from './DamageReturnProducts';
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 
 const STOCK_TABS = [
-    { key: 'invoice', label: 'Damage Stock Invoice', icon: '🧾' },
-    { key: 'products', label: 'Damage Stock Products', icon: '📦' },
+    { key: 'invoice', path: '/damage-stock-invoice', label: 'Damage Stock Invoice', icon: '🧾' },
+    { key: 'singleInvoice', path: '/damage-stock-single-invoice', label: 'Damage Single Invoice', icon: '🗂️' },
+    { key: 'products', path: '/damage-stock-products', label: 'Damage Stock Products', icon: '📦' },
 ];
 
 const RETURN_TABS = [
-    { key: 'returnInvoice', label: 'Damage Return Invoice', icon: '↩️' },
-    { key: 'returnProducts', label: 'Damage Return Products', icon: '📋' },
+    { key: 'returnInvoice', path: '/damage-return-invoice', label: 'Damage Return Invoice', icon: '↩️' },
+    { key: 'returnProducts', path: '/damage-return-products', label: 'Damage Return Products', icon: '📋' },
 ];
 
 const DamageAll = () => {
     const location = useLocation();
-    const [activeTab, setActiveTab] = useState(location.state?.tab || 'products');
-    const [focusEvent, setFocusEvent] = useState(null);
-
-    // History theke Open: Stock In -> Damage Stock Invoice, Stock Out -> Damage Return Invoice
-    const handleOpenHistory = (e) => {
-        setFocusEvent(e);
-        setActiveTab(e.type === 'in' ? 'invoice' : 'returnInvoice');
-    };
     const navigate = useNavigate();
+    const allTabs = [...STOCK_TABS, ...RETURN_TABS];
+    const matched = allTabs.find((t) => t.path === location.pathname);
+    const activeTab = matched ? matched.key : null;
+
+    // /damage-products -> state.tab onujayi sothik tab e redirect
+    useEffect(() => {
+        if (location.pathname === '/damage-products') {
+            const t =
+                allTabs.find((x) => x.key === location.state?.tab) ||
+                allTabs.find((x) => x.key === 'products');
+            navigate(t.path, { replace: true });
+        }
+        // eslint-disable-next-line
+    }, [location.pathname]);
 
     const renderTab = (t, activeCls) => (
         <button
             key={t.key}
             type="button"
-            onClick={() => { setActiveTab(t.key); setFocusEvent(null); }}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${activeTab === t.key
+            onClick={() => navigate(t.path)}
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${activeTab === t.key
                 ? activeCls
                 : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600'
                 }`}
@@ -50,16 +53,16 @@ const DamageAll = () => {
                 <button
                     type="button"
                     onClick={() => navigate('/damage-add')}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-xs whitespace-nowrap shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
                 >
                     + New Damage
                 </button>
 
-                <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-white border border-indigo-100 shadow-md">
+                <div className="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-xl bg-white border border-indigo-100 shadow-md">
                     {STOCK_TABS.map((t) =>
                         renderTab(t, 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-md shadow-indigo-200')
                     )}
-                    <span className="w-px h-7 bg-indigo-100 mx-1" />
+                    <span className="w-px h-5 bg-indigo-100 mx-0.5" />
                     {RETURN_TABS.map((t) =>
                         renderTab(t, 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-md shadow-rose-200')
                     )}
@@ -68,7 +71,7 @@ const DamageAll = () => {
                 <button
                     type="button"
                     onClick={() => navigate('/damage-return-add')}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-xl font-semibold text-xs whitespace-nowrap shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
                 >
                     ↩ Return Damage
                 </button>
@@ -76,10 +79,7 @@ const DamageAll = () => {
 
             {/* Active Page */}
             <div>
-                {activeTab === 'invoice' && <DamageInvoice focusEvent={focusEvent} />}
-                {activeTab === 'products' && <DamageProducts onOpenHistory={handleOpenHistory} />}
-                {activeTab === 'returnInvoice' && <DamageReturnInvoice focusEvent={focusEvent} />}
-                {activeTab === 'returnProducts' && <DamageReturnProducts />}
+                <Outlet />
             </div>
         </div>
     );

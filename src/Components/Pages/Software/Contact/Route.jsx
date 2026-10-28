@@ -6,9 +6,20 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import useAxiosClient from "../../../../hooks/useAxiosClient";
 
+// "23/10/2026 08:03:51 pm" -> "23 Oct 2026"
+const formatCreatedDate = (value) => {
+  if (!value) return '';
+  const datePart = value.split(' ')[0];
+  const [day, month, year] = datePart.split('/');
+  if (!day || !month || !year) return value;
+  const dateObj = new Date(year, month - 1, day);
+  if (isNaN(dateObj)) return value;
+  return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const Route = () => {
   const [routes, setRoutes] = useState([]);
-  const [formData, setFormData] = useState({ name: "", code: "", isActive: true });
+  const [formData, setFormData] = useState({ name: "", isActive: true });
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeDropdownId, setActiveDropdownId] = useState(null);
@@ -49,16 +60,14 @@ const Route = () => {
   const handleSubmit = async () => {
     try {
       if (!formData.name.trim()) return toast.error("Please enter route name");
-      if (!formData.code.trim()) return toast.error("Please enter route code");
 
-      // Check if this code already exists in another row (excluding own id while editing)
-      const isDuplicateCode = routes.some(
-        item => item.code?.toLowerCase() === formData.code.trim().toLowerCase() && item._id !== editingId
+      const isDuplicateName = routes.some(
+        item => item.name?.trim().toLowerCase() === formData.name.trim().toLowerCase() && item._id !== editingId
       );
-
-      if (isDuplicateCode) {
-        return toast.error("This code is already used by another route!");
+      if (isDuplicateName) {
+        return toast.error("This route name already exists!");
       }
+
 
       const token = localStorage.getItem('clientToken');
       const config = {
@@ -67,7 +76,6 @@ const Route = () => {
 
       const payload = {
         name: formData.name.trim(),
-        code: formData.code.trim(),
         isActive: formData.isActive
       };
 
@@ -80,10 +88,10 @@ const Route = () => {
       }
 
       fetchRoutes();
-      setFormData({ name: "", code: "", isActive: true });
+      setFormData({ name: "", isActive: true });
       setEditingId(null);
     } catch (error) {
-      toast.error("Server error occurred");
+      toast.error(error.response?.data?.message || "Server error occurred");
     }
   };
 
@@ -113,8 +121,7 @@ const Route = () => {
 
   // ১. সার্চ ফিল্টারিং (নাম বা কোড দিয়ে সার্চ করতে পারবেন)
   const filteredList = routes.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // ২. ফ্রন্টএন্ড পেজিনেশন ক্যালকুলেশন
@@ -160,7 +167,7 @@ const Route = () => {
 
         {/* Input Form Section with Code and Active Toggle */}
         <div ref={formRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="block text-gray-600 text-[11px] font-semibold mb-1.5">Route Name</label>
               <input
@@ -168,16 +175,6 @@ const Route = () => {
                 placeholder="Enter route name..."
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-600 text-[11px] font-semibold mb-1.5">Route Code</label>
-              <input
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-sm bg-gray-50/50 font-semibold"
-                placeholder="Enter route code..."
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
               />
             </div>
           </div>
@@ -220,7 +217,7 @@ const Route = () => {
               </span>
               <input
                 type="text"
-                placeholder="Search routes by name or code..."
+                placeholder="Search routes by name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
@@ -249,19 +246,13 @@ const Route = () => {
                         {item.name}
                       </span>
 
-                      {item.code && (
-                        <span className="text-xs font-bold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg border border-indigo-100">
-                          Code: {item.code}
-                        </span>
-                      )}
-
                       <span className={`px-3 py-1 rounded-full font-semibold text-xs ${item.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                         {item.isActive ? "Active" : "Inactive"}
                       </span>
 
                       {item.createdAt && (
                         <span className="text-xs text-gray-500 hidden lg:inline">
-                          {item.createdAt}
+                          {formatCreatedDate(item.createdAt)}
                         </span>
                       )}
                     </div>
@@ -282,7 +273,7 @@ const Route = () => {
                               onClick={() => {
                                 setActiveDropdownId(null);
                                 setEditingId(item._id);
-                                setFormData({ name: item.name, code: item.code || "", isActive: item.isActive });
+                                setFormData({ name: item.name, isActive: item.isActive });
                                 formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
                               }}
                               className="w-full px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 transition duration-150 cursor-pointer"

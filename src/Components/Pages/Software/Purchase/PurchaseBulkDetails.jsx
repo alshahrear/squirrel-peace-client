@@ -209,12 +209,53 @@ const PurchaseBulkDetails = () => {
                             )}
                         </div>
 
-                        <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
-                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900">
-                                <span>Return Amount:</span>
-                                <span className="text-orange-600">৳{Number(bulkReturn.returnAmount || 0).toFixed(2)}</span>
-                            </div>
-                        </div>
+                        {(() => {
+                            const totalRet = Number(bulkReturn.returnAmount) || 0;
+                            const pay = bulkReturn.payment;
+                            const paid = pay ? Number(pay.amount) || 0 : 0;
+                            const diff = Math.round((totalRet - paid) * 100) / 100;
+                            const pa = pay?.account || {};
+                            const accText =
+                                pay?.method === 'Bank'
+                                    ? `${pa.bankName} - ${pa.accountNumber} (${pa.accountBranch})`
+                                    : pay?.method === 'Mobile Banking'
+                                        ? `${pa.accountName} - ${pa.accountNumber}`
+                                        : pay?.method
+                                            ? 'Cash'
+                                            : '';
+                            return (
+                                <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
+                                    <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900">
+                                        <span>Return Amount:</span>
+                                        <span className="text-orange-600">৳{totalRet.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-slate-600">
+                                        <span>Return Payment Received:</span>
+                                        {pay ? (
+                                            <span className="font-bold text-emerald-600">৳{paid.toFixed(2)}</span>
+                                        ) : (
+                                            <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold text-[10px]">
+                                                Not Received
+                                            </span>
+                                        )}
+                                    </div>
+                                    {pay && (
+                                        <div className="flex justify-between text-slate-600 border-t border-dashed border-slate-300 pt-2">
+                                            <span>{diff > 0 ? 'Still Receivable:' : diff < 0 ? 'Extra Received:' : 'Status:'}</span>
+                                            <span className={`font-bold ${diff > 0 ? 'text-rose-600' : diff < 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                                {diff === 0 ? 'Fully Received' : `৳${Math.abs(diff).toFixed(2)}`}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {pay && (
+                                        <div className="text-[11px] text-slate-500 border-t border-slate-200 pt-2">
+                                            <div>Method: <b className="text-slate-700">{pay.method}</b>{accText && pay.method !== 'Cash' ? ` | ${accText}` : ''}</div>
+                                            {pay.note && <div className="italic mt-1">Note: {pay.note}</div>}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>

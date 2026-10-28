@@ -5,6 +5,17 @@ import useDraftState from '../../../../hooks/useDraftState';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
+// "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
+const formatCreatedDate = (value) => {
+    if (!value) return '';
+    const datePart = value.split(/[ ,]/)[0];
+    const [day, month, year] = datePart.split('/');
+    if (!day || !month || !year) return value;
+    const dateObj = new Date(year, month - 1, day);
+    if (isNaN(dateObj)) return value;
+    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const User = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -261,7 +272,7 @@ const User = () => {
                                                     {user.isActive ? 'Active' : 'Inactive'}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-5 text-xs text-gray-500">{user.createdAt}</td>
+                                            <td className="py-4 px-5 text-xs text-gray-500">{formatCreatedDate(user.createdAt)}</td>
                                             <td className="py-4 px-5 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
                                                     <button

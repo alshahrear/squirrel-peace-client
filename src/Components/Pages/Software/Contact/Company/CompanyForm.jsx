@@ -100,14 +100,28 @@ const CompanyForm = ({ formData, handleChange, handleSubmit, editingId, handleCa
 
                 {/* Opening Balance */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaWallet className="text-indigo-500" /> Opening Balance
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5 gap-2 h-4">
+                        <label className="text-gray-700 text-xs font-semibold flex items-center gap-1.5">
+                            <FaWallet className="text-indigo-500" /> Opening Balance
+                        </label>
+                        <select
+                            name="openingBalanceType"
+                            value={formData.openingBalanceType || ''}
+                            onChange={handleChange}
+                            className="h-5 px-1.5 py-0 text-[11px] leading-none rounded-md border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 text-gray-700 cursor-pointer"
+                        >
+                            <option value="">Select type</option>
+                            <option value="Get">Get</option>
+                            <option value="Pay">Pay</option>
+                        </select>
+                    </div>
                     <input
                         type="number"
                         name="openingBalance"
-                        placeholder="0.00"
+                        placeholder={formData.openingBalanceType ? '0.00' : 'Select type first'}
                         value={formData.openingBalance}
+                        disabled={!formData.openingBalanceType}
+                        required={!!formData.openingBalanceType}
                         onChange={(e) => {
                             const value = e.target.value;
 
@@ -118,7 +132,7 @@ const CompanyForm = ({ formData, handleChange, handleSubmit, editingId, handleCa
                         }}
                         step="0.01"
                         min="0"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                     />
                 </div>
 
@@ -157,11 +171,11 @@ const CompanyForm = ({ formData, handleChange, handleSubmit, editingId, handleCa
                     <button
                         type="submit"
                         className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${editingId
-                                ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200'
-                                : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200'
+                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
                             }`}
                     >
-                        {editingId ? 'Update Company Details' : 'Save Company'}
+                        {editingId ? 'Update Company Details' : 'Add Company'}
                     </button>
                 </div>
             </form>

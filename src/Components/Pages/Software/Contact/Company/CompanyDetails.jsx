@@ -29,6 +29,17 @@ const InfoCard = ({ icon, label, children, iconBg = 'bg-indigo-50 text-indigo-60
 
 const NA = () => <span className="text-gray-400 italic font-normal">N/A</span>;
 
+// "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
+const formatCreatedDate = (value) => {
+    if (!value) return '';
+    const datePart = value.split(/[ ,]/)[0];
+    const [day, month, year] = datePart.split('/');
+    if (!day || !month || !year) return value;
+    const dateObj = new Date(year, month - 1, day);
+    if (isNaN(dateObj)) return value;
+    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const CompanyDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -178,6 +189,11 @@ const CompanyDetails = () => {
 
                     <InfoCard icon={<FaWallet size={15} />} label="Opening Balance" iconBg="bg-emerald-50 text-emerald-600">
                         <span className="text-emerald-600">৳ {balance}</span>
+                        {company.openingBalanceType && (
+                            <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${company.openingBalanceType === 'Get' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                {company.openingBalanceType}
+                            </span>
+                        )}
                     </InfoCard>
 
                     <InfoCard icon={<FaMapMarkerAlt size={15} />} label="Address" iconBg="bg-rose-50 text-rose-600">
@@ -185,7 +201,7 @@ const CompanyDetails = () => {
                     </InfoCard>
 
                     <InfoCard icon={<FaClock size={15} />} label="Created At" iconBg="bg-indigo-50 text-indigo-600">
-                        {company.createdAt || <NA />}
+                        {company.createdAt ? formatCreatedDate(company.createdAt) : <NA />}
                     </InfoCard>
                 </div>
 

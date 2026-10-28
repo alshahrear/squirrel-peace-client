@@ -13,6 +13,7 @@ import {
   FaUsers,
   FaFileInvoiceDollar,
   FaChartBar,
+  FaCoins,
   FaCog,
 } from "react-icons/fa";
 import fav from "../../../../assets/squirrelpeacelogo.png";
@@ -67,6 +68,13 @@ const colorMap = {
     active: "bg-indigo-50 text-indigo-700 before:bg-indigo-600",
     childActive: "bg-indigo-50 text-indigo-700",
     chevronOpen: "text-indigo-600",
+  },
+  profit: {
+    icon: FaCoins,
+    iconWrap: "bg-lime-50 text-lime-600",
+    active: "bg-lime-50 text-lime-700 before:bg-lime-600",
+    childActive: "bg-lime-50 text-lime-700",
+    chevronOpen: "text-lime-600",
   },
   report: {
     icon: FaChartBar,
@@ -200,6 +208,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/purchase", label: "All Purchase" },
         { to: "/purchase-return", label: "Purchase Return" },
         { to: "/purchase-bulk-return", label: "Bulk Return" },
+        { to: "/purchase-due-payment", label: "Purchase Due Payment" },
       ],
     },
     clientUser && {
@@ -219,6 +228,8 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       children: [
         { to: "/customers", label: "Customers" },
         { to: "/company", label: "Company" },
+        { to: "/company-account", label: "Company Account" },
+        { to: "/customer-account", label: "Customer Account" },
         { to: "/routes", label: "Route" },
       ],
     },
@@ -237,12 +248,15 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       label: "Account",
       children: [
         { to: "/account-balance", label: "Account Balance" },
-        { to: "/opening-investment", label: "Opening Investment" },
-        { to: "/income", label: "Income" },
-        { to: "/expense", label: "Expense" },
-        { to: "/route-expense", label: "Route Expense" },
-        { to: "/transfer", label: "Transfer" },
-        { to: "/account-heads", label: "Account Heads" },
+        { to: "/account-all", label: "Account All" },
+      ],
+    },
+    {
+      type: "dropdown",
+      key: "profit",
+      label: "Profit",
+      children: [
+        { to: "/profit-all", label: "Profit" },
       ],
     },
     {
@@ -251,9 +265,9 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       label: "Report",
       children: [
         { to: "/sales-report", label: "Sales Reports" },
-          { to: "/purchase-report", label: "Purchase Reports" },
-          { to: "/stock-report", label: "Stock Reports" },
-          { to: "/stock-report", label: "Account Reports" },
+        { to: "/purchase-report", label: "Purchase Reports" },
+        { to: "/stock-report", label: "Stock Reports" },
+        { to: "/stock-report", label: "Account Reports" },
       ],
     },
     {

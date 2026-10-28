@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+// (React.Fragment use hocche)
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Printer,
@@ -19,7 +20,7 @@ const DamageReturnDetails = () => {
     const [data, setData] = useState(null);
     const [notFound, setNotFound] = useState(false);
 
-    const goBack = () => navigate('/damage-products', { state: { tab: 'returnInvoice' } });
+    const goBack = () => navigate('/damage-return-invoice');
 
     useEffect(() => {
         setLoading(true);
@@ -198,6 +199,99 @@ const DamageReturnDetails = () => {
                         </table>
                     </div>
 
+                    {/* Cost Calculation */}
+                    {(() => {
+                        const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+                        const lines = items
+                            .filter((it) => (it.costBreakdown || []).length > 0 && Number(it.totalQty) > 0)
+                            .map((it) => {
+                                const bd = it.costBreakdown;
+                                const qty = Number(it.totalQty) || 0;
+                                const bdQty = bd.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+                                const stockTotal = r2(bd.reduce((s, l) => s + (Number(l.amount) || 0), 0));
+                                const retPerPcs = Number(it.buyPrice) || 0;
+                                return {
+                                    name: it.productName,
+                                    qty,
+                                    stockPerPcs: bdQty > 0 ? stockTotal / bdQty : 0,
+                                    retPerPcs,
+                                    stockTotal,
+                                    retTotal: r2(retPerPcs * qty),
+                                    batches: bd,
+                                };
+                            });
+                        if (lines.length === 0) return null;
+                        const stockTotal = r2(lines.reduce((s, l) => s + l.stockTotal, 0));
+                        const retTotal = r2(lines.reduce((s, l) => s + l.retTotal, 0));
+                        const diff = r2(stockTotal - retTotal);
+                        const st =
+                            diff > 0
+                                ? { label: 'Loss', box: 'bg-rose-50 border-rose-200 text-rose-700', tag: 'bg-rose-500 text-white', val: 'text-rose-600' }
+                                : diff < 0
+                                    ? { label: 'Profit', box: 'bg-emerald-50 border-emerald-200 text-emerald-700', tag: 'bg-emerald-500 text-white', val: 'text-emerald-600' }
+                                    : { label: 'Even', box: 'bg-gray-50 border-gray-200 text-gray-600', tag: 'bg-gray-400 text-white', val: 'text-gray-600' };
+                        const f = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+                        return (
+                            <div className="px-6 sm:px-8 pb-6 print:hidden">
+                                <h4 className="text-sm font-bold text-slate-700 mb-3">🧮 Cost Calculation</h4>
+                                <div className={`rounded-2xl border px-4 py-3 text-center text-sm font-extrabold mb-3 ${st.box}`}>
+                                    Stock ৳{f(stockTotal)} vs Return ৳{f(retTotal)} → ৳{f(Math.abs(diff))}
+                                    <span className={`ml-2 px-2.5 py-0.5 rounded-full text-[11px] ${st.tag}`}>{st.label}</span>
+                                </div>
+                                <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-rose-50 text-rose-700 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap">
+                                                <th className="py-2.5 px-3">Product</th>
+                                                <th className="py-2.5 px-3 text-center">Qty</th>
+                                                <th className="py-2.5 px-3 text-right">Stock Cost / pcs</th>
+                                                <th className="py-2.5 px-3 text-right">Stock Total</th>
+                                                <th className="py-2.5 px-3 text-right">Return / pcs</th>
+                                                <th className="py-2.5 px-3 text-right">Return Total</th>
+                                                <th className="py-2.5 px-3 text-right">Difference</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
+                                            {lines.map((l, i) => {
+                                                const d = r2(l.stockTotal - l.retTotal);
+                                                return (
+                                                    <React.Fragment key={i}>
+                                                        <tr>
+                                                            <td className="py-3 px-3 font-semibold text-slate-800">{l.name}</td>
+                                                            <td className="py-3 px-3 text-center font-bold text-orange-600 whitespace-nowrap">{f(l.qty)} pcs</td>
+                                                            <td className="py-3 px-3 text-right font-bold text-violet-600 whitespace-nowrap">৳{f(l.stockPerPcs)}</td>
+                                                            <td className="py-3 px-3 text-right font-bold text-violet-700 whitespace-nowrap">৳{f(l.stockTotal)}</td>
+                                                            <td className="py-3 px-3 text-right font-bold text-amber-600 whitespace-nowrap">৳{f(l.retPerPcs)}</td>
+                                                            <td className="py-3 px-3 text-right font-bold text-amber-700 whitespace-nowrap">৳{f(l.retTotal)}</td>
+                                                            <td className={`py-3 px-3 text-right font-extrabold whitespace-nowrap ${d > 0 ? 'text-rose-600' : d < 0 ? 'text-emerald-600' : 'text-gray-600'}`}>
+                                                                ৳{f(Math.abs(d))}
+                                                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] text-white ${d > 0 ? 'bg-rose-500' : d < 0 ? 'bg-emerald-500' : 'bg-gray-400'}`}>
+                                                                    {d > 0 ? 'Loss' : d < 0 ? 'Profit' : 'Even'}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                        <tr className="bg-slate-50/60">
+                                                            <td colSpan={7} className="px-3 py-2">
+                                                                <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                                                                    <span className="font-bold text-slate-500 uppercase text-[10px]">Stock source:</span>
+                                                                    {l.batches.map((b, bi) => (
+                                                                        <span key={bi} className="px-2 py-0.5 rounded-md border border-violet-200 bg-violet-50 text-violet-700 font-semibold whitespace-nowrap">
+                                                                            #{b.invoiceNo} · {f(b.qty)} pcs × ৳{f(b.cost)}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    </React.Fragment>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* Totals + Note */}
                     <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col sm:flex-row justify-between items-start gap-6 print:bg-white">
                         <div className="w-full sm:w-1/2">
@@ -211,12 +305,53 @@ const DamageReturnDetails = () => {
                             )}
                         </div>
 
-                        <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
-                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900">
-                                <span>Damage Amount:</span>
-                                <span className="text-red-600">৳{Number(data.damageAmount || 0).toFixed(2)}</span>
-                            </div>
-                        </div>
+                        {(() => {
+                            const totalRet = Number(data.damageAmount) || 0;
+                            const pay = data.payment;
+                            const paid = pay ? Number(pay.amount) || 0 : 0;
+                            const diff = Math.round((totalRet - paid) * 100) / 100;
+                            const pa = pay?.account || {};
+                            const accText =
+                                pay?.method === 'Bank'
+                                    ? `${pa.bankName} - ${pa.accountNumber} (${pa.accountBranch})`
+                                    : pay?.method === 'Mobile Banking'
+                                        ? `${pa.accountName} - ${pa.accountNumber}`
+                                        : pay?.method
+                                            ? 'Cash'
+                                            : '';
+                            return (
+                                <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
+                                    <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900">
+                                        <span>Return Amount:</span>
+                                        <span className="text-red-600">৳{totalRet.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-slate-600">
+                                        <span>Return Payment Received:</span>
+                                        {pay ? (
+                                            <span className="font-bold text-emerald-600">৳{paid.toFixed(2)}</span>
+                                        ) : (
+                                            <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold text-[10px]">
+                                                Not Received
+                                            </span>
+                                        )}
+                                    </div>
+                                    {pay && (
+                                        <div className="flex justify-between text-slate-600 border-t border-dashed border-slate-300 pt-2">
+                                            <span>{diff > 0 ? 'Still Receivable:' : diff < 0 ? 'Extra Received:' : 'Status:'}</span>
+                                            <span className={`font-bold ${diff > 0 ? 'text-rose-600' : diff < 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                                {diff === 0 ? 'Fully Received' : `৳${Math.abs(diff).toFixed(2)}`}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {pay && (
+                                        <div className="text-[11px] text-slate-500 border-t border-slate-200 pt-2">
+                                            <div>Method: <b className="text-slate-700">{pay.method}</b>{accText && pay.method !== 'Cash' ? ` | ${accText}` : ''}</div>
+                                            {pay.note && <div className="italic mt-1">Note: {pay.note}</div>}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>

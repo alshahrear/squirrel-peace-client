@@ -1,27 +1,18 @@
-import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import StockProducts from './StockProducts';
-import StockPurchase from './StockPurchase';
-import StockAdjustment from './StockAdjustment';
-import StockAlert from './StockAlert';
+import React from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const TABS = [
-    { key: 'products', label: 'Stock Products', icon: '📦' },
-    { key: 'purchase', label: 'Stock Purchase', icon: '🧾' },
-    { key: 'adjustment', label: 'Stock Adjustment', icon: '⚖️' },
-    { key: 'alert', label: 'Stock Alert', icon: '🔔' },
+    { key: 'products', path: '/stock-products', label: 'Stock Products', icon: '📦' },
+    { key: 'purchase', path: '/stock-purchase', label: 'Stock Purchase', icon: '🧾' },
+    { key: 'adjustment', path: '/stock-adjustment', label: 'Stock Adjustment', icon: '⚖️' },
+    { key: 'alert', path: '/stock-alert', label: 'Stock Alert', icon: '🔔' },
 ];
 
 const StockAll = () => {
     const location = useLocation();
-    const [activeTab, setActiveTab] = useState(location.state?.tab || 'products');
-    const [focusEvent, setFocusEvent] = useState(null);
-
-    // History theke Open click korle Stock Purchase tab e niye jabe
-    const handleOpenHistory = (e) => {
-        setFocusEvent({ ...e, nonce: Date.now() });
-        setActiveTab('purchase');
-    };
+    const navigate = useNavigate();
+    const matched = TABS.find((t) => t.path === location.pathname);
+    const activeTab = matched ? matched.key : null;
 
     return (
         <div className="bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
@@ -32,7 +23,7 @@ const StockAll = () => {
                         <button
                             key={t.key}
                             type="button"
-                            onClick={() => { setFocusEvent(null); setActiveTab(t.key); }}
+                            onClick={() => navigate(t.path)}
                             className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${activeTab === t.key
                                 ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-md shadow-indigo-200'
                                 : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600'
@@ -47,15 +38,7 @@ const StockAll = () => {
 
             {/* Active Page */}
             <div>
-                {activeTab === 'products' ? (
-                    <StockProducts onOpenHistory={handleOpenHistory} />
-                ) : activeTab === 'purchase' ? (
-                    <StockPurchase focusEvent={focusEvent} />
-                ) : activeTab === 'adjustment' ? (
-                    <StockAdjustment />
-                ) : (
-                    <StockAlert />
-                )}
+                <Outlet />
             </div>
         </div>
     );

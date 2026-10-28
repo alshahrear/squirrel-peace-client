@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../hooks/useDraftState';
 
 const API_BASE = 'https://squirrel-peace-server.onrender.com';
@@ -164,6 +165,7 @@ export const SearchSelect = ({
 // Order Form
 // ------------------------------------------------------------------
 const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initialData = null, directSales = false, onDirectSalesChange = null }) => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useDraftState('orderNew:form', {
         customerId: '',
         customer: '',
@@ -342,7 +344,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
     useEffect(() => {
         if (initialData) {
             setSearch((prev) => ({ ...prev, route: initialData.route || '' }));
-                      setRouteLocked(!initialData.directSales && !!initialData.customer && !!initialData.route);
+            setRouteLocked(!initialData.directSales && !!initialData.customer && !!initialData.route);
         }
     }, [initialData]);
 
@@ -600,6 +602,33 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                             <h3 className="text-xl font-bold text-slate-800">Order Information</h3>
                             <p className="text-xs text-slate-400 mt-0.5">Select customer, sales representative and products for this order</p>
                         </div>
+                    </div>
+
+                    {/* Quick Add Section */}
+                    <div className="grid grid-cols-4 items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-50/60 border border-teal-100 mx-3">
+                        {[
+                            { label: 'Customer', path: '/customers', regularOnly: false },
+                            { label: 'Route', path: '/routes', regularOnly: true },
+                            { label: 'SR', path: '/user', regularOnly: true },
+                            { label: 'Delivered By', path: '/user', regularOnly: true },
+                            { label: 'Company', path: '/company', regularOnly: false },
+                            { label: 'Category', path: '/category', regularOnly: false },
+                            { label: 'Product', path: '/product', regularOnly: false },
+                        ]
+                            .filter((b) => !(directSales && b.regularOnly))
+                            .map((b) => (
+                                <button
+                                    key={b.label}
+                                    type="button"
+                                    onClick={() => navigate(b.path)}
+                                    className="inline-flex items-center justify-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white border border-teal-100 text-[10px] font-semibold text-teal-600 hover:text-emerald-700 hover:border-teal-300 transition-colors cursor-pointer whitespace-nowrap"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                    Add {b.label}
+                                </button>
+                            ))}
                     </div>
                 </div>
 

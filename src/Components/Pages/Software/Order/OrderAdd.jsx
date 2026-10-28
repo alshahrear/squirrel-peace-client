@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import OrderForm, { SearchSelect, matchesSearch } from './OrderForm';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
@@ -128,6 +128,19 @@ const OrderAdd = () => {
 
     // Order সফল হওয়ার পর OrderForm রিসেট করার জন্য key
     const [formResetKey, setFormResetKey] = useState(0);
+    const submitLock = useRef(false);
+    const deliveryLock = useRef(false);
+    const paymentSectionRef = useRef(null);
+
+    // Delivery mode e page open hole Payment section e auto scroll (Direct Sales e hobe na)
+    useEffect(() => {
+        if (!isDeliveryMode || directSales) return;
+        const timer = setTimeout(() => {
+            paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 400);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Toast notification
     const [toast, setToast] = useState({ show: false, message: '', isError: false });
@@ -1388,7 +1401,16 @@ const OrderAdd = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitLock.current) return;
+        submitLock.current = true;
+        try {
+            await handleSubmitInner(e);
+        } finally {
+            setTimeout(() => { submitLock.current = false; }, 1500);
+        }
+    };
 
+    const handleSubmitInner = async (e) => {
         if (isDamageOnly) {
             handleDamageOnlySubmit();
             return;
@@ -1682,6 +1704,16 @@ const OrderAdd = () => {
     // Delivery Submit
     // --------------------------------------------------
     const handleDeliverySubmit = async () => {
+        if (deliveryLock.current) return;
+        deliveryLock.current = true;
+        try {
+            await handleDeliverySubmitInner();
+        } finally {
+            setTimeout(() => { deliveryLock.current = false; }, 1500);
+        }
+    };
+
+    const handleDeliverySubmitInner = async () => {
         if (!orderFormData.customerId) {
             showToast('Customer is required!', true);
             return;
@@ -3709,7 +3741,7 @@ DAMAGE PRODUCT
                             PAYMENT (Delivery Mode Only)
                         ================================= */}
                         {showPayment && (
-                            <div className={`mt-8 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6 ${lockCls}`}>
+                            <div ref={paymentSectionRef} className={`mt-8 scroll-mt-6 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6 ${lockCls}`}>
                                 <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                                     <h3 className="text-base font-bold text-emerald-800">Payment</h3>
 
@@ -3758,7 +3790,11 @@ DAMAGE PRODUCT
                                             value={paymentAccountType}
                                             onChange={(e) => {
                                                 setPaymentAccountType(e.target.value);
-                                                setSelectedAccountKey('');
+                                                setSelectedAccountKey(
+                                                    e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
+                                                        ? 'cash'
+                                                        : ''
+                                                );
                                                 if (savePaymentMethod) {
                                                     setSavePaymentMethod(false);
                                                     persistPaymentMethod(false, '', '');

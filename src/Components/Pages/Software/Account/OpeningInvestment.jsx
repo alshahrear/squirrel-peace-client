@@ -302,7 +302,7 @@ const OpeningInvestment = () => {
     const grandTotal = filteredInvestments.reduce((sum, item) => sum + getRemainingAmount(item), 0);
 
     return (
-        <div ref={topSectionRef} className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
+       <div ref={topSectionRef} className="p-4 md:p-6 relative">
 
             {toast.show && (
                 <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
