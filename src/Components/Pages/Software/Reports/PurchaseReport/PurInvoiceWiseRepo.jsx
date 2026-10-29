@@ -165,6 +165,12 @@ const PurInvoiceWiseRepo = () => {
         if (ret > 0) lines.push({ label: 'Return Adj', value: -ret });
         const dmg = Number(item.damageAdjustmentAmount) || 0;
         if (dmg > 0) lines.push({ label: 'Damage Adj', value: -dmg });
+        const prev = Number(item.previousBalanceAmount) || 0;
+        if (prev > 0) {
+            const prevType = String(item.previousBalanceType || '').trim().toLowerCase();
+            if (prevType === 'get') lines.push({ label: 'Previous Get', value: -prev });
+            else lines.push({ label: 'Previous Pay', value: prev });
+        }
         return lines;
     };
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FaBuilding, FaCalendarAlt, FaCreditCard, FaUniversity, FaMoneyBillWave, FaStickyNote, FaTimes } from 'react-icons/fa';
 
 // ISO (YYYY-MM-DD) -> "28 Oct 2026"
@@ -23,10 +23,23 @@ const PurchaseDuePaymentForm = ({
     getAccountKey,
     canPay,
     isSubmitting,
+    dueAmount = 0,
 }) => {
     const [companySearch, setCompanySearch] = useState('');
     const [companyOpen, setCompanyOpen] = useState(false);
     const dateRef = useRef(null);
+    const [useDue, setUseDue] = useState(false);
+
+    // company change hole checkbox untick + amount clear
+    useEffect(() => {
+        setUseDue(false);
+        setFormData((prev) => ({ ...prev, amount: '' }));
+    }, [formData.company]);
+
+    // checkbox tick thakle amount box a due amount boshbe
+    useEffect(() => {
+        if (useDue) setFormData((prev) => ({ ...prev, amount: String(dueAmount) }));
+    }, [useDue, dueAmount]);
 
     const companyChosen = !!formData.company;
 
@@ -214,7 +227,26 @@ const PurchaseDuePaymentForm = ({
                 {/* Amount */}
                 <div>
                     <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaMoneyBillWave className="text-indigo-500" /> Amount <span className="text-red-500">*</span>
+                        <span
+                            className="flex items-center gap-1.5"
+                            onClick={(e) => e.preventDefault()}
+                        >
+                            <FaMoneyBillWave className="text-indigo-500" /> Amount <span className="text-red-500">*</span>
+                        </span>
+                        <span className="ml-auto flex items-center gap-1.5 text-[11px] font-bold text-gray-600 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={useDue}
+                                disabled={!companyChosen || dueAmount <= 0}
+                                onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setUseDue(checked);
+                                    if (!checked) setFormData((prev) => ({ ...prev, amount: '' }));
+                                }}
+                                className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer disabled:cursor-not-allowed"
+                            />
+                            Due Amount: ৳ {Number(dueAmount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                        </span>
                     </label>
                     <input
                         type="number"
@@ -222,6 +254,7 @@ const PurchaseDuePaymentForm = ({
                         step="0.01"
                         placeholder="0.00"
                         value={formData.amount}
+                        readOnly={useDue}
                         disabled={!companyChosen}
                         onChange={(e) => {
                             const value = e.target.value;

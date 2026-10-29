@@ -677,6 +677,25 @@ const StockPurchase = () => {
             const ad = adjMap.get(String(b._id)) || { paid: 0, free: 0 };
             const sold = { paid: sold0.paid - sb.paid + dm.paid + ad.paid, free: sold0.free - sb.free + dm.free + ad.free };
             const curPaid = Math.max(origPaid - retPaid, 0);
+
+            // Cost: shudhu product subtotal - overall discount +/- adjustment (damage/return/previous due-get bad)
+            let netCostFixed = Number(b.netCost) || 0;
+            if (purchase && !b.isFreeProduct) {
+                const pItems = purchase.items || [];
+                const sumSub = pItems.reduce((s, x) => s + (Number(x.itemTotal ?? x.subtotal) || 0), 0);
+                const ov =
+                    purchase.overallDiscountValue !== undefined && purchase.overallDiscountValue !== null && purchase.overallDiscountValue !== ''
+                        ? Number(purchase.overallDiscountValue) || 0
+                        : purchase.overallDiscountType === 'percent'
+                            ? (sumSub * (Number(purchase.overallDiscount) || 0)) / 100
+                            : Number(purchase.overallDiscount) || 0;
+                const adj = Number(purchase.adjustment?.amount) || 0;
+                const pay = Math.max(sumSub - ov + (purchase.adjustment?.type === '-' ? -adj : adj), 0);
+                const pIt = pItems.find((x) => String(x.productId) === String(b.productId));
+                if (pIt && sumSub > 0) {
+                    netCostFixed = r2((pay * (Number(pIt.itemTotal ?? pIt.subtotal) || 0)) / sumSub);
+                }
+            }
             const curFree = Math.max(origFree - retFree, 0);
             let availPaid = 0;
             let availFree = 0;
@@ -689,6 +708,7 @@ const StockPurchase = () => {
 
             return {
                 ...b,
+                netCost: netCostFixed,
                 origPaidQty: origPaid,
                 origFreeQty: origFree,
                 paidQty: Math.max(origPaid - retPaid, 0),
@@ -698,7 +718,7 @@ const StockPurchase = () => {
                 availPaidQty: availPaid,
                 availFreeQty: availFree,
                 hasReturn: retTotal > 0,
-                profitInfo: calcProfit(b, sales, origPaid > 0 ? r2((Number(b.netCost) || 0) / origPaid) : 0),
+                profitInfo: calcProfit(b, sales, origPaid > 0 ? r2(netCostFixed / origPaid) : 0),
                 sbPaid: sb.paid,
                 sbFree: sb.free,
                 dmgPaid: dm.paid,

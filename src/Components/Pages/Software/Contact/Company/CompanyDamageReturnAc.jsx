@@ -130,7 +130,7 @@ const CompanyDamageReturnAc = () => {
 
     // ---------- Rows ----------
     // 1) Damage Return form theke
-    const formRows = damageReturns.map((d) => ({
+    const formRows = damageReturns.filter((d) => d.status === 'Approved').map((d) => ({
         key: `dr-${d._id}`,
         id: d._id,
         fromPurchase: false,
@@ -148,7 +148,8 @@ const CompanyDamageReturnAc = () => {
         .filter(
             (p) =>
                 (p.receiveStatus === 'Received' || p.receiveStatus === 'Yes') &&
-                (p.damageItems || []).length > 0
+                (p.damageItems || []).length > 0 &&
+                (Number(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')
         )
         .map((p) => {
             const adj = Number(p.damageAdjustmentAmount) || 0;

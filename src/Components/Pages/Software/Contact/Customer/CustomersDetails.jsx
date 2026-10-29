@@ -215,6 +215,11 @@ const CustomersDetails = () => {
 
                     <InfoCard icon={<FaWallet size={15} />} label="Opening Balance" iconBg="bg-emerald-50 text-emerald-600">
                         <span className="text-emerald-600">৳ {openingBalance}</span>
+                        {customer.openingBalanceType && (
+                            <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${customer.openingBalanceType === 'Get' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                {customer.openingBalanceType}
+                            </span>
+                        )}
                     </InfoCard>
 
                     <InfoCard icon={<FaCreditCard size={15} />} label="Credit Limit" iconBg="bg-amber-50 text-amber-600">

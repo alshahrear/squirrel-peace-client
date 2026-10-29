@@ -276,6 +276,128 @@ const PurchaseAddInner = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // ---------------- Previous Due / Get (Company Account theke) ----------------
+    const [prevBalance, setPrevBalance] = useState({ amount: 0, type: '' }); // type: 'Due' | 'Get' | ''
+    const [usePrevBalance, setUsePrevBalance] = useState(false);
+    useEffect(() => {
+        const company = (purchaseFormData.company || '').toString().trim().toLowerCase();
+        if (!company) {
+            setPrevBalance({ amount: 0, type: '' });
+            return;
+        }
+        let cancelled = false;
+        const n = (v) => Number(v) || 0;
+        const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+        const same = (a) => String(a || '').trim().toLowerCase() === company;
+        const sumItems = (items) =>
+            (items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
+        const safe = (url) =>
+            fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
+
+        Promise.all([
+            safe('https://squirrel-peace-server.onrender.com/purchase'),
+            safe('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
+            safe('https://squirrel-peace-server.onrender.com/damage-return'),
+            safe('https://squirrel-peace-server.onrender.com/company'),
+            safe('https://squirrel-peace-server.onrender.com/purchase-due-payment'),
+        ]).then(([purchases, bulks, damages, companies, duePays]) => {
+            if (cancelled) return;
+            let pay = 0;
+            let get = 0;
+
+            // Opening balance
+            const info = companies.find((c) => same(c.businessName));
+            const openAmt = r2(n(info?.openingBalance));
+            const openType = String(info?.openingBalanceType || '').trim().toLowerCase();
+            if (openAmt > 0 && openType === 'pay') pay += openAmt;
+            if (openAmt > 0 && openType === 'get') get += openAmt;
+
+            // Purchase payments (current edit purchase bad)
+            purchases.forEach((p) => {
+                if (editId && String(p._id) === String(editId)) return;
+                if (!same(p.company)) return;
+                if (p.paidAmount === undefined || p.paidAmount === null || p.paidAmount === '' || !p.paymentMethod) return;
+                const prev = n(p.previousBalanceAmount);
+                let payable = n(p.payableAmount);
+                if (p.previousBalanceType === 'Due') payable -= prev;
+                else if (p.previousBalanceType === 'Get') payable += prev;
+                const paid = n(p.paidAmount);
+                const recvd = p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
+                if (payable < 0) {
+                    const netNeg = payable + paid;
+                    pay += Math.max(netNeg, 0);
+                    get += Math.max(-netNeg, 0);
+                } else {
+                    pay += recvd ? Math.max(payable - paid, 0) : 0;
+                    get += recvd ? Math.max(paid - payable, 0) : paid;
+                }
+            });
+
+            // Purchase return
+            purchases.forEach((order) => {
+                if (!same(order.company)) return;
+                (order.returnHistory || []).forEach((ret) => {
+                    const amt = n(ret.totalReturnAmount);
+                    const rec = ret.payment ? n(ret.payment.amount) : 0;
+                    pay += Math.max(rec - amt, 0);
+                    get += Math.max(amt - rec, 0);
+                });
+            });
+
+            // Bulk return
+            bulks.forEach((b) => {
+                if (!same(b.company)) return;
+                if (editId && b.fromPurchase === true && String(b.purchaseId) === String(editId)) return;
+                const adj =
+                    b.fromPurchase === true
+                        ? n(purchases.find((p) => String(p._id) === String(b.purchaseId))?.returnAdjustmentAmount)
+                        : 0;
+                const rec = adj > 0 ? adj : b.payment ? n(b.payment.amount) : 0;
+                const amt = n(b.returnAmount);
+                pay += Math.max(rec - amt, 0);
+                get += Math.max(amt - rec, 0);
+            });
+
+            // Damage return (standalone)
+            damages.forEach((d) => {
+                if (!same(d.company)) return;
+                if (d.status !== 'Approved') return;
+                const amt = n(d.damageAmount) || n(d.returnAmount) || sumItems(d.items);
+                const rec = d.payment ? n(d.payment.amount) : 0;
+                pay += Math.max(rec - amt, 0);
+                get += Math.max(amt - rec, 0);
+            });
+
+            // Damage return (from purchase)
+            purchases.forEach((p) => {
+                if (editId && String(p._id) === String(editId)) return;
+                if (!same(p.company)) return;
+                if (!(p.receiveStatus === 'Received' || p.receiveStatus === 'Yes')) return;
+                if (!(p.damageItems || []).length) return;
+                if (!(n(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')) return;
+                const amt = sumItems(p.damageItems);
+                const rec = n(p.damageAdjustmentAmount);
+                pay += Math.max(rec - amt, 0);
+                get += Math.max(amt - rec, 0);
+            });
+
+            // Company due payment
+            duePays.forEach((d) => {
+                if (!same(d.company)) return;
+                get += r2(n(d.amount));
+            });
+
+            const net = r2(pay - get);
+            if (net > 0) setPrevBalance({ amount: net, type: 'Due' });
+            else if (net < 0) setPrevBalance({ amount: -net, type: 'Get' });
+            else setPrevBalance({ amount: 0, type: '' });
+        });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [purchaseFormData.company]);
+
     // Bulk Return stock (main / free)
     const [stockMap, setStockMap] = useState(null);
     useEffect(() => {
@@ -379,6 +501,7 @@ const PurchaseAddInner = () => {
             setAdjustmentAmount(editingPurchase.adjustment?.amount || 0);
             setAdjustmentType(editingPurchase.adjustment?.type || '+');
             setOrderNote(editingPurchase.orderNote || '');
+            setUsePrevBalance(Number(editingPurchase.previousBalanceAmount) > 0);
 
             if (hasPriorPayment && !isReceivedEdit) {
                 setPaymentAmount(editingPurchase.paidAmount);
@@ -818,6 +941,8 @@ const PurchaseAddInner = () => {
         if (!prod.productName) return false;
         if (prod.isActive !== true) return false;
         if (prod.company !== purchaseFormData.company) return false;
+        const retStock = getStock(prod);
+        if (!retStock || (retStock.paid <= 0 && retStock.free <= 0)) return false;
         if (returnFilter.category && prod.category !== returnFilter.category) return false;
 
         const isAlreadyAddedInReturn = returnItems.some(
@@ -1480,11 +1605,14 @@ const PurchaseAddInner = () => {
         payableAmount -= damageTotalValue;
     }
 
-    // Payable কখনো negative হবে না
-    if (payableAmount < 0) {
-        payableAmount = 0;
+    // Previous Due / Get (checkbox tik thakle)
+    const prevApplied = usePrevBalance && prevBalance.amount > 0;
+    if (prevApplied) {
+        if (prevBalance.type === 'Due') payableAmount += prevBalance.amount;
+        else if (prevBalance.type === 'Get') payableAmount -= prevBalance.amount;
     }
 
+    // Payable calculate hoye negative hole negative-i thakbe (Get / Return / Damage adjust er jonno)
     payableAmount = roundTo2(payableAmount);
 
 
@@ -1496,7 +1624,7 @@ const PurchaseAddInner = () => {
         const autoSync =
             isPurchaseStage && hasPriorPayment ? !paymentManual : !paymentAmountTouched;
         if ((isReceiveMode || isPurchaseStage) && autoSync) {
-            setPaymentAmount(payableAmount);
+            setPaymentAmount(payableAmount < 0 ? 0 : payableAmount);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [payableAmount, isReceiveMode, paymentAmountTouched, paymentManual]);
@@ -1527,13 +1655,10 @@ const PurchaseAddInner = () => {
                 return;
             }
             const useAdj = addReturnToAdjustment && returnTotalValue > 0;
-            const newPayable = Math.max(
-                roundTo2(
-                    (Number(editingPurchase.payableAmount) || 0) +
-                    (Number(editingPurchase.returnAdjustmentAmount) || 0) -
-                    (useAdj ? returnTotalValue : 0)
-                ),
-                0
+            const newPayable = roundTo2(
+                (Number(editingPurchase.payableAmount) || 0) +
+                (Number(editingPurchase.returnAdjustmentAmount) || 0) -
+                (useAdj ? returnTotalValue : 0)
             );
             try {
                 const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
@@ -1719,6 +1844,9 @@ const PurchaseAddInner = () => {
 
         const purchaseData = {
             invoiceNo: isEditMode ? editingPurchase.invoiceNo : generateInvoiceNo(),
+            ...(prevApplied
+                ? { previousBalanceAmount: prevBalance.amount, previousBalanceType: prevBalance.type }
+                : {}),
             company: purchaseFormData.company,
             phone: purchaseFormData.companyContact,
             address: purchaseFormData.companyAddress,
@@ -1803,6 +1931,13 @@ const PurchaseAddInner = () => {
                     'paymentMethod',
                     'paymentAccount',
                     'paymentNote',
+                ];
+            }
+            if (isEditMode && !prevApplied) {
+                purchaseData.unsetFields = [
+                    ...(purchaseData.unsetFields || []),
+                    'previousBalanceAmount',
+                    'previousBalanceType',
                 ];
             }
             const url = isEditMode
@@ -1983,6 +2118,9 @@ const PurchaseAddInner = () => {
 
             paidAmount: roundTo2(paymentAmount),
             receiveDate: receiveDate,
+            ...(prevApplied
+                ? { previousBalanceAmount: prevBalance.amount, previousBalanceType: prevBalance.type }
+                : {}),
             overallDiscountValue: overallDiscountValue,
             ...(location.state?.fromOrderEdit ? { orderSnapshot: editingPurchase.orderSnapshot } : {}),
 
@@ -2001,6 +2139,13 @@ const PurchaseAddInner = () => {
         };
 
         try {
+            if (!prevApplied) {
+                receiveData.unsetFields = [
+                    ...(receiveData.unsetFields || []),
+                    'previousBalanceAmount',
+                    'previousBalanceType',
+                ];
+            }
             setIsReceiving(true);
             const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
                 method: 'PUT',
@@ -2721,6 +2866,42 @@ const PurchaseAddInner = () => {
                                             />
                                         </div>
                                     )}
+
+                                    {/* Previous Due / Get */}
+                                    <div className="flex items-center">
+                                        <label
+                                            className={`w-56 text-right pr-3 text-sm font-medium ${prevBalance.type === 'Due' ? 'text-rose-600' : prevBalance.type === 'Get' ? 'text-sky-600' : 'text-slate-500'}`}
+                                        >
+                                            {prevBalance.type === 'Due'
+                                                ? 'Previous Due'
+                                                : prevBalance.type === 'Get'
+                                                    ? 'Previous Get'
+                                                    : 'Previous Due / Get'}
+                                        </label>
+                                        {prevBalance.amount > 0 ? (
+                                            <div className="flex flex-1 items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={usePrevBalance}
+                                                    onChange={(e) => setUsePrevBalance(e.target.checked)}
+                                                    className={`w-4 h-4 cursor-pointer ${prevBalance.type === 'Due' ? 'accent-rose-600' : 'accent-sky-600'}`}
+                                                />
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    value={`${prevBalance.type === 'Due' ? '+' : '-'} ৳${prevBalance.amount.toFixed(2)}`}
+                                                    className={`flex-1 px-3 py-2 border rounded-lg text-sm font-semibold outline-none ${prevBalance.type === 'Due' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-sky-200 bg-sky-50 text-sky-700'}`}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={purchaseFormData.company ? 'No Previous Due or Get' : 'Select a company first'}
+                                                className="flex-1 px-3 py-2 border border-slate-200 bg-slate-100 text-slate-500 rounded-lg text-sm outline-none"
+                                            />
+                                        )}
+                                    </div>
 
                                     {/* Payable Amount */}
                                     <div className="flex items-center pt-2 mt-1 border-t border-teal-200">
@@ -3667,25 +3848,59 @@ const PurchaseAddInner = () => {
 
                                                 {/* Payment Amount */}
                                                 <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                        Payment Amount <span className="text-rose-500">*</span>
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        value={paymentAmount}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value;
+                                                    <div className="flex items-end mb-2">
+                                                        <label className="block w-1/2 text-sm font-semibold text-slate-700">
+                                                            Payment Amount <span className="text-rose-500">*</span>
+                                                        </label>
+                                                        {payableAmount < 0 && (
+                                                            <p className="w-1/2 pl-1 text-sm font-semibold text-sky-600">Company Payment</p>
+                                                        )}
+                                                    </div>
+                                                    {payableAmount < 0 ? (
+                                                        <div className="flex w-full rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                                            <input
+                                                                type="text"
+                                                                readOnly
+                                                                title="Company theke ami eta pai"
+                                                                value={payableAmount.toFixed(2)}
+                                                                className="w-1/2 min-w-0 px-4 py-3.5 bg-sky-50 text-sky-700 font-semibold text-sm outline-none cursor-not-allowed"
+                                                            />
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.01"
+                                                                placeholder="0"
+                                                                title="Company amake koto dilo"
+                                                                value={paymentAmount}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
 
-                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                setPaymentAmount(value);
-                                                                setPaymentAmountTouched(true);
-                                                                setPaymentManual(true);
-                                                            }
-                                                        }}
-                                                        className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
-                                                    />
+                                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                        setPaymentAmount(value);
+                                                                        setPaymentAmountTouched(true);
+                                                                        setPaymentManual(true);
+                                                                    }
+                                                                }}
+                                                                className="w-1/2 min-w-0 px-4 py-3.5 border-l border-slate-200 text-sm outline-none focus:bg-emerald-50/40"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={paymentAmount}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+
+                                                                if (/^-?\d*\.?\d{0,2}$/.test(value)) {
+                                                                    setPaymentAmount(value);
+                                                                    setPaymentAmountTouched(true);
+                                                                    setPaymentManual(true);
+                                                                }
+                                                            }}
+                                                            className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                                        />
+                                                    )}
                                                 </div>
 
                                                 {/* Payment Method */}

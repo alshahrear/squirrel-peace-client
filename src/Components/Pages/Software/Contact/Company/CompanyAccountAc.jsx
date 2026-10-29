@@ -3,8 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
     FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight, FaClock, FaEdit,
     FaArrowUp, FaArrowDown, FaBalanceScale, FaSearch, FaBuilding, FaLock,
-    FaFileInvoice, FaUndoAlt, FaBoxOpen, FaExclamationTriangle, FaCheckCircle, FaChevronDown
+    FaFileInvoice, FaUndoAlt, FaBoxOpen, FaExclamationTriangle, FaCheckCircle, FaChevronDown, FaMoneyBillWave
 } from 'react-icons/fa';
+import CompanyDuePayAc from './CompanyDuePayAc';
 
 // ---------- Static helpers ----------
 const num = (v) => Number(v) || 0;
@@ -48,6 +49,23 @@ const idTimeOf = (id) => {
     return isNaN(t) ? 0 : t;
 };
 
+const getInvoiceNo = (p) => {
+    if (p.invoiceNo) return p.invoiceNo;
+    const pad = (n) => String(n).padStart(2, '0');
+    let d = null;
+    const m = String(p.createdAt || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{2}):(\d{2})\s*(am|pm)/i);
+    if (m) {
+        let h = Number(m[4]) % 12;
+        if (m[7].toLowerCase() === 'pm') h += 12;
+        d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), h, Number(m[5]), Number(m[6]));
+    } else if (p._id) {
+        const t = parseInt(String(p._id).slice(0, 8), 16) * 1000;
+        if (!isNaN(t)) d = new Date(t);
+    }
+    if (!d || isNaN(d)) return '';
+    return `${pad(d.getFullYear() % 100)}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+};
+
 const accountLabel = (method, acc = {}) => {
     if (method === 'Purchase Adjustment') return 'Adjusted in Purchase Bill';
     if (method === 'Bank') {
@@ -70,6 +88,7 @@ const TABS = [
     { key: 'purReturn', label: 'Purchase Return AC', icon: FaUndoAlt, grad: 'from-orange-500 to-amber-500' },
     { key: 'bulk', label: 'Bulk Return AC', icon: FaBoxOpen, grad: 'from-violet-600 to-fuchsia-600' },
     { key: 'damage', label: 'Damage Return AC', icon: FaExclamationTriangle, grad: 'from-rose-500 to-orange-500' },
+    { key: 'duePay', label: 'Company Due Payment', icon: FaMoneyBillWave, grad: 'from-emerald-600 to-teal-600' },
 ];
 
 // ---------- Small components ----------
@@ -153,6 +172,7 @@ const CompanyAccountAc = () => {
     const [purchases, setPurchases] = useState([]);
     const [bulkReturns, setBulkReturns] = useState([]);
     const [damageReturns, setDamageReturns] = useState([]);
+    const [duePayments, setDuePayments] = useState([]);
     const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -172,12 +192,14 @@ const CompanyAccountAc = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [pRes, bRes, dRes, cRes] = await Promise.all([
+                const [dpRes, pRes, bRes, dRes, cRes] = await Promise.all([
+                    fetch('https://squirrel-peace-server.onrender.com/purchase-due-payment'),
                     fetch('https://squirrel-peace-server.onrender.com/purchase'),
                     fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
                     fetch('https://squirrel-peace-server.onrender.com/damage-return'),
                     fetch('https://squirrel-peace-server.onrender.com/company'),
                 ]);
+                const dpData = await dpRes.json();
                 const pData = await pRes.json();
                 const bData = await bRes.json();
                 const dData = await dRes.json();
@@ -186,6 +208,7 @@ const CompanyAccountAc = () => {
                 setBulkReturns(Array.isArray(bData) ? bData : []);
                 setDamageReturns(Array.isArray(dData) ? dData : []);
                 setCompanies(Array.isArray(cData) ? cData : []);
+                setDuePayments(Array.isArray(dpData) ? dpData : []);
             } catch (error) {
                 console.error('Error fetching company account:', error);
             } finally {
@@ -219,6 +242,7 @@ const CompanyAccountAc = () => {
             if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), name);
         };
         companies.forEach((c) => put(c.businessName));
+        duePayments.forEach((d) => put(d.company));
         purchases.forEach((p) => put(p.company));
         bulkReturns.forEach((b) => put(b.company));
         damageReturns.forEach((d) => put(d.company));
@@ -255,10 +279,28 @@ const CompanyAccountAc = () => {
     const purchaseAll = purchases
         .filter((p) => p.paidAmount !== undefined && p.paidAmount !== null && p.paidAmount !== '' && !!p.paymentMethod)
         .map((p) => {
-            const payable = num(p.payableAmount);
+            const prevBal = num(p.previousBalanceAmount);
+            const payable =
+                num(p.payableAmount) -
+                (p.previousBalanceType === 'Due' ? prevBal : 0) +
+                (p.previousBalanceType === 'Get' ? prevBal : 0);
+            const fullPayable = num(p.payableAmount);
             const paid = num(p.paidAmount);
-            const due = Math.max(payable - paid, 0);
-            const extra = Math.max(paid - payable, 0);
+            // Table e dekhabe: Payable (Previous Due/Get shoho) - Paid
+            const isRecv = p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
+            const due = fullPayable < 0
+                ? Math.max(r2(paid + fullPayable), 0)
+                : !isRecv ? 0 : Math.max(r2(fullPayable - paid), 0);
+            const extra = fullPayable < 0
+                ? Math.max(r2(-fullPayable - paid), 0)
+                : !isRecv ? paid : Math.max(r2(paid - fullPayable), 0);
+            // Balance (Pay/Get card) er jonno: Previous Due/Get bade
+            const balDue = payable < 0
+                ? Math.max(r2(paid + payable), 0)
+                : !isRecv ? 0 : Math.max(r2(payable - paid), 0);
+            const balExtra = payable < 0
+                ? Math.max(r2(-payable - paid), 0)
+                : !isRecv ? paid : Math.max(r2(paid - payable), 0);
             return {
                 key: p._id,
                 id: p._id,
@@ -271,12 +313,16 @@ const CompanyAccountAc = () => {
                 method: p.paymentMethod,
                 methodKey: p.paymentMethod,
                 account: accountLabel(p.paymentMethod, p.paymentAccount || {}),
-                total: payable,
+                total: fullPayable,
                 paid,
                 due,
                 extra,
-                pay: due,
-                get: extra,
+                pay: balDue,
+                get: balExtra,
+                damageAdj: num(p.damageAdjustmentAmount),
+                bulkAdj: num(p.returnAdjustmentAmount),
+                prevAdjAmount: prevBal,
+                prevAdjType: p.previousBalanceType,
                 dateRaw: p.paymentDate || p.receiveDate || p.purchaseDate || '',
                 time: p.paymentDate && !isNaN(new Date(p.paymentDate).getTime())
                     ? new Date(p.paymentDate).getTime()
@@ -371,9 +417,9 @@ const CompanyAccountAc = () => {
         );
     });
 
-    // 4) Damage return
+    // 4) Damage return (shudhu Approved / Auto Approved)
     const damageAll = [
-        ...damageReturns.map((d) =>
+        ...damageReturns.filter((d) => d.status === 'Approved').map((d) =>
             makeReturnRow(
                 {
                     key: `dr-${d._id}`,
@@ -394,7 +440,8 @@ const CompanyAccountAc = () => {
             .filter(
                 (p) =>
                     (p.receiveStatus === 'Received' || p.receiveStatus === 'Yes') &&
-                    (p.damageItems || []).length > 0
+                    (p.damageItems || []).length > 0 &&
+                    (num(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')
             )
             .map((p) => {
                 const adj = num(p.damageAdjustmentAmount);
@@ -417,6 +464,29 @@ const CompanyAccountAc = () => {
             }),
     ];
 
+    // 5) Company due payment (ami company ke je taka pay korechi)
+    const duePayAll = duePayments.map((p) => {
+        const amt = r2(num(p.amount));
+        return {
+            key: `dp-${p._id}`,
+            company: p.company,
+            invoiceNo: getInvoiceNo(p),
+            date: p.date,
+            dateRaw: p.date,
+            method: p.paymentMethod,
+            methodKey: p.paymentMethod,
+            account: accountLabel(p.paymentMethod, p.paymentAccount || {}),
+            total: amt,
+            paid: amt,
+            due: 0,
+            extra: 0,
+            // ami pay korechi -> Pay balance theke kome jabe (ulta korte chaile pay: amt, get: 0 koro)
+            pay: 0,
+            get: amt,
+            time: idTimeOf(p._id) || (parseToLocalDate(p.date)?.getTime() || 0),
+        };
+    });
+
     // ---------- Selected company data ----------
     const hasCompany = !!selectedCompany;
     const forCompany = (list) =>
@@ -429,6 +499,7 @@ const CompanyAccountAc = () => {
         purReturn: forCompany(purReturnAll),
         bulk: forCompany(bulkAll),
         damage: forCompany(damageAll),
+        duePay: forCompany(duePayAll),
     };
 
     const sourceBalance = (rows) => ({
@@ -440,6 +511,7 @@ const CompanyAccountAc = () => {
         purReturn: sourceBalance(data.purReturn),
         bulk: sourceBalance(data.bulk),
         damage: sourceBalance(data.damage),
+        duePay: sourceBalance(data.duePay),
     };
 
     // Final: opening balance + sob mile katakati, ekta 0 hobe
@@ -478,6 +550,7 @@ const CompanyAccountAc = () => {
     const sExtra = filteredRows.reduce((s, r) => s + r.extra, 0);
 
     const isPurchaseTab = activeTab === 'purchase';
+    const isDuePayTab = activeTab === 'duePay';
     const tabMeta = TABS.find((t) => t.key === activeTab) || TABS[0];
     const pillLabels = isPurchaseTab
         ? ['Total', 'Paid', 'Due', 'Get']
@@ -616,7 +689,7 @@ const CompanyAccountAc = () => {
                 </div>
 
                 {/* Breakdown */}
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
                     {/* Opening Balance (sobar bame) */}
                     <div className="bg-white rounded-xl p-3 border border-indigo-100 shadow-sm flex items-center gap-3">
                         <span className="w-9 h-9 shrink-0 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 text-white flex items-center justify-center shadow">
@@ -750,17 +823,18 @@ const CompanyAccountAc = () => {
                                     {selectedCompany} — {tabMeta.label}
                                 </h2>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className={PILL}>{pillLabels[0]}: ৳{fmt(sTotal)}</span>
-                                    <span className={PILL}>{pillLabels[1]}: ৳{fmt(sPaid)}</span>
-                                    <span className={PILL}>{pillLabels[2]}: ৳{fmt(sDue)}</span>
-                                    <span className={PILL}>{pillLabels[3]}: ৳{fmt(sExtra)}</span>
+                                    <span className={PILL}>{isDuePayTab ? 'Total Paid' : pillLabels[0]}: ৳{fmt(sTotal)}</span>
+                                    {!isDuePayTab && <span className={PILL}>{pillLabels[1]}: ৳{fmt(sPaid)}</span>}
+                                    {!isDuePayTab && <span className={PILL}>{pillLabels[2]}: ৳{fmt(sDue)}</span>}
+                                    {!isDuePayTab && <span className={PILL}>{pillLabels[3]}: ৳{fmt(sExtra)}</span>}
                                     <span className={PILL}>
                                         Showing: {filteredRows.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredRows.length)}` : 0} of {filteredRows.length} ({currentAll.length} total)
                                     </span>
                                 </div>
                             </div>
+                            {isDuePayTab && <CompanyDuePayAc rows={currentRows} loading={loading} />}
 
-                            <div className="overflow-x-auto">
+                            <div className={`overflow-x-auto ${isDuePayTab ? 'hidden' : ''}`}>
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         {isPurchaseTab ? (
@@ -826,6 +900,28 @@ const CompanyAccountAc = () => {
                                                             >
                                                                 {r.invoiceNo}
                                                             </button>
+                                                            <div className="mt-1 flex flex-col items-start gap-0.5">
+                                                                {r.damageAdj > 0 && (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100 font-bold text-[9px] leading-none whitespace-nowrap">
+                                                                        Damage Adjusted: ৳ {fmt(r.damageAdj)}
+                                                                    </span>
+                                                                )}
+                                                                {r.bulkAdj > 0 && (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100 font-bold text-[9px] leading-none whitespace-nowrap">
+                                                                        Bulk Adjusted: ৳ {fmt(r.bulkAdj)}
+                                                                    </span>
+                                                                )}
+                                                                {r.prevAdjAmount > 0 && r.prevAdjType === 'Due' && (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 font-bold text-[9px] leading-none whitespace-nowrap">
+                                                                        Due Adjusted: ৳ {fmt(r.prevAdjAmount)}
+                                                                    </span>
+                                                                )}
+                                                                {r.prevAdjAmount > 0 && r.prevAdjType === 'Get' && (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100 font-bold text-[9px] leading-none whitespace-nowrap">
+                                                                        Get Adjusted: ৳ {fmt(r.prevAdjAmount)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm">
                                                             <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">

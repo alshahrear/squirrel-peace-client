@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaTimes } from 'react-icons/fa';
 import Swal from 'sweetalert2';
@@ -61,6 +61,8 @@ const FilterSelect = ({ label, placeholder, value, options, onChange }) => {
 
 const DamageStockInvoice = () => {
     const [orders, setOrders] = useState([]);
+    const [purchaseList, setPurchaseList] = useState([]);
+    const [damageReturnList, setDamageReturnList] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const location = useLocation();
@@ -143,8 +145,12 @@ const DamageStockInvoice = () => {
         Promise.all([
             fetch('https://squirrel-peace-server.onrender.com/sales').then((res) => res.json()),
             fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((res) => res.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/purchase').then((res) => res.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((res) => res.json()).catch(() => []),
         ])
-            .then(([sales, dmg]) => {
+            .then(([sales, dmg, purchases, dmgReturns]) => {
+                setPurchaseList(Array.isArray(purchases) ? purchases : []);
+                setDamageReturnList(Array.isArray(dmgReturns) ? dmgReturns : []);
                 const salesList = Array.isArray(sales) ? sales : [];
                 const dmgList = (Array.isArray(dmg) ? dmg : []).map((d) => ({
                     ...d,
@@ -225,6 +231,66 @@ const DamageStockInvoice = () => {
         return () => document.removeEventListener('mousedown', onDown);
     }, [highlightId]);
 
+
+    // Company te return hoye geche emon damage invoice gulo (Edit lock hobe)
+    const lockedIds = useMemo(() => {
+        const keyOf = (it) =>
+            `${(it.productName || '').toString().trim().toLowerCase()}|${(it.company || '').toString().trim().toLowerCase()}`;
+        const num = (v) => Number(v) || 0;
+
+        const invs = orders
+            .filter((o) => o.status === 'Delivered' && (o.damageItems || []).length > 0)
+            .map((o) => ({
+                id: String(o._id),
+                ts: Date.parse(o.isStandaloneDamage ? o.createdAt : (o.damageAt || o.createdAt)) || 0,
+                items: o.damageItems || [],
+            }))
+            .sort((a, b) => a.ts - b.ts);
+
+        const lineMap = new Map();
+        invs.forEach((inv) => {
+            const m = new Map();
+            inv.items.forEach((it) => {
+                const k = keyOf(it);
+                if (!m.has(k)) m.set(k, { invId: inv.id, main: 0, free: 0, retMain: 0, retFree: 0 });
+                const l = m.get(k);
+                l.main += num(it.totalQty);
+                l.free += num(it.freeQty);
+            });
+            m.forEach((l, k) => {
+                if (!lineMap.has(k)) lineMap.set(k, []);
+                lineMap.get(k).push(l);
+            });
+        });
+
+        const retItems = [];
+        purchaseList
+            .filter((p) => (p.receiveStatus === 'Received' || p.receiveStatus === 'Yes') && (p.damageItems || []).length > 0)
+            .forEach((p) => (p.damageItems || []).forEach((it) => retItems.push(it)));
+        damageReturnList.forEach((r) => (r.items || []).forEach((it) => retItems.push(it)));
+
+        retItems.forEach((it) => {
+            let m = num(it.totalQty);
+            let f = num(it.freeQty);
+            for (const l of lineMap.get(keyOf(it)) || []) {
+                if (m <= 0 && f <= 0) break;
+                const tm = Math.max(Math.min(m, l.main - l.retMain), 0);
+                const tf = Math.max(Math.min(f, l.free - l.retFree), 0);
+                l.retMain += tm;
+                l.retFree += tf;
+                m -= tm;
+                f -= tf;
+            }
+        });
+
+        const set = new Set();
+        lineMap.forEach((lines) =>
+            lines.forEach((l) => {
+                if (l.retMain > 0 || l.retFree > 0) set.add(l.invId);
+            })
+        );
+        return set;
+    }, [orders, purchaseList, damageReturnList]);
 
     const selectedRows = damageOrders.filter((i) => selectedIds.includes(i._id));
     const isSelectionMode = selectedRows.length > 0;
@@ -625,6 +691,7 @@ const DamageStockInvoice = () => {
 
                                                             <button
                                                                 onClick={() => handleEdit(item)}
+                                                                style={lockedIds.has(String(item._id)) ? { display: 'none' } : undefined}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
                                                             >
                                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500">

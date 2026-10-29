@@ -115,12 +115,19 @@ const PurchaseReturnDetails = () => {
                     );
 
                     // StockPurchase এর "Per Pcs Price" এর মতো: discount/adjustment এর পর আসল cost per pcs
-                    // Return Adjustment ও Damage Adjustment cost হিসাব থেকে বাদ
-                    const payableNum =
-                        (Number(data.payableAmount) || 0) +
-                        (Number(data.returnAdjustmentAmount) || 0) +
-                        (Number(data.damageAdjustmentAmount) || 0);
+                                       // Cost: shudhu product subtotal - overall discount +/- adjustment (damage/return/previous due-get bad)
                     const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
+                    const ovAmt =
+                        data.overallDiscountValue !== undefined && data.overallDiscountValue !== null && data.overallDiscountValue !== ''
+                            ? Number(data.overallDiscountValue) || 0
+                            : data.overallDiscountType === 'percent'
+                                ? (subtotalSum * (Number(data.overallDiscount) || 0)) / 100
+                                : Number(data.overallDiscount) || 0;
+                    const adjAmt = Number(data.adjustment?.amount) || 0;
+                    const payableNum = Math.max(
+                        subtotalSum - ovAmt + (data.adjustment?.type === '-' ? -adjAmt : adjAmt),
+                        0
+                    );
                     setReturnPrices(
                         (data.items || []).map((item) => {
                             const paidQty = Number(item.totalPcs) || 0;

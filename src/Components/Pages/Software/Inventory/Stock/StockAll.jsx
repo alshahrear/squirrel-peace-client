@@ -2,8 +2,8 @@ import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const TABS = [
-    { key: 'products', path: '/stock-products', label: 'Stock Products', icon: '📦' },
     { key: 'purchase', path: '/stock-purchase', label: 'Stock Purchase', icon: '🧾' },
+    { key: 'products', path: '/stock-products', label: 'Stock Products', icon: '📦' },
     { key: 'adjustment', path: '/stock-adjustment', label: 'Stock Adjustment', icon: '⚖️' },
     { key: 'alert', path: '/stock-alert', label: 'Stock Alert', icon: '🔔' },
 ];

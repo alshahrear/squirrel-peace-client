@@ -66,8 +66,12 @@ const DamageReturnProducts = () => {
                             (p.receiveStatus === 'Received' || p.receiveStatus === 'Yes') &&
                             (p.damageItems || []).length > 0
                     )
-                    .map((p) => ({ ...p, items: p.damageItems }));
-                setReturns([...(Array.isArray(d) ? d : []), ...fromPurchase]);
+                    .filter((p) => Number(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')
+                    .map((p) => ({ ...p, items: p.damageItems, _time: Date.parse(p.damageAt || p.createdAt) || 0 }));
+                const approved = (Array.isArray(d) ? d : [])
+                    .filter((x) => x.status === 'Approved')
+                    .map((x) => ({ ...x, _time: Date.parse(x.createdAt) || 0 }));
+                setReturns([...approved, ...fromPurchase]);
             })
             .catch((error) => console.error('Error fetching damage return:', error))
             .finally(() => setLoading(false));
@@ -96,7 +100,7 @@ const DamageReturnProducts = () => {
                 g.main += Number(it.totalQty) || 0;
                 g.free += Number(it.freeQty) || 0;
                 g.amount += Number(it.itemTotal ?? it.subtotal) || 0;
-                g.lastIdx = oi;
+                g.lastIdx = Math.max(g.lastIdx, o._time || 0);
                 const per = Number(it.pcsPerUnit) || 0;
                 if (per > 1) {
                     g.info = {

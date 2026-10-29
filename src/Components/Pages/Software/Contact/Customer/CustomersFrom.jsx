@@ -160,9 +160,9 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                             onChange={handleChange}
                             className="h-5 px-1.5 py-0 text-[11px] leading-none rounded-md border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 text-gray-700 cursor-pointer"
                         >
-                            <option value="" disabled>Select type</option>
-                            <option value="Receivable">Receivable</option>
-                            <option value="Payable">Payable</option>
+                            <option value="">Select type</option>
+                            <option value="Get">Get</option>
+                            <option value="Pay">Pay</option>
                         </select>
                     </div>
                     <input
@@ -171,6 +171,7 @@ const CustomersFrom = ({ formData, handleChange, handleSubmit, editingId, handle
                         placeholder={formData.openingBalanceType ? '0.00' : 'Select type first'}
                         value={formData.openingBalance}
                         disabled={!formData.openingBalanceType}
+                        required={!!formData.openingBalanceType}
                         onChange={(e) => {
                             const value = e.target.value;
 

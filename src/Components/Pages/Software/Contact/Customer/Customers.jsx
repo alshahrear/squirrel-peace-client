@@ -186,6 +186,10 @@ const Customers = () => {
     // Handle input change
     const handleChange = (e) => {
         const { name, value } = e.target;
+        if (name === 'openingBalanceType' && !value) {
+            setFormData(prev => ({ ...prev, openingBalanceType: '', openingBalance: '' }));
+            return;
+        }
         setFormData(prev => {
             const updated = { ...prev, [name]: value };
             // If customerType changes to Retail, clear route
@@ -761,7 +765,7 @@ const Customers = () => {
                                             <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
                                                 ৳ {customer.openingBalance ? Number(customer.openingBalance).toLocaleString() : '0'}
                                                 {customer.openingBalanceType && (
-                                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${customer.openingBalanceType === 'Receivable' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${customer.openingBalanceType === 'Get' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                                                         {customer.openingBalanceType}
                                                     </span>
                                                 )}

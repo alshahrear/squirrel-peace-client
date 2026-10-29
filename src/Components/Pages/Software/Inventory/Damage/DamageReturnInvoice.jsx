@@ -85,7 +85,7 @@ const DamageReturnInvoice = () => {
         setTimeout(() => setCostRow(null), 300);
     };
 
-    const EMPTY_FILTERS = { startDate: '', endDate: '', company: '', invoiceNo: '' };
+    const EMPTY_FILTERS = { startDate: '', endDate: '', company: '', invoiceNo: '', status: '' };
     const [filters, setFilters] = useState(EMPTY_FILTERS);
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
@@ -161,7 +161,10 @@ const DamageReturnInvoice = () => {
                         items: p.damageItems,
                     }));
                 const merged = [...list, ...fromPurchase];
-                merged.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+                merged.sort(
+                    (a, b) =>
+                        (Date.parse(b.createdAt || b.damageAt) || 0) - (Date.parse(a.createdAt || a.damageAt) || 0)
+                );
                 setReturns(merged);
             })
             .catch((error) => console.error('Error fetching damage return:', error))
@@ -188,6 +191,13 @@ const DamageReturnInvoice = () => {
         }
         if (filters.company && !has(item.company, filters.company)) return false;
         if (filters.invoiceNo && !has(item.invoiceNo, filters.invoiceNo)) return false;
+        if (filters.status) {
+            const isApproved = item.isFromPurchase
+                ? Number(item.damageAdjustmentAmount) > 0 || item.damageStatus === 'Approved'
+                : item.status === 'Approved';
+            if (filters.status === 'Approved' && !isApproved) return false;
+            if (filters.status === 'Pending' && isApproved) return false;
+        }
         return true;
     });
 
@@ -362,6 +372,42 @@ const DamageReturnInvoice = () => {
         });
     };
 
+    const handleApprove = (item) => {
+        setOpenDropdownId(null);
+        Swal.fire({
+            title: 'Approve this damage return?',
+            text: 'Approve korle status Approved hoye jabe!',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#f43f5e',
+            confirmButtonText: 'Yes, approve it!',
+        }).then(async (result) => {
+            if (!result.isConfirmed) return;
+            try {
+                const approveUrl = item.isFromPurchase
+                    ? `https://squirrel-peace-server.onrender.com/purchase/${item._id}`
+                    : `https://squirrel-peace-server.onrender.com/damage-return/${item._id}`;
+                const approveBody = item.isFromPurchase
+                    ? { damageStatus: 'Approved', damageApprovedAt: new Date().toISOString() }
+                    : { status: 'Approved', approvedAt: new Date().toISOString() };
+                const res = await fetch(approveUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(approveBody),
+                });
+                if (!res.ok) throw new Error('Failed');
+                setReturns((prev) =>
+                    prev.map((o) => (o._id === item._id ? { ...o, status: 'Approved', damageStatus: 'Approved' } : o))
+                );
+                showToast('Damage return approved successfully!');
+            } catch (error) {
+                console.error(error);
+                showToast('Failed to approve!', 'error');
+            }
+        });
+    };
+
     const handlePageChange = (pageNumber) => {
         if (pageNumber >= 1 && pageNumber <= totalPages) setCurrentPage(pageNumber);
     };
@@ -423,7 +469,7 @@ const DamageReturnInvoice = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
                                 <div
@@ -488,6 +534,19 @@ const DamageReturnInvoice = () => {
                                     className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
                                 />
                             </div>
+
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
+                                <select
+                                    value={filters.status}
+                                    onChange={(e) => setFilter('status', e.target.value)}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">All</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Pending">Pending</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -513,6 +572,7 @@ const DamageReturnInvoice = () => {
                                         <th className="py-3 px-3">Invoice</th>
                                         <th className="py-3 px-3">Return Amount</th>
                                         <th className="py-3 px-3">Cost Calculation</th>
+                                        <th className="py-3 px-3">Status</th>
                                         <th className="py-3 px-3 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -577,6 +637,21 @@ const DamageReturnInvoice = () => {
                                                     );
                                                 })()}
                                             </td>
+                                            <td className="py-3 px-3 whitespace-nowrap">
+                                                {item.isFromPurchase && Number(item.damageAdjustmentAmount) > 0 ? (
+                                                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-700 font-bold text-[11px]">
+                                                        Auto Approved (Adjusted)
+                                                    </span>
+                                                ) : (item.isFromPurchase ? item.damageStatus : item.status) === 'Approved' ? (
+                                                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[11px]">
+                                                        Approved
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold text-[11px]">
+                                                        Pending
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td className="py-3 px-3 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
                                                     <button
@@ -604,6 +679,15 @@ const DamageReturnInvoice = () => {
                                                             >
                                                                 Delete
                                                             </button>
+                                                            {!(item.isFromPurchase && Number(item.damageAdjustmentAmount) > 0) &&
+                                                                (item.isFromPurchase ? item.damageStatus : item.status) !== 'Approved' && (
+                                                                    <button
+                                                                        onClick={() => handleApprove(item)}
+                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition duration-150 cursor-pointer text-left"
+                                                                    >
+                                                                        Approval
+                                                                    </button>
+                                                                )}
                                                             <button
                                                                 onClick={() => handleViewDetails(item._id)}
                                                                 className="w-full px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition duration-150 cursor-pointer text-left"

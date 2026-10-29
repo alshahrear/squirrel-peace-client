@@ -54,7 +54,7 @@ const Purchase = () => {
     }, [location.pathname]);
 
     // Extra filter (multi select) - default: sob select kora
-    const EXTRA_OPTIONS = ['Free', 'Others Free', 'Purchase Return', 'Bulk Return', 'Damage'];
+    const EXTRA_OPTIONS = ['Free', 'Others Free', 'Purchase Return', 'Bulk Return', 'Damage', 'Previous Pay', 'Previous Get'];
     const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
     const [isExtraOpen, setIsExtraOpen] = useState(false);
     const extraDropdownRef = useRef(null);
@@ -327,6 +327,10 @@ const Purchase = () => {
     // Damage product deya ase kina
     const hasDamage = (item) => (item.damageItems || []).length > 0;
 
+    // Previous Pay (Due) / Previous Get adjustment kora ase kina
+    const hasPrevPay = (item) => Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Due';
+    const hasPrevGet = (item) => Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Get';
+
     // Main product e free ase kina
     const hasFree = (item) =>
         (item.items || []).some((p) => (Number(p.freeTotalQty ?? p.freeQty) || 0) > 0);
@@ -338,6 +342,8 @@ const Purchase = () => {
         if (hasReturned(item)) list.push('Purchase Return');
         if (hasBulkReturn(item)) list.push('Bulk Return');
         if (hasDamage(item)) list.push('Damage');
+        if (hasPrevPay(item)) list.push('Previous Pay');
+        if (hasPrevGet(item)) list.push('Previous Get');
         return list;
     };
 
@@ -889,6 +895,8 @@ const Purchase = () => {
                                                     if (hasReturned(item)) extras.push({ label: 'Purchase Return', color: 'text-violet-600' });
                                                     if (hasBulkReturn(item)) extras.push({ label: 'Bulk Return', color: 'text-fuchsia-600' });
                                                     if (hasDamage(item)) extras.push({ label: 'Damage', color: 'text-red-600' });
+                                                    if (hasPrevPay(item)) extras.push({ label: 'Previous Pay', color: 'text-rose-600' });
+                                                    if (hasPrevGet(item)) extras.push({ label: 'Previous Get', color: 'text-sky-600' });
                                                     if (hasFree(item)) extras.push({ label: 'Free - Has', color: 'text-emerald-600' });
                                                     if (extras.length === 0) return <div className="text-[9px] text-gray-300">N/A</div>;
                                                     return (

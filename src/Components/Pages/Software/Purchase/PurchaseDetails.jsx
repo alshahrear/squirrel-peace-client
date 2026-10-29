@@ -341,8 +341,10 @@ const PurchaseDetails = () => {
         payable = inv.adjustment?.type === '-' ? payable - adjAmt : payable + adjAmt;
         payable -= Number(inv.returnAdjustmentAmount) || 0;
         payable -= Number(inv.damageAdjustmentAmount) || 0;
-        if (payable < 0) payable = 0;
-
+        if (Number(inv.previousBalanceAmount) > 0) {
+            if (inv.previousBalanceType === 'Due') payable += Number(inv.previousBalanceAmount);
+            else if (inv.previousBalanceType === 'Get') payable -= Number(inv.previousBalanceAmount);
+        }
         return {
             grand,
             pwd,
@@ -351,6 +353,31 @@ const PurchaseDetails = () => {
             overallAmt,
             payable,
             due: payable - paid,
+        };
+    };
+
+    // Payable negative hole company amader pay kore, tai Paid label "Company Paid" hobe
+    // Negative payable: balance = payable + paid (positive hole company er theke aro pabo = Get, 0 hole sob mita)
+    const getBalanceInfo = () => {
+        const t = getTotals();
+        const paid = Number(selectedInvoice?.paidAmount || 0);
+        const isNegative = t.payable < 0;
+        if (isNegative) {
+            const net = t.payable + paid; // e.g. -50 + 30 = -20
+            return {
+                isNegative: true,
+                paidLabel: 'Company Paid Amount:',
+                balanceLabel: net < 0 ? 'Get Amount:' : 'Due Amount:',
+                balance: Math.abs(net),
+                balanceClass: net < 0 ? 'text-sky-600' : 'text-rose-600',
+            };
+        }
+        return {
+            isNegative: false,
+            paidLabel: 'Paid Amount:',
+            balanceLabel: 'Due Amount:',
+            balance: t.due,
+            balanceClass: 'text-rose-600',
         };
     };
 
@@ -827,7 +854,7 @@ const PurchaseDetails = () => {
                             )}
                             {Number(selectedInvoice.damageAdjustmentAmount) > 0 && (
                                 <div className="flex justify-between py-1 text-slate-600">
-                                    <span>Damage Products Amount:</span>
+                                    <span>Damage Products Adjustment:</span>
                                     <span className="font-semibold text-red-600">
                                         - ৳{Number(selectedInvoice.damageAdjustmentAmount).toFixed(2)}
                                     </span>
@@ -835,9 +862,17 @@ const PurchaseDetails = () => {
                             )}
                             {Number(selectedInvoice.returnAdjustmentAmount) > 0 && (
                                 <div className="flex justify-between py-1 text-slate-600">
-                                    <span>Return Products Amount:</span>
+                                    <span>Return Products Adjustment:</span>
                                     <span className="font-semibold text-violet-600">
                                         - ৳{Number(selectedInvoice.returnAdjustmentAmount).toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
+                            {Number(selectedInvoice.previousBalanceAmount) > 0 && (
+                                <div className="flex justify-between py-1 text-slate-600">
+                                    <span>{selectedInvoice.previousBalanceType === 'Due' ? 'Previous Pay:' : 'Previous Get:'}</span>
+                                    <span className={`font-semibold ${selectedInvoice.previousBalanceType === 'Due' ? 'text-rose-600' : 'text-sky-600'}`}>
+                                        {selectedInvoice.previousBalanceType === 'Due' ? '+ ' : '- '}৳{Number(selectedInvoice.previousBalanceAmount).toFixed(2)}
                                     </span>
                                 </div>
                             )}
@@ -846,13 +881,13 @@ const PurchaseDetails = () => {
                                 <span className="text-indigo-600">৳{getTotals().payable.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-slate-500 text-sm">
-                                <span>Paid Amount:</span>
+                                <span>{getBalanceInfo().paidLabel}</span>
                                 <span>৳{Number(selectedInvoice.paidAmount || 0).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-2 text-sm font-bold text-slate-800 border-t border-dashed border-slate-300">
-                                <span>Due Amount:</span>
-                                <span className="text-rose-600">
-                                    ৳{getTotals().due.toFixed(2)}
+                                <span>{getBalanceInfo().balanceLabel}</span>
+                                <span className={getBalanceInfo().balanceClass}>
+                                    ৳{getBalanceInfo().balance.toFixed(2)}
                                 </span>
                             </div>
 

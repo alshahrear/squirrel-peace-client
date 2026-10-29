@@ -146,7 +146,7 @@ const BalanceBadge = ({ pay, get, size = 'sm' }) => {
 };
 
 // ---------- Main ----------
-const CompanyAccountAc = () => {
+const CompanyPurchaseAc = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -246,10 +246,11 @@ const CompanyAccountAc = () => {
     const purchaseAll = purchases
         .filter((p) => p.paidAmount !== undefined && p.paidAmount !== null && p.paidAmount !== '' && !!p.paymentMethod)
         .map((p) => {
-            const payable = num(p.payableAmount);
+            const payable = num(p.payableAmount); // minus hole Total e minus-i dekhabe
             const paid = num(p.paidAmount);
-            const due = Math.max(payable - paid, 0);
-            const extra = Math.max(paid - payable, 0);
+            // Total minus hole: Get = oi amount (positive) + paid, Due = 0
+            const due = payable < 0 ? Math.max(r2(paid + payable), 0) : Math.max(r2(payable - paid), 0);
+            const extra = payable < 0 ? Math.max(r2(-payable - paid), 0) : Math.max(r2(paid - payable), 0);
             return {
                 key: p._id,
                 id: p._id,
@@ -268,6 +269,10 @@ const CompanyAccountAc = () => {
                 extra,
                 pay: due,
                 get: extra,
+                damageAdj: num(p.damageAdjustmentAmount),
+                bulkAdj: num(p.returnAdjustmentAmount),
+                prevAdjAmount: num(p.previousBalanceAmount),
+                prevAdjType: p.previousBalanceType,
                 dateRaw: p.paymentDate || p.receiveDate || p.purchaseDate || '',
                 time: p.paymentDate && !isNaN(new Date(p.paymentDate).getTime())
                     ? new Date(p.paymentDate).getTime()
@@ -466,7 +471,10 @@ const CompanyAccountAc = () => {
     const sTotal = filteredRows.reduce((s, r) => s + r.total, 0);
     const sPaid = filteredRows.reduce((s, r) => s + r.paid, 0);
     const sDue = filteredRows.reduce((s, r) => s + r.due, 0);
-    const sExtra = filteredRows.reduce((s, r) => s + r.extra, 0);
+    const sExtra = filteredRows.reduce(
+        (s, r) => s + r.extra,
+        0
+    );
 
     const isPurchaseTab = activeTab === 'purchase';
     const tabMeta = TABS.find((t) => t.key === activeTab) || TABS[0];
@@ -807,6 +815,28 @@ const CompanyAccountAc = () => {
                                                             >
                                                                 {r.invoiceNo}
                                                             </button>
+                                                            <div className="mt-1 flex flex-col items-start gap-0.5">
+                                                                {r.damageAdj > 0 && (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100 font-bold text-[9px] leading-none whitespace-nowrap">
+                                                                        Damage Adjusted: ৳ {fmt(r.damageAdj)}
+                                                                    </span>
+                                                                )}
+                                                                {r.bulkAdj > 0 && (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100 font-bold text-[9px] leading-none whitespace-nowrap">
+                                                                        Bulk Adjusted: ৳ {fmt(r.bulkAdj)}
+                                                                    </span>
+                                                                )}
+                                                                {r.prevAdjAmount > 0 && r.prevAdjType === 'Due' && (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 font-bold text-[9px] leading-none whitespace-nowrap">
+                                                                        Due Adjusted: ৳ {fmt(r.prevAdjAmount)}
+                                                                    </span>
+                                                                )}
+                                                                {r.prevAdjAmount > 0 && r.prevAdjType === 'Get' && (
+                                                                    <span className="inline-block px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100 font-bold text-[9px] leading-none whitespace-nowrap">
+                                                                        Get Adjusted: ৳ {fmt(r.prevAdjAmount)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm">
                                                             <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">
@@ -904,4 +934,4 @@ const CompanyAccountAc = () => {
     );
 };
 
-export default CompanyAccountAc;
+export default CompanyPurchaseAc;
