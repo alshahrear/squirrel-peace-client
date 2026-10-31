@@ -279,6 +279,7 @@ const OrderAdd = () => {
         setOrderNote(editingOrder.orderNote || '');
         setAddDamageToAdjustment(Number(editingOrder.damageAdjustmentAmount) > 0);
         setAddReturnToAdjustment(Number(editingOrder.returnAdjustmentAmount) > 0);
+        setUsePrevBalance(Number(editingOrder.previousBalanceAmount) > 0);
 
         if (editingOrder.status === 'Delivered' && !isDeliveryMode) {
             setPaymentAmount(editingOrder.paidAmount ?? '');
@@ -1215,6 +1216,133 @@ const OrderAdd = () => {
     const [addDamageToAdjustment, setAddDamageToAdjustment] = useState(false);
     const [addReturnToAdjustment, setAddReturnToAdjustment] = useState(false);
 
+    // ---------------- Previous Due / Pay (Customer Account theke) ----------------
+    const [prevBalance, setPrevBalance] = useState({ amount: 0, type: '' }); // 'Due' (customer dibe) | 'Get' (ami dibo) | ''
+    const [usePrevBalance, setUsePrevBalance] = useState(false);
+    useEffect(() => {
+        const customerName = (orderFormData.customer || '').toString().trim().toLowerCase();
+        if (!customerName) {
+            setPrevBalance({ amount: 0, type: '' });
+            return;
+        }
+        let cancelled = false;
+        const n = (v) => Number(v) || 0;
+        const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+        const same = (a) => String(a || '').trim().toLowerCase() === customerName;
+        const itemAmt = (it) =>
+            Number(it.itemTotal ?? it.subtotal ?? (n(it.sellPricePcs ?? it.sellPrice) * n(it.totalQty))) || 0;
+        const sumItems = (items) => (items || []).reduce((s, it) => s + itemAmt(it), 0);
+        const safe = (url) =>
+            fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
+        const editId = editingOrder?._id ? String(editingOrder._id) : null;
+
+        Promise.all([
+            safe('https://squirrel-peace-server.onrender.com/sales'),
+            safe('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
+            safe('https://squirrel-peace-server.onrender.com/sales-damage'),
+            safe('https://squirrel-peace-server.onrender.com/customer'),
+            safe('https://squirrel-peace-server.onrender.com/sales-due-payment'),
+        ]).then(([sales, bulks, damages, customers, duePays]) => {
+            if (cancelled) return;
+            let pay = 0;
+            let get = 0;
+
+            // Opening balance
+            const info = customers.find((c) => same(c.businessName));
+            const openAmt = r2(n(info?.openingBalance));
+            const openType = String(info?.openingBalanceType || '').trim().toLowerCase();
+            if (openAmt > 0 && (openType === 'pay' || openType === 'advance')) pay += openAmt;
+            if (openAmt > 0 && (openType === 'due' || openType === 'get')) get += openAmt;
+
+            // Sales payments (current edit order bad)
+            sales.forEach((s) => {
+                if (editId && String(s._id) === editId) return;
+                if (!same(s.customer)) return;
+                if (s.paidAmount === undefined || s.paidAmount === null || s.paidAmount === '' || !s.paymentMethod) return;
+                const prev = n(s.previousBalanceAmount);
+                const payable =
+                    n(s.payableAmount) -
+                    (s.previousBalanceType === 'Due' ? prev : 0) +
+                    (s.previousBalanceType === 'Get' ? prev : 0);
+                const paid = n(s.paidAmount);
+                const isDel = s.status === 'Delivered';
+                const balDue = payable < 0
+                    ? Math.max(r2(paid + payable), 0)
+                    : !isDel ? 0 : Math.max(r2(payable - paid), 0);
+                const balExtra = payable < 0
+                    ? Math.max(r2(-payable - paid), 0)
+                    : !isDel ? paid : Math.max(r2(paid - payable), 0);
+                pay += balExtra;
+                get += balDue;
+            });
+
+            // Sales return
+            sales.forEach((s) => {
+                if (editId && String(s._id) === editId) return;
+                if (!same(s.customer)) return;
+                (s.returnHistory || []).forEach((ret) => {
+                    const amt = n(ret.totalReturnAmount);
+                    const rec = ret.payment ? n(ret.payment.amount) : 0;
+                    pay += Math.max(amt - rec, 0);
+                    get += Math.max(rec - amt, 0);
+                });
+            });
+
+            // Bulk return
+            bulks.forEach((b) => {
+                if (!same(b.customer)) return;
+                if (editId && b.fromSales === true && String(b.saleId) === editId) return;
+                const adj =
+                    b.fromSales === true
+                        ? n(sales.find((s) => String(s._id) === String(b.saleId))?.returnAdjustmentAmount)
+                        : 0;
+                const rec = adj > 0 ? adj : b.payment ? n(b.payment.amount) : 0;
+                const amt = n(b.returnAmount);
+                pay += Math.max(amt - rec, 0);
+                get += Math.max(rec - amt, 0);
+            });
+
+            // Damage (standalone)
+            damages.forEach((d) => {
+                if (!d.customer || !same(d.customer)) return;
+                const amt = n(d.damageAmount) || n(d.returnAmount) || sumItems(d.items);
+                const rec = d.payment ? n(d.payment.amount) : 0;
+                pay += Math.max(amt - rec, 0);
+                get += Math.max(rec - amt, 0);
+            });
+
+            // Damage (from sales)
+            sales.forEach((s) => {
+                if (editId && String(s._id) === editId) return;
+                if (!same(s.customer)) return;
+                if (s.status !== 'Delivered' || !(s.damageItems || []).length) return;
+                const amt = sumItems(s.damageItems);
+                const adj = n(s.damageAdjustmentAmount);
+                const rec = adj > 0 ? adj : s.damagePayment ? n(s.damagePayment.amount) : 0;
+                pay += Math.max(amt - rec, 0);
+                get += Math.max(rec - amt, 0);
+            });
+
+            // Customer due payment
+            duePays.forEach((p) => {
+                if (!same(p.customer)) return;
+                const amt = r2(n(p.amount));
+                const isPay = p.type === 'Pay' || p.status === 'Pay' || p.paymentAccount?.dueType === 'Pay';
+                if (isPay) get += amt;
+                else pay += amt;
+            });
+
+            const net = r2(pay - get);
+            if (net > 0) setPrevBalance({ amount: net, type: 'Get' }); // ami customer ke dibo => bill theke minus
+            else if (net < 0) setPrevBalance({ amount: -net, type: 'Due' }); // customer amake dibe => bill e plus
+            else setPrevBalance({ amount: 0, type: '' });
+        });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orderFormData.customer]);
+
     // --------------------------------------------------
     // Payment Account Type List (Investment থেকে unique accountType)
     // --------------------------------------------------
@@ -1306,11 +1434,14 @@ const OrderAdd = () => {
         payableAmount -= returnTotalValue;
     }
 
-    // Payable কখনো negative হবে না
-    if (payableAmount < 0) {
-        payableAmount = 0;
+    // Previous Due / Pay (checkbox tik thakle)
+    const prevApplied = usePrevBalance && prevBalance.amount > 0;
+    if (prevApplied) {
+        if (prevBalance.type === 'Due') payableAmount += prevBalance.amount;
+        else if (prevBalance.type === 'Get') payableAmount -= prevBalance.amount;
     }
 
+    // Payable negative hole negative-i thakbe (Damage / Return / Adjustment er jonno, customer ke ami dibo)
     payableAmount = roundTo2(payableAmount);
 
     // --------------------------------------------------
@@ -1319,7 +1450,7 @@ const OrderAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment && !isDeliveredEdit && !paymentAmountTouched) {
-            setPaymentAmount(payableAmount);
+            setPaymentAmount(payableAmount < 0 ? 0 : payableAmount);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [payableAmount, showPayment, paymentAmountTouched]);
@@ -1632,6 +1763,17 @@ const OrderAdd = () => {
             returnItems: returnItemsPayload,
         };
 
+        if (prevApplied) {
+            orderData.previousBalanceAmount = prevBalance.amount;
+            orderData.previousBalanceType = prevBalance.type;
+        } else if (isEditMode) {
+            orderData.unsetFields = [
+                ...(orderData.unsetFields || []),
+                'previousBalanceAmount',
+                'previousBalanceType',
+            ];
+        }
+
         // Sales database এ save করা (Edit হলে Update, নাহলে নতুন Create)
         const sendOrder = async (confirmed = false) => {
             const res = await fetch(
@@ -1916,6 +2058,17 @@ const OrderAdd = () => {
 
             returnItems: returnItemsPayload,
         };
+
+        if (prevApplied) {
+            deliveryData.previousBalanceAmount = prevBalance.amount;
+            deliveryData.previousBalanceType = prevBalance.type;
+        } else {
+            deliveryData.unsetFields = [
+                ...(deliveryData.unsetFields || []),
+                'previousBalanceAmount',
+                'previousBalanceType',
+            ];
+        }
 
         const newOrderNo = generateOrderNo();
 
@@ -2613,16 +2766,52 @@ const OrderAdd = () => {
                                     </div>
                                 )}
 
+                                {/* Previous Due / Pay (Customer Account theke) */}
+                                <div className="flex items-center">
+                                    <label
+                                        className={`w-56 text-right pr-3 text-sm font-medium ${prevBalance.type === 'Due' ? 'text-sky-600' : prevBalance.type === 'Get' ? 'text-rose-600' : 'text-slate-500'}`}
+                                    >
+                                        {prevBalance.type === 'Due'
+                                            ? 'Previous Get'
+                                            : prevBalance.type === 'Get'
+                                                ? 'Previous Pay'
+                                                : 'Previous Get / Pay'}
+                                    </label>
+                                    {prevBalance.amount > 0 ? (
+                                        <div className="flex flex-1 items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={usePrevBalance}
+                                                onChange={(e) => setUsePrevBalance(e.target.checked)}
+                                                className={`w-4 h-4 cursor-pointer ${prevBalance.type === 'Due' ? 'accent-sky-600' : 'accent-rose-600'}`}
+                                            />
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={`${prevBalance.type === 'Due' ? '+' : '-'} ৳${prevBalance.amount.toFixed(2)}`}
+                                                className={`flex-1 px-3 py-2 border rounded-lg text-sm font-semibold outline-none ${prevBalance.type === 'Due' ? 'border-sky-200 bg-sky-50 text-sky-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={orderFormData.customer ? 'No Previous Get or Pay' : 'Select a customer first'}
+                                            className="flex-1 px-3 py-2 border border-slate-200 bg-slate-100 text-slate-500 rounded-lg text-sm outline-none"
+                                        />
+                                    )}
+                                </div>
+
                                 {/* Payable Amount */}
                                 <div className="flex items-center pt-2 mt-1 border-t border-teal-200">
                                     <label className="w-56 text-right pr-3 text-sm font-bold text-teal-800">
-                                        Payable Amount
+                                        {payableAmount < 0 ? 'Payable Amount' : 'Receivable Amount'}
                                     </label>
 
                                     <input
                                         type="text"
                                         readOnly
-                                        value={payableAmount.toFixed(2)}
+                                        value={Math.abs(payableAmount).toFixed(2)}
                                         className="flex-1 px-3 py-2.5 border border-teal-200 bg-white font-bold text-emerald-700 text-base rounded-lg outline-none"
                                     />
                                 </div>
@@ -3743,7 +3932,7 @@ DAMAGE PRODUCT
                         {showPayment && (
                             <div ref={paymentSectionRef} className={`mt-8 scroll-mt-6 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6 ${lockCls}`}>
                                 <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                                    <h3 className="text-base font-bold text-emerald-800">Payment</h3>
+                                    <h3 className="text-base font-bold text-emerald-800">Received Payment</h3>
 
                                     <label
                                         className={`flex items-center gap-2 text-sm font-semibold ${paymentAccountType && selectedAccountKey ? 'text-emerald-700 cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`}
@@ -3763,28 +3952,62 @@ DAMAGE PRODUCT
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Payment Amount <span className="text-rose-500">*</span>
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={paymentAmount}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                    setPaymentAmount(value);
-                                                    setPaymentAmountTouched(true);
-                                                }
-                                            }}
-                                            className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
-                                        />
+                                        <div className="flex items-end mb-2">
+                                            <label className="block w-1/2 text-sm font-semibold text-slate-700">
+                                                {payableAmount < 0 ? 'Payable Amount' : 'Received Amount'} <span className="text-rose-500">*</span>
+                                            </label>
+                                            {payableAmount < 0 && (
+                                                <p className="w-1/2 pl-1 text-sm font-semibold text-rose-600">My Payment</p>
+                                            )}
+                                        </div>
+                                        {payableAmount < 0 ? (
+                                            <div className="flex w-full rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    title="Customer ke ami eta dibo"
+                                                    value={Math.abs(payableAmount).toFixed(2)}
+                                                    className="w-1/2 min-w-0 px-4 py-3.5 bg-rose-50 text-rose-700 font-semibold text-sm outline-none cursor-not-allowed"
+                                                />
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    placeholder="0"
+                                                    title="Ami customer ke koto dilam"
+                                                    value={paymentAmount}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                            setPaymentAmount(value);
+                                                            setPaymentAmountTouched(true);
+                                                        }
+                                                    }}
+                                                    className="w-1/2 min-w-0 px-4 py-3.5 border-l border-slate-200 text-sm outline-none focus:bg-emerald-50/40"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={paymentAmount}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                        setPaymentAmount(value);
+                                                        setPaymentAmountTouched(true);
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                            />
+                                        )}
                                     </div>
 
                                     <div>
                                         <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Payment Method <span className="text-rose-500">*</span>
+                                            Receive Method <span className="text-rose-500">*</span>
+
                                         </label>
                                         <select
                                             value={paymentAccountType}

@@ -184,7 +184,7 @@ const CompanyAccountAc = () => {
 
     // tabs / filters / pagination
     const [activeTab, setActiveTab] = useState('purchase');
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', invoiceNo: '', paymentMethod: '' });
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', invoiceNo: '', paymentMethod: '', status: '' });
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
@@ -231,7 +231,7 @@ const CompanyAccountAc = () => {
     }, [selectedCompany, activeTab, filters]);
 
     useEffect(() => {
-        setFilters({ startDate: '', endDate: '', invoiceNo: '', paymentMethod: '' });
+        setFilters({ startDate: '', endDate: '', invoiceNo: '', paymentMethod: '', status: '' });
     }, [selectedCompany, activeTab]);
 
     // ---------- Company options ----------
@@ -295,11 +295,11 @@ const CompanyAccountAc = () => {
                 ? Math.max(r2(-fullPayable - paid), 0)
                 : !isRecv ? paid : Math.max(r2(paid - fullPayable), 0);
             // Balance (Pay/Get card) er jonno: Previous Due/Get bade
-            const balDue = payable < 0
-                ? Math.max(r2(paid + payable), 0)
+            const balDue = fullPayable < 0
+                ? (isRecv ? Math.max(r2(payable), 0) : 0) + paid
                 : !isRecv ? 0 : Math.max(r2(payable - paid), 0);
-            const balExtra = payable < 0
-                ? Math.max(r2(-payable - paid), 0)
+            const balExtra = fullPayable < 0
+                ? Math.max(r2(-payable), 0)
                 : !isRecv ? paid : Math.max(r2(paid - payable), 0);
             return {
                 key: p._id,
@@ -313,8 +313,11 @@ const CompanyAccountAc = () => {
                 method: p.paymentMethod,
                 methodKey: p.paymentMethod,
                 account: accountLabel(p.paymentMethod, p.paymentAccount || {}),
-                total: fullPayable,
-                paid,
+                total: fullPayable < 0 ? 0 : fullPayable,
+                receivable: fullPayable < 0 ? -fullPayable : 0,
+                isReceivable: fullPayable < 0,
+                paid: fullPayable < 0 ? 0 : paid,
+                received: fullPayable < 0 ? paid : 0,
                 due,
                 extra,
                 pay: balDue,
@@ -333,8 +336,8 @@ const CompanyAccountAc = () => {
     // helper for return type rows
     const makeReturnRow = (base, amt, payment) => {
         const received = payment ? num(payment.amount) : 0;
-        const due = Math.max(amt - received, 0);
-        const extra = Math.max(received - amt, 0);
+        const due = Math.max(received - amt, 0); // company ke beshi dite hobe (Pay)
+        const extra = Math.max(amt - received, 0); // company theke ami pabo (Get)
         return {
             ...base,
             payment,
@@ -345,8 +348,8 @@ const CompanyAccountAc = () => {
             paid: received,
             due,
             extra,
-            pay: extra, // company ke beshi payechhe -> amake dite hobe
-            get: due,   // company theke amar pawna
+            pay: due,
+            get: extra,
         };
     };
 
@@ -467,6 +470,7 @@ const CompanyAccountAc = () => {
     // 5) Company due payment (ami company ke je taka pay korechi)
     const duePayAll = duePayments.map((p) => {
         const amt = r2(num(p.amount));
+        const isGet = p.type === 'Get' || p.status === 'Get' || p.paymentAccount?.dueType === 'Get';
         return {
             key: `dp-${p._id}`,
             company: p.company,
@@ -481,8 +485,9 @@ const CompanyAccountAc = () => {
             due: 0,
             extra: 0,
             // ami pay korechi -> Pay balance theke kome jabe (ulta korte chaile pay: amt, get: 0 koro)
-            pay: 0,
-            get: amt,
+            pay: isGet ? amt : 0,
+            get: isGet ? 0 : amt,
+            status: isGet ? 'Get' : 'Pay',
             time: idTimeOf(p._id) || (parseToLocalDate(p.date)?.getTime() || 0),
         };
     });
@@ -534,6 +539,7 @@ const CompanyAccountAc = () => {
         if (filters.invoiceNo && !String(r.invoiceNo || '').toLowerCase().includes(filters.invoiceNo.toLowerCase()))
             return false;
         if (filters.paymentMethod && r.methodKey !== filters.paymentMethod) return false;
+        if (filters.status && r.status !== filters.status) return false;
         return true;
     });
 
@@ -548,17 +554,20 @@ const CompanyAccountAc = () => {
     const sPaid = filteredRows.reduce((s, r) => s + r.paid, 0);
     const sDue = filteredRows.reduce((s, r) => s + r.due, 0);
     const sExtra = filteredRows.reduce((s, r) => s + r.extra, 0);
+    const sReceivable = filteredRows.reduce((s, r) => s + (r.receivable || 0), 0);
+    const sReceived = filteredRows.reduce((s, r) => s + (r.received || 0), 0);
 
     const isPurchaseTab = activeTab === 'purchase';
+    const showReceive = isPurchaseTab && currentAll.some((r) => r.isReceivable);
     const isDuePayTab = activeTab === 'duePay';
     const tabMeta = TABS.find((t) => t.key === activeTab) || TABS[0];
     const pillLabels = isPurchaseTab
-        ? ['Total', 'Paid', 'Due', 'Get']
-        : ['Return', 'Received', 'Due', 'Extra'];
+        ? ['Payable', 'Paid', 'Pay', 'Get']
+        : ['Return', 'Received', 'Pay', 'Get'];
 
     const handleFilterChange = (e) => setFilters({ ...filters, [e.target.name]: e.target.value });
     const handleClearFilters = () =>
-        setFilters({ startDate: '', endDate: '', invoiceNo: '', paymentMethod: '' });
+        setFilters({ startDate: '', endDate: '', invoiceNo: '', paymentMethod: '', status: '' });
 
     const inputCls =
         'w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700';
@@ -779,7 +788,7 @@ const CompanyAccountAc = () => {
                                     <FaRedo size={11} /> Clear All Filters
                                 </button>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${isDuePayTab ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
                                 <div>
                                     <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
                                     <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className={inputCls} />
@@ -813,6 +822,21 @@ const CompanyAccountAc = () => {
                                         ))}
                                     </select>
                                 </div>
+                                {isDuePayTab && (
+                                    <div>
+                                        <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
+                                        <select
+                                            name="status"
+                                            value={filters.status}
+                                            onChange={handleFilterChange}
+                                            className={`${inputCls} cursor-pointer`}
+                                        >
+                                            <option value="">All</option>
+                                            <option value="Pay">Pay</option>
+                                            <option value="Get">Get</option>
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -824,6 +848,8 @@ const CompanyAccountAc = () => {
                                 </h2>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className={PILL}>{isDuePayTab ? 'Total Paid' : pillLabels[0]}: ৳{fmt(sTotal)}</span>
+                                    {showReceive && <span className={PILL}>Receivable: ৳{fmt(sReceivable)}</span>}
+                                    {showReceive && <span className={PILL}>Receive: ৳{fmt(sReceived)}</span>}
                                     {!isDuePayTab && <span className={PILL}>{pillLabels[1]}: ৳{fmt(sPaid)}</span>}
                                     {!isDuePayTab && <span className={PILL}>{pillLabels[2]}: ৳{fmt(sDue)}</span>}
                                     {!isDuePayTab && <span className={PILL}>{pillLabels[3]}: ৳{fmt(sExtra)}</span>}
@@ -843,9 +869,11 @@ const CompanyAccountAc = () => {
                                                 <th className={TH}>Invoice</th>
                                                 <th className={TH}>Payment Method</th>
                                                 <th className={TH}>Payment Account</th>
-                                                <th className={TH}>Total Amount</th>
+                                                <th className={TH}>Payable Amount</th>
+                                                {showReceive && <th className={TH}>Receivable Amount</th>}
                                                 <th className={TH}>Paid Amount</th>
-                                                <th className={TH}>Due Amount</th>
+                                                {showReceive && <th className={TH}>Receive Amount</th>}
+                                                <th className={TH}>Pay Amount</th>
                                                 <th className={TH}>Get Amount</th>
                                             </tr>
                                         ) : (
@@ -856,8 +884,8 @@ const CompanyAccountAc = () => {
                                                 <th className={TH}>Payment Account</th>
                                                 <th className={TH}>Return Amount</th>
                                                 <th className={TH}>Return Received Amount</th>
-                                                <th className={TH}>Return Due Amount</th>
-                                                <th className={TH}>Return Extra Amount</th>
+                                                <th className={TH}>Return Pay Amount</th>
+                                                <th className={TH}>Return Get Amount</th>
                                             </tr>
                                         )}
                                     </thead>
@@ -931,8 +959,22 @@ const CompanyAccountAc = () => {
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                                             {r.account || <span className="text-gray-400 italic">N/A</span>}
                                                         </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-indigo-600">৳ {fmt(r.total)}</td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">৳ {fmt(r.paid)}</td>
+                                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-indigo-600">
+                                                            {r.isReceivable ? <span className="text-gray-300">—</span> : `৳ ${fmt(r.total)}`}
+                                                        </td>
+                                                        {showReceive && (
+                                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-sky-600">
+                                                                {r.isReceivable ? `৳ ${fmt(r.receivable)}` : <span className="text-gray-300">—</span>}
+                                                            </td>
+                                                        )}
+                                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
+                                                            {r.isReceivable ? <span className="text-gray-300">—</span> : `৳ ${fmt(r.paid)}`}
+                                                        </td>
+                                                        {showReceive && (
+                                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-sky-600">
+                                                                {r.isReceivable ? `৳ ${fmt(r.received)}` : <span className="text-gray-300">—</span>}
+                                                            </td>
+                                                        )}
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-rose-600">৳ {fmt(r.due)}</td>
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-sky-600">৳ {fmt(r.extra)}</td>
                                                     </tr>

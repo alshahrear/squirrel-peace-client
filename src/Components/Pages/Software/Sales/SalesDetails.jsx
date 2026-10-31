@@ -228,6 +228,10 @@ const SalesDetails = () => {
         payable = inv.adjustment?.type === '-' ? payable - adjAmt : payable + adjAmt;
         payable -= Number(inv.damageAdjustmentAmount) || 0;
         payable -= Number(inv.returnAdjustmentAmount) || 0;
+        if (Number(inv.previousBalanceAmount) > 0) {
+            if (inv.previousBalanceType === 'Due') payable += Number(inv.previousBalanceAmount);
+            else if (inv.previousBalanceType === 'Get') payable -= Number(inv.previousBalanceAmount);
+        }
         if (payable < 0) payable = 0;
 
         return {
@@ -325,6 +329,36 @@ const SalesDetails = () => {
 
     const totals = showRemaining ? getTotals() : null;
     const due = Number(selectedOrder.payableAmount) - Number(selectedOrder.paidAmount || 0);
+
+    // Customer system: beshi dile Due er jaigay Pay Amount (positive) dekhabe
+    const getBalanceInfo = () => {
+        const payable = Number(selectedOrder.payableAmount) || 0;
+        const paid = Number(selectedOrder.paidAmount || 0);
+        if (payable < 0) {
+            const net = payable + paid; // e.g. -50 + 30 = -20
+            return {
+                paidLabel: 'Paid Amount:',
+                balanceLabel: net < 0 ? 'Pay Amount:' : 'Due Amount:',
+                balance: Math.abs(net),
+                balanceClass: net < 0 ? 'text-rose-600' : 'text-sky-600',
+            };
+        }
+        if (due < 0) {
+            return {
+                paidLabel: 'Paid Amount:',
+                balanceLabel: 'Pay Amount:',
+                balance: Math.abs(due),
+                balanceClass: 'text-rose-600',
+            };
+        }
+        return {
+            paidLabel: 'Paid Amount:',
+            balanceLabel: 'Due Amount:',
+            balance: due,
+            balanceClass: 'text-sky-600',
+        };
+    };
+    const balanceInfo = getBalanceInfo();
     const baseSubTotal = Number(selectedOrder.subTotal ?? selectedOrder.grandTotal) || 0;
     const shownGrand = totals ? totals.grand : baseSubTotal;
     const shownPwd = totals ? totals.pwd : Number(selectedOrder.productWiseDiscount);
@@ -862,17 +896,25 @@ const SalesDetails = () => {
                                     </span>
                                 </div>
                             )}
+                            {Number(selectedOrder.previousBalanceAmount) > 0 && (
+                                <div className="flex justify-between py-1 text-slate-600">
+                                    <span>{selectedOrder.previousBalanceType === 'Due' ? 'Previous Get:' : 'Previous Pay:'}</span>
+                                    <span className={`font-semibold ${selectedOrder.previousBalanceType === 'Due' ? 'text-sky-600' : 'text-rose-600'}`}>
+                                        {selectedOrder.previousBalanceType === 'Due' ? '+ ' : '- '}৳{Number(selectedOrder.previousBalanceAmount).toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
-                                <span>Payable Amount:</span>
+                                <span>Receivable Amount:</span>
                                 <span className="text-indigo-600">৳{shownPayable.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-slate-500 text-sm">
-                                <span>Paid Amount:</span>
+                                <span>{shownPayable < 0 ? 'Paid Amount:' : 'Received Amount:'}</span>
                                 <span>৳{Number(selectedOrder.paidAmount || 0).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-2 text-sm font-bold text-slate-800 border-t border-dashed border-slate-300">
-                                <span>Due Amount:</span>
-                                <span className="text-rose-600">৳{due.toFixed(2)}</span>
+                                <span>{balanceInfo.balanceLabel}</span>
+                                <span className={balanceInfo.balanceClass}>৳{balanceInfo.balance.toFixed(2)}</span>
                             </div>
 
                             {selectedOrder.receiveStatus && (

@@ -26,6 +26,16 @@ const SalesReturnDetails = () => {
     const [returnPricesPcs, setReturnPricesPcs] = useState([]); // PCS er return price, editable
     const [returnPricesSub, setReturnPricesSub] = useState([]); // Sub Unit er return price, editable
     const [returnNote, setReturnNote] = useState('');
+
+    // ---------------- Payment (optional, default collapsed) ----------------
+    const [investments, setInvestments] = useState([]);
+    const [paymentOpen, setPaymentOpen] = useState(false);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [paymentAmountTouched, setPaymentAmountTouched] = useState(false);
+    const [paymentAccountType, setPaymentAccountType] = useState('');
+    const [selectedAccountKey, setSelectedAccountKey] = useState('');
+    const [paymentNote, setPaymentNote] = useState('');
+
     const [submitting, setSubmitting] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
@@ -55,6 +65,31 @@ const SalesReturnDetails = () => {
                         ? (data.returnHistory || []).find((ret) => ret.returnId === editReturnId)
                         : null;
                     setReturnNote(editingEntry?.returnNote || '');
+
+                    // Edit mode e age payment thakle prefill + open
+                    const savedPay = editingEntry?.payment;
+                    if (savedPay) {
+                        setPaymentOpen(true);
+                        setPaymentAmount(savedPay.amount ?? '');
+                        setPaymentAmountTouched(true);
+                        setPaymentAccountType(savedPay.method || '');
+                        setPaymentNote(savedPay.note || '');
+                        const spa = savedPay.account || {};
+                        if (savedPay.method === 'Bank') {
+                            setSelectedAccountKey(`${spa.bankName}-${spa.accountNumber}-${spa.accountBranch}`);
+                        } else if (savedPay.method === 'Mobile Banking') {
+                            setSelectedAccountKey(`${spa.accountName}-${spa.accountNumber}`);
+                        } else {
+                            setSelectedAccountKey('cash');
+                        }
+                    } else {
+                        setPaymentOpen(false);
+                        setPaymentAmount('');
+                        setPaymentAmountTouched(false);
+                        setPaymentAccountType('');
+                        setSelectedAccountKey('');
+                        setPaymentNote('');
+                    }
 
                     setReturnInputs(
                         (data.items || []).map((item) => {
@@ -95,8 +130,19 @@ const SalesReturnDetails = () => {
                         (data.items || []).map((item) => Number(item.sellPriceUnit) || 0)
                     );
                     // Discount / overall discount / adjustment er por asol net price per pcs
-                    const payableNum = Number(data.payableAmount) || 0;
+                    // Sell Price: shudhu product subtotal - overall discount +/- adjustment (damage / bulk return / previous due-pay bad)
                     const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
+                    const ovAmt =
+                        data.overallDiscountValue !== undefined && data.overallDiscountValue !== null && data.overallDiscountValue !== ''
+                            ? Number(data.overallDiscountValue) || 0
+                            : data.overallDiscountType === 'percent'
+                                ? (subtotalSum * (Number(data.overallDiscount) || 0)) / 100
+                                : Number(data.overallDiscount) || 0;
+                    const adjAmt = Number(data.adjustment?.amount) || 0;
+                    const payableNum = Math.max(
+                        subtotalSum - ovAmt + (data.adjustment?.type === '-' ? -adjAmt : adjAmt),
+                        0
+                    );
                     setReturnPricesPcs(
                         (data.items || []).map((item) => {
                             const paidQty = Number(item.totalPcs) || 0;
@@ -531,10 +577,86 @@ const SalesReturnDetails = () => {
         ? selectedOrder.items.reduce((sum, item, index) => sum + getReturnAmount(index, item), 0)
         : 0;
 
+    // Investment accounts (Payment section er jonno)
+    useEffect(() => {
+        fetch('https://squirrel-peace-server.onrender.com/investment')
+            .then((res) => res.json())
+            .then((data) => setInvestments(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching investments:', error));
+    }, []);
+
+    const accountTypes = [...new Set(investments.map((inv) => inv.accountType).filter(Boolean))];
+
+    const getAccountKey = (inv) => {
+        if (inv.accountType === 'Bank') {
+            return `${inv.bankName}-${inv.accountNumber}-${inv.accountBranch}`;
+        }
+        if (inv.accountType === 'Mobile Banking') {
+            return `${inv.accountName}-${inv.accountNumber}`;
+        }
+        return 'cash';
+    };
+
+    const uniqueAccountsMap = new Map();
+    investments
+        .filter((inv) => inv.accountType === paymentAccountType)
+        .forEach((inv) => {
+            const key = getAccountKey(inv);
+            if (!uniqueAccountsMap.has(key)) uniqueAccountsMap.set(key, inv);
+        });
+    const uniqueAccounts = Array.from(uniqueAccountsMap.values());
+    const selectedAccountInfo = uniqueAccounts.find((inv) => getAccountKey(inv) === selectedAccountKey);
+
+    // User nijer hate change na korle Payment Amount = Total Return Amount auto sync
+    useEffect(() => {
+        if (!paymentAmountTouched) {
+            setPaymentAmount(roundTo2(totalReturnAmount));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [totalReturnAmount, paymentAmountTouched]);
+
     const handleConfirmReturn = async () => {
         if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0 && totalReturnFreeItemsQty <= 0) {
             showToast('Return korar jonno kompokkhe 1 ta product a quantity din!', 'error');
             return;
+        }
+
+        // ---------------- Payment validation (shudhu Payment open thakle) ----------------
+        let paymentData = null;
+        if (paymentOpen) {
+            if (paymentAmount === '' || paymentAmount === null) {
+                showToast('Payment amount is required! (or close Payment)', 'error');
+                return;
+            }
+            if (!paymentAccountType) {
+                showToast('Please select a payment method! (or close Payment)', 'error');
+                return;
+            }
+            if (!selectedAccountInfo) {
+                showToast('Please select an account! (or close Payment)', 'error');
+                return;
+            }
+            let accInfo = {};
+            if (paymentAccountType === 'Bank') {
+                accInfo = {
+                    bankName: selectedAccountInfo.bankName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                    accountBranch: selectedAccountInfo.accountBranch || '',
+                };
+            } else if (paymentAccountType === 'Mobile Banking') {
+                accInfo = {
+                    accountName: selectedAccountInfo.accountName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                };
+            } else {
+                accInfo = { accountName: 'Cash' };
+            }
+            paymentData = {
+                amount: roundTo2(paymentAmount),
+                method: paymentAccountType,
+                account: accInfo,
+                note: paymentNote,
+            };
         }
 
         setSubmitting(true);
@@ -633,7 +755,11 @@ const SalesReturnDetails = () => {
 
             const updatedData = {
                 ...rest,
-                returnHistory: updatedReturnHistory,
+                returnHistory: updatedReturnHistory.map((ret, i) =>
+                    (isEditMode ? ret.returnId === editReturnId : i === updatedReturnHistory.length - 1)
+                        ? { ...ret, payment: paymentData }
+                        : ret
+                ),
             };
 
             const response = await fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`, {
@@ -1066,6 +1192,124 @@ const SalesReturnDetails = () => {
                             onChange={(e) => setReturnNote(e.target.value)}
                             className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 resize-y shadow-sm"
                         />
+                    </div>
+
+                    {/* Return Payment (Optional, default collapsed) */}
+                    <div className="px-6 sm:px-8 pb-6 sm:pb-8">
+                        <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <h3 className="text-base font-bold text-emerald-800">Return Payment</h3>
+                                    <span className="text-[11px] text-emerald-700/80 font-medium">
+                                        Return er taka customer ke dile ekhane payment din
+                                    </span>
+                                    <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
+                                        Customer Pabe: ৳{totalReturnAmount.toFixed(2)}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentOpen((prev) => !prev)}
+                                    className="flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
+                                >
+                                    {paymentOpen ? 'Enabled' : 'Disabled'}
+                                    <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                        <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </span>
+                                </button>
+                            </div>
+
+                            {paymentOpen && (
+                                <div className="mt-5">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                Payment Amount <span className="text-rose-500">*</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={paymentAmount}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                        setPaymentAmount(value);
+                                                        setPaymentAmountTouched(true);
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                Payment Method <span className="text-rose-500">*</span>
+                                            </label>
+                                            <select
+                                                value={paymentAccountType}
+                                                onChange={(e) => {
+                                                    setPaymentAccountType(e.target.value);
+                                                    setSelectedAccountKey(
+                                                        e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
+                                                            ? 'cash'
+                                                            : ''
+                                                    );
+                                                }}
+                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
+                                            >
+                                                <option value="">Select method...</option>
+                                                {accountTypes.map((type) => (
+                                                    <option key={type} value={type}>{type}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                Account <span className="text-rose-500">*</span>
+                                            </label>
+                                            <select
+                                                value={selectedAccountKey}
+                                                onChange={(e) => setSelectedAccountKey(e.target.value)}
+                                                disabled={!paymentAccountType}
+                                                className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
+                                                    ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
+                                                    : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                    }`}
+                                            >
+                                                <option value="">
+                                                    {paymentAccountType ? 'Select account...' : 'Select method first'}
+                                                </option>
+                                                {uniqueAccounts.map((inv) => {
+                                                    const key = getAccountKey(inv);
+                                                    const label =
+                                                        inv.accountType === 'Bank'
+                                                            ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
+                                                            : inv.accountType === 'Mobile Banking'
+                                                                ? `${inv.accountName} - ${inv.accountNumber}`
+                                                                : 'Cash';
+                                                    return <option key={key} value={key}>{label}</option>;
+                                                })}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                            Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
+                                        </label>
+                                        <textarea
+                                            rows="2"
+                                            placeholder="Write any note about this payment..."
+                                            value={paymentNote}
+                                            onChange={(e) => setPaymentNote(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Totals + Confirm Return */}

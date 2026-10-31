@@ -227,49 +227,93 @@ const PurchaseAddInner = () => {
             fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
         ])
             .then(([sales, dmg, purchases, damageReturns]) => {
-                const map = new Map();
-                const addRow = (it, sign) => {
-                    const key = damageKey(it.productName, it.company);
-                    if (!map.has(key)) {
-                        map.set(key, {
-                            key,
-                            productName: it.productName || '',
-                            company: it.company || '',
-                            productId: it.productId,
-                            paid: 0,
-                            free: 0,
-                            pcsPerUnit: 1,
-                            parentMode: false,
-                            pcsPerSub: 0,
-                            unit: '',
-                            subUnit: '',
-                        });
-                    }
-                    const g = map.get(key);
-                    g.paid += sign * (Number(it.totalQty) || 0);
-                    g.free += sign * (Number(it.freeQty) || 0);
-                    if (sign > 0) {
+                const num = (v) => Number(v) || 0;
+
+                // ---- Damage invoice gulo (stock in) ----
+                const invs = [];
+                (Array.isArray(sales) ? sales : [])
+                    .filter((s) => s.status === 'Delivered' && (s.damageItems || []).length > 0)
+                    .forEach((s) => invs.push({ ts: Date.parse(s.damageAt || s.createdAt) || 0, items: s.damageItems || [] }));
+                (Array.isArray(dmg) ? dmg : []).forEach((d) =>
+                    invs.push({ ts: Date.parse(d.createdAt) || 0, items: d.items || [] })
+                );
+                invs.sort((a, b) => a.ts - b.ts);
+
+                const groups = new Map();
+                const lineMap = new Map();
+                invs.forEach((inv) => {
+                    const m = new Map();
+                    inv.items.forEach((it) => {
+                        const key = damageKey(it.productName, it.company);
+                        if (!m.has(key)) m.set(key, { ts: inv.ts, main: 0, free: 0, retMain: 0, retFree: 0 });
+                        const l = m.get(key);
+                        l.main += num(it.totalQty);
+                        l.free += num(it.freeQty);
+                        if (!groups.has(key)) {
+                            groups.set(key, {
+                                key,
+                                productName: it.productName || '',
+                                company: it.company || '',
+                                productId: it.productId,
+                                pcsPerUnit: 1,
+                                parentMode: false,
+                                pcsPerSub: 0,
+                                unit: '',
+                                subUnit: '',
+                            });
+                        }
+                        const g = groups.get(key);
                         g.pcsPerUnit = Number(it.pcsPerUnit) || g.pcsPerUnit;
                         g.parentMode = it.parentMode === true;
                         g.pcsPerSub = it.parentMode === true ? Number(it.pcsPerSub) || 0 : 0;
                         g.unit = it.unit || g.unit;
                         g.subUnit = it.subUnit || g.subUnit;
-                    }
-                };
-                (Array.isArray(sales) ? sales : [])
-                    .filter((s) => s.status === 'Delivered')
-                    .forEach((s) => (s.damageItems || []).forEach((it) => addRow(it, 1)));
-                (Array.isArray(dmg) ? dmg : []).forEach((d) => (d.items || []).forEach((it) => addRow(it, 1)));
+                    });
+                    m.forEach((l, k) => {
+                        if (!lineMap.has(k)) lineMap.set(k, []);
+                        lineMap.get(k).push(l);
+                    });
+                });
+
+                // ---- Company return gulo (stock out) -> invoice wise FIFO ----
+                const evs = [];
                 (Array.isArray(purchases) ? purchases : []).forEach((p) => {
                     if (editId && String(p._id) === String(editId)) return;
                     if (!(p.receiveStatus === 'Received' || p.receiveStatus === 'Yes')) return;
-                    (p.damageItems || []).forEach((it) => addRow(it, -1));
+                    if (!(p.damageItems || []).length) return;
+                    evs.push({ ts: Date.parse(p.damageAt || p.createdAt) || 0, items: p.damageItems || [] });
                 });
-                (Array.isArray(damageReturns) ? damageReturns : []).forEach((d) =>
-                    (d.items || []).forEach((it) => addRow(it, -1))
+                (Array.isArray(damageReturns) ? damageReturns : []).forEach((r) =>
+                    evs.push({ ts: Date.parse(r.createdAt) || 0, items: r.items || [] })
                 );
+                evs.sort((a, b) => a.ts - b.ts);
+                evs.forEach((ev) =>
+                    ev.items.forEach((it) => {
+                        let m = num(it.totalQty);
+                        let f = num(it.freeQty);
+                        for (const l of lineMap.get(damageKey(it.productName, it.company)) || []) {
+                            if (m <= 0 && f <= 0) break;
+                            if (ev.ts && l.ts > ev.ts) continue;
+                            const tm = Math.max(Math.min(m, l.main - l.retMain), 0);
+                            const tf = Math.max(Math.min(f, l.free - l.retFree), 0);
+                            l.retMain += tm;
+                            l.retFree += tf;
+                            m -= tm;
+                            f -= tf;
+                        }
+                    })
+                );
+
                 setDamageStockList(
-                    Array.from(map.values()).map((g) => ({ ...g, paid: Math.max(g.paid, 0), free: Math.max(g.free, 0) }))
+                    Array.from(groups.values()).map((g) => {
+                        let paid = 0;
+                        let free = 0;
+                        (lineMap.get(g.key) || []).forEach((l) => {
+                            paid += Math.max(l.main - l.retMain, 0);
+                            free += Math.max(l.free - l.retFree, 0);
+                        });
+                        return { ...g, paid, free };
+                    })
                 );
             })
             .catch((error) => console.error('Error fetching damage stock:', error));
@@ -323,10 +367,9 @@ const PurchaseAddInner = () => {
                 else if (p.previousBalanceType === 'Get') payable += prev;
                 const paid = n(p.paidAmount);
                 const recvd = p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
-                if (payable < 0) {
-                    const netNeg = payable + paid;
-                    pay += Math.max(netNeg, 0);
-                    get += Math.max(-netNeg, 0);
+                if (n(p.payableAmount) < 0) {
+                    pay += (recvd ? Math.max(payable, 0) : 0) + paid;
+                    get += Math.max(-payable, 0);
                 } else {
                     pay += recvd ? Math.max(payable - paid, 0) : 0;
                     get += recvd ? Math.max(paid - payable, 0) : paid;
@@ -384,7 +427,10 @@ const PurchaseAddInner = () => {
             // Company due payment
             duePays.forEach((d) => {
                 if (!same(d.company)) return;
-                get += r2(n(d.amount));
+                const amt = r2(n(d.amount));
+                const isGet = d.type === 'Get' || d.status === 'Get' || d.paymentAccount?.dueType === 'Get';
+                if (isGet) pay += amt;
+                else get += amt;
             });
 
             const net = r2(pay - get);
@@ -1732,6 +1778,10 @@ const PurchaseAddInner = () => {
                 showErr('Payment amount is required! (or Skip payment)');
                 return;
             }
+            if (!(Number(paymentAmount) > 0)) {
+                showErr('Payment amount must be greater than 0! (or Skip payment)');
+                return;
+            }
             if (!paymentAccountType) {
                 showErr('Please select a payment method! (or Skip payment)');
                 return;
@@ -1765,6 +1815,11 @@ const PurchaseAddInner = () => {
         if (isReceivedEdit) {
             if (paymentAmount === '' || paymentAmount === null) {
                 setToast({ show: true, message: 'Payment amount is required!', isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                return;
+            }
+            if (!(Number(paymentAmount) > 0)) {
+                setToast({ show: true, message: 'Payment amount must be greater than 0!', isError: true });
                 setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
                 return;
             }
@@ -2011,6 +2066,11 @@ const PurchaseAddInner = () => {
         // ---------------- Validation ----------------
         if (paymentAmount === '' || paymentAmount === null) {
             setToast({ show: true, message: 'Payment amount is required!', isError: true });
+            setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+            return;
+        }
+        if (!(Number(paymentAmount) > 0)) {
+            setToast({ show: true, message: 'Payment amount must be greater than 0!', isError: true });
             setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
             return;
         }
@@ -2906,13 +2966,13 @@ const PurchaseAddInner = () => {
                                     {/* Payable Amount */}
                                     <div className="flex items-center pt-2 mt-1 border-t border-teal-200">
                                         <label className="w-56 text-right pr-3 text-sm font-bold text-teal-800">
-                                            Payable Amount
+                                            {payableAmount < 0 ? 'Receivable Amount' : 'Payable Amount'}
                                         </label>
 
                                         <input
                                             type="text"
                                             readOnly
-                                            value={payableAmount.toFixed(2)}
+                                            value={Math.abs(payableAmount).toFixed(2)}
                                             className="flex-1 px-3 py-2.5 border border-teal-200 bg-white font-bold text-emerald-700 text-base rounded-lg outline-none"
                                         />
                                     </div>
@@ -3850,7 +3910,7 @@ const PurchaseAddInner = () => {
                                                 <div>
                                                     <div className="flex items-end mb-2">
                                                         <label className="block w-1/2 text-sm font-semibold text-slate-700">
-                                                            Payment Amount <span className="text-rose-500">*</span>
+                                                            {payableAmount < 0 ? 'Receivable Amount' : 'Payment Amount'} <span className="text-rose-500">*</span>
                                                         </label>
                                                         {payableAmount < 0 && (
                                                             <p className="w-1/2 pl-1 text-sm font-semibold text-sky-600">Company Payment</p>
@@ -3862,7 +3922,7 @@ const PurchaseAddInner = () => {
                                                                 type="text"
                                                                 readOnly
                                                                 title="Company theke ami eta pai"
-                                                                value={payableAmount.toFixed(2)}
+                                                                value={Math.abs(payableAmount).toFixed(2)}
                                                                 className="w-1/2 min-w-0 px-4 py-3.5 bg-sky-50 text-sky-700 font-semibold text-sm outline-none cursor-not-allowed"
                                                             />
                                                             <input
@@ -3887,12 +3947,13 @@ const PurchaseAddInner = () => {
                                                     ) : (
                                                         <input
                                                             type="number"
+                                                            min="0"
                                                             step="0.01"
                                                             value={paymentAmount}
                                                             onChange={(e) => {
                                                                 const value = e.target.value;
 
-                                                                if (/^-?\d*\.?\d{0,2}$/.test(value)) {
+                                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
                                                                     setPaymentAmount(value);
                                                                     setPaymentAmountTouched(true);
                                                                     setPaymentManual(true);

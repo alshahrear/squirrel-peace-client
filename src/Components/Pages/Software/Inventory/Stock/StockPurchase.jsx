@@ -340,13 +340,18 @@ const calcProfit = (b, sales, unitCost) => {
                     const tot = Number(it.itemTotal ?? it.subtotal);
                     // product discount er por sob item er total
                     const itemsSum = (s.items || []).reduce((sum, x) => sum + (Number(x.itemTotal ?? x.subtotal) || 0), 0);
-                    // overall discount + adjustment er por amount (damage/return adjustment bad diye)
-                    const hasPayable = s.payableAmount !== undefined && s.payableAmount !== null && s.payableAmount !== '';
-                    const base =
-                        (Number(s.payableAmount) || 0) +
-                        (Number(s.damageAdjustmentAmount) || 0) +
-                        (Number(s.returnAdjustmentAmount) || 0);
-                    const ratio = hasPayable && itemsSum > 0 ? base / itemsSum : 1;
+                    // sell price: product discount + overall discount + adjustment hisab hobe
+                    // damage / bulk return adjustment ar previous get/pay hisab hobe na
+                    const ovVal =
+                        s.overallDiscountType === 'percent'
+                            ? (itemsSum * (Number(s.overallDiscount) || 0)) / 100
+                            : Number(s.overallDiscount) || 0;
+                    const adjAmt = Number(s.adjustment?.amount) || 0;
+                    const base = Math.max(
+                        itemsSum - ovVal + (s.adjustment?.type === '-' ? -adjAmt : adjAmt),
+                        0
+                    );
+                    const ratio = itemsSum > 0 ? base / itemsSum : 1;
                     const unit = tp > 0 && !isNaN(tot) ? (tot * ratio) / tp : Number(it.sellPricePcs ?? it.sellPrice) || 0;
                     r = r2(unit * net);
                 }
@@ -2028,12 +2033,13 @@ const StockPurchase = () => {
                                                             <th className={th}>Sold</th>
                                                             <th className={th}>Returned</th>
                                                             <th className={th}>Net</th>
+                                                            <th className={`${th} text-right`}>Amount</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
                                                         {salesRows.length === 0 ? (
                                                             <tr>
-                                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
+                                                                <td colSpan={7} className="py-8 text-center text-gray-400 font-medium">
                                                                     Ei batch theke ekhono kono sales hoyni
                                                                 </td>
                                                             </tr>
@@ -2066,6 +2072,17 @@ const StockPurchase = () => {
                                                                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                                                                         <KindStack align="right" valueClass="text-emerald-700" parts={soldNetParts(r)} />
                                                                     </td>
+                                                                    <td className="py-2.5 px-3 text-right font-bold text-indigo-600 whitespace-nowrap">
+                                                                        {(() => {
+                                                                            const l = pInfo.lines.find((x) => String(x.saleId) === String(r.saleId));
+                                                                            if (!l || l.revenue <= 0) return <span className="text-gray-300">—</span>;
+                                                                            return (
+                                                                                <>
+                                                                                    ৳{fmt(l.revenue)} <span className="text-[11px] text-gray-500">(৳{fmt(l.sellPcs > 0 ? l.revenue / l.sellPcs : 0)}/pcs)</span>
+                                                                                </>
+                                                                            );
+                                                                        })()}
+                                                                    </td>
                                                                 </tr>
                                                             ))
                                                         )}
@@ -2082,6 +2099,9 @@ const StockPurchase = () => {
                                                                 </td>
                                                                 <td className="py-3 px-3 text-right whitespace-nowrap">
                                                                     <KindStack align="right" valueClass="text-emerald-700" parts={toParts(soldNetTotals)} />
+                                                                </td>
+                                                                <td className="py-3 px-3 text-right text-indigo-600 whitespace-nowrap">
+                                                                    ৳{fmt(pInfo.revenue)} <span className="text-[11px] text-gray-500">(৳{fmt(pInfo.sellPcs > 0 ? pInfo.revenue / pInfo.sellPcs : 0)}/pcs)</span>
                                                                 </td>
                                                             </tr>
                                                         </tfoot>

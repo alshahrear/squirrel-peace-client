@@ -264,7 +264,8 @@ const CompanyPurchaseAc = () => {
                 methodKey: p.paymentMethod,
                 account: accountLabel(p.paymentMethod, p.paymentAccount || {}),
                 total: payable,
-                paid,
+                paid: payable < 0 ? 0 : paid,
+                received: payable < 0 ? paid : 0,
                 due,
                 extra,
                 pay: due,
@@ -477,10 +478,11 @@ const CompanyPurchaseAc = () => {
     );
 
     const isPurchaseTab = activeTab === 'purchase';
+    const showReceive = isPurchaseTab && currentAll.some((r) => r.total < 0);
     const tabMeta = TABS.find((t) => t.key === activeTab) || TABS[0];
     const pillLabels = isPurchaseTab
-        ? ['Total', 'Paid', 'Due', 'Get']
-        : ['Return', 'Received', 'Due', 'Extra'];
+        ? ['Total', 'Paid', 'Pay', 'Get']
+        : ['Return', 'Received', 'Pay', 'Get'];
 
     const handleFilterChange = (e) => setFilters({ ...filters, [e.target.name]: e.target.value });
     const handleClearFilters = () =>
@@ -760,7 +762,8 @@ const CompanyPurchaseAc = () => {
                                                 <th className={TH}>Payment Account</th>
                                                 <th className={TH}>Total Amount</th>
                                                 <th className={TH}>Paid Amount</th>
-                                                <th className={TH}>Due Amount</th>
+                                                {showReceive && <th className={TH}>Receive Amount</th>}
+                                                <th className={TH}>Pay Amount</th>
                                                 <th className={TH}>Get Amount</th>
                                             </tr>
                                         ) : (
@@ -771,8 +774,8 @@ const CompanyPurchaseAc = () => {
                                                 <th className={TH}>Payment Account</th>
                                                 <th className={TH}>Return Amount</th>
                                                 <th className={TH}>Return Received Amount</th>
-                                                <th className={TH}>Return Due Amount</th>
-                                                <th className={TH}>Return Extra Amount</th>
+                                                <th className={TH}>Return Pay Amount</th>
+                                                <th className={TH}>Return Get Amount</th>
                                             </tr>
                                         )}
                                     </thead>
@@ -848,6 +851,11 @@ const CompanyPurchaseAc = () => {
                                                         </td>
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-indigo-600">৳ {fmt(r.total)}</td>
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">৳ {fmt(r.paid)}</td>
+                                                        {showReceive && (
+                                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-sky-600">
+                                                                {r.total < 0 ? `৳ ${fmt(r.received)}` : <span className="text-gray-300">—</span>}
+                                                            </td>
+                                                        )}
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-rose-600">৳ {fmt(r.due)}</td>
                                                         <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-sky-600">৳ {fmt(r.extra)}</td>
                                                     </tr>

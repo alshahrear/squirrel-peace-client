@@ -115,31 +115,37 @@ const Purchase = () => {
     useEffect(() => {
         const loadSold = async () => {
             try {
-                const [stockRes, salesRes, bulkRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/stock-purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
+                const safeJson = (url) =>
+                    fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
+                const [stock, sales, bulks, damages, salesBulks, adjustments] = await Promise.all([
+                    safeJson('https://squirrel-peace-server.onrender.com/stock-purchase'),
+                    safeJson('https://squirrel-peace-server.onrender.com/sales'),
+                    safeJson('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
+                    safeJson('https://squirrel-peace-server.onrender.com/sales-damage'),
+                    safeJson('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
+                    safeJson('https://squirrel-peace-server.onrender.com/stock-adjustment'),
                 ]);
-                const stock = await stockRes.json();
-                const sales = await salesRes.json();
-                const bulks = await bulkRes.json();
                 const batchToPurchase = new Map(
-                    (Array.isArray(stock) ? stock : []).map((b) => [String(b._id), String(b.purchaseId)])
+                    stock.map((b) => [String(b._id), String(b.purchaseId)])
                 );
                 const ids = new Set();
-                (Array.isArray(sales) ? sales : []).forEach((s) => {
-                    (s.stockAllocations || []).forEach((a) => {
-                        const net = (Number(a.qty) || 0) - (Number(a.returned) || 0);
-                        const pid = batchToPurchase.get(String(a.batchId));
-                        if (pid && net > 0) ids.add(pid);
+                const mark = (list) =>
+                    list.forEach((r) => {
+                        (r.stockAllocations || []).forEach((a) => {
+                            const pid = batchToPurchase.get(String(a.batchId));
+                            if (pid && (Number(a.qty) || 0) > 0) ids.add(pid);
+                        });
                     });
-                });
-                (Array.isArray(bulks) ? bulks : []).forEach((r) => {
-                    (r.stockAllocations || []).forEach((a) => {
-                        const pid = batchToPurchase.get(String(a.batchId));
-                        if (pid && (Number(a.qty) || 0) > 0) ids.add(pid);
-                    });
-                });
+                // Sales (return hoye gele o qty change hoyeche, tai qty > 0 holei lock)
+                mark(sales);
+                // Purchase bulk return
+                mark(bulks);
+                // Customer (sales) bulk return
+                mark(salesBulks);
+                // Damage
+                mark(damages);
+                // Stock adjustment (In / Out)
+                mark(adjustments);
                 setSoldPurchaseIds(ids);
             } catch (error) {
                 console.error('Error checking sold purchases:', error);

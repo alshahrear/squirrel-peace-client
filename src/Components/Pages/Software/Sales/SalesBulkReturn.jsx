@@ -6,6 +6,7 @@ import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-
 const SalesBulkReturn = () => {
     const [returns, setReturns] = useState([]);
     const [customers, setCustomers] = useState([]);
+    const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const navigate = useNavigate();
@@ -72,6 +73,10 @@ const SalesBulkReturn = () => {
     useEffect(() => {
         fetchReturns();
         fetchCustomers();
+        fetch('https://squirrel-peace-server.onrender.com/sales')
+            .then((res) => res.json())
+            .then((d) => setSales(Array.isArray(d) ? d : []))
+            .catch((error) => console.error(error));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname]);
 
@@ -535,7 +540,28 @@ const SalesBulkReturn = () => {
                                                 <td className="px-2.5 font-semibold text-emerald-600 whitespace-nowrap">
                                                     {renderLines(freeLines, 'text-emerald-700')}
                                                 </td>
-                                                <td className="px-2.5 font-bold text-orange-600 whitespace-nowrap">৳{Number(item.returnAmount).toFixed(2)}</td>
+                                                <td className="px-2.5 font-bold text-orange-600 whitespace-nowrap">
+                                                    <div>৳{Number(item.returnAmount).toFixed(2)}</div>
+                                                    {item.payment ? (
+                                                        <div className="text-[10px] font-bold mt-0.5">
+                                                            <span className="text-emerald-600">Paid: ৳{fmt(item.payment.amount)}</span>
+                                                            <span className="text-rose-600 ml-1">
+                                                                (Due: {fmt(Math.max((Number(item.returnAmount) || 0) - (Number(item.payment.amount) || 0), 0))})
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        item.fromSales &&
+                                                            Number(sales.find((s) => String(s._id) === String(item.saleId))?.returnAdjustmentAmount) > 0 ? (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold text-[9px]">
+                                                                Adjusted: ৳{fmt(sales.find((s) => String(s._id) === String(item.saleId))?.returnAdjustmentAmount)}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full font-semibold text-[9px]">
+                                                                Not Paid
+                                                            </span>
+                                                        )
+                                                    )}
+                                                </td>
                                                 <td className="px-2.5 text-center relative">
                                                     <div className="relative inline-block action-dropdown-container">
                                                         <button

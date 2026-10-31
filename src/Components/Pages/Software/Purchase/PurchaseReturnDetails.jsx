@@ -115,7 +115,7 @@ const PurchaseReturnDetails = () => {
                     );
 
                     // StockPurchase এর "Per Pcs Price" এর মতো: discount/adjustment এর পর আসল cost per pcs
-                                       // Cost: shudhu product subtotal - overall discount +/- adjustment (damage/return/previous due-get bad)
+                    // Cost: shudhu product subtotal - overall discount +/- adjustment (damage/return/previous due-get bad)
                     const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
                     const ovAmt =
                         data.overallDiscountValue !== undefined && data.overallDiscountValue !== null && data.overallDiscountValue !== ''
@@ -736,6 +736,10 @@ const PurchaseReturnDetails = () => {
         if (paymentOpen) {
             if (paymentAmount === '' || paymentAmount === null) {
                 showToast('Payment amount is required! (or close Payment)', 'error');
+                return;
+            }
+            if (!(Number(paymentAmount) > 0)) {
+                showToast('Payment amount must be greater than 0! (or close Payment)', 'error');
                 return;
             }
             if (!paymentAccountType) {

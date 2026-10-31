@@ -344,6 +344,45 @@ const DamageStockAdd = () => {
     const [isSaving, setIsSaving] = useState(false);
     const dateInputRef = useRef(null);
 
+    // ---------- Payment (shudhu customer select thakle, optional, default disabled) ----------
+    const savedPay = editingDamage?.payment || null;
+    const [investments, setInvestments] = useState([]);
+    const [paymentOpen, setPaymentOpen] = useState(!!savedPay);
+    const [paymentAmount, setPaymentAmount] = useState(savedPay?.amount ?? '');
+    const [paymentAmountTouched, setPaymentAmountTouched] = useState(!!savedPay);
+    const [paymentAccountType, setPaymentAccountType] = useState(savedPay?.method || '');
+    const [selectedAccountKey, setSelectedAccountKey] = useState(() => {
+        if (!savedPay) return '';
+        const a = savedPay.account || {};
+        if (savedPay.method === 'Bank') return `${a.bankName}-${a.accountNumber}-${a.accountBranch}`;
+        if (savedPay.method === 'Mobile Banking') return `${a.accountName}-${a.accountNumber}`;
+        return 'cash';
+    });
+    const [paymentNote, setPaymentNote] = useState(savedPay?.note || '');
+
+    useEffect(() => {
+        fetch('https://squirrel-peace-server.onrender.com/investment')
+            .then((res) => res.json())
+            .then((data) => setInvestments(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching investments:', error));
+    }, []);
+
+    const accountTypes = [...new Set(investments.map((inv) => inv.accountType).filter(Boolean))];
+    const getAccountKey = (inv) => {
+        if (inv.accountType === 'Bank') return `${inv.bankName}-${inv.accountNumber}-${inv.accountBranch}`;
+        if (inv.accountType === 'Mobile Banking') return `${inv.accountName}-${inv.accountNumber}`;
+        return 'cash';
+    };
+    const uniqueAccountsMap = new Map();
+    investments
+        .filter((inv) => inv.accountType === paymentAccountType)
+        .forEach((inv) => {
+            const k = getAccountKey(inv);
+            if (!uniqueAccountsMap.has(k)) uniqueAccountsMap.set(k, inv);
+        });
+    const uniqueAccounts = Array.from(uniqueAccountsMap.values());
+    const selectedAccountInfo = uniqueAccounts.find((inv) => getAccountKey(inv) === selectedAccountKey);
+
     const showToast = (message, isError = false) => {
         setToast({ show: true, message, isError });
         setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
@@ -379,7 +418,18 @@ const DamageStockAdd = () => {
         .filter((c) => c.customerType === 'Wholesale Customer')
         .filter((c) => matchesSearch(search.customer, [c.businessName, c.contactNumber, c.address, c.route]));
 
+    // Customer change/select/clear hole full page reset (items, note, company, category, product search)
+    const resetPageData = () => {
+        setItems([]);
+        setNote('');
+        setFormData((p) => ({ ...p, company: '', category: '' }));
+        setPaymentOpen(false);
+        setPaymentAmountTouched(false);
+        setSearch((p) => ({ ...p, company: '', category: '', product: '' }));
+    };
+
     const handleSelectCustomer = (c) => {
+        if (String(formData.customerId) !== String(c._id) && (formData.customerId || items.length > 0)) resetPageData();
         updateForm({
             customerId: c._id,
             customer: c.businessName,
@@ -390,6 +440,7 @@ const DamageStockAdd = () => {
     };
 
     const handleClearCustomer = () => {
+        resetPageData();
         updateSearch('customer', '');
         updateForm({ customerId: '', customer: '', customerContact: '', customerAddress: '' });
     };
@@ -496,6 +547,11 @@ const DamageStockAdd = () => {
             : roundTo2(getRowGross(item));
     const subTotal = roundTo2(items.reduce((t, i) => t + getItemAmount(i), 0));
     const damageAmount = subTotal;
+
+    useEffect(() => {
+        if (!paymentAmountTouched) setPaymentAmount(roundTo2(damageAmount));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [damageAmount, paymentAmountTouched]);
     const uniqueUnits = [...new Set(items.map((i) => i.unit || 'Pcs'))];
     const sellPriceUnitLabel = uniqueUnits.length === 1 ? uniqueUnits[0] : 'Unit';
 
@@ -518,6 +574,41 @@ const DamageStockAdd = () => {
                     return showToast(`${i.productName}: stock e Main ${st.paid}, Free ${st.free} pcs ache!`, true);
                 }
             }
+        }
+
+        // ---------- Payment validation (shudhu customer thakle + Payment open thakle) ----------
+        let paymentData = null;
+        if (formData.customerId && paymentOpen) {
+            if (paymentAmount === '' || paymentAmount === null) {
+                return showToast('Payment amount is required! (or close Payment)', true);
+            }
+            if (!paymentAccountType) {
+                return showToast('Please select a payment method! (or close Payment)', true);
+            }
+            if (!selectedAccountInfo) {
+                return showToast('Please select an account! (or close Payment)', true);
+            }
+            let accInfo = {};
+            if (paymentAccountType === 'Bank') {
+                accInfo = {
+                    bankName: selectedAccountInfo.bankName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                    accountBranch: selectedAccountInfo.accountBranch || '',
+                };
+            } else if (paymentAccountType === 'Mobile Banking') {
+                accInfo = {
+                    accountName: selectedAccountInfo.accountName || '',
+                    accountNumber: selectedAccountInfo.accountNumber || '',
+                };
+            } else {
+                accInfo = { accountName: 'Cash' };
+            }
+            paymentData = {
+                amount: roundTo2(paymentAmount),
+                method: paymentAccountType,
+                account: accInfo,
+                note: paymentNote,
+            };
         }
 
         const itemsPayload = items.map((i) => ({
@@ -554,6 +645,7 @@ const DamageStockAdd = () => {
             company: formData.company,
             category: formData.category,
             damageDate: formData.date,
+            payment: paymentData,
             items: itemsPayload,
             damageAmount,
             note,
@@ -624,10 +716,11 @@ const DamageStockAdd = () => {
                                 placeholder="Search or select customer (optional)..."
                                 searchValue={search.customer}
                                 onSearchChange={(text) => {
-                                    updateSearch('customer', text);
                                     if (formData.customerId) {
+                                        resetPageData();
                                         updateForm({ customerId: '', customer: '', customerContact: '', customerAddress: '' });
                                     }
+                                    updateSearch('customer', text);
                                 }}
                                 onClear={handleClearCustomer}
                                 onSelect={handleSelectCustomer}
@@ -920,6 +1013,123 @@ const DamageStockAdd = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Damage Payment (shudhu customer select thakle, optional, default disabled) */}
+                        {formData.customerId && (
+                            <div className="mt-8">
+                                <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
+                                    <div className="flex items-center justify-between flex-wrap gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <h3 className="text-base font-bold text-emerald-800">Damage Payment</h3>
+                                            <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
+                                                Damage Amount: ৳{damageAmount.toFixed(2)}
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentOpen((prev) => !prev)}
+                                            className="flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
+                                        >
+                                            {paymentOpen ? 'Enabled' : 'Disabled'}
+                                            <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                                <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+                                            </span>
+                                        </button>
+                                    </div>
+
+                                    {paymentOpen && (
+                                        <div className="mt-5">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                        Payment Amount <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={paymentAmount}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                setPaymentAmount(value);
+                                                                setPaymentAmountTouched(true);
+                                                            }
+                                                        }}
+                                                        className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                        Payment Method <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={paymentAccountType}
+                                                        onChange={(e) => {
+                                                            setPaymentAccountType(e.target.value);
+                                                            setSelectedAccountKey(
+                                                                e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
+                                                                    ? 'cash'
+                                                                    : ''
+                                                            );
+                                                        }}
+                                                        className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
+                                                    >
+                                                        <option value="">Select method...</option>
+                                                        {accountTypes.map((type) => (
+                                                            <option key={type} value={type}>{type}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                        Account <span className="text-rose-500">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={selectedAccountKey}
+                                                        onChange={(e) => setSelectedAccountKey(e.target.value)}
+                                                        disabled={!paymentAccountType}
+                                                        className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
+                                                            ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
+                                                            : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                            }`}
+                                                    >
+                                                        <option value="">
+                                                            {paymentAccountType ? 'Select account...' : 'Select method first'}
+                                                        </option>
+                                                        {uniqueAccounts.map((inv) => {
+                                                            const k = getAccountKey(inv);
+                                                            const label =
+                                                                inv.accountType === 'Bank'
+                                                                    ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
+                                                                    : inv.accountType === 'Mobile Banking'
+                                                                        ? `${inv.accountName} - ${inv.accountNumber}`
+                                                                        : 'Cash';
+                                                            return <option key={k} value={k}>{label}</option>;
+                                                        })}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-6">
+                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                    Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
+                                                </label>
+                                                <textarea
+                                                    rows="2"
+                                                    placeholder="Write any note about this payment..."
+                                                    value={paymentNote}
+                                                    onChange={(e) => setPaymentNote(e.target.value)}
+                                                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Note */}
                         <div className="mt-8">

@@ -384,6 +384,9 @@ const PurchaseBulkReturnForm = () => {
             if (paymentAmount === '' || paymentAmount === null) {
                 return showToast('Payment amount is required! (or close Payment)', true);
             }
+            if (!(Number(paymentAmount) > 0)) {
+                return showToast('Payment amount must be greater than 0! (or close Payment)', true);
+            }
             if (!paymentAccountType) {
                 return showToast('Please select a payment method! (or close Payment)', true);
             }

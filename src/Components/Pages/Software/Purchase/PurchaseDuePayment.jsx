@@ -18,6 +18,7 @@ const emptyForm = () => ({
     accountKey: '',
     amount: '',
     note: '',
+    type: 'Pay',
 });
 
 // 26/08/2026, 3:19:09 pm
@@ -96,6 +97,10 @@ const getAccountLabel = (method, acc = {}) => {
     return 'Cash';
 };
 
+// type server e save na hole o paymentAccount.dueType theke Get/Pay ber hobe
+const getDueType = (p) =>
+    p?.type === 'Get' || p?.status === 'Get' || p?.paymentAccount?.dueType === 'Get' ? 'Get' : 'Pay';
+
 const PurchaseDuePayment = () => {
     const [payments, setPayments] = useState([]);
     const [companies, setCompanies] = useState([]);
@@ -125,7 +130,7 @@ const PurchaseDuePayment = () => {
     const itemsPerPage = 30;
 
     // Filters
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', invoiceNo: '' });
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', invoiceNo: '', status: '' });
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
 
@@ -203,8 +208,8 @@ const PurchaseDuePayment = () => {
     const uniqueAccounts = Array.from(uniqueAccountsMap.values());
 
     // ---------------- Due amount (CompanyAccountAc er final Pay amount) ----------------
-    const dueAmount = (() => {
-        if (!formData.company) return 0;
+    const balance = (() => {
+        if (!formData.company) return { pay: 0, get: 0 };
         const num = (v) => Number(v) || 0;
         const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
         const same = (a) =>
@@ -230,14 +235,27 @@ const PurchaseDuePayment = () => {
 
         // Purchase + Purchase return + Damage (from purchase)
         purchases.filter((p) => same(p.company)).forEach((p) => {
+            const isRecv = p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
             if (p.paidAmount !== undefined && p.paidAmount !== null && p.paidAmount !== '' && !!p.paymentMethod) {
-                const payable = num(p.payableAmount);
+                const prevBal = num(p.previousBalanceAmount);
+                // Previous Due/Get bade payable
+                const payable =
+                    num(p.payableAmount) -
+                    (p.previousBalanceType === 'Due' ? prevBal : 0) +
+                    (p.previousBalanceType === 'Get' ? prevBal : 0);
                 const paid = num(p.paidAmount);
-                pay += Math.max(payable - paid, 0);
-                get += Math.max(paid - payable, 0);
+                const fullPayable = num(p.payableAmount);
+                const balDue = fullPayable < 0
+                    ? (isRecv ? Math.max(r2(payable), 0) : 0) + paid
+                    : !isRecv ? 0 : Math.max(r2(payable - paid), 0);
+                const balExtra = fullPayable < 0
+                    ? Math.max(r2(-payable), 0)
+                    : !isRecv ? paid : Math.max(r2(paid - payable), 0);
+                pay += balDue;
+                get += balExtra;
             }
             (p.returnHistory || []).forEach((ret) => addReturn(num(ret.totalReturnAmount), ret.payment || null));
-            if ((p.receiveStatus === 'Received' || p.receiveStatus === 'Yes') && (p.damageItems || []).length > 0) {
+            if (isRecv && (p.damageItems || []).length > 0 && (num(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')) {
                 const adj = num(p.damageAdjustmentAmount);
                 addReturn(sumItems(p.damageItems), adj > 0 ? { amount: adj } : null);
             }
@@ -253,17 +271,18 @@ const PurchaseDuePayment = () => {
         });
 
         // Damage return
-        damageReturns.filter((d) => same(d.company)).forEach((d) => {
+        damageReturns.filter((d) => same(d.company) && d.status === 'Approved').forEach((d) => {
             addReturn(num(d.damageAmount) || num(d.returnAmount) || sumItems(d.items), d.payment || null);
         });
 
         // Company due payment
         payments.filter((p) => same(p.company)).forEach((p) => {
-            get += r2(num(p.amount));
+            if (getDueType(p) === 'Get') pay += r2(num(p.amount));
+            else get += r2(num(p.amount));
         });
 
         const net = r2(pay - get);
-        return net > 0 ? net : 0;
+        return { pay: net > 0 ? net : 0, get: net < 0 ? -net : 0 };
     })();
 
     const canPay =
@@ -306,9 +325,11 @@ const PurchaseDuePayment = () => {
             companyContact: formData.companyContact,
             date: formData.date,
             paymentMethod: formData.paymentMethod,
-            paymentAccount,
+            paymentAccount: { ...paymentAccount, dueType: formData.type === 'Get' ? 'Get' : 'Pay' },
             amount: Math.round((Number(formData.amount) || 0) * 100) / 100,
             note: formData.note.trim(),
+            type: formData.type === 'Get' ? 'Get' : 'Pay',
+            status: formData.type === 'Get' ? 'Get' : 'Pay',
             invoiceNo: generateInvoiceNo(),
             createdAt: formatDateTime(new Date()),
         };
@@ -380,7 +401,7 @@ const PurchaseDuePayment = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', company: '', invoiceNo: '' });
+        setFilters({ startDate: '', endDate: '', company: '', invoiceNo: '', status: '' });
         setCurrentPage(1);
     };
 
@@ -390,6 +411,7 @@ const PurchaseDuePayment = () => {
         if (filters.endDate && (!p.date || p.date > filters.endDate)) return false;
         if (filters.company && !p.company?.toLowerCase().includes(filters.company.toLowerCase())) return false;
         if (filters.invoiceNo && !getInvoiceNo(p).toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
+        if (filters.status && getDueType(p) !== filters.status) return false;
         return true;
     });
 
@@ -452,7 +474,7 @@ const PurchaseDuePayment = () => {
                         uniqueAccounts={uniqueAccounts}
                         getAccountKey={getAccountKey}
                         canPay={canPay}
-                        dueAmount={dueAmount}
+                        dueAmount={formData.type === 'Get' ? balance.get : balance.pay}
                         isSubmitting={isSubmitting}
                     />
                 </div>
@@ -471,7 +493,7 @@ const PurchaseDuePayment = () => {
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
                         {/* Start Date */}
                         <div>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
@@ -535,6 +557,21 @@ const PurchaseDuePayment = () => {
                             />
                         </div>
 
+                        {/* Status */}
+                        <div>
+                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
+                            <select
+                                name="status"
+                                value={filters.status}
+                                onChange={handleFilterChange}
+                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 cursor-pointer"
+                            >
+                                <option value="">All</option>
+                                <option value="Pay">Pay</option>
+                                <option value="Get">Get</option>
+                            </select>
+                        </div>
+
                         {/* Company */}
                         <div>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
@@ -574,6 +611,7 @@ const PurchaseDuePayment = () => {
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Method</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Account</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Note</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Created At</th>
                                     <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
@@ -605,6 +643,11 @@ const PurchaseDuePayment = () => {
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
                                                 ৳ {Number(p.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                                <span className={`px-2 py-0.5 rounded text-xs font-bold border ${getDueType(p) === 'Get' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                                    {getDueType(p)}
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
                                                 <button
@@ -666,7 +709,7 @@ const PurchaseDuePayment = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="9" className="text-center py-10 text-gray-400 text-sm">
+                                        <td colSpan="10" className="text-center py-10 text-gray-400 text-sm">
                                             No matching payments found!
                                         </td>
                                     </tr>

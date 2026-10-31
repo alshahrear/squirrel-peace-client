@@ -204,11 +204,11 @@ const CompanyPurReturnAc = () => {
     const totalReturn = filteredRows.reduce((s, r) => s + r.returnAmount, 0);
     const totalReceived = filteredRows.reduce((s, r) => s + (r.payment ? Number(r.payment.amount) || 0 : 0), 0);
     const totalDue = filteredRows.reduce(
-        (s, r) => s + Math.max(r.returnAmount - (r.payment ? Number(r.payment.amount) || 0 : 0), 0),
+        (s, r) => s + Math.max((r.payment ? Number(r.payment.amount) || 0 : 0) - r.returnAmount, 0),
         0
     );
     const totalGet = filteredRows.reduce(
-        (s, r) => s + Math.max((r.payment ? Number(r.payment.amount) || 0 : 0) - r.returnAmount, 0),
+        (s, r) => s + Math.max(r.returnAmount - (r.payment ? Number(r.payment.amount) || 0 : 0), 0),
         0
     );
 
@@ -376,10 +376,10 @@ const CompanyPurReturnAc = () => {
                                 Received: ৳{fmt(totalReceived)}
                             </span>
                             <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                                Due: ৳{fmt(totalDue)}
+                                Pay: ৳{fmt(totalDue)}
                             </span>
                             <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                                Extra: ৳{fmt(totalGet)}
+                                Get: ৳{fmt(totalGet)}
                             </span>
                             <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
                                 Showing: {filteredRows.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredRows.length)}` : 0} of {filteredRows.length} ({returnRows.length} total)
@@ -398,8 +398,8 @@ const CompanyPurReturnAc = () => {
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Account</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Return Amount</th>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Return Received Amount</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Return Due Amount</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Return Extra Amount</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Return Pay Amount</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Return Get Amount</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-100">
@@ -411,8 +411,8 @@ const CompanyPurReturnAc = () => {
                                     currentRows.map((r) => {
                                         const pay = r.payment;
                                         const received = pay ? Number(pay.amount) || 0 : 0;
-                                        const dueAmt = Math.max(r.returnAmount - received, 0);
-                                        const getAmt = Math.max(received - r.returnAmount, 0);
+                                        const payAmt = Math.max(received - r.returnAmount, 0);
+                                        const getAmt = Math.max(r.returnAmount - received, 0);
                                         return (
                                             <tr key={r.key} className="hover:bg-indigo-50/50 transition-colors">
                                                 {/* Date */}
@@ -485,14 +485,14 @@ const CompanyPurReturnAc = () => {
                                                     )}
                                                 </td>
 
-                                                {/* Return Due Amount */}
+                                                {/* Return Pay Amount */}
                                                 <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold">
-                                                    <span className={dueAmt > 0 ? 'text-red-600' : 'text-emerald-600'}>
-                                                        ৳ {fmt(dueAmt)}
+                                                    <span className={payAmt > 0 ? 'text-red-600' : 'text-emerald-600'}>
+                                                        ৳ {fmt(payAmt)}
                                                     </span>
                                                 </td>
 
-                                                {/* Return Extra Amount */}
+                                                {/* Return Get Amount */}
                                                 <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-sky-600">
                                                     ৳ {fmt(getAmt)}
                                                 </td>

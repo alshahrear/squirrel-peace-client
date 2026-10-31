@@ -372,6 +372,15 @@ const PurchaseDetails = () => {
                 balanceClass: net < 0 ? 'text-sky-600' : 'text-rose-600',
             };
         }
+        if (t.due < 0) {
+            return {
+                isNegative: false,
+                paidLabel: 'Paid Amount:',
+                balanceLabel: 'Get Amount:',
+                balance: Math.abs(t.due),
+                balanceClass: 'text-sky-600',
+            };
+        }
         return {
             isNegative: false,
             paidLabel: 'Paid Amount:',
@@ -877,8 +886,8 @@ const PurchaseDetails = () => {
                                 </div>
                             )}
                             <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
-                                <span>Payable Amount:</span>
-                                <span className="text-indigo-600">৳{getTotals().payable.toFixed(2)}</span>
+                                <span>{getTotals().payable < 0 ? 'Receivable Amount:' : 'Payable Amount:'}</span>
+                                <span className="text-indigo-600">৳{Math.abs(getTotals().payable).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 text-slate-500 text-sm">
                                 <span>{getBalanceInfo().paidLabel}</span>

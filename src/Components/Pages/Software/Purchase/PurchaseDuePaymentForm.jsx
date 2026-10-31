@@ -34,7 +34,7 @@ const PurchaseDuePaymentForm = ({
     useEffect(() => {
         setUseDue(false);
         setFormData((prev) => ({ ...prev, amount: '' }));
-    }, [formData.company]);
+    }, [formData.company, formData.type]);
 
     // checkbox tick thakle amount box a due amount boshbe
     useEffect(() => {
@@ -84,6 +84,22 @@ const PurchaseDuePaymentForm = ({
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                     <span className="text-indigo-600 flex items-center gap-2"><FaMoneyBillWave /> Add Due Payment</span>
                 </h2>
+                <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1">
+                    <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, type: 'Pay' }))}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${formData.type !== 'Get' ? 'bg-rose-500 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Pay
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, type: 'Get' }))}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${formData.type === 'Get' ? 'bg-sky-500 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Get
+                    </button>
+                </div>
                 {!companyChosen && (
                     <span className="text-xs text-gray-400">Select a company first</span>
                 )}
@@ -245,7 +261,7 @@ const PurchaseDuePaymentForm = ({
                                 }}
                                 className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer disabled:cursor-not-allowed"
                             />
-                            Due Amount: ৳ {Number(dueAmount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                            {formData.type === 'Get' ? 'Get' : 'Due'} Amount: ৳ {Number(dueAmount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}
                         </span>
                     </label>
                     <input
@@ -289,7 +305,7 @@ const PurchaseDuePaymentForm = ({
                         disabled={!canPay || isSubmitting}
                         className="px-8 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 cursor-pointer"
                     >
-                        {isSubmitting ? 'Paying...' : 'Pay'}
+                        {formData.type === 'Get' ? (isSubmitting ? 'Saving...' : 'Get') : (isSubmitting ? 'Paying...' : 'Pay')}
                     </button>
                 </div>
             </form>

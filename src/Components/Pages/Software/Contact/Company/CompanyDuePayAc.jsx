@@ -23,12 +23,13 @@ const CompanyDuePayAc = ({ rows = [], loading = false }) => {
                         <th className={TH}>Payment Method</th>
                         <th className={TH}>Payment Account</th>
                         <th className={TH}>Amount</th>
+                        <th className={TH}>Status</th>
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                     {loading ? (
                         <tr>
-                            <td colSpan="6" className="text-center py-10 text-gray-400 text-sm">Loading...</td>
+                            <td colSpan="7" className="text-center py-10 text-gray-400 text-sm">Loading...</td>
                         </tr>
                     ) : rows.length > 0 ? (
                         rows.map((r) => (
@@ -43,6 +44,11 @@ const CompanyDuePayAc = ({ rows = [], loading = false }) => {
                                     {r.account || <span className="text-gray-400 italic">N/A</span>}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">৳ {fmt(r.total)}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold border ${r.status === 'Get' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
+                                        {r.status === 'Get' ? 'Get' : 'Pay'}
+                                    </span>
+                                </td>
                             </tr>
                         ))
                     ) : (

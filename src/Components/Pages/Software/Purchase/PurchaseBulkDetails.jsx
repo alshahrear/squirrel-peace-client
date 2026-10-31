@@ -241,7 +241,7 @@ const PurchaseBulkDetails = () => {
                                     </div>
                                     {pay && (
                                         <div className="flex justify-between text-slate-600 border-t border-dashed border-slate-300 pt-2">
-                                            <span>{diff > 0 ? 'Still Receivable:' : diff < 0 ? 'Extra Received:' : 'Status:'}</span>
+                                            <span>{diff > 0 ? 'Get Amount:' : diff < 0 ? 'Pay Amount:' : 'Status:'}</span>
                                             <span className={`font-bold ${diff > 0 ? 'text-rose-600' : diff < 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
                                                 {diff === 0 ? 'Fully Received' : `৳${Math.abs(diff).toFixed(2)}`}
                                             </span>

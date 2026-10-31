@@ -76,30 +76,80 @@ const DamageStockProducts = () => {
             .catch(() => setProductList([]));
     }, []);
 
-    // Received purchase er damage return (stock theke kome)
+    // Company return gulo damage invoice er sathe FIFO match hobe (invoice delete hole tar return ar hisab e ashbe na)
     const returnedMap = useMemo(() => {
-        const m = new Map();
-        purchases.forEach((p) => {
-            if (!(p.receiveStatus === 'Received' || p.receiveStatus === 'Yes')) return;
-            (p.damageItems || []).forEach((it) => {
-                const key = `${(it.productName || '').toString().trim().toLowerCase()}|${(it.company || '').toString().trim().toLowerCase()}`;
-                const cur = m.get(key) || { main: 0, free: 0 };
-                cur.main += Number(it.totalQty) || 0;
-                cur.free += Number(it.freeQty) || 0;
-                m.set(key, cur);
+        const num = (v) => Number(v) || 0;
+        const kOf = (it) =>
+            `${(it.productName || '').toString().trim().toLowerCase()}|${(it.company || '').toString().trim().toLowerCase()}`;
+
+        const invs = orders
+            .filter((o) => o.status === 'Delivered' && (o.damageItems || []).length > 0)
+            .map((o) => ({
+                ts: Date.parse(o.isStandaloneDamage ? o.createdAt : (o.damageAt || o.createdAt)) || 0,
+                stock: o.isStandaloneDamage === true && !o.customerId,
+                items: o.damageItems || [],
+            }))
+            .sort((a, b) => a.ts - b.ts);
+
+        const lineMap = new Map();
+        invs.forEach((inv) => {
+            const m = new Map();
+            inv.items.forEach((it) => {
+                const k = kOf(it);
+                if (!m.has(k)) m.set(k, { ts: inv.ts, stock: inv.stock, main: 0, free: 0, value: 0, retMain: 0, retFree: 0 });
+                const l = m.get(k);
+                l.main += num(it.totalQty);
+                l.free += num(it.freeQty);
+                l.value += num(it.itemTotal ?? it.subtotal);
+            });
+            m.forEach((l, k) => {
+                if (!lineMap.has(k)) lineMap.set(k, []);
+                lineMap.get(k).push(l);
             });
         });
-        damageReturns.forEach((r) => {
-            (r.items || []).forEach((it) => {
-                const key = `${(it.productName || '').toString().trim().toLowerCase()}|${(it.company || '').toString().trim().toLowerCase()}`;
-                const cur = m.get(key) || { main: 0, free: 0 };
-                cur.main += Number(it.totalQty) || 0;
-                cur.free += Number(it.freeQty) || 0;
-                m.set(key, cur);
+
+        const evs = [];
+        purchases
+            .filter((p) => (p.receiveStatus === 'Received' || p.receiveStatus === 'Yes') && (p.damageItems || []).length > 0)
+            .forEach((p) => evs.push({ ts: Date.parse(p.damageAt || p.createdAt) || 0, items: p.damageItems || [] }));
+        damageReturns.forEach((r) => evs.push({ ts: Date.parse(r.createdAt) || 0, items: r.items || [] }));
+        evs.sort((a, b) => a.ts - b.ts);
+
+        evs.forEach((ev) =>
+            ev.items.forEach((it) => {
+                let mq = num(it.totalQty);
+                let fq = num(it.freeQty);
+                for (const l of lineMap.get(kOf(it)) || []) {
+                    if (mq <= 0 && fq <= 0) break;
+                    if (!ev.ts || l.ts > ev.ts) continue;
+                    const tm = Math.max(Math.min(mq, l.main - l.retMain), 0);
+                    const tf = Math.max(Math.min(fq, l.free - l.retFree), 0);
+                    l.retMain += tm;
+                    l.retFree += tf;
+                    mq -= tm;
+                    fq -= tf;
+                }
+            })
+        );
+
+        const out = new Map();
+        lineMap.forEach((lines, k) => {
+            out.set(k, {
+                main: lines.reduce((s, l) => s + l.retMain, 0),
+                free: lines.reduce((s, l) => s + l.retFree, 0),
+                estQty: lines
+                    .filter((l) => !l.stock)
+                    .reduce((s, l) => s + Math.max(l.main - l.retMain, 0) + Math.max(l.free - l.retFree, 0), 0),
+                stockValue:
+                    Math.round(
+                        lines
+                            .filter((l) => l.stock && l.main > 0)
+                            .reduce((s, l) => s + Math.max(l.main - l.retMain, 0) * (l.value / l.main), 0) * 100
+                    ) / 100,
             });
         });
-        return m;
-    }, [purchases, damageReturns]);
+        return out;
+    }, [orders, purchases, damageReturns]);
 
     useEffect(() => {
         Promise.all([
@@ -161,7 +211,7 @@ const DamageStockProducts = () => {
             });
         return Array.from(map.values())
             .map((g) => {
-                const r = returnedMap.get(g.key) || { main: 0, free: 0 };
+                const r = returnedMap.get(g.key) || { main: 0, free: 0, estQty: 0, stockValue: 0 };
                 const prod =
                     productList.find((pr) => g.productId && String(pr._id) === String(g.productId)) ||
                     productList.find(
@@ -178,7 +228,8 @@ const DamageStockProducts = () => {
                     free,
                     total: main + free,
                     unitPrice,
-                    estimateValue: Math.round(unitPrice * (main + free) * 100) / 100,
+                    stockValue: r.stockValue,
+                    estimateValue: Math.round((unitPrice * r.estQty + r.stockValue) * 100) / 100,
                 };
             })
             .filter((g) => g.total > 0)
@@ -545,7 +596,9 @@ const DamageStockProducts = () => {
                                                 {p.estimateValue > 0 ? (
                                                     <>
                                                         ৳{fmt(p.estimateValue)}
-                                                        <span className="ml-1 text-[11px] text-gray-500 font-semibold">(৳{fmt(p.unitPrice)}/pcs)</span>
+                                                        {p.stockValue <= 0 && (
+                                                            <span className="ml-1 text-[11px] text-gray-500 font-semibold">(EST PP ৳{fmt(p.unitPrice)}/pcs)</span>
+                                                        )}
                                                     </>
                                                 ) : (
                                                     <span className="text-gray-300">—</span>

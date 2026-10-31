@@ -91,6 +91,7 @@ const DamageStockSingleInvoice = () => {
     const [damages, setDamages] = useState([]);
     const [purchases, setPurchases] = useState([]);
     const [damageReturns, setDamageReturns] = useState([]);
+    const [productList, setProductList] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const [search, setSearch] = useState('');
@@ -115,8 +116,10 @@ const DamageStockSingleInvoice = () => {
             fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((r) => r.json()).catch(() => []),
             fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
             fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/product').then((r) => r.json()).catch(() => []),
         ])
-            .then(([s, d, p, r]) => {
+            .then(([s, d, p, r, pr]) => {
+                setProductList(Array.isArray(pr) ? pr : []);
                 setSales(Array.isArray(s) ? s : []);
                 setDamages(Array.isArray(d) ? d : []);
                 setPurchases(Array.isArray(p) ? p : []);
@@ -164,7 +167,9 @@ const DamageStockSingleInvoice = () => {
                     m.set(k, {
                         key: k,
                         invId: inv.id,
+                        ts: inv.ts,
                         invNo: inv.invoiceNo,
+                        productId: it.productId,
                         productName: it.productName,
                         company: it.company,
                         main: 0,
@@ -243,6 +248,7 @@ const DamageStockSingleInvoice = () => {
                         : null;
                 for (const l of queue) {
                     if (m <= 0 && f <= 0) break;
+                    if (!ev.ts || l.ts > ev.ts) continue;
                     const tm = Math.min(m, l.main - l.retMain);
                     const tf = Math.min(f, l.free - l.retFree);
                     if (tm <= 0 && tf <= 0) continue;
@@ -279,6 +285,18 @@ const DamageStockSingleInvoice = () => {
 
     const lineAvail = (l) => ({ main: Math.max(l.main - l.retMain, 0), free: Math.max(l.free - l.retFree, 0) });
     const lineUnit = (l) => (l.main > 0 ? l.value / l.main : 0);
+    const ppOf = (l) => {
+        const prod =
+            productList.find((p) => l.productId && String(p._id) === String(l.productId)) ||
+            productList.find((p) => keyOf(p) === l.key);
+        return num(prod?.purchasePrice);
+    };
+    const isEst = (inv) => inv.kind !== 'stock';
+    const lineValue = (inv, l) => (isEst(inv) ? r2(ppOf(l) * (l.main + l.free)) : l.value);
+    const lineAvailValue = (inv, l) => {
+        const a = lineAvail(l);
+        return isEst(inv) ? r2(ppOf(l) * (a.main + a.free)) : r2(a.main * lineUnit(l));
+    };
     const invTotals = (inv) =>
         inv.lines.reduce(
             (t, l) => {
@@ -289,8 +307,8 @@ const DamageStockSingleInvoice = () => {
                 t.retFree += l.retFree;
                 t.availMain += a.main;
                 t.availFree += a.free;
-                t.value += l.value;
-                t.availValue += r2(a.main * lineUnit(l));
+                t.value += lineValue(inv, l);
+                t.availValue += lineAvailValue(inv, l);
                 return t;
             },
             { main: 0, free: 0, retMain: 0, retFree: 0, availMain: 0, availFree: 0, value: 0, availValue: 0 }
@@ -311,7 +329,7 @@ const DamageStockSingleInvoice = () => {
             .slice()
             .reverse();
         // eslint-disable-next-line
-    }, [invoices, search, hideEmpty]);
+    }, [invoices, search, hideEmpty, productList]);
 
     const totalPages = Math.ceil(orders.length / itemsPerPage) || 1;
     const safePage = Math.min(currentPage, totalPages);
@@ -648,8 +666,8 @@ const DamageStockSingleInvoice = () => {
                                                                     )}
                                                                 </td>
                                                                 <td className="py-2.5 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">
-                                                                    {l.value > 0 ? (
-                                                                        <>৳{fmt(l.value)} <span className="text-[11px] text-gray-500">(৳{fmt(lineUnit(l))}/pcs)</span></>
+                                                                    {lineValue(inv, l) > 0 ? (
+                                                                        <>৳{fmt(lineValue(inv, l))} <span className="text-[11px] text-gray-500">({isEst(inv) ? `EST PP ৳${fmt(ppOf(l))}` : `৳${fmt(lineUnit(l))}`}/pcs)</span></>
                                                                     ) : (
                                                                         <span className="text-gray-300">—</span>
                                                                     )}
@@ -861,7 +879,7 @@ const DamageStockSingleInvoice = () => {
                                                         <td className="py-3 px-3 font-semibold text-gray-800 whitespace-nowrap">{inv.customer}</td>
                                                         <td className="py-3 px-3 font-semibold text-gray-800 whitespace-nowrap">{l.productName}</td>
                                                         <td className="py-3 px-3 whitespace-nowrap"><QtyStack main={l.main} free={l.free} info={l.info} valueClass="text-red-600" /></td>
-                                                        <td className="py-3 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">{l.value > 0 ? `৳${fmt(l.value)}` : <span className="text-gray-300">—</span>}</td>
+                                                        <td className="py-3 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">{lineValue(inv, l) > 0 ? <>৳{fmt(lineValue(inv, l))}{isEst(inv) && <span className="ml-1 text-[11px] text-gray-500">(EST PP ৳{fmt(ppOf(l))}/pcs)</span>}</> : <span className="text-gray-300">—</span>}</td>
                                                     </tr>
                                                 </tbody>
                                             </table>

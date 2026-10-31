@@ -305,7 +305,10 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                                                 }}
                                                 className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer text-gray-700"
                                             >
-                                                {comp.businessName}
+                                                                                               {comp.businessName}
+                                                {comp.contactNumber && (
+                                                    <span className="text-gray-400 ml-1">({comp.contactNumber})</span>
+                                                )}
                                             </li>
                                         ))
                                 ) : (

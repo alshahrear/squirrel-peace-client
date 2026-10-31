@@ -6,35 +6,17 @@ const num = (v) => Number(v) || 0;
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 const norm = (v) => String(v || '').trim().toLowerCase();
-
-const parseToLocalDate = (dateStr) => {
-    if (!dateStr) return null;
-    const datePart = String(dateStr).split(',')[0].trim();
-    if (datePart.includes('/')) {
-        const [d, m, y] = datePart.split('/');
-        if (!d || !m || !y) return null;
-        return new Date(Number(y), Number(m) - 1, Number(d));
-    }
-    if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
-        const [y, m, d] = datePart.slice(0, 10).split('-');
-        return new Date(Number(y), Number(m) - 1, Number(d));
-    }
-    const parsed = new Date(datePart);
-    return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
-};
-
-const displayFormattedDate = (dateString) => {
-    if (!dateString) return '';
-    const [year, month, day] = dateString.split('-');
-    if (!year || !month || !day) return dateString;
-    return new Date(year, month - 1, day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
+const sumItems = (items) =>
+    (items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
 
 const PurCompanyDueRepo = () => {
     const location = useLocation();
 
     const [purchases, setPurchases] = useState([]);
     const [companies, setCompanies] = useState([]);
+    const [bulkReturns, setBulkReturns] = useState([]);
+    const [damageReturns, setDamageReturns] = useState([]);
+    const [duePayments, setDuePayments] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Pagination
@@ -42,18 +24,7 @@ const PurCompanyDueRepo = () => {
     const itemsPerPage = 30;
 
     // Filters
-    const [filters, setFilters] = useState({
-        startDate: '',
-        endDate: '',
-        status: '',
-        company: '',
-        phone: '',
-        address: '',
-        balanceType: '',
-    });
-
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
+    const [filters, setFilters] = useState({ company: '', phone: '', address: '' });
 
     // Company searchable-select state
     const [isCompanyOpen, setIsCompanyOpen] = useState(false);
@@ -62,14 +33,23 @@ const PurCompanyDueRepo = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const [pRes, cRes] = await Promise.all([
+                const [pRes, cRes, bRes, dRes, dpRes] = await Promise.all([
                     fetch('https://squirrel-peace-server.onrender.com/purchase'),
                     fetch('https://squirrel-peace-server.onrender.com/company'),
+                    fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
+                    fetch('https://squirrel-peace-server.onrender.com/damage-return'),
+                    fetch('https://squirrel-peace-server.onrender.com/purchase-due-payment'),
                 ]);
                 const pData = await pRes.json();
                 const cData = await cRes.json();
+                const bData = await bRes.json();
+                const dData = await dRes.json();
+                const dpData = await dpRes.json();
                 setPurchases(Array.isArray(pData) ? pData : []);
                 setCompanies(Array.isArray(cData) ? cData : []);
+                setBulkReturns(Array.isArray(bData) ? bData : []);
+                setDamageReturns(Array.isArray(dData) ? dData : []);
+                setDuePayments(Array.isArray(dpData) ? dpData : []);
             } catch (error) {
                 console.error('Error fetching company due data:', error);
             } finally {
@@ -95,7 +75,7 @@ const PurCompanyDueRepo = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', status: '', company: '', phone: '', address: '', balanceType: '' });
+        setFilters({ company: '', phone: '', address: '' });
         setCurrentPage(1);
     };
 
@@ -116,101 +96,96 @@ const PurCompanyDueRepo = () => {
         setIsCompanyOpen(false);
     };
 
-    // ---------- Company wise summary (ekta company = ekta row) ----------
-    const summary = new Map();
+    // ---------- Company Account er moto Pay / Get hisab ----------
+    const getCompanyBalance = (c) => {
+        const same = (name) => norm(name) === norm(c.businessName);
+        let pay = 0;
+        let get = 0;
 
-    const ensure = (name, info) => {
-        const key = norm(name);
-        if (!key) return null;
-        if (!summary.has(key)) {
-            summary.set(key, {
-                key,
-                company: String(name).trim(),
-                phone: info?.contactNumber || '',
-                address: info?.address || '',
-                openingAmount: 0,
-                openingType: '',
-                total: 0,
-                paid: 0,
-                due: 0,
-                get: 0,
-                count: 0,
-            });
-        }
-        return summary.get(key);
-    };
+        const addReturn = (amt, payment) => {
+            const received = payment ? num(payment.amount) : 0;
+            pay += Math.max(received - amt, 0);
+            get += Math.max(amt - received, 0);
+        };
 
-    // Company list theke (opening balance shoho)
-    companies.forEach((c) => {
-        const row = ensure(c.businessName, c);
-        if (!row) return;
-        const amt = r2(num(c.openingBalance));
-        const typeRaw = norm(c.openingBalanceType);
-        row.openingAmount = amt;
-        row.openingType = amt > 0 && typeRaw === 'pay' ? 'Pay' : amt > 0 && typeRaw === 'get' ? 'Get' : '';
-    });
+        // Opening balance
+        const oa = r2(num(c.openingBalance));
+        const ot = norm(c.openingBalanceType);
+        if (oa > 0 && ot === 'pay') pay += oa;
+        else if (oa > 0 && ot === 'get') get += oa;
 
-    // Purchase gulo company wise sum
-    purchases
-        .filter((p) => p.paidAmount !== undefined && p.paidAmount !== null && p.paidAmount !== '' && !!p.paymentMethod)
-        .filter((p) => {
-            if (filters.startDate || filters.endDate) {
-                const d = parseToLocalDate(p.purchaseDate);
-                if (!d) return false;
-                if (filters.startDate) {
-                    const s = parseToLocalDate(filters.startDate);
-                    if (s && d < s) return false;
-                }
-                if (filters.endDate) {
-                    const e = parseToLocalDate(filters.endDate);
-                    if (e && d > e) return false;
-                }
+        // Purchase + Purchase return + Damage (from purchase)
+        purchases.filter((p) => same(p.company)).forEach((p) => {
+            const isRecv = p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
+            if (p.paidAmount !== undefined && p.paidAmount !== null && p.paidAmount !== '' && !!p.paymentMethod) {
+                const prevBal = num(p.previousBalanceAmount);
+                const payable =
+                    num(p.payableAmount) -
+                    (p.previousBalanceType === 'Due' ? prevBal : 0) +
+                    (p.previousBalanceType === 'Get' ? prevBal : 0);
+                const paid = num(p.paidAmount);
+                const balDue = payable < 0
+                    ? Math.max(r2(paid + payable), 0)
+                    : !isRecv ? 0 : Math.max(r2(payable - paid), 0);
+                const balExtra = payable < 0
+                    ? Math.max(r2(-payable - paid), 0)
+                    : !isRecv ? paid : Math.max(r2(paid - payable), 0);
+                pay += balDue;
+                get += balExtra;
             }
-            const isRec = p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
-            if (filters.status === 'Received' && !isRec) return false;
-            if (filters.status === 'No' && isRec) return false;
-            return true;
-        })
-        .forEach((p) => {
-            const info = companies.find((c) => norm(c.businessName) === norm(p.company));
-            const row = ensure(p.company, info);
-            if (!row) return;
-            const payable = num(p.payableAmount);
-            const paid = num(p.paidAmount);
-            const due = payable < 0 ? 0 : Math.max(r2(payable - paid), 0);
-            const extra = payable < 0 ? r2(-payable) : Math.max(r2(paid - payable), 0);
-            row.total += payable;
-            row.paid += paid;
-            row.due += due;
-            row.get += extra;
-            row.count += 1;
+            (p.returnHistory || []).forEach((ret) => addReturn(num(ret.totalReturnAmount), ret.payment || null));
+            if (isRecv && (p.damageItems || []).length > 0 && (num(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')) {
+                const adj = num(p.damageAdjustmentAmount);
+                addReturn(sumItems(p.damageItems), adj > 0 ? { amount: adj } : null);
+            }
         });
 
-    const allRows = Array.from(summary.values())
-        .map((r) => {
-            const openPay = r.openingType === 'Pay' ? r.openingAmount : 0;
-            const openGet = r.openingType === 'Get' ? r.openingAmount : 0;
-            // Opening balance shoho final balance (Pay / Get filter er jonno)
-            const net = r2(openPay - openGet + r.due - r.get);
+        // Bulk return
+        bulkReturns.filter((b) => same(b.company)).forEach((b) => {
+            const adj =
+                b.fromPurchase === true
+                    ? num(purchases.find((p) => String(p._id) === String(b.purchaseId))?.returnAdjustmentAmount)
+                    : 0;
+            addReturn(num(b.returnAmount), adj > 0 ? { amount: adj } : b.payment || null);
+        });
+
+        // Damage return (shudhu Approved)
+        damageReturns.filter((d) => same(d.company) && d.status === 'Approved').forEach((d) => {
+            addReturn(num(d.damageAmount) || num(d.returnAmount) || sumItems(d.items), d.payment || null);
+        });
+
+        // Company due payment (Pay / Get)
+        duePayments.filter((p) => same(p.company)).forEach((p) => {
+            const isGet = p.type === 'Get' || p.status === 'Get' || p.paymentAccount?.dueType === 'Get';
+            const amt = r2(num(p.amount));
+            if (isGet) pay += amt;
+            else get += amt;
+        });
+
+        const net = r2(pay - get);
+        return { pay: net > 0 ? net : 0, get: net < 0 ? -net : 0 };
+    };
+
+    // ---------- Rows: /company API theke, notun add kora company age ----------
+    const allRows = companies
+        .map((c) => {
+            const bal = getCompanyBalance(c);
             return {
-                ...r,
-                total: r2(r.total),
-                paid: r2(r.paid),
-                due: r2(r.due),
-                get: r2(r.get),
-                net,
+                key: c._id,
+                company: c.businessName || '',
+                phone: c.contactNumber || '',
+                address: c.address || '',
+                pay: bal.pay,
+                get: bal.get,
             };
         })
-        .sort((a, b) => a.company.localeCompare(b.company));
+        .reverse();
 
     // ---------- Filtering ----------
     const filteredRows = allRows.filter((r) => {
-        if ((filters.startDate || filters.endDate || filters.status) && r.count === 0) return false;
         if (filters.company && !r.company.toLowerCase().includes(filters.company.toLowerCase())) return false;
         if (filters.phone && !String(r.phone || '').toLowerCase().includes(filters.phone.toLowerCase())) return false;
         if (filters.address && !String(r.address || '').toLowerCase().includes(filters.address.toLowerCase())) return false;
-        if (filters.balanceType === 'Pay' && !(r.net > 0)) return false;
-        if (filters.balanceType === 'Get' && !(r.net < 0)) return false;
         return true;
     });
 
@@ -225,11 +200,8 @@ const PurCompanyDueRepo = () => {
     };
 
     // ---------- Summary ----------
-    const sTotal = filteredRows.reduce((s, r) => s + r.total, 0);
-    const sPaid = filteredRows.reduce((s, r) => s + r.paid, 0);
-    const sDue = filteredRows.reduce((s, r) => s + r.due, 0);
-    const sGet = filteredRows.reduce((s, r) => s + r.get, 0);
-    const sNet = r2(filteredRows.reduce((s, r) => s + r.net, 0));
+    const sPay = r2(filteredRows.reduce((s, r) => s + r.pay, 0));
+    const sGet = r2(filteredRows.reduce((s, r) => s + r.get, 0));
 
     return (
         <div className="p-4 md:p-6">
@@ -240,7 +212,7 @@ const PurCompanyDueRepo = () => {
                     <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
                         Purchase Company Due Report
                     </h2>
-                    <p className="text-gray-500 text-sm mt-1">প্রতিটি company এর সব purchase এর summary — এক company এক row</p>
+                    <p className="text-gray-500 text-sm mt-1">প্রতিটি company এর Pay / Get amount — এক company এক row</p>
                 </div>
 
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
@@ -266,72 +238,7 @@ const PurCompanyDueRepo = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                            {/* Start Date */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={startDateRef}
-                                        type="date"
-                                        name="startDate"
-                                        value={filters.startDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select start date"
-                                        value={displayFormattedDate(filters.startDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* End Date */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={endDateRef}
-                                        type="date"
-                                        name="endDate"
-                                        value={filters.endDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select end date"
-                                        value={displayFormattedDate(filters.endDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Receive Status */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
-                                <select
-                                    name="status"
-                                    value={filters.status}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="No">New Order (Not Received)</option>
-                                    <option value="Received">Received</option>
-                                </select>
-                            </div>
-
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {/* Company Searchable Dropdown */}
                             <div className="relative" ref={companyDropdownRef}>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
@@ -400,21 +307,6 @@ const PurCompanyDueRepo = () => {
                                     className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
                                 />
                             </div>
-
-                            {/* Get / Pay */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Get / Pay</label>
-                                <select
-                                    name="balanceType"
-                                    value={filters.balanceType}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="Pay">Pay (I have to pay)</option>
-                                    <option value="Get">Get (I will receive)</option>
-                                </select>
-                            </div>
                         </div>
                     </div>
 
@@ -427,26 +319,10 @@ const PurCompanyDueRepo = () => {
                             Companies: <b className="text-gray-800">{filteredRows.length}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
-                            Total Amount: <b className="text-indigo-600">৳{fmt(sTotal)}</b>
-                        </span>
-                        <span className="font-semibold text-gray-600">
-                            Paid Amount: <b className="text-emerald-600">৳{fmt(sPaid)}</b>
-                        </span>
-                        <span className="font-semibold text-gray-600">
-                            Due Amount: <b className="text-rose-600">৳{fmt(sDue)}</b>
+                            Pay Amount: <b className="text-rose-600">৳{fmt(sPay)}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
                             Get Amount: <b className="text-sky-600">৳{fmt(sGet)}</b>
-                        </span>
-                        <span className="font-semibold text-gray-600">
-                            Final Amount:{' '}
-                            {sNet > 0 ? (
-                                <b className="text-rose-600">৳{fmt(sNet)} (Pay)</b>
-                            ) : sNet < 0 ? (
-                                <b className="text-sky-600">৳{fmt(-sNet)} (Get)</b>
-                            ) : (
-                                <b className="text-slate-400">0</b>
-                            )}
                         </span>
                     </div>
 
@@ -457,18 +333,14 @@ const PurCompanyDueRepo = () => {
                         <div className="text-center py-20 text-gray-400 font-medium">No companies found!</div>
                     ) : (
                         <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full text-left border-collapse [&_th]:px-2 [&_th]:py-2.5 [&_th]:text-[11px] [&_td]:px-2 [&_td]:py-2.5 [&_td]:text-xs [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_td]:align-top">
+                            <table className="w-full text-left border-collapse [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-[11px] [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-xs [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_td]:align-top">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white uppercase tracking-wide">
                                         <th>Company</th>
                                         <th>Phone</th>
                                         <th>Address</th>
-                                        <th>Opening Balance</th>
-                                        <th>Total Amount</th>
-                                        <th>Paid Amount</th>
-                                        <th>Due Amount</th>
+                                        <th>Pay Amount</th>
                                         <th>Get Amount</th>
-                                        <th>Final Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -481,29 +353,8 @@ const PurCompanyDueRepo = () => {
                                             <td className="text-gray-600">
                                                 {r.address || <span className="text-gray-400 italic">N/A</span>}
                                             </td>
-                                            <td className="font-semibold">
-                                                <span className="text-gray-700">৳{fmt(r.openingAmount)}</span>
-                                                {r.openingType && (
-                                                    <span
-                                                        className={`ml-1 font-bold ${r.openingType === 'Get' ? 'text-sky-600' : 'text-rose-600'}`}
-                                                    >
-                                                        ({r.openingType})
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="font-semibold text-indigo-600">৳{fmt(r.total)}</td>
-                                            <td className="font-bold text-emerald-600">৳{fmt(r.paid)}</td>
-                                            <td className={`font-bold ${r.due > 0 ? 'text-rose-600' : 'text-slate-400'}`}>৳{fmt(r.due)}</td>
+                                            <td className={`font-bold ${r.pay > 0 ? 'text-rose-600' : 'text-slate-400'}`}>৳{fmt(r.pay)}</td>
                                             <td className={`font-bold ${r.get > 0 ? 'text-sky-600' : 'text-slate-400'}`}>৳{fmt(r.get)}</td>
-                                            <td className="font-bold">
-                                                {r.net > 0 ? (
-                                                    <span className="text-rose-600">৳{fmt(r.net)} (Pay)</span>
-                                                ) : r.net < 0 ? (
-                                                    <span className="text-sky-600">৳{fmt(-r.net)} (Get)</span>
-                                                ) : (
-                                                    <span className="text-slate-400">0</span>
-                                                )}
-                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

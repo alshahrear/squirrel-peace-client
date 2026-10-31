@@ -266,14 +266,15 @@ const DamageStockInvoice = () => {
         const retItems = [];
         purchaseList
             .filter((p) => (p.receiveStatus === 'Received' || p.receiveStatus === 'Yes') && (p.damageItems || []).length > 0)
-            .forEach((p) => (p.damageItems || []).forEach((it) => retItems.push(it)));
-        damageReturnList.forEach((r) => (r.items || []).forEach((it) => retItems.push(it)));
+            .forEach((p) => (p.damageItems || []).forEach((it) => retItems.push({ ...it, _ts: Date.parse(p.damageAt || p.createdAt) || 0 })));
+        damageReturnList.forEach((r) => (r.items || []).forEach((it) => retItems.push({ ...it, _ts: Date.parse(r.createdAt) || 0 })));
 
         retItems.forEach((it) => {
             let m = num(it.totalQty);
             let f = num(it.freeQty);
             for (const l of lineMap.get(keyOf(it)) || []) {
                 if (m <= 0 && f <= 0) break;
+                if (!it._ts || l.ts > it._ts) continue;
                 const tm = Math.max(Math.min(m, l.main - l.retMain), 0);
                 const tf = Math.max(Math.min(f, l.free - l.retFree), 0);
                 l.retMain += tm;
@@ -599,6 +600,7 @@ const DamageStockInvoice = () => {
                                         <th className="py-3 px-2.5">Delivery Address</th>
                                         <th className="py-3 px-2.5">SR</th>
                                         <th className="py-3 px-2.5">Delivery Man</th>
+                                        <th className="py-3 px-2.5">Return Amount</th>
 
                                         <th className="py-3 px-2.5 text-center">Action</th>
                                     </tr>
@@ -643,6 +645,54 @@ const DamageStockInvoice = () => {
                                             </td>
                                             <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.sr || 'N/A'}</td>
                                             <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.deliveredBy || 'N/A'}</td>
+
+                                            <td className="py-3 px-2.5 whitespace-nowrap font-bold text-rose-600">
+                                                {(() => {
+                                                    const f = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+                                                    if (item.isStandaloneDamage && !item.customerId) {
+                                                        return (
+                                                            <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-semibold text-[9px]">
+                                                                From Stock
+                                                            </span>
+                                                        );
+                                                    }
+                                                    const amount = item.isStandaloneDamage
+                                                        ? Number(item.damageAmount) || 0
+                                                        : (item.damageItems || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
+
+                                                    let status;
+                                                    if (item.isStandaloneDamage) {
+                                                        const paid = item.payment ? Number(item.payment.amount) || 0 : 0;
+                                                        status = item.payment ? (
+                                                            <div className="text-[10px] font-bold mt-0.5">
+                                                                <span className="text-emerald-600">Paid: ৳{f(paid)}</span>
+                                                                <span className="text-rose-600 ml-1">(Due: {f(Math.max(amount - paid, 0))})</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full font-semibold text-[9px]">
+                                                                Not Paid
+                                                            </span>
+                                                        );
+                                                    } else {
+                                                        const adj = Number(item.damageAdjustmentAmount) || 0;
+                                                        status = adj > 0 ? (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold text-[9px]">
+                                                                Adjusted: ৳{f(adj)}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full font-semibold text-[9px]">
+                                                                Not Paid
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <>
+                                                            <div>৳{f(amount)}</div>
+                                                            {status}
+                                                        </>
+                                                    );
+                                                })()}
+                                            </td>
 
                                             <td className="py-3 px-2.5 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">

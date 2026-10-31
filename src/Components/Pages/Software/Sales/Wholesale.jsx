@@ -30,7 +30,7 @@ const Wholesale = () => {
     });
 
     // Extra filter (multi select) - default: sob select kora
-    const EXTRA_OPTIONS = ['Others Free', 'Damage', 'Sales Return', 'Bulk Return'];
+    const EXTRA_OPTIONS = ['Others Free', 'Damage', 'Sales Return', 'Bulk Return', 'Previous Get', 'Previous Pay'];
     const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
     const [isExtraOpen, setIsExtraOpen] = useState(false);
     const extraDropdownRef = useRef(null);
@@ -189,6 +189,8 @@ const Wholesale = () => {
         if ((item.damageItems || []).length > 0) list.push('Damage');
         if (hasReturned(item)) list.push('Sales Return');
         if ((item.returnItems || []).length > 0) list.push('Bulk Return');
+        if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Due') list.push('Previous Get');
+        if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Get') list.push('Previous Pay');
         return list;
     };
 
@@ -786,7 +788,7 @@ const Wholesale = () => {
                                 >
                                     <option value="">All</option>
                                     <option value="hasDue">Has Due</option>
-                                    <option value="noDue">Fully Paid</option>
+                                    <option value="noDue">Fully Received</option>
                                 </select>
                             </div>
 
@@ -879,10 +881,10 @@ const Wholesale = () => {
                                                 Total Qty: <b className="text-indigo-600">{fmt(totalMainQty)}</b>
                                             </span>
                                             <span className="font-semibold text-gray-600">
-                                                Total Amount: <b className="text-indigo-600">৳{fmt(totalPayable)}</b>
+                                                {totalPayable < 0 ? 'Payable Amount' : 'Receivable Amount'}: <b className="text-indigo-600">৳{fmt(Math.abs(totalPayable))}</b>
                                             </span>
                                             <span className="font-semibold text-gray-600">
-                                                Paid Amount: <b className="text-emerald-600">৳{fmt(totalPaid)}</b>
+                                                Received Amount: <b className="text-emerald-600">৳{fmt(totalPaid)}</b>
                                             </span>
                                             <span className="font-semibold text-gray-600">
                                                 Due Amount: <b className="text-rose-600">৳{fmt(totalDue)}</b>
@@ -1000,7 +1002,7 @@ const Wholesale = () => {
                                         <th className="py-3 px-2.5">SR</th>
                                         <th className="py-3 px-2.5">Delivery Man</th>
                                         <th className="py-3 px-2.5">Total Amount</th>
-                                        <th className="py-3 px-2.5">Paid (Due)</th>
+                                        <th className="py-3 px-2.5">Received (Due)</th>
                                         <th className="py-3 px-2.5">Return</th>
                                         <th className="py-3 px-2.5">Extra</th>
                                         <th className="py-3 px-2.5">Status</th>
@@ -1050,7 +1052,12 @@ const Wholesale = () => {
                                                 </td>
                                                 <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.sr || 'N/A'}</td>
                                                 <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.deliveredBy || 'N/A'}</td>
-                                                <td className="py-3 px-2.5 font-bold text-indigo-600 whitespace-nowrap">৳{item.payableAmount ?? item.grandTotal}</td>
+                                                <td className="py-3 px-2.5 font-bold text-indigo-600 whitespace-nowrap">
+                                                    ৳{Math.abs(Number(item.payableAmount ?? item.grandTotal) || 0)}
+                                                    {(Number(item.payableAmount ?? item.grandTotal) || 0) < 0 && (
+                                                        <div className="text-[9px] font-bold text-rose-600">Payable</div>
+                                                    )}
+                                                </td>
                                                 <td className="py-3 px-2.5 whitespace-nowrap">
                                                     {(Number(item.payableAmount ?? item.grandTotal) || 0) <= 0 ? (
                                                         <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-semibold text-[10px] whitespace-nowrap">
@@ -1058,7 +1065,7 @@ const Wholesale = () => {
                                                         </span>
                                                     ) : status !== 'Delivered' || !item.paidAmount ? (
                                                         <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
-                                                            Not Paid
+                                                            Not Received
                                                         </span>
                                                     ) : (
                                                         <div className="font-bold">
@@ -1086,6 +1093,8 @@ const Wholesale = () => {
                                                         if (hasReturned(item)) extras.push({ label: 'Sales Return', color: 'text-violet-600' });
                                                         if ((item.returnItems || []).length > 0) extras.push({ label: 'Bulk Return', color: 'text-fuchsia-600' });
                                                         if ((item.freeItems || []).length > 0) extras.push({ label: 'Others Free', color: 'text-amber-600' });
+                                                        if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Due') extras.push({ label: 'Previous Get', color: 'text-sky-600' });
+                                                        if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Get') extras.push({ label: 'Previous Pay', color: 'text-rose-600' });
                                                         if (extras.length === 0) return <div className="text-[9px] text-gray-300">N/A</div>;
                                                         return (
                                                             <div className="flex flex-col leading-tight">

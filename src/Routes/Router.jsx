@@ -76,9 +76,10 @@ import StockReportAll from "../Components/Pages/Software/Reports/StockReport/Sto
 import AccountInsideAll from "../Components/Pages/Software/Account/AccountInsideAll";
 import DataRefresh from "../Components/Layout/DataRefresh";
 import ProfitTabAll from "../Components/Pages/Software/Reports/Profit/ProfitTabAll";
-import CustomerAccount from "../Components/Pages/Software/Contact/Customer/CustomerAccount";
 import CompanyAccountAc from "../Components/Pages/Software/Contact/Company/CompanyAccountAc";
 import PurchaseDuePayment from "../Components/Pages/Software/Purchase/PurchaseDuePayment";
+import CustomerAccountAc from "../Components/Pages/Software/Contact/Customer/CustomerAccountAc";
+import SalesDuePayment from "../Components/Pages/Software/Sales/SalesDuePayment";
 
 
 
@@ -160,6 +161,10 @@ export const router = createBrowserRouter([
             element: <ClientRoute><Wholesale></Wholesale></ClientRoute>
           },
           {
+            path: "/sales-due-payment",
+            element: <ClientRoute><SalesDuePayment></SalesDuePayment></ClientRoute>
+          },
+          {
             path: "/sales-details/:id",
             element: <ClientRoute><SalesDetails></SalesDetails></ClientRoute>
           },
@@ -213,7 +218,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "/customer-account",
-            element: <ClientRoute><CustomerAccount></CustomerAccount></ClientRoute>
+            element: <ClientRoute><CustomerAccountAc></CustomerAccountAc></ClientRoute>
           },
           {
             path: "/customer-details/:id",

@@ -206,85 +206,112 @@ const DamageReturnAdd = () => {
             fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
             fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
         ])
-            .then(([sales, dmg, purchases, returns]) => {
-                const map = new Map();
-                const addRow = (it, sign, src = {}) => {
-                    const key = damageKey(it.productName, it.company);
-                    if (!map.has(key)) {
-                        map.set(key, {
-                            key,
-                            productName: it.productName || '',
-                            company: it.company || '',
-                            productId: it.productId,
-                            paid: 0,
-                            free: 0,
-                            pcsPerUnit: 1,
-                            parentMode: false,
-                            pcsPerSub: 0,
-                            unit: '',
-                            subUnit: '',
-                        });
-                    }
-                    const g = map.get(key);
-                    g.paid += sign * (Number(it.totalQty) || 0);
-                    g.free += sign * (Number(it.freeQty) || 0);
-                    if (!g.lots) { g.lots = []; g.retMain = 0; }
-                    if (sign > 0) {
-                        const lq = Number(it.totalQty) || 0;
+                      .then(([sales, dmg, purchases, returns]) => {
+                const num = (v) => Number(v) || 0;
+
+                // ---- Damage invoice gulo (stock in) ----
+                const invs = [];
+                (Array.isArray(sales) ? sales : [])
+                    .filter((s) => s.status === 'Delivered' && (s.damageItems || []).length > 0)
+                    .forEach((s) =>
+                        invs.push({ label: s.orderNo, ts: Date.parse(s.damageAt || s.createdAt) || 0, items: s.damageItems || [] })
+                    );
+                (Array.isArray(dmg) ? dmg : []).forEach((d) =>
+                    invs.push({ label: d.invoiceNo, ts: Date.parse(d.createdAt) || 0, items: d.items || [] })
+                );
+                invs.sort((a, b) => a.ts - b.ts);
+
+                const groups = new Map();
+                const lineMap = new Map();
+                invs.forEach((inv) => {
+                    const m = new Map();
+                    inv.items.forEach((it) => {
+                        const key = damageKey(it.productName, it.company);
+                        if (!m.has(key)) m.set(key, { ts: inv.ts, main: 0, free: 0, retMain: 0, retFree: 0, lots: [] });
+                        const l = m.get(key);
+                        const q = num(it.totalQty);
+                        l.main += q;
+                        l.free += num(it.freeQty);
                         if (Array.isArray(it.costBreakdown) && it.costBreakdown.length > 0) {
-                            it.costBreakdown.forEach((l) =>
-                                g.lots.push({ qty: Number(l.qty) || 0, cost: Number(l.cost) || 0, label: src.label || l.invoiceNo, time: src.time || 0 })
+                            it.costBreakdown.forEach((c) =>
+                                l.lots.push({ qty: num(c.qty), cost: num(c.cost), label: inv.label || c.invoiceNo, time: inv.ts })
                             );
-                        } else if (lq > 0) {
-                            g.lots.push({ qty: lq, cost: null, label: src.label || '', time: src.time || 0 });
+                        } else if (q > 0) {
+                            l.lots.push({ qty: q, cost: null, label: inv.label || '', time: inv.ts });
                         }
-                    } else {
-                        g.retMain += Number(it.totalQty) || 0;
-                    }
-                    if (sign > 0) {
+                        if (!groups.has(key)) {
+                            groups.set(key, {
+                                key,
+                                productName: it.productName || '',
+                                company: it.company || '',
+                                productId: it.productId,
+                                pcsPerUnit: 1,
+                                parentMode: false,
+                                pcsPerSub: 0,
+                                unit: '',
+                                subUnit: '',
+                            });
+                        }
+                        const g = groups.get(key);
                         g.pcsPerUnit = Number(it.pcsPerUnit) || g.pcsPerUnit;
                         g.parentMode = it.parentMode === true;
                         g.pcsPerSub = it.parentMode === true ? Number(it.pcsPerSub) || 0 : 0;
                         g.unit = it.unit || g.unit;
                         g.subUnit = it.subUnit || g.subUnit;
-                    }
-                };
-                (Array.isArray(sales) ? sales : [])
-                    .filter((s) => s.status === 'Delivered')
-                    .forEach((s) =>
-                        (s.damageItems || []).forEach((it) =>
-                            addRow(it, 1, { label: s.orderNo, time: Date.parse(s.damageAt || s.createdAt) || 0 })
-                        )
-                    );
-                (Array.isArray(dmg) ? dmg : []).forEach((d) =>
-                    (d.items || []).forEach((it) =>
-                        addRow(it, 1, { label: d.invoiceNo, time: Date.parse(d.createdAt) || 0 })
-                    )
-                );
+                    });
+                    m.forEach((l, k) => {
+                        if (!lineMap.has(k)) lineMap.set(k, []);
+                        lineMap.get(k).push(l);
+                    });
+                });
+
+                // ---- Company return gulo (stock out) -> invoice wise FIFO ----
+                const evs = [];
                 (Array.isArray(purchases) ? purchases : []).forEach((p) => {
                     if (!(p.receiveStatus === 'Received' || p.receiveStatus === 'Yes')) return;
-                    (p.damageItems || []).forEach((it) => addRow(it, -1));
+                    if (!(p.damageItems || []).length) return;
+                    evs.push({ ts: Date.parse(p.damageAt || p.createdAt) || 0, items: p.damageItems || [] });
                 });
                 (Array.isArray(returns) ? returns : []).forEach((r) => {
                     if (editId && String(r._id) === String(editId)) return;
-                    (r.items || []).forEach((it) => addRow(it, -1));
+                    evs.push({ ts: Date.parse(r.createdAt) || 0, items: r.items || [] });
                 });
-                setStockList(
-                    Array.from(map.values()).map((g) => {
-                        const lots = (g.lots || []).slice().sort((a, b) => a.time - b.time).map((l) => ({ ...l }));
-                        let consume = g.retMain || 0;
-                        for (const l of lots) {
-                            if (consume <= 0) break;
-                            const t = Math.min(l.qty, consume);
-                            l.qty -= t;
-                            consume -= t;
+                evs.sort((a, b) => a.ts - b.ts);
+                evs.forEach((ev) =>
+                    ev.items.forEach((it) => {
+                        let m = num(it.totalQty);
+                        let f = num(it.freeQty);
+                        for (const l of lineMap.get(damageKey(it.productName, it.company)) || []) {
+                            if (m <= 0 && f <= 0) break;
+                            if (ev.ts && l.ts > ev.ts) continue;
+                            const tm = Math.max(Math.min(m, l.main - l.retMain), 0);
+                            const tf = Math.max(Math.min(f, l.free - l.retFree), 0);
+                            l.retMain += tm;
+                            l.retFree += tf;
+                            m -= tm;
+                            f -= tf;
                         }
-                        return {
-                            ...g,
-                            lots: lots.filter((l) => l.qty > 0),
-                            paid: Math.max(g.paid, 0),
-                            free: Math.max(g.free, 0),
-                        };
+                    })
+                );
+
+                setStockList(
+                    Array.from(groups.values()).map((g) => {
+                        let paid = 0;
+                        let free = 0;
+                        const lots = [];
+                        (lineMap.get(g.key) || []).forEach((l) => {
+                            paid += Math.max(l.main - l.retMain, 0);
+                            free += Math.max(l.free - l.retFree, 0);
+                            let consume = l.retMain;
+                            l.lots.forEach((lot) => {
+                                const t = Math.min(lot.qty, consume);
+                                consume -= t;
+                                const left = lot.qty - t;
+                                if (left > 0) lots.push({ ...lot, qty: left });
+                            });
+                        });
+                        lots.sort((a, b) => a.time - b.time);
+                        return { ...g, paid, free, lots };
                     })
                 );
             })
