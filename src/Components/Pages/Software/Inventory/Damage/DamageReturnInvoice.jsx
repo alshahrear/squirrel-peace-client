@@ -3,6 +3,70 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaTimes } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
+const CompanySelect = ({ label, placeholder, value, companies, onSelect, onType, onClear }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+    const s = (value || '').toLowerCase();
+    const list = companies.filter(
+        (c) =>
+            (c.businessName || '').toLowerCase().includes(s) ||
+            (c.contactNumber || '').toLowerCase().includes(s)
+    );
+    return (
+        <div className="relative" ref={ref}>
+            <label className="block text-gray-600 text-[11px] font-semibold mb-1">{label}</label>
+            <div
+                onClick={() => setOpen(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+            >
+                <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => { onType(e.target.value); setOpen(true); }}
+                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
+                        className="text-gray-400 hover:text-red-500 pl-1"
+                    >
+                        <FaTimes size={10} />
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
+                    {list.length > 0 ? (
+                        list.map((c) => (
+                            <div
+                                key={c._id}
+                                onClick={() => { onSelect(c); setOpen(false); }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                            >
+                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
+                                {c.contactNumber && (
+                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const FilterSelect = ({ label, placeholder, value, options, onChange }) => {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
@@ -61,9 +125,17 @@ const FilterSelect = ({ label, placeholder, value, options, onChange }) => {
 
 const DamageReturnInvoice = () => {
     const [returns, setReturns] = useState([]);
+    const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const location = useLocation();
+
+    useEffect(() => {
+        fetch('https://squirrel-peace-server.onrender.com/company')
+            .then((res) => res.json())
+            .then((d) => setCompanies(Array.isArray(d) ? d : []))
+            .catch(() => setCompanies([]));
+    }, []);
     const focusEvent = location.state?.focusEvent || null;
 
     const [currentPage, setCurrentPage] = useState(1);
@@ -85,7 +157,7 @@ const DamageReturnInvoice = () => {
         setTimeout(() => setCostRow(null), 300);
     };
 
-    const EMPTY_FILTERS = { startDate: '', endDate: '', company: '', invoiceNo: '', status: '' };
+    const EMPTY_FILTERS = { startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '', status: '' };
     const [filters, setFilters] = useState(EMPTY_FILTERS);
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
@@ -190,6 +262,7 @@ const DamageReturnInvoice = () => {
             }
         }
         if (filters.company && !has(item.company, filters.company)) return false;
+        if (filters.companyContact && item.companyContact && item.companyContact !== filters.companyContact) return false;
         if (filters.invoiceNo && !has(item.invoiceNo, filters.invoiceNo)) return false;
         if (filters.status) {
             const isApproved = item.isFromPurchase
@@ -516,12 +589,20 @@ const DamageReturnInvoice = () => {
                                 </div>
                             </div>
 
-                            <FilterSelect
+                            <CompanySelect
                                 label="Company"
                                 placeholder="Search or select company..."
                                 value={filters.company}
-                                options={companyOptions}
-                                onChange={(v) => setFilter('company', v)}
+                                companies={companies}
+                                onType={(v) => setFilters((prev) => ({ ...prev, company: v, companyContact: '' }))}
+                                onSelect={(c) => {
+                                    setFilters((prev) => ({ ...prev, company: c.businessName, companyContact: c.contactNumber || '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                             />
 
                             <div>
@@ -593,7 +674,14 @@ const DamageReturnInvoice = () => {
                                                 />
                                             </td>
                                             <td className="py-3 px-3 text-gray-600 whitespace-nowrap font-medium">{item.returnDate || 'N/A'}</td>
-                                            <td className="py-3 px-3 font-bold text-gray-800 whitespace-nowrap">{item.company || 'N/A'}</td>
+                                            <td className="py-3 px-3 font-bold text-gray-800 whitespace-nowrap">
+                                                <div>{item.company || 'N/A'}</div>
+                                                {(item.companyContact || companies.find((c) => (c.businessName || '').trim().toLowerCase() === (item.company || '').trim().toLowerCase())?.contactNumber) && (
+                                                    <div className="text-[11px] font-normal text-gray-400 mt-0.5">
+                                                        📞 {item.companyContact || companies.find((c) => (c.businessName || '').trim().toLowerCase() === (item.company || '').trim().toLowerCase())?.contactNumber}
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td className="py-3 px-3 text-gray-600 font-medium whitespace-nowrap">
                                                 <div>{item.invoiceNo}</div>
                                                 {item.isFromPurchase && (

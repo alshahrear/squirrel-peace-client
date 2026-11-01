@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 
-const IncomeForm = ({
-    fetchIncomes,
+const RouteExpenseForm = ({
+    fetchRouteExpenses,
     setShowForm,
-    editingIncome,
-    setEditingIncome,
+    editingRouteExpense,
+    setEditingRouteExpense,
     showToast,
     scrollToTable,
 }) => {
@@ -20,7 +20,10 @@ const IncomeForm = ({
     };
 
     const emptyForm = {
-        incomeCategory: '',
+        routeExpenseType: 'Inside',
+        deliveredBy: '',
+        routeName: '',
+        routeExpenseCategory: '',
         name: '',
         date: getFormattedToday(),
         accountType: '',
@@ -32,54 +35,82 @@ const IncomeForm = ({
         note: '',
     };
 
-    const draftKey = editingIncome?._id ? `incomeForm:${editingIncome._id}` : 'incomeForm:new';
+    const draftKey = editingRouteExpense?._id ? `routeExpenseForm:${editingRouteExpense._id}` : 'routeExpenseForm:new';
     const [formData, setFormData] = useDraftState(draftKey, () =>
-        editingIncome
+        editingRouteExpense
             ? {
-                incomeCategory: editingIncome.incomeCategory || '',
-                name: editingIncome.name || '',
-                date: editingIncome.date || getFormattedToday(),
-                accountType: editingIncome.accountType || '',
-                bankName: editingIncome.bankName || '',
-                accountNumber: editingIncome.accountNumber || '',
-                accountBranch: editingIncome.accountBranch || '',
-                accountName: editingIncome.accountName || '',
-                amount: editingIncome.amount ?? '',
-                note: editingIncome.note || '',
+                routeExpenseType: editingRouteExpense.routeExpenseType || 'Inside',
+                deliveredBy: editingRouteExpense.deliveredBy || '',
+                routeName: editingRouteExpense.routeName || '',
+                routeExpenseCategory: editingRouteExpense.routeExpenseCategory || '',
+                name: editingRouteExpense.name || '',
+                date: editingRouteExpense.date || getFormattedToday(),
+                accountType: editingRouteExpense.accountType || '',
+                bankName: editingRouteExpense.bankName || '',
+                accountNumber: editingRouteExpense.accountNumber || '',
+                accountBranch: editingRouteExpense.accountBranch || '',
+                accountName: editingRouteExpense.accountName || '',
+                amount: editingRouteExpense.amount ?? '',
+                note: editingRouteExpense.note || '',
             }
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
-    const [incomeHeads, setIncomeHeads] = useState([]);
+    const [routeExpenseHeads, setRouteExpenseHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
+    const [deliveryMen, setDeliveryMen] = useState([]);
+    const [routes, setRoutes] = useState([]);
+    const [adjustments, setAdjustments] = useState([]);
+    const [allIncomes, setAllIncomes] = useState([]);
+    const [allExpenses, setAllExpenses] = useState([]);
+    const [allRouteExpenses, setAllRouteExpenses] = useState([]);
+    const [allTransfers, setAllTransfers] = useState([]);
 
     const dateInputRef = useRef(null);
 
-    // Active Income ক্যাটাগরির Account Heads fetch করা
+    // Active Route Expense ক্যাটাগরির Account Heads fetch করা
     useEffect(() => {
-        const fetchIncomeHeads = async () => {
+        const fetchRouteExpenseHeads = async () => {
             try {
                 const res = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
                 const data = await res.json();
                 const filtered = data.filter(
-                    (head) => head.category === 'Income' && head.isActive === true
+                    (head) => head.category === 'Expense' && head.isActive === true
                 );
-                setIncomeHeads(filtered);
+                setRouteExpenseHeads(filtered);
             } catch (error) {
-                console.error('Error fetching income heads:', error);
+                console.error('Error fetching route expense heads:', error);
             }
         };
 
-        fetchIncomeHeads();
+        fetchRouteExpenseHeads();
     }, []);
 
-    // Investment API থেকে ব্যাংক বা অ্যাকাউন্ট ডেটা ফেচ করা
+    // Investment + Balance সংক্রান্ত সব ডেটা ফেচ করা (Account Balance check করার জন্য)
     useEffect(() => {
         const fetchInvestments = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/investment');
-                const data = await res.json();
+                const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, transferRes] = await Promise.all([
+                    fetch('https://squirrel-peace-server.onrender.com/investment'),
+                    fetch('https://squirrel-peace-server.onrender.com/adjustment'),
+                    fetch('https://squirrel-peace-server.onrender.com/income'),
+                    fetch('https://squirrel-peace-server.onrender.com/expense'),
+                    fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
+                    fetch('https://squirrel-peace-server.onrender.com/transfer'),
+                ]);
+                const data = await invRes.json();
+                const adjData = await adjRes.json();
+                const incomeData = await incomeRes.json();
+                const expenseData = await expenseRes.json();
+                const routeExpenseData = await routeExpenseRes.json();
+                const transferData = await transferRes.json();
+
                 setInvestments(data);
+                setAdjustments(Array.isArray(adjData) ? adjData : []);
+                setAllIncomes(Array.isArray(incomeData) ? incomeData : []);
+                setAllExpenses(Array.isArray(expenseData) ? expenseData : []);
+                setAllRouteExpenses(Array.isArray(routeExpenseData) ? routeExpenseData : []);
+                setAllTransfers(Array.isArray(transferData) ? transferData : []);
             } catch (error) {
                 console.error('Error fetching investments:', error);
             }
@@ -87,6 +118,41 @@ const IncomeForm = ({
 
         fetchInvestments();
     }, []);
+
+    // Active Delivery Man রোল ইউজার fetch করা (Delivered By ফিল্ডের জন্য)
+    useEffect(() => {
+        const fetchDeliveryMen = async () => {
+            try {
+                const res = await fetch('https://squirrel-peace-server.onrender.com/user');
+                const data = await res.json();
+                const filtered = data.filter(
+                    (user) => user.role === 'Delivery Man' && user.isActive === true
+                );
+                setDeliveryMen(filtered);
+            } catch (error) {
+                console.error('Error fetching delivery men:', error);
+            }
+        };
+
+        fetchDeliveryMen();
+    }, []);
+
+    // Active Route তালিকা fetch করা (Route Name ফিল্ডের জন্য)
+    useEffect(() => {
+        const fetchRoutes = async () => {
+            try {
+                const res = await fetch('https://squirrel-peace-server.onrender.com/route');
+                const data = await res.json();
+                const filtered = data.filter((route) => route.isActive === true);
+                setRoutes(filtered);
+            } catch (error) {
+                console.error('Error fetching routes:', error);
+            }
+        };
+
+        fetchRoutes();
+    }, []);
+
 
 
     // ইউনিক ইনভয়েস নম্বর তৈরির ফাংশন (যেমন: 260901035526)
@@ -180,9 +246,112 @@ const IncomeForm = ({
         }
     };
 
+    // accountType কে normalize করে cash/mobile/bank ক্যাটাগরিতে ভাগ করা (AccountBalance পেজের সাথে মিলিয়ে)
+    const getCategory = (accountType = '') => {
+        const type = accountType.toLowerCase();
+        if (type.includes('cash')) return 'cash';
+        if (type.includes('mobile')) return 'mobile';
+        if (type.includes('bank')) return 'bank';
+        return 'others';
+    };
+
+    // AccountBalance পেজের ensureKey এর সাথে মিলিয়ে account key বানানো
+    const buildAccountKey = (item) => {
+        const accountName = item.accountName || item.bankName || 'N/A';
+        const accountNumber = item.accountNumber || '';
+        const accountBranch = item.accountBranch || '';
+        return `${accountName}||${accountNumber}||${accountBranch}`;
+    };
+
+    // Transfer এর label এর সাথে investment মিলানোর জন্য
+    const getAccountLabelForTransfer = (acc) => {
+        if (acc.accountType === 'Cash') return 'Cash';
+        if (acc.accountType === 'Mobile Banking') {
+            return `${acc.accountName} (${acc.accountNumber})`;
+        }
+        if (acc.accountType === 'Bank') {
+            return `${acc.bankName} - ${acc.accountNumber} (${acc.accountBranch || 'Main'})`;
+        }
+        return acc.accountNumber || acc.accountType;
+    };
+
+    const resolveTransferAccountKey = (type, label) => {
+        if (label === 'Cash') {
+            const cashAcc = investments.find(inv => getCategory(inv.accountType) === 'cash');
+            return cashAcc ? buildAccountKey(cashAcc) : 'N/A||||';
+        }
+        const acc = investments.find(inv => inv.accountType === type && getAccountLabelForTransfer(inv) === label);
+        return acc ? buildAccountKey(acc) : null;
+    };
+
+    // একটা investment এর remaining amount (Deposit/Withdraw ধরে)
+    const getRemainingInvestment = (investment) => {
+        const relatedAdjustments = adjustments.filter(adj => adj.adjustmentID === investment._id);
+        const totalDeposit = relatedAdjustments
+            .filter(adj => adj.mode === 'Deposit')
+            .reduce((sum, adj) => sum + Number(adj.amount || 0), 0);
+        const totalWithdraw = relatedAdjustments
+            .filter(adj => adj.mode === 'Withdraw')
+            .reduce((sum, adj) => sum + Number(adj.amount || 0), 0);
+        return Number(investment.amount || 0) + totalDeposit - totalWithdraw;
+    };
+
+    // বর্তমান ফর্মে সিলেক্ট করা account এর key বের করা (Cash / Mobile Banking / Bank)
+    const getSelectedAccountKey = () => {
+        if (formData.accountType === 'Cash') {
+            return 'N/A||||';
+        }
+        if (formData.accountType === 'Bank') {
+            const accountName = formData.bankName || 'N/A';
+            return `${accountName}||${formData.accountNumber || ''}||${formData.accountBranch || ''}`;
+        }
+        if (formData.accountType === 'Mobile Banking') {
+            const accountName = formData.accountName || 'N/A';
+            return `${accountName}||${formData.accountNumber || ''}||`;
+        }
+        return null;
+    };
+
+    // নির্দিষ্ট account key এর বর্তমান remaining balance বের করা (Investment + Income - Expense - RouteExpense +/- Transfer)
+    const getAccountBalance = (targetKey) => {
+        if (!targetKey) return 0;
+
+        let balance = 0;
+
+        investments.forEach(inv => {
+            if (buildAccountKey(inv) === targetKey) balance += getRemainingInvestment(inv);
+        });
+
+        allIncomes.forEach(item => {
+            if (buildAccountKey(item) === targetKey) balance += Number(item.amount) || 0;
+        });
+
+        allExpenses.forEach(item => {
+            if (buildAccountKey(item) === targetKey) balance -= Number(item.amount) || 0;
+        });
+
+        allRouteExpenses.forEach(item => {
+            // এডিট মোডে থাকা রুট এক্সপেন্স টা বাদ, কারণ সেটার effect আগে থেকেই ধরা আছে
+            if (editingRouteExpense && item._id === editingRouteExpense._id) return;
+            if (buildAccountKey(item) === targetKey) balance -= Number(item.amount) || 0;
+        });
+
+        allTransfers.forEach(item => {
+            const amt = Number(item.amount) || 0;
+
+            const fromKey = resolveTransferAccountKey(item.transferFrom, item.fromAccount);
+            if (fromKey && fromKey === targetKey) balance -= amt;
+
+            const toKey = resolveTransferAccountKey(item.transferTo, item.toAccount);
+            if (toKey && toKey === targetKey) balance += amt;
+        });
+
+        return balance;
+    };
+
     const handleCancel = () => {
         clearDraft(draftKey);
-        setEditingIncome(null);
+        setEditingRouteExpense(null);
         setShowForm(false);
         if (scrollToTable) {
             scrollToTable();
@@ -191,13 +360,25 @@ const IncomeForm = ({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // সিলেক্ট করা account এ পর্যাপ্ত ব্যালেন্স আছে কিনা চেক করা হচ্ছে
+        const selectedAccountKey = getSelectedAccountKey();
+        const availableBalance = getAccountBalance(selectedAccountKey);
+        if (Number(formData.amount) > availableBalance) {
+            showToast('Insufficient balance in the selected account!', 'error', { position: 'top-right' });
+            return;
+        }
+
         setLoading(true);
 
-        const isEditing = Boolean(editingIncome && editingIncome._id);
+        const isEditing = Boolean(editingRouteExpense && editingRouteExpense._id);
 
         // অ্যাকাউন্ট টাইপ অনুযায়ী অপ্রয়োজনীয় ফিল্ডগুলো বাদ দিয়ে ফাইনাল ডাটা অবজেক্ট তৈরি
         const finalData = {
-            incomeCategory: formData.incomeCategory,
+            routeExpenseType: formData.routeExpenseType || 'Inside',
+            deliveredBy: formData.deliveredBy,
+            routeName: formData.routeName,
+            routeExpenseCategory: formData.routeExpenseCategory,
             name: formData.name,
             date: formData.date,
             accountType: formData.accountType,
@@ -208,8 +389,8 @@ const IncomeForm = ({
             accountBranch: '',
             accountName: '',
             // নতুন রেকর্ড হলে ইনভয়েস যুক্ত হবে, এডিট হলে আগের ইনভয়েস ঠিক থাকবে বা নতুন জেনারেট হতে পারে
-            invoiceNumber: isEditing && editingIncome.invoiceNumber
-                ? editingIncome.invoiceNumber
+            invoiceNumber: isEditing && editingRouteExpense.invoiceNumber
+                ? editingRouteExpense.invoiceNumber
                 : generateInvoiceNumber(),
         };
 
@@ -223,8 +404,8 @@ const IncomeForm = ({
         }
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/income/${editingIncome._id}`
-            : 'https://squirrel-peace-server.onrender.com/income';
+            ? `https://squirrel-peace-server.onrender.com/routeExpense/${editingRouteExpense._id}`
+            : 'https://squirrel-peace-server.onrender.com/routeExpense';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
@@ -239,18 +420,18 @@ const IncomeForm = ({
             if (response.ok) {
                 showToast(
                     isEditing
-                        ? 'Income updated successfully!'
-                        : 'Income added successfully!',
+                        ? 'Route Expense updated successfully!'
+                        : 'Route Expense added successfully!',
                     'success',
                     { position: 'top-right' }
                 );
 
-                if (fetchIncomes) {
-                    await fetchIncomes();
+                if (fetchRouteExpenses) {
+                    await fetchRouteExpenses();
                 }
 
                 clearDraft(draftKey);
-                setEditingIncome(null);
+                setEditingRouteExpense(null);
                 setShowForm(false);
 
                 if (scrollToTable) {
@@ -259,7 +440,7 @@ const IncomeForm = ({
             } else {
                 showToast(
                     isEditing
-                        ? 'Failed to update income!'
+                        ? 'Failed to update route expense!'
                         : 'Something went wrong, please try again.',
                     'error',
                     { position: 'top-right' }
@@ -273,7 +454,7 @@ const IncomeForm = ({
         }
     };
 
-    const isEditing = Boolean(editingIncome && editingIncome._id);
+    const isEditing = Boolean(editingRouteExpense && editingRouteExpense._id);
 
     // ব্যাংক এবং মোবাইল ব্যাংকিং ফিল্টার করা ইনভেস্টমেন্ট ডেটা
     const bankInvestments = investments.filter(item => item.accountType === 'Bank');
@@ -283,14 +464,14 @@ const IncomeForm = ({
         <div className="relative">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-pink-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-200">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.03-.659-1.172-.879-1.172-2.303 0-3.182s3.07-.879 4.242 0L15 9M9.5 21H14.5" />
                         </svg>
                     </div>
                     <div>
                         <h3 className="text-xl font-extrabold text-gray-800">
-                            {isEditing ? 'Edit Income Record' : 'New Income Record'}
+                            {isEditing ? 'Edit Route Expense Record' : 'New Route Expense Record'}
                         </h3>
 
                     </div>
@@ -298,21 +479,80 @@ const IncomeForm = ({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Income Category Field */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Route Expense Type Field */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Income Category <span className="text-red-500">*</span>
+                            Route Expense Type <span className="text-red-500">*</span>
                         </label>
                         <select
-                            name="incomeCategory"
-                            value={formData.incomeCategory}
+                            name="routeExpenseType"
+                            value={formData.routeExpenseType || 'Inside'}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
                         >
-                            <option value="" disabled>Select income category</option>
-                            {incomeHeads.map((head) => (
+                            <option value="Inside">Inside</option>
+                            <option value="Outside">Outside</option>
+                        </select>
+                    </div>
+
+                    {/* Delivered By Field */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Delivered By <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="deliveredBy"
+                            value={formData.deliveredBy}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                        >
+                            <option value="" disabled>Select delivery man</option>
+                            {deliveryMen.map((user) => (
+                                <option key={user._id} value={user.name}>
+                                    {user.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Route Name Field */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Route Name <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="routeName"
+                            value={formData.routeName}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                        >
+                            <option value="" disabled>Select route</option>
+                            {routes.map((route) => (
+                                <option key={route._id} value={route.name}>
+                                    {route.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Route Expense Category Field */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Route Expense Category <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="routeExpenseCategory"
+                            value={formData.routeExpenseCategory}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                        >
+                            <option value="" disabled>Select route expense category</option>
+                            {routeExpenseHeads.map((head) => (
                                 <option key={head._id} value={head.name}>
                                     {head.name}
                                 </option>
@@ -332,7 +572,7 @@ const IncomeForm = ({
                             onChange={handleChange}
                             required
                             placeholder="Enter name"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
 
@@ -356,7 +596,7 @@ const IncomeForm = ({
                                 readOnly
                                 value={formData.date}
                                 placeholder="Select date"
-                                className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer pointer-events-none"
+                                className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer pointer-events-none"
                             />
                         </div>
                     </div>
@@ -371,7 +611,7 @@ const IncomeForm = ({
                             value={formData.accountType}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
                         >
                             <option value="" disabled>Select account type</option>
                             <option value="Cash">Cash</option>
@@ -379,11 +619,35 @@ const IncomeForm = ({
                             <option value="Mobile Banking">Mobile Banking</option>
                         </select>
                     </div>
+
+                    {/* Amount Field */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Amount <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            name="amount"
+                            value={formData.amount}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
+                            required
+                            placeholder="Enter amount"
+                            step="0.01"
+                            min="0"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                        />
+                    </div>
                 </div>
 
                 {/* Conditional Fields for Bank */}
                 {formData.accountType === 'Bank' && (
-                    <div className="space-y-4 p-4 bg-indigo-50/40 rounded-2xl border border-indigo-100">
+                    <div className="space-y-4 p-4 bg-cyan-50/40 rounded-2xl border border-cyan-100">
                         {/* Select Bank from Investment API */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -400,7 +664,7 @@ const IncomeForm = ({
                                 }
                                 onChange={handleBankSelectChange}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
                             >
                                 <option value="" disabled>Select saved bank account</option>
                                 {bankInvestments.map((inv) => (
@@ -423,7 +687,7 @@ const IncomeForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. City Bank"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -437,7 +701,7 @@ const IncomeForm = ({
                                     readOnly
                                     required
                                     placeholder="Enter account no"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -451,7 +715,7 @@ const IncomeForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. Gulshan Branch"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                         </div>
@@ -460,7 +724,7 @@ const IncomeForm = ({
 
                 {/* Conditional Fields for Mobile Banking */}
                 {formData.accountType === 'Mobile Banking' && (
-                    <div className="space-y-4 p-4 bg-pink-50/40 rounded-2xl border border-pink-100">
+                    <div className="space-y-4 p-4 bg-blue-50/40 rounded-2xl border border-blue-100">
                         {/* Select Mobile Banking from Investment API */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -476,7 +740,7 @@ const IncomeForm = ({
                                 }
                                 onChange={handleMobileBankingSelectChange}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
                             >
                                 <option value="" disabled>Select saved mobile account</option>
                                 {mobileInvestments.map((inv) => (
@@ -499,7 +763,7 @@ const IncomeForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. bKash / Nagad"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -513,38 +777,14 @@ const IncomeForm = ({
                                     readOnly
                                     required
                                     placeholder="Enter mobile number"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                         </div>
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Amount Field */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Amount <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="number"
-                            name="amount"
-                            value={formData.amount}
-                            onChange={(e) => {
-                                const value = e.target.value;
-
-                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                    handleChange(e);
-                                }
-                            }}
-                            required
-                            placeholder="Enter amount"
-                            step="0.01"
-                            min="0"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
-                        />
-                    </div>
-
+                <div className="grid grid-cols-1 gap-6">
                     {/* Note Field */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Note</label>
@@ -554,7 +794,7 @@ const IncomeForm = ({
                             value={formData.note}
                             onChange={handleChange}
                             placeholder="Optional note or description"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
                 </div>
@@ -564,15 +804,15 @@ const IncomeForm = ({
                     <button
                         type="submit"
                         disabled={loading}
-                        className="flex-1 py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer text-sm"
+                        className="flex-1 py-3.5 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-cyan-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer text-sm"
                     >
                         {loading
                             ? isEditing
-                                ? 'Updating Income...'
-                                : 'Submitting Income...'
+                                ? 'Updating Route Expense...'
+                                : 'Submitting Route Expense...'
                             : isEditing
-                                ? 'Update Income'
-                                : 'Submit Income'}
+                                ? 'Update Route Expense'
+                                : 'Submit Route Expense'}
                     </button>
 
                     {isEditing && (
@@ -590,4 +830,4 @@ const IncomeForm = ({
     );
 };
 
-export default IncomeForm;
+export default RouteExpenseForm;

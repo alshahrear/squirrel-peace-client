@@ -241,15 +241,20 @@ const CustomerAccountAc = () => {
             const name = String(n || '').trim();
             if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), name);
         };
+        const phoneOf = (name) =>
+            customers.find((c) => sameName(c.businessName, name))?.contactNumber || '';
         customers.forEach((c) => put(c.businessName));
         duePayments.forEach((d) => put(d.customer));
         sales.forEach((s) => put(s.customer));
         bulkReturns.forEach((b) => put(b.customer));
         damageReturns.forEach((d) => put(d.customer));
-        return [...seen.values()];
+        return [...seen.values()].map((name) => ({ name, phone: phoneOf(name) }));
     })();
 
-    const customerOptions = customerNames.filter((n) => n.toLowerCase().includes(query.trim().toLowerCase()));
+    const customerOptions = customerNames.filter((c) => {
+        const s = query.trim().toLowerCase();
+        return c.name.toLowerCase().includes(s) || (c.phone || '').toLowerCase().includes(s);
+    });
     const customerInfo = customers.find((c) => sameName(c.businessName, selectedCustomer));
 
     // Opening balance: Due/Get = customer amar kache pabe (Get), Pay/Advance = ami customer ke dibo (Pay)
@@ -524,6 +529,15 @@ const CustomerAccountAc = () => {
     const finalPay = finalNet > 0 ? finalNet : 0;
     const finalGet = finalNet < 0 ? -finalNet : 0;
 
+    // Credit limit (customer er creditLimit set thakle)
+    const creditLimitRaw = customerInfo?.creditLimit;
+    const hasCreditLimit =
+        creditLimitRaw !== undefined && creditLimitRaw !== null && String(creditLimitRaw).trim() !== '' && !isNaN(Number(creditLimitRaw));
+    const creditLimit = hasCreditLimit ? r2(Number(creditLimitRaw)) : 0;
+    const creditRemaining = hasCreditLimit ? r2(creditLimit - finalGet) : 0;
+    const creditUsedPercent = hasCreditLimit && creditLimit > 0 ? Math.min(Math.max((finalGet / creditLimit) * 100, 0), 100) : 0;
+    const creditExceeded = hasCreditLimit && creditRemaining < 0;
+
     // ---------- Current tab rows ----------
     const currentAll = data[activeTab] || [];
 
@@ -635,15 +649,20 @@ const CustomerAccountAc = () => {
                                 {loading ? (
                                     <div className="px-4 py-3 text-xs text-gray-400 text-center">Loading...</div>
                                 ) : customerOptions.length > 0 ? (
-                                    customerOptions.map((name) => (
+                                    customerOptions.map((c) => (
                                         <div
-                                            key={name}
-                                            onClick={() => handleSelectCustomer(name)}
-                                            className={`px-4 py-2.5 cursor-pointer border-b border-gray-50 last:border-none text-sm font-medium flex items-center gap-2 hover:bg-indigo-50 ${sameName(name, selectedCustomer) ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                                            key={c.name}
+                                            onClick={() => handleSelectCustomer(c.name)}
+                                            className={`px-4 py-2.5 cursor-pointer border-b border-gray-50 last:border-none flex items-center gap-2 hover:bg-indigo-50 ${sameName(c.name, selectedCustomer) ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
                                                 }`}
                                         >
-                                            <FaUser size={11} className="text-indigo-300" />
-                                            {name}
+                                            <FaUser size={11} className="text-indigo-300 shrink-0" />
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-800">{c.name}</p>
+                                                {c.phone && (
+                                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.phone}</p>
+                                                )}
+                                            </div>
                                         </div>
                                     ))
                                 ) : (
@@ -693,6 +712,37 @@ const CustomerAccountAc = () => {
                         <div className="text-xs opacity-90 mt-1">
                             {hasCustomer ? 'You will receive from this customer' : 'Select a customer'}
                         </div>
+
+                        {hasCustomer && hasCreditLimit && (
+                            <div className="mt-4 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 p-3">
+                                <div className="flex items-center justify-between text-[11px] font-bold">
+                                    <span className="opacity-95">Credit Limit</span>
+                                    <span>৳ {fmt(creditLimit)}</span>
+                                </div>
+                                <div className="mt-2 h-2 w-full rounded-full bg-white/25 overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${creditExceeded
+                                            ? 'bg-gradient-to-r from-rose-400 to-red-500'
+                                            : creditUsedPercent >= 80
+                                                ? 'bg-gradient-to-r from-amber-300 to-orange-400'
+                                                : 'bg-gradient-to-r from-lime-300 to-yellow-200'
+                                            }`}
+                                        style={{ width: `${creditUsedPercent}%` }}
+                                    />
+                                </div>
+                                <div className="mt-2 flex items-center justify-between text-[11px] font-bold">
+                                    <span className="opacity-90">Used: ৳ {fmt(finalGet)}</span>
+                                    <span
+                                        className={`px-2 py-0.5 rounded-full ${creditExceeded ? 'bg-rose-600 text-white' : 'bg-white text-emerald-700'
+                                            }`}
+                                    >
+                                        {creditExceeded
+                                            ? `Exceeded: ৳ ${fmt(-creditRemaining)}`
+                                            : `Remaining: ৳ ${fmt(creditRemaining)}`}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

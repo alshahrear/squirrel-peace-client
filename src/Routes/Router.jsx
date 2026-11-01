@@ -20,12 +20,6 @@ import Company from "../Components/Pages/Software/Contact/Company/Company";
 import Customers from "../Components/Pages/Software/Contact/Customer/Customers";
 import UserRole from "../Components/Pages/Software/User/UserRole";
 import User from "../Components/Pages/Software/User/User";
-import OpeningInvestment from "../Components/Pages/Software/Account/OpeningInvestment";
-import Income from "../Components/Pages/Software/Account/Income";
-import AccountHeads from "../Components/Pages/Software/Account/AccountHeads";
-import Expense from "../Components/Pages/Software/Account/Expense";
-import RouteExpense from "../Components/Pages/Software/Account/RouteExpense";
-import Transfer from "../Components/Pages/Software/Account/Transfer";
 import AccountBalance from "../Components/Pages/Software/Account/AccountBalance";
 import PurchaseAdd from "../Components/Pages/Software/Purchase/PurchaseAdd";
 import Purchase from "../Components/Pages/Software/Purchase/Purchase";
@@ -70,16 +64,23 @@ import StockAlert from "../Components/Pages/Software/Inventory/Stock/StockAlert"
 import StockAdjustmentForm from "../Components/Pages/Software/Inventory/Stock/StockAdjustmentForm";
 import StockAdjustmentDetails from "../Components/Pages/Software/Inventory/Stock/StockAdjustmentDetails";
 import PurchaseReportAll from "../Components/Pages/Software/Reports/PurchaseReport/PurchaseReportAll";
-import SalesReportAll from "../Components/Pages/Software/Reports/SalesReport/SalesReportAll";
 import SaleCustomerSumDetails from "../Components/Pages/Software/Reports/SalesReport/SaleCustomerSumDetails";
-import StockReportAll from "../Components/Pages/Software/Reports/StockReport/StockReportAll";
-import AccountInsideAll from "../Components/Pages/Software/Account/AccountInsideAll";
 import DataRefresh from "../Components/Layout/DataRefresh";
 import ProfitTabAll from "../Components/Pages/Software/Reports/Profit/ProfitTabAll";
 import CompanyAccountAc from "../Components/Pages/Software/Contact/Company/CompanyAccountAc";
 import PurchaseDuePayment from "../Components/Pages/Software/Purchase/PurchaseDuePayment";
 import CustomerAccountAc from "../Components/Pages/Software/Contact/Customer/CustomerAccountAc";
 import SalesDuePayment from "../Components/Pages/Software/Sales/SalesDuePayment";
+import OpeningInvestment from "../Components/Pages/Software/Account/AccountInvestment/OpeningInvestment";
+import Expense from "../Components/Pages/Software/Account/AccountInvestment/Expense";
+import AccountInsideAll from "../Components/Pages/Software/Account/AccountInvestment/AccountInsideAll";
+import SalesReportAll from "../Components/Pages/Software/Reports/SalesReport/SalesReportAll";
+import StockReportAll from "../Components/Pages/Software/Reports/StockReport/StockReportAll";
+import Income from "../Components/Pages/Software/Account/AccountInvestment/Income";
+import RouteExpense from "../Components/Pages/Software/Account/AccountInvestment/RouteExpense";
+import Transfer from "../Components/Pages/Software/Account/AccountInvestment/Transfer";
+import AccountHeads from "../Components/Pages/Software/Account/AccountInvestment/AccountHeads";
+import AccountPurchaseAll from "../Components/Pages/Software/Account/AccountPurchase/AccountPurchaseAll";
 
 
 
@@ -280,7 +281,7 @@ export const router = createBrowserRouter([
                 path: "/damage-stock-invoice",
                 element: <DamageStockInvoice></DamageStockInvoice>
               },
-                           {
+              {
                 path: "/damage-stock-single-invoice",
                 element: <DamageStockSingleInvoice></DamageStockSingleInvoice>
               },
@@ -384,8 +385,16 @@ export const router = createBrowserRouter([
             ]
           },
           {
+            path: "/account-purchase",
+            element: <ClientRoute><AccountPurchaseAll></AccountPurchaseAll></ClientRoute>
+          },
+          {
             path: "/account-balance",
             element: <ClientRoute><AccountBalance></AccountBalance></ClientRoute>
+          },
+          {
+            path: "/account-purchase-all",
+            element: <ClientRoute><AccountPurchaseAll></AccountPurchaseAll></ClientRoute>
           },
           {
             path: "/account-all",

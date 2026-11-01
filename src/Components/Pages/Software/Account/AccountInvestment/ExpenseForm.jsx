@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 
-const RouteExpenseForm = ({
-    fetchRouteExpenses,
+const ExpenseForm = ({
+    fetchExpenses,
     setShowForm,
-    editingRouteExpense,
-    setEditingRouteExpense,
+    editingExpense,
+    setEditingExpense,
     showToast,
     scrollToTable,
 }) => {
@@ -20,9 +20,8 @@ const RouteExpenseForm = ({
     };
 
     const emptyForm = {
-        deliveredBy: '',
-        routeName: '',
-        routeExpenseCategory: '',
+        expenseType: 'Inside',
+        expenseCategory: '',
         name: '',
         date: getFormattedToday(),
         accountType: '',
@@ -34,66 +33,65 @@ const RouteExpenseForm = ({
         note: '',
     };
 
-    const draftKey = editingRouteExpense?._id ? `routeExpenseForm:${editingRouteExpense._id}` : 'routeExpenseForm:new';
+    const draftKey = editingExpense?._id ? `expenseForm:${editingExpense._id}` : 'expenseForm:new';
     const [formData, setFormData] = useDraftState(draftKey, () =>
-        editingRouteExpense
+        editingExpense
             ? {
-                deliveredBy: editingRouteExpense.deliveredBy || '',
-                routeName: editingRouteExpense.routeName || '',
-                routeExpenseCategory: editingRouteExpense.routeExpenseCategory || '',
-                name: editingRouteExpense.name || '',
-                date: editingRouteExpense.date || getFormattedToday(),
-                accountType: editingRouteExpense.accountType || '',
-                bankName: editingRouteExpense.bankName || '',
-                accountNumber: editingRouteExpense.accountNumber || '',
-                accountBranch: editingRouteExpense.accountBranch || '',
-                accountName: editingRouteExpense.accountName || '',
-                amount: editingRouteExpense.amount ?? '',
-                note: editingRouteExpense.note || '',
+                expenseType: editingExpense.expenseType || 'Inside',
+                expenseCategory: editingExpense.expenseCategory || '',
+                name: editingExpense.name || '',
+                date: editingExpense.date || getFormattedToday(),
+                accountType: editingExpense.accountType || '',
+                bankName: editingExpense.bankName || '',
+                accountNumber: editingExpense.accountNumber || '',
+                accountBranch: editingExpense.accountBranch || '',
+                accountName: editingExpense.accountName || '',
+                amount: editingExpense.amount ?? '',
+                note: editingExpense.note || '',
             }
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
-    const [routeExpenseHeads, setRouteExpenseHeads] = useState([]);
+    const [expenseHeads, setExpenseHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
-    const [deliveryMen, setDeliveryMen] = useState([]);
-    const [routes, setRoutes] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
     const [allIncomes, setAllIncomes] = useState([]);
     const [allExpenses, setAllExpenses] = useState([]);
     const [allRouteExpenses, setAllRouteExpenses] = useState([]);
     const [allTransfers, setAllTransfers] = useState([]);
+    const [allPurchases, setAllPurchases] = useState([]);
 
     const dateInputRef = useRef(null);
 
-    // Active Route Expense ক্যাটাগরির Account Heads fetch করা
+    // Active Expense ক্যাটাগরির Account Heads fetch করা
     useEffect(() => {
-        const fetchRouteExpenseHeads = async () => {
+        const fetchExpenseHeads = async () => {
             try {
                 const res = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
                 const data = await res.json();
                 const filtered = data.filter(
                     (head) => head.category === 'Expense' && head.isActive === true
                 );
-                setRouteExpenseHeads(filtered);
+                setExpenseHeads(filtered);
             } catch (error) {
-                console.error('Error fetching route expense heads:', error);
+                console.error('Error fetching expense heads:', error);
             }
         };
 
-        fetchRouteExpenseHeads();
+        fetchExpenseHeads();
     }, []);
 
     // Investment + Balance সংক্রান্ত সব ডেটা ফেচ করা (Account Balance check করার জন্য)
     useEffect(() => {
         const fetchInvestments = async () => {
             try {
-                const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, transferRes] = await Promise.all([
+                const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, purchaseRes, transferRes] = await Promise.all([
                     fetch('https://squirrel-peace-server.onrender.com/investment'),
                     fetch('https://squirrel-peace-server.onrender.com/adjustment'),
                     fetch('https://squirrel-peace-server.onrender.com/income'),
                     fetch('https://squirrel-peace-server.onrender.com/expense'),
                     fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
+                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
                     fetch('https://squirrel-peace-server.onrender.com/transfer'),
                 ]);
                 const data = await invRes.json();
@@ -102,6 +100,7 @@ const RouteExpenseForm = ({
                 const expenseData = await expenseRes.json();
                 const routeExpenseData = await routeExpenseRes.json();
                 const transferData = await transferRes.json();
+                const purchaseData = await purchaseRes.json();
 
                 setInvestments(data);
                 setAdjustments(Array.isArray(adjData) ? adjData : []);
@@ -109,46 +108,13 @@ const RouteExpenseForm = ({
                 setAllExpenses(Array.isArray(expenseData) ? expenseData : []);
                 setAllRouteExpenses(Array.isArray(routeExpenseData) ? routeExpenseData : []);
                 setAllTransfers(Array.isArray(transferData) ? transferData : []);
+                setAllPurchases(Array.isArray(purchaseData) ? purchaseData : []);
             } catch (error) {
                 console.error('Error fetching investments:', error);
             }
         };
 
         fetchInvestments();
-    }, []);
-
-    // Active Delivery Man রোল ইউজার fetch করা (Delivered By ফিল্ডের জন্য)
-    useEffect(() => {
-        const fetchDeliveryMen = async () => {
-            try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/user');
-                const data = await res.json();
-                const filtered = data.filter(
-                    (user) => user.role === 'Delivery Man' && user.isActive === true
-                );
-                setDeliveryMen(filtered);
-            } catch (error) {
-                console.error('Error fetching delivery men:', error);
-            }
-        };
-
-        fetchDeliveryMen();
-    }, []);
-
-    // Active Route তালিকা fetch করা (Route Name ফিল্ডের জন্য)
-    useEffect(() => {
-        const fetchRoutes = async () => {
-            try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/route');
-                const data = await res.json();
-                const filtered = data.filter((route) => route.isActive === true);
-                setRoutes(filtered);
-            } catch (error) {
-                console.error('Error fetching routes:', error);
-            }
-        };
-
-        fetchRoutes();
     }, []);
 
 
@@ -325,12 +291,12 @@ const RouteExpenseForm = ({
         });
 
         allExpenses.forEach(item => {
+            // এডিট মোডে থাকা এক্সপেন্স টা বাদ, কারণ সেটার effect আগে থেকেই ধরা আছে
+            if (editingExpense && item._id === editingExpense._id) return;
             if (buildAccountKey(item) === targetKey) balance -= Number(item.amount) || 0;
         });
 
         allRouteExpenses.forEach(item => {
-            // এডিট মোডে থাকা রুট এক্সপেন্স টা বাদ, কারণ সেটার effect আগে থেকেই ধরা আছে
-            if (editingRouteExpense && item._id === editingRouteExpense._id) return;
             if (buildAccountKey(item) === targetKey) balance -= Number(item.amount) || 0;
         });
 
@@ -344,12 +310,23 @@ const RouteExpenseForm = ({
             if (toKey && toKey === targetKey) balance += amt;
         });
 
+        allPurchases.forEach((p) => {
+            const paid = Number(p.paidAmount) || 0;
+            if (!(paid > 0) || !p.paymentMethod) return;
+            const a = p.paymentAccount || {};
+            let key;
+            if (p.paymentMethod === 'Bank') key = `${a.bankName || 'N/A'}||${a.accountNumber || ''}||${a.accountBranch || ''}`;
+            else if (p.paymentMethod === 'Mobile Banking') key = `${a.accountName || 'N/A'}||${a.accountNumber || ''}||`;
+            else key = 'N/A||||';
+            if (key === targetKey) balance += (Number(p.payableAmount) || 0) < 0 ? paid : -paid;
+        });
+
         return balance;
     };
 
     const handleCancel = () => {
         clearDraft(draftKey);
-        setEditingRouteExpense(null);
+        setEditingExpense(null);
         setShowForm(false);
         if (scrollToTable) {
             scrollToTable();
@@ -369,13 +346,12 @@ const RouteExpenseForm = ({
 
         setLoading(true);
 
-        const isEditing = Boolean(editingRouteExpense && editingRouteExpense._id);
+        const isEditing = Boolean(editingExpense && editingExpense._id);
 
         // অ্যাকাউন্ট টাইপ অনুযায়ী অপ্রয়োজনীয় ফিল্ডগুলো বাদ দিয়ে ফাইনাল ডাটা অবজেক্ট তৈরি
         const finalData = {
-            deliveredBy: formData.deliveredBy,
-            routeName: formData.routeName,
-            routeExpenseCategory: formData.routeExpenseCategory,
+            expenseType: formData.expenseType || 'Inside',
+            expenseCategory: formData.expenseCategory,
             name: formData.name,
             date: formData.date,
             accountType: formData.accountType,
@@ -386,8 +362,8 @@ const RouteExpenseForm = ({
             accountBranch: '',
             accountName: '',
             // নতুন রেকর্ড হলে ইনভয়েস যুক্ত হবে, এডিট হলে আগের ইনভয়েস ঠিক থাকবে বা নতুন জেনারেট হতে পারে
-            invoiceNumber: isEditing && editingRouteExpense.invoiceNumber
-                ? editingRouteExpense.invoiceNumber
+            invoiceNumber: isEditing && editingExpense.invoiceNumber
+                ? editingExpense.invoiceNumber
                 : generateInvoiceNumber(),
         };
 
@@ -401,8 +377,8 @@ const RouteExpenseForm = ({
         }
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/routeExpense/${editingRouteExpense._id}`
-            : 'https://squirrel-peace-server.onrender.com/routeExpense';
+            ? `https://squirrel-peace-server.onrender.com/expense/${editingExpense._id}`
+            : 'https://squirrel-peace-server.onrender.com/expense';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
@@ -417,18 +393,18 @@ const RouteExpenseForm = ({
             if (response.ok) {
                 showToast(
                     isEditing
-                        ? 'Route Expense updated successfully!'
-                        : 'Route Expense added successfully!',
+                        ? 'Expense updated successfully!'
+                        : 'Expense added successfully!',
                     'success',
                     { position: 'top-right' }
                 );
 
-                if (fetchRouteExpenses) {
-                    await fetchRouteExpenses();
+                if (fetchExpenses) {
+                    await fetchExpenses();
                 }
 
                 clearDraft(draftKey);
-                setEditingRouteExpense(null);
+                setEditingExpense(null);
                 setShowForm(false);
 
                 if (scrollToTable) {
@@ -437,7 +413,7 @@ const RouteExpenseForm = ({
             } else {
                 showToast(
                     isEditing
-                        ? 'Failed to update route expense!'
+                        ? 'Failed to update expense!'
                         : 'Something went wrong, please try again.',
                     'error',
                     { position: 'top-right' }
@@ -451,7 +427,7 @@ const RouteExpenseForm = ({
         }
     };
 
-    const isEditing = Boolean(editingRouteExpense && editingRouteExpense._id);
+    const isEditing = Boolean(editingExpense && editingExpense._id);
 
     // ব্যাংক এবং মোবাইল ব্যাংকিং ফিল্টার করা ইনভেস্টমেন্ট ডেটা
     const bankInvestments = investments.filter(item => item.accountType === 'Bank');
@@ -461,14 +437,14 @@ const RouteExpenseForm = ({
         <div className="relative">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-200">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-600 to-orange-500 flex items-center justify-center text-white shadow-md shadow-rose-200">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.03-.659-1.172-.879-1.172-2.303 0-3.182s3.07-.879 4.242 0L15 9M9.5 21H14.5" />
                         </svg>
                     </div>
                     <div>
                         <h3 className="text-xl font-extrabold text-gray-800">
-                            {isEditing ? 'Edit Route Expense Record' : 'New Route Expense Record'}
+                            {isEditing ? 'Edit Expense Record' : 'New Expense Record'}
                         </h3>
 
                     </div>
@@ -476,63 +452,38 @@ const RouteExpenseForm = ({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Delivered By Field */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Expense Type Field */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Delivered By <span className="text-red-500">*</span>
+                            Expense Type <span className="text-red-500">*</span>
                         </label>
                         <select
-                            name="deliveredBy"
-                            value={formData.deliveredBy}
+                            name="expenseType"
+                            value={formData.expenseType || 'Inside'}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
                         >
-                            <option value="" disabled>Select delivery man</option>
-                            {deliveryMen.map((user) => (
-                                <option key={user._id} value={user.name}>
-                                    {user.name}
-                                </option>
-                            ))}
+                            <option value="Inside">Inside</option>
+                            <option value="Outside">Outside</option>
                         </select>
                     </div>
 
-                    {/* Route Name Field */}
+                    {/* Expense Category Field */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Route Name <span className="text-red-500">*</span>
+                            Expense Category <span className="text-red-500">*</span>
                         </label>
                         <select
-                            name="routeName"
-                            value={formData.routeName}
+                            name="expenseCategory"
+                            value={formData.expenseCategory}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
                         >
-                            <option value="" disabled>Select route</option>
-                            {routes.map((route) => (
-                                <option key={route._id} value={route.name}>
-                                    {route.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Route Expense Category Field */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Route Expense Category <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            name="routeExpenseCategory"
-                            value={formData.routeExpenseCategory}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
-                        >
-                            <option value="" disabled>Select route expense category</option>
-                            {routeExpenseHeads.map((head) => (
+                            <option value="" disabled>Select expense category</option>
+                            {expenseHeads.map((head) => (
                                 <option key={head._id} value={head.name}>
                                     {head.name}
                                 </option>
@@ -552,7 +503,7 @@ const RouteExpenseForm = ({
                             onChange={handleChange}
                             required
                             placeholder="Enter name"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
 
@@ -576,7 +527,7 @@ const RouteExpenseForm = ({
                                 readOnly
                                 value={formData.date}
                                 placeholder="Select date"
-                                className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer pointer-events-none"
+                                className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer pointer-events-none"
                             />
                         </div>
                     </div>
@@ -591,7 +542,7 @@ const RouteExpenseForm = ({
                             value={formData.accountType}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
                         >
                             <option value="" disabled>Select account type</option>
                             <option value="Cash">Cash</option>
@@ -599,11 +550,35 @@ const RouteExpenseForm = ({
                             <option value="Mobile Banking">Mobile Banking</option>
                         </select>
                     </div>
+
+                    {/* Amount Field */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Amount <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            name="amount"
+                            value={formData.amount}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
+                            required
+                            placeholder="Enter amount"
+                            step="0.01"
+                            min="0"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                        />
+                    </div>
                 </div>
 
                 {/* Conditional Fields for Bank */}
                 {formData.accountType === 'Bank' && (
-                    <div className="space-y-4 p-4 bg-cyan-50/40 rounded-2xl border border-cyan-100">
+                    <div className="space-y-4 p-4 bg-rose-50/40 rounded-2xl border border-rose-100">
                         {/* Select Bank from Investment API */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -620,7 +595,7 @@ const RouteExpenseForm = ({
                                 }
                                 onChange={handleBankSelectChange}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
                             >
                                 <option value="" disabled>Select saved bank account</option>
                                 {bankInvestments.map((inv) => (
@@ -643,7 +618,7 @@ const RouteExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. City Bank"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -657,7 +632,7 @@ const RouteExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="Enter account no"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -671,7 +646,7 @@ const RouteExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. Gulshan Branch"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                         </div>
@@ -680,7 +655,7 @@ const RouteExpenseForm = ({
 
                 {/* Conditional Fields for Mobile Banking */}
                 {formData.accountType === 'Mobile Banking' && (
-                    <div className="space-y-4 p-4 bg-blue-50/40 rounded-2xl border border-blue-100">
+                    <div className="space-y-4 p-4 bg-orange-50/40 rounded-2xl border border-orange-100">
                         {/* Select Mobile Banking from Investment API */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -696,7 +671,7 @@ const RouteExpenseForm = ({
                                 }
                                 onChange={handleMobileBankingSelectChange}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
                             >
                                 <option value="" disabled>Select saved mobile account</option>
                                 {mobileInvestments.map((inv) => (
@@ -719,7 +694,7 @@ const RouteExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. bKash / Nagad"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -733,38 +708,14 @@ const RouteExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="Enter mobile number"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                         </div>
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Amount Field */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Amount <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="number"
-                            name="amount"
-                            value={formData.amount}
-                            onChange={(e) => {
-                                const value = e.target.value;
-
-                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                    handleChange(e);
-                                }
-                            }}
-                            required
-                            placeholder="Enter amount"
-                            step="0.01"
-                            min="0"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
-                        />
-                    </div>
-
+                <div className="grid grid-cols-1 gap-6">
                     {/* Note Field */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Note</label>
@@ -774,7 +725,7 @@ const RouteExpenseForm = ({
                             value={formData.note}
                             onChange={handleChange}
                             placeholder="Optional note or description"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
                 </div>
@@ -784,15 +735,15 @@ const RouteExpenseForm = ({
                     <button
                         type="submit"
                         disabled={loading}
-                        className="flex-1 py-3.5 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-cyan-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer text-sm"
+                        className="flex-1 py-3.5 px-4 bg-gradient-to-r from-rose-600 to-orange-500 hover:from-rose-700 hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-rose-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer text-sm"
                     >
                         {loading
                             ? isEditing
-                                ? 'Updating Route Expense...'
-                                : 'Submitting Route Expense...'
+                                ? 'Updating Expense...'
+                                : 'Submitting Expense...'
                             : isEditing
-                                ? 'Update Route Expense'
-                                : 'Submit Route Expense'}
+                                ? 'Update Expense'
+                                : 'Submit Expense'}
                     </button>
 
                     {isEditing && (
@@ -810,4 +761,4 @@ const RouteExpenseForm = ({
     );
 };
 
-export default RouteExpenseForm;
+export default ExpenseForm;

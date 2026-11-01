@@ -125,9 +125,10 @@ const StockAlert = () => {
     const [damages, setDamages] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
     const [productMaster, setProductMaster] = useState([]);
+    const [companies, setCompanies] = useState([]);
 
     const [loading, setLoading] = useState(true);
-    const [filters, setFilters] = useState({ product: '', company: '' });
+    const [filters, setFilters] = useState({ product: '', company: '', companyContact: '' });
     const [isProductOpen, setIsProductOpen] = useState(false);
     const [isCompanyOpen, setIsCompanyOpen] = useState(false);
     const productDropdownRef = useRef(null);
@@ -143,7 +144,7 @@ const StockAlert = () => {
                 const data = await res.json();
                 return Array.isArray(data) ? data : [];
             };
-            const [b, p, s, br, sbr, d, a, pm] = await Promise.all([
+            const [b, p, s, br, sbr, d, a, pm, cm] = await Promise.all([
                 get('/stock-purchase'),
                 get('/purchase'),
                 get('/sales'),
@@ -152,6 +153,7 @@ const StockAlert = () => {
                 get('/sales-damage'),
                 get('/stock-adjustment'),
                 get('/product'),
+                get('/company'),
             ]);
             setBatches(b);
             setPurchases(p);
@@ -161,6 +163,7 @@ const StockAlert = () => {
             setDamages(d);
             setAdjustments(a);
             setProductMaster(pm);
+            setCompanies(cm);
         } catch (error) {
             console.error('Error fetching stock alert:', error);
         } finally {
@@ -300,6 +303,16 @@ const StockAlert = () => {
         return Array.from(map.values()).map((g) => ({ ...g, total: g.main + g.free }));
     }, [stockRows]);
 
+    // Company name -> phone
+    const phoneByName = useMemo(() => {
+        const m = new Map();
+        companies.forEach((c) => {
+            const k = (c.businessName || '').toString().trim().toLowerCase();
+            if (k && !m.has(k)) m.set(k, c.contactNumber || '');
+        });
+        return m;
+    }, [companies]);
+
     // Alert qty (product master theke) er sathe milano
     const alertRows = useMemo(() => {
         const byId = new Map(productMaster.map((p) => [String(p._id), p]));
@@ -327,13 +340,13 @@ const StockAlert = () => {
             if (total <= 0) status = 'out';
             else if (total === alertQty) status = 'level';
 
-            out.push({ ...p, alertQty, status });
+            out.push({ ...p, alertQty, status, phone: phoneByName.get(p.company.trim().toLowerCase()) || '' });
         });
 
         return out.sort(
             (a, b) => ORDER[a.status] - ORDER[b.status] || a.total - b.total || a.productName.localeCompare(b.productName)
         );
-    }, [products, productMaster]);
+    }, [products, productMaster, phoneByName]);
 
     const counts = useMemo(() => {
         const c = { out: 0, low: 0, level: 0 };
@@ -343,16 +356,24 @@ const StockAlert = () => {
 
     const companyOptions = useMemo(() => {
         const q = filters.company.trim().toLowerCase();
-        return [...new Set(alertRows.map((r) => r.company))].filter((c) => c.toLowerCase().includes(q));
+        const seen = new Map();
+        alertRows.forEach((r) => {
+            if (!seen.has(r.company)) seen.set(r.company, { name: r.company, phone: r.phone });
+        });
+        return Array.from(seen.values()).filter(
+            (c) => c.name.toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q)
+        );
     }, [alertRows, filters.company]);
 
     const productOptions = useMemo(() => {
-        const cq = filters.company.trim().toLowerCase();
         const pq = filters.product.trim().toLowerCase();
         return alertRows.filter(
-            (r) => (!cq || r.company.toLowerCase().includes(cq)) && r.productName.toLowerCase().includes(pq)
+            (r) =>
+                r.productName.toLowerCase().includes(pq) ||
+                r.company.toLowerCase().includes(pq) ||
+                (r.phone || '').toLowerCase().includes(pq)
         );
-    }, [alertRows, filters]);
+    }, [alertRows, filters.product]);
 
     const filtered = useMemo(() => {
         const pq = filters.product.trim().toLowerCase();
@@ -360,7 +381,8 @@ const StockAlert = () => {
         return alertRows.filter((r) => {
             if (tab !== 'all' && r.status !== tab) return false;
             if (pq && !r.productName.toLowerCase().includes(pq)) return false;
-            if (cq && !r.company.toLowerCase().includes(cq)) return false;
+            if (cq && !r.company.toLowerCase().includes(cq) && !(r.phone || '').toLowerCase().includes(cq)) return false;
+            if (filters.companyContact && r.phone && r.phone !== filters.companyContact) return false;
             return true;
         });
     }, [alertRows, tab, filters]);
@@ -374,31 +396,31 @@ const StockAlert = () => {
         return () => document.removeEventListener('mousedown', onDown);
     }, []);
 
-    const handleSelectCompany = (name) => {
-        setFilters({ company: name, product: '' });
+    const handleSelectCompany = (c) => {
+        setFilters({ company: c.name, companyContact: c.phone || '', product: '' });
         setIsCompanyOpen(false);
         setCurrentPage(1);
     };
     const handleClearCompany = (e) => {
         e.stopPropagation();
-        setFilters((prev) => ({ ...prev, company: '' }));
+        setFilters((prev) => ({ ...prev, company: '', companyContact: '' }));
         setIsCompanyOpen(false);
         setCurrentPage(1);
     };
     const handleSelectProduct = (r) => {
-        setFilters({ product: r.productName, company: r.company });
+        setFilters({ product: r.productName?.trim() || '', company: r.company?.trim() || '', companyContact: r.phone || '' });
         setIsProductOpen(false);
         setCurrentPage(1);
     };
     const handleClearProduct = (e) => {
         e.stopPropagation();
-        setFilters((prev) => ({ ...prev, product: '' }));
+        setFilters((prev) => ({ ...prev, product: '', company: '', companyContact: '' }));
         setIsProductOpen(false);
         setCurrentPage(1);
     };
 
     const handleClearFilters = () => {
-        setFilters({ product: '', company: '' });
+        setFilters({ product: '', company: '', companyContact: '' });
         setTab('all');
         setIsProductOpen(false);
         setIsCompanyOpen(false);
@@ -491,9 +513,11 @@ const StockAlert = () => {
                                     <input
                                         type="text"
                                         placeholder="Search or select product..."
+                                        onFocus={() => setIsProductOpen(true)}
+                                        autoComplete="off"
                                         value={filters.product}
                                         onChange={(e) => {
-                                            setFilters((prev) => ({ ...prev, product: e.target.value }));
+                                            setFilters((prev) => ({ ...prev, product: e.target.value, company: '', companyContact: '' }));
                                             setIsProductOpen(true);
                                             setCurrentPage(1);
                                         }}
@@ -515,7 +539,9 @@ const StockAlert = () => {
                                                     className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none"
                                                 >
                                                     <div className="text-xs font-medium text-gray-700">{r.productName}</div>
-                                                    <div className="text-[10px] text-gray-400">{r.company}</div>
+                                                    <div className="text-[10px] text-gray-400">
+                                                        🏢 {r.company}{r.phone ? ` | 📞 ${r.phone}` : ''}
+                                                    </div>
                                                 </div>
                                             ))
                                         ) : (
@@ -537,7 +563,7 @@ const StockAlert = () => {
                                         placeholder="Search or select company..."
                                         value={filters.company}
                                         onChange={(e) => {
-                                            setFilters((prev) => ({ ...prev, company: e.target.value }));
+                                            setFilters((prev) => ({ ...prev, company: e.target.value, companyContact: '' }));
                                             setIsCompanyOpen(true);
                                             setCurrentPage(1);
                                         }}
@@ -554,11 +580,14 @@ const StockAlert = () => {
                                         {companyOptions.length > 0 ? (
                                             companyOptions.map((c) => (
                                                 <div
-                                                    key={c}
+                                                    key={c.name}
                                                     onClick={() => handleSelectCompany(c)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                 >
-                                                    {c}
+                                                    <p className="text-xs font-semibold text-gray-800">{c.name}</p>
+                                                    {c.phone && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.phone}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
@@ -621,7 +650,12 @@ const StockAlert = () => {
                                                             Alert Qty: {fmt(p.alertQty)} pcs
                                                         </div>
                                                     </td>
-                                                    <td className="py-3 px-3 text-gray-600 font-medium whitespace-nowrap">{p.company}</td>
+                                                    <td className="py-3 px-3 text-gray-600 font-medium whitespace-nowrap">
+                                                        <div>{p.company}</div>
+                                                        {p.phone && (
+                                                            <div className="text-[11px] text-gray-400 mt-0.5">📞 {p.phone}</div>
+                                                        )}
+                                                    </td>
                                                     <td className="py-3 px-3 whitespace-nowrap">
                                                         <QtyBlock total={p.main} info={p.info} valueClass="text-indigo-700" chipClass="bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-200 text-indigo-600" />
                                                     </td>

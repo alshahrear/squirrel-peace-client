@@ -111,7 +111,6 @@ const CustomersDetails = () => {
         .slice(0, 2)
         .toUpperCase();
 
-    const isWholesale = customer.customerType === 'Wholesale Customer';
     const openingBalance = customer.openingBalance ? Number(customer.openingBalance).toLocaleString() : '0';
     const creditLimit = customer.creditLimit ? Number(customer.creditLimit).toLocaleString() : '0';
 
@@ -139,9 +138,6 @@ const CustomersDetails = () => {
 
                         <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isWholesale ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                    {customer.customerType || 'Wholesale Customer'}
-                                </span>
                                 {customer.route && (
                                     <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold backdrop-blur-md">
                                         Route: {customer.route}
@@ -181,10 +177,6 @@ const CustomersDetails = () => {
 
                 {/* Info Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <InfoCard icon={<FaUserTag size={15} />} label="Customer Type" iconBg="bg-purple-50 text-purple-600">
-                        {customer.customerType || <NA />}
-                    </InfoCard>
-
                     <InfoCard icon={<FaStore size={15} />} label="Business Name">
                         {customer.businessName || <NA />}
                     </InfoCard>

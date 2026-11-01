@@ -15,7 +15,7 @@ const SalesBulkReturn = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', customer: '', invoiceNo: '' });
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', customer: '', customerContact: '', invoiceNo: '' });
 
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
@@ -80,18 +80,27 @@ const SalesBulkReturn = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname]);
 
-    const filteredCustomers = customers.filter((c) =>
-        c.businessName?.toLowerCase().includes(filters.customer.toLowerCase())
-    );
+    const filteredCustomers = customers.filter((c) => {
+        const s = filters.customer.toLowerCase();
+        return (
+            c.businessName?.toLowerCase().includes(s) ||
+            c.contactNumber?.toLowerCase().includes(s)
+        );
+    });
+
+    const getPhoneByName = (name) =>
+        customers.find((c) => (c.businessName || '').trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
 
     const handleSelectCustomer = (c) => {
-        setFilters({ ...filters, customer: c.businessName });
+        setFilters({ ...filters, customer: c.businessName, customerContact: c.contactNumber || '' });
+        setCurrentPage(1);
         setIsCustomerOpen(false);
     };
 
     const handleClearCustomer = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, customer: '' });
+        setFilters({ ...filters, customer: '', customerContact: '' });
+        setCurrentPage(1);
         setIsCustomerOpen(false);
     };
 
@@ -124,7 +133,7 @@ const SalesBulkReturn = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', customer: '', invoiceNo: '' });
+        setFilters({ startDate: '', endDate: '', customer: '', customerContact: '', invoiceNo: '' });
         setCurrentPage(1);
     };
 
@@ -240,6 +249,10 @@ const SalesBulkReturn = () => {
             }
         }
         if (filters.customer && !item.customer?.toLowerCase().includes(filters.customer.toLowerCase())) return false;
+        if (filters.customerContact) {
+            const phone = getPhoneByName(item.customer);
+            if (phone && phone !== filters.customerContact) return false;
+        }
         if (filters.invoiceNo && !item.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
         return true;
     });
@@ -413,7 +426,8 @@ const SalesBulkReturn = () => {
                                         placeholder="Search or select customer..."
                                         value={filters.customer}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'customer', value: e.target.value } });
+                                            setFilters({ ...filters, customer: e.target.value, customerContact: '' });
+                                            setCurrentPage(1);
                                             setIsCustomerOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -428,8 +442,11 @@ const SalesBulkReturn = () => {
                                     <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
                                         {filteredCustomers.length > 0 ? (
                                             filteredCustomers.map((c) => (
-                                                <div key={c._id} onClick={() => handleSelectCustomer(c)} className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700">
-                                                    {c.businessName}
+                                                <div key={c._id} onClick={() => handleSelectCustomer(c)} className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150">
+                                                    <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
+                                                    {c.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
@@ -525,7 +542,12 @@ const SalesBulkReturn = () => {
                                                     <input type="checkbox" checked={selectedIds.includes(item._id)} onChange={() => handleSelectRow(item._id)} className="w-4 h-4 accent-pink-500 cursor-pointer" />
                                                 </td>
                                                 <td className="px-2.5 text-gray-600 whitespace-nowrap font-medium">{item.returnDate || 'N/A'}</td>
-                                                <td className="px-2.5 font-bold text-gray-800 whitespace-nowrap">{item.customer}</td>
+                                                <td className="px-2.5 font-bold text-gray-800 whitespace-nowrap">
+                                                    <div>{item.customer}</div>
+                                                    {getPhoneByName(item.customer) && (
+                                                        <div className="text-[10px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
+                                                    )}
+                                                </td>
                                                 <td className="px-2.5 text-gray-600 font-medium whitespace-nowrap">
                                                     <div>{item.invoiceNo}</div>
                                                     {item.fromSales && (

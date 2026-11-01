@@ -1,10 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaTimes } from 'react-icons/fa';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
+// Helper function to format date & time like: 26/08/2026, 3:19:09 pm
+const formatDateTime = (date = new Date()) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
 
-const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved }) => {
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+
+    return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
+};
+
+const UserForm = ({
+    showToast,
+    users = [],
+    fetchUsers,
+    setShowForm,
+    editingUser,
+    setEditingUser,
+    scrollToTable,
+}) => {
     const navigate = useNavigate();
+    const isEditing = Boolean(editingUser && editingUser._id);
     const draftKey = editingUser ? `userForm:${editingUser._id}` : 'userForm:new';
     const [formData, setFormData] = useDraftState(draftKey, () => ({
         name: editingUser?.name || '',
@@ -40,6 +66,16 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
         });
     };
 
+    const handleCancelEdit = () => {
+        clearDraft(draftKey);
+        setPassword('');
+        setEditingUser(null);
+        setShowForm(false);
+        if (scrollToTable) {
+            scrollToTable();
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -66,32 +102,23 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
 
         setLoading(true);
 
-        const now = new Date();
-        const formattedDate = now.toLocaleString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true,
-        }).toLowerCase().replace(',', ',');
+        const finalData = isEditing
+            ? { ...formData }
+            : { ...formData, createdAt: formatDateTime(new Date()) };
 
-        const url = editingUser
+        // Password শুধু তখনই যাবে যখন কিছু লেখা থাকবে
+        if (password.trim()) {
+            finalData.password = password;
+        }
+
+        const url = isEditing
             ? `https://squirrel-peace-server.onrender.com/user/${editingUser._id}`
             : 'https://squirrel-peace-server.onrender.com/user';
-
-        const method = editingUser ? 'PUT' : 'POST';
-
-        const finalData = {
-            ...formData,
-            password,
-            createdAt: editingUser ? editingUser.createdAt : formattedDate,
-        };
+        const method = isEditing ? 'PUT' : 'POST';
 
         try {
             const response = await fetch(url, {
-                method: method,
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -99,33 +126,28 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
             });
 
             if (response.ok) {
-                const resultData = await response.json();
+                showToast(
+                    isEditing ? 'User updated successfully!' : 'User created successfully!',
+                    'success'
+                );
 
-                showToast(editingUser ? 'User updated successfully!' : 'User created successfully!', 'success');
-
-                if (editingUser && onUserSaved) {
-                    // এডিট করার পর আপডেট ডাটা প্যারেন্ট কম্পোনেন্টে পাঠানো
-                    const updatedUserObj = {
-                        ...editingUser,
-                        ...finalData,
-                        password: finalData.password ? finalData.password : editingUser.password // পাসওয়ার্ড ফাকা থাকলে আগেরটা রাখা
-                    };
-                    onUserSaved(updatedUserObj);
-                } else if (onUserAdded) {
-                    // নতুন ইউজারের ক্ষেত্রে ব্যাকএন্ড থেকে আসা insertedId বা পুরো অবজেক্ট হ্যান্ডেল করা
-                    const newUserId = resultData.insertedId || resultData._id || Date.now().toString();
-                    const createdUserObj = {
-                        ...finalData,
-                        _id: newUserId
-                    };
-                    onUserAdded(createdUserObj);
+                if (fetchUsers) {
+                    await fetchUsers();
                 }
 
-                // ফর্ম রিসেট (draft মুছে ফেলা)
                 clearDraft(draftKey);
                 setPassword('');
+                setEditingUser(null);
+                setShowForm(false);
+
+                if (scrollToTable) {
+                    scrollToTable();
+                }
             } else {
-                showToast('Something went wrong, please try again.', 'error');
+                showToast(
+                    isEditing ? 'Failed to update user!' : 'Something went wrong, please try again.',
+                    'error'
+                );
             }
         } catch (error) {
             console.error('Error:', error);
@@ -151,6 +173,15 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
                         <p className="text-xs text-gray-400 mt-0.5">Fill out the essential details below to manage system access</p>
                     </div>
                 </div>
+                {isEditing && (
+                    <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full transition-all cursor-pointer"
+                    >
+                        <FaTimes /> Cancel Edit
+                    </button>
+                )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -291,7 +322,7 @@ const UserForm = ({ showToast, users = [], editingUser, onUserAdded, onUserSaved
                             disabled={loading}
                             className="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                         >
-                            {loading ? (editingUser ? 'Adding User...' : 'Saving User...') : (editingUser ? 'Update User' : 'Add User')}
+                            {loading ? (isEditing ? 'Updating User...' : 'Adding User...') : (isEditing ? 'Update User' : 'Add User')}
                         </button>
                     </div>
                 </div>

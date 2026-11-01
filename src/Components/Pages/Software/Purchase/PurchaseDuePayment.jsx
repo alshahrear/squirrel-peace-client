@@ -130,9 +130,31 @@ const PurchaseDuePayment = () => {
     const itemsPerPage = 30;
 
     // Filters
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', invoiceNo: '', status: '' });
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '', status: '' });
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
+
+    // Company searchable-select state (filter panel)
+    const [isCompanyFilterOpen, setIsCompanyFilterOpen] = useState(false);
+    const companyFilterRef = useRef(null);
+
+    useEffect(() => {
+        const handleOutside = (event) => {
+            if (companyFilterRef.current && !companyFilterRef.current.contains(event.target)) {
+                setIsCompanyFilterOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, []);
+
+    const companyFilterOptions = companies.filter((c) => {
+        const s = filters.company.toLowerCase();
+        return (
+            c.businessName?.toLowerCase().includes(s) ||
+            c.contactNumber?.toLowerCase().includes(s)
+        );
+    });
 
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
@@ -401,7 +423,7 @@ const PurchaseDuePayment = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', company: '', invoiceNo: '', status: '' });
+        setFilters({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '', status: '' });
         setCurrentPage(1);
     };
 
@@ -410,6 +432,7 @@ const PurchaseDuePayment = () => {
         if (filters.startDate && (!p.date || p.date < filters.startDate)) return false;
         if (filters.endDate && (!p.date || p.date > filters.endDate)) return false;
         if (filters.company && !p.company?.toLowerCase().includes(filters.company.toLowerCase())) return false;
+        if (filters.companyContact && p.companyContact && p.companyContact !== filters.companyContact) return false;
         if (filters.invoiceNo && !getInvoiceNo(p).toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
         if (filters.status && getDueType(p) !== filters.status) return false;
         return true;
@@ -572,17 +595,68 @@ const PurchaseDuePayment = () => {
                             </select>
                         </div>
 
-                        {/* Company */}
-                        <div>
+                        {/* Company (Select Input) */}
+                        <div className="relative" ref={companyFilterRef}>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
-                            <input
-                                type="text"
-                                name="company"
-                                placeholder="Search company..."
-                                value={filters.company}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    name="company"
+                                    placeholder="Search or select company..."
+                                    value={filters.company}
+                                    onChange={(e) => {
+                                        setFilters({ ...filters, company: e.target.value, companyContact: '' });
+                                        setCurrentPage(1);
+                                        setIsCompanyFilterOpen(true);
+                                    }}
+                                    onFocus={() => setIsCompanyFilterOpen(true)}
+                                    autoComplete="off"
+                                    className="w-full px-3 py-1.5 pr-14 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                />
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                    {filters.company && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFilters({ ...filters, company: '', companyContact: '' });
+                                                setCurrentPage(1);
+                                                setIsCompanyFilterOpen(false);
+                                            }}
+                                            className="text-gray-400 hover:text-rose-500 cursor-pointer"
+                                        >
+                                            <FaTimes size={11} />
+                                        </button>
+                                    )}
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500 pointer-events-none">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {isCompanyFilterOpen && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
+                                    {companyFilterOptions.length > 0 ? (
+                                        companyFilterOptions.map((c) => (
+                                            <div
+                                                key={c._id}
+                                                onClick={() => {
+                                                    setFilters({ ...filters, company: c.businessName, companyContact: c.contactNumber || '' });
+                                                    setCurrentPage(1);
+                                                    setIsCompanyFilterOpen(false);
+                                                }}
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                                            >
+                                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
+                                                {c.contactNumber && (
+                                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

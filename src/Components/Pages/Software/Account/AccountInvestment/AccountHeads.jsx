@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaFilter, FaRedo, FaEdit, FaTrash, FaChevronLeft, FaChevronRight, FaChevronDown } from 'react-icons/fa';
 import AccountHeadForm from './HeadsForm';
-import useDraftState from '../../../../hooks/useDraftState';
+import useDraftState from '../../../../../hooks/useDraftState';
 
 // "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
 const formatCreatedDate = (value) => {
@@ -237,19 +237,11 @@ const AccountHeads = () => {
                         <AccountHeadForm
                             key={editingHead?._id || 'new'}
                             showToast={showToast}
+                            fetchAccountHeads={fetchAccountHeads}
+                            setShowForm={setShowForm}
                             editingHead={editingHead}
-                            onHeadAdded={(newHead) => {
-                                setAccountHeads(prevHeads => [newHead, ...prevHeads]);
-                                setShowForm(false);
-                                setEditingHead(null);
-                                setTimeout(() => {
-                                    tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-                                }, 100);
-                            }}
-                            onHeadSaved={(updatedHead) => {
-                                setAccountHeads(prevHeads => prevHeads.map(h => h._id === updatedHead._id ? updatedHead : h));
-                                setShowForm(false);
-                                setEditingHead(null);
+                            setEditingHead={setEditingHead}
+                            scrollToTable={() => {
                                 setTimeout(() => {
                                     tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
                                 }, 100);

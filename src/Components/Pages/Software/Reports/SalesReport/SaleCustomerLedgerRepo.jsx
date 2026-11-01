@@ -150,6 +150,7 @@ const SaleCustomerLedgerRepo = () => {
         endDate: '',
         invoiceNo: '',
         customer: '',
+        customerContact: '',
         method: '',
         account: '',
         dueStatus: '',
@@ -237,19 +238,28 @@ const SaleCustomerLedgerRepo = () => {
         setCurrentPage(1);
     };
 
-    const filteredCustomers = customers.filter((c) =>
-        c.name?.toLowerCase().includes(filters.customer.toLowerCase())
-    );
+    const getCustomerName = (c) => c.businessName || c.name || '';
+
+    const filteredCustomers = customers.filter((c) => {
+        const s = filters.customer.toLowerCase();
+        return (
+            getCustomerName(c).toLowerCase().includes(s) ||
+            c.contactNumber?.toLowerCase().includes(s)
+        );
+    });
+
+    const getPhoneByName = (name) =>
+        customers.find((c) => getCustomerName(c).trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
 
     const handleSelectCustomer = (c) => {
-        setFilters({ ...filters, customer: c.name });
+        setFilters({ ...filters, customer: getCustomerName(c), customerContact: c.contactNumber || '' });
         setCurrentPage(1);
         setIsCustomerOpen(false);
     };
 
     const handleClearCustomer = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, customer: '' });
+        setFilters({ ...filters, customer: '', customerContact: '' });
         setCurrentPage(1);
         setIsCustomerOpen(false);
     };
@@ -274,6 +284,7 @@ const SaleCustomerLedgerRepo = () => {
                 payTime: getTime(payDate),
                 invoiceNo: o.invoiceNo || o.orderNo || '',
                 customer: o.customer || '',
+                phone: getPhoneByName(o.customer),
                 sr: o.sr || '',
                 deliveredBy: o.deliveredBy || '',
                 route: o.route || '',
@@ -330,6 +341,7 @@ const SaleCustomerLedgerRepo = () => {
         }
         if (filters.invoiceNo && !r.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
         if (filters.customer && !r.customer?.toLowerCase().includes(filters.customer.toLowerCase())) return false;
+        if (filters.customerContact && r.phone && r.phone !== filters.customerContact) return false;
         if (filters.method && r.method !== filters.method) return false;
         if (filters.account && !r.account?.toLowerCase().includes(filters.account.toLowerCase())) return false;
         if (filters.dueStatus === 'Due' && !(r.due > 0)) return false;
@@ -504,7 +516,8 @@ const SaleCustomerLedgerRepo = () => {
                                         placeholder="Search or select customer..."
                                         value={filters.customer}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'customer', value: e.target.value } });
+                                            setFilters({ ...filters, customer: e.target.value, customerContact: '' });
+                                            setCurrentPage(1);
                                             setIsCustomerOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -523,9 +536,12 @@ const SaleCustomerLedgerRepo = () => {
                                                 <div
                                                     key={c._id}
                                                     onClick={() => handleSelectCustomer(c)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                 >
-                                                    {c.name}
+                                                    <p className="text-xs font-semibold text-gray-800">{getCustomerName(c)}</p>
+                                                    {c.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
@@ -760,7 +776,12 @@ const SaleCustomerLedgerRepo = () => {
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="text-gray-600">{r.customer}</td>
+                                            <td className="text-gray-600">
+                                                <div>{r.customer}</div>
+                                                {r.phone && (
+                                                    <div className="text-[11px] text-gray-400 mt-0.5">📞 {r.phone}</div>
+                                                )}
+                                            </td>
                                             <td className="font-semibold text-gray-700">{r.method || 'N/A'}</td>
                                             <td className="text-gray-600">{r.account || 'N/A'}</td>
                                             <td className="font-semibold text-indigo-600">৳{r.payable.toFixed(2)}</td>

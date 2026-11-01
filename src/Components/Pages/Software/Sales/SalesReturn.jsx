@@ -19,6 +19,7 @@ const SalesReturn = () => {
         startDate: '',
         endDate: '',
         customer: '',
+        customerContact: '',
         orderNo: ''
     });
 
@@ -230,18 +231,27 @@ const SalesReturn = () => {
     const getCustomerName = (cust) => cust.name || cust.customerName || cust.businessName || '';
 
     // Filter customers based on search typing
-    const filteredCustomers = customers.filter((cust) =>
-        getCustomerName(cust).toLowerCase().includes(filters.customer.toLowerCase())
-    );
+    const filteredCustomers = customers.filter((cust) => {
+        const s = filters.customer.toLowerCase();
+        return (
+            getCustomerName(cust).toLowerCase().includes(s) ||
+            cust.contactNumber?.toLowerCase().includes(s)
+        );
+    });
+
+    const getPhoneByName = (name) =>
+        customers.find((c) => getCustomerName(c).trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
 
     const handleSelectCustomer = (cust) => {
-        setFilters({ ...filters, customer: getCustomerName(cust) });
+        setFilters({ ...filters, customer: getCustomerName(cust), customerContact: cust.contactNumber || '' });
+        setCurrentPage(1);
         setIsCustomerOpen(false);
     };
 
     const handleClearCustomer = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, customer: '' });
+        setFilters({ ...filters, customer: '', customerContact: '' });
+        setCurrentPage(1);
         setIsCustomerOpen(false);
     };
 
@@ -289,6 +299,7 @@ const SalesReturn = () => {
             startDate: '',
             endDate: '',
             customer: '',
+            customerContact: '',
             orderNo: ''
         });
         setCurrentPage(1);
@@ -375,6 +386,10 @@ const SalesReturn = () => {
         // Customer Filter
         if (filters.customer && !item.customer?.toLowerCase().includes(filters.customer.toLowerCase())) {
             return false;
+        }
+        if (filters.customerContact) {
+            const phone = getPhoneByName(item.customer);
+            if (phone && phone !== filters.customerContact) return false;
         }
         // Order No Filter
         if (filters.orderNo && !String(item.orderNo || '').toLowerCase().includes(filters.orderNo.toLowerCase())) {
@@ -629,7 +644,8 @@ const SalesReturn = () => {
                                         placeholder="Search or select customer..."
                                         value={filters.customer}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'customer', value: e.target.value } });
+                                            setFilters({ ...filters, customer: e.target.value, customerContact: '' });
+                                            setCurrentPage(1);
                                             setIsCustomerOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -648,9 +664,12 @@ const SalesReturn = () => {
                                                 <div
                                                     key={cust._id}
                                                     onClick={() => handleSelectCustomer(cust)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                 >
-                                                    {getCustomerName(cust)}
+                                                    <p className="text-xs font-semibold text-gray-800">{getCustomerName(cust)}</p>
+                                                    {cust.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {cust.contactNumber}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
@@ -812,7 +831,12 @@ const SalesReturn = () => {
                                                     {item.orderNo}
                                                 </button>
                                             </td>
-                                            <td className="py-4 px-4 font-bold text-gray-800">{item.customer}</td>
+                                            <td className="py-4 px-4 font-bold text-gray-800">
+                                                <div>{item.customer}</div>
+                                                {getPhoneByName(item.customer) && (
+                                                    <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
+                                                )}
+                                            </td>
                                             <td className="py-4 px-4 font-semibold text-orange-600">
                                                 {renderLines(item.retLines, item.totalReturnPcs, 'text-indigo-600')}
                                             </td>

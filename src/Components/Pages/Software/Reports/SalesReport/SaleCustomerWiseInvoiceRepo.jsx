@@ -156,6 +156,83 @@ const FilterSelect = ({ label, placeholder, value, options, onChange, emptyText 
     );
 };
 
+const CustomerFilterSelect = ({ value, customers, onSelect, onType, onClear }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+
+    const s = (value || '').toLowerCase();
+    const list = customers.filter(
+        (c) =>
+            (c.businessName || c.name || '').toLowerCase().includes(s) ||
+            (c.contactNumber || '').toLowerCase().includes(s)
+    );
+
+    return (
+        <div className="relative" ref={ref}>
+            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer</label>
+            <div
+                onClick={() => setOpen(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+            >
+                <input
+                    type="text"
+                    placeholder="Search or select customer..."
+                    value={value}
+                    onChange={(e) => {
+                        onType(e.target.value);
+                        setOpen(true);
+                    }}
+                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClear();
+                            setOpen(false);
+                        }}
+                        className="text-gray-400 hover:text-red-500 pl-1"
+                    >
+                        <FaTimes size={10} />
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                    {list.length > 0 ? (
+                        list.map((c) => (
+                            <div
+                                key={c._id}
+                                onClick={() => {
+                                    onSelect(c);
+                                    setOpen(false);
+                                }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                            >
+                                <p className="text-xs font-semibold text-gray-800">{c.businessName || c.name}</p>
+                                {c.contactNumber && (
+                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const SaleCustomerWiseInvoiceRepo = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -175,6 +252,7 @@ const SaleCustomerWiseInvoiceRepo = () => {
         endDate: '',
         invoiceNo: '',
         customer: '',
+        customerContact: '',
         sr: '',
         deliveredBy: '',
         route: '',
@@ -234,7 +312,10 @@ const SaleCustomerWiseInvoiceRepo = () => {
     };
 
     const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-    const customerOptions = uniq(customers.map((c) => c.name));
+    const getPhoneByName = (name) =>
+        customers.find(
+            (c) => (c.businessName || c.name || '').trim().toLowerCase() === (name || '').trim().toLowerCase()
+        )?.contactNumber || '';
     const srOptions = uniq(users.filter((u) => u.role === 'SR').map((u) => u.name));
     const deliveryOptions = uniq(users.filter((u) => u.role === 'Delivery Man').map((u) => u.name));
     const routeOptions = uniq(orders.map((o) => o.route));
@@ -260,6 +341,10 @@ const SaleCustomerWiseInvoiceRepo = () => {
 
         if (filters.invoiceNo && !has(o.invoiceNo || o.orderNo, filters.invoiceNo)) return false;
         if (filters.customer && !has(o.customer, filters.customer)) return false;
+        if (filters.customerContact) {
+            const phone = getPhoneByName(o.customer);
+            if (phone && phone !== filters.customerContact) return false;
+        }
         if (filters.sr && !has(o.sr, filters.sr)) return false;
         if (filters.deliveredBy && !has(o.deliveredBy, filters.deliveredBy)) return false;
         if (filters.route && !has(o.route, filters.route)) return false;
@@ -478,13 +563,25 @@ const SaleCustomerWiseInvoiceRepo = () => {
                             </div>
 
                             {/* Customer */}
-                            <FilterSelect
-                                label="Customer"
-                                placeholder="Search or select customer..."
+                            <CustomerFilterSelect
                                 value={filters.customer}
-                                options={customerOptions}
-                                onChange={(v) => setFilter('customer', v)}
-                                emptyText="No customer found"
+                                customers={customers}
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, customer: v, customerContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(c) => {
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        customer: c.businessName || c.name,
+                                        customerContact: c.contactNumber || '',
+                                    }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, customer: '', customerContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                             />
 
                             {/* SR */}
@@ -642,6 +739,9 @@ const SaleCustomerWiseInvoiceRepo = () => {
                                                 >
                                                     {r.customer}
                                                 </button>
+                                                {getPhoneByName(r.customer) && (
+                                                    <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(r.customer)}</div>
+                                                )}
                                                 <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
                                                     {r.invoiceCount} invoice{r.invoiceCount > 1 ? 's' : ''}
                                                 </div>

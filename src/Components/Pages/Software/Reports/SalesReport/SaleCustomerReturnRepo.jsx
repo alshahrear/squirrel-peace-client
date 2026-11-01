@@ -96,6 +96,7 @@ const SaleCustomerReturnRepo = () => {
         endDate: '',
         invoiceNo: '',
         customer: '',
+        customerContact: '',
         type: '',
     });
 
@@ -159,25 +160,29 @@ const SaleCustomerReturnRepo = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', invoiceNo: '', customer: '', type: '' });
+        setFilters({ startDate: '', endDate: '', invoiceNo: '', customer: '', customerContact: '', type: '' });
         setCurrentPage(1);
     };
 
     const customerName = (c) => c.businessName || c.name || '';
 
+    const getPhoneByName = (name) =>
+        customers.find((c) => customerName(c).trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
+
     const filteredCustomers = customers.filter((c) =>
-        customerName(c).toLowerCase().includes(filters.customer.toLowerCase())
+        customerName(c).toLowerCase().includes(filters.customer.toLowerCase()) ||
+        (c.contactNumber || '').toLowerCase().includes(filters.customer.toLowerCase())
     );
 
     const handleSelectCustomer = (c) => {
-        setFilters({ ...filters, customer: customerName(c) });
+        setFilters({ ...filters, customer: customerName(c), customerContact: c.contactNumber || '' });
         setCurrentPage(1);
         setIsCustomerOpen(false);
     };
 
     const handleClearCustomer = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, customer: '' });
+        setFilters({ ...filters, customer: '', customerContact: '' });
         setCurrentPage(1);
         setIsCustomerOpen(false);
     };
@@ -332,6 +337,10 @@ const SaleCustomerReturnRepo = () => {
         }
         if (filters.invoiceNo && !String(r.invoiceNo || '').toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
         if (filters.customer && !r.customer?.toLowerCase().includes(filters.customer.toLowerCase())) return false;
+        if (filters.customerContact) {
+            const phone = getPhoneByName(r.customer);
+            if (phone && phone !== filters.customerContact) return false;
+        }
         if (filters.type && r.typeLabel !== filters.type) return false;
         return true;
     });
@@ -497,7 +506,8 @@ const SaleCustomerReturnRepo = () => {
                                         placeholder="Search or select customer..."
                                         value={filters.customer}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'customer', value: e.target.value } });
+                                            setFilters({ ...filters, customer: e.target.value, customerContact: '' });
+                                            setCurrentPage(1);
                                             setIsCustomerOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -516,9 +526,12 @@ const SaleCustomerReturnRepo = () => {
                                                 <div
                                                     key={c._id}
                                                     onClick={() => handleSelectCustomer(c)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                 >
-                                                    {customerName(c)}
+                                                    <p className="text-xs font-semibold text-gray-800">{customerName(c)}</p>
+                                                    {c.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
@@ -633,7 +646,12 @@ const SaleCustomerReturnRepo = () => {
                                                     {r.invoiceNo}
                                                 </button>
                                             </td>
-                                            <td className="text-gray-600">{r.customer || 'N/A'}</td>
+                                            <td className="text-gray-600">
+                                                <div>{r.customer || 'N/A'}</div>
+                                                {getPhoneByName(r.customer) && (
+                                                    <div className="text-[11px] text-gray-400 mt-0.5">📞 {getPhoneByName(r.customer)}</div>
+                                                )}
+                                            </td>
                                             <td>
                                                 <span className={`inline-block px-2 py-0.5 rounded-full font-semibold text-[11px] ${TYPE_BADGE[r.kind]}`}>
                                                     {r.typeLabel}

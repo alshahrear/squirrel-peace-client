@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import React, { useState, useRef } from 'react';
+import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 
 const InvestmentForm = ({
     fetchInvestments,
@@ -32,8 +32,8 @@ const InvestmentForm = ({
         note: '',
     };
 
-      const draftKey = editingInvestment?._id ? `investmentForm:${editingInvestment._id}` : 'investmentForm:new';
-      
+    const draftKey = editingInvestment?._id ? `investmentForm:${editingInvestment._id}` : 'investmentForm:new';
+
     const [formData, setFormData] = useDraftState(draftKey, () =>
         editingInvestment
             ? {
@@ -64,10 +64,7 @@ const InvestmentForm = ({
                 month: 'short',
                 year: 'numeric',
             });
-            setFormData((prev) => ({
-                ...prev,
-                date: formatted,
-            }));
+            setFormData({ ...formData, date: formatted });
         }
     };
 
@@ -96,6 +93,9 @@ const InvestmentForm = ({
         clearDraft(draftKey);
         setEditingInvestment(null);
         setShowForm(false);
+        if (scrollToTable) {
+            scrollToTable();
+        }
     };
 
     const handleSubmit = async (e) => {

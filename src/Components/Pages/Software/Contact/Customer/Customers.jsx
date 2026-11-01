@@ -19,8 +19,11 @@ const formatCreatedDate = (value) => {
 const Customers = () => {
     const navigate = useNavigate();
     const [customers, setCustomers] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [routes, setRoutes] = useState([]); // Routes state
     const [editingId, setEditingId] = useDraftState('customerEditingId', null);
+    const editingCustomer = customers.find((c) => c._id === editingId) || null;
+    const setEditingCustomer = (c) => setEditingId(c ? c._id : null);
     // Action Dropdown state
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
@@ -42,7 +45,6 @@ const Customers = () => {
     const [filters, setFilters] = useState({
         startDate: '',
         endDate: '',
-        customerType: '',
         businessName: '',
         email: '',
         contactNumber: '',
@@ -52,21 +54,9 @@ const Customers = () => {
         route: ''
     });
 
-    // Form state with new fields and default customerType
-    const [formData, setFormData] = useDraftState('customerFormData', {
-        customerType: 'Wholesale Customer',
-        businessName: '',
-        contactNumber: '',
-        email: '',
-        contactName: '',
-        businessNumber: '',
-        openingBalance: '',
-        openingBalanceType: '',
-        creditLimit: '',
-        address: '',
-        route: '',
-        note: ''
-    });
+    // Section refs for auto scrolling
+    const tableSectionRef = useRef(null);
+    const formSectionRef = useRef(null);
 
     // Refs for triggering date pickers
     const startDateRef = useRef(null);
@@ -76,6 +66,28 @@ const Customers = () => {
     const [isRouteOpen, setIsRouteOpen] = useState(false);
     const routeDropdownRef = useRef(null);
 
+    // Customer (business name) searchable-select state
+    const [isCustomerFilterOpen, setIsCustomerFilterOpen] = useState(false);
+    const customerFilterRef = useRef(null);
+
+    useEffect(() => {
+        const handleOutside = (event) => {
+            if (customerFilterRef.current && !customerFilterRef.current.contains(event.target)) {
+                setIsCustomerFilterOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, []);
+
+    const customerFilterOptions = customers.filter((c) => {
+        const s = filters.businessName.toLowerCase();
+        return (
+            c.businessName?.toLowerCase().includes(s) ||
+            c.contactNumber?.toLowerCase().includes(s)
+        );
+    });
+
     // Show Toast Notification
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
@@ -84,22 +96,7 @@ const Customers = () => {
         }, 3500);
     };
 
-    // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
-    const formatDateTime = (date = new Date()) => {
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
 
-        let hours = date.getHours();
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        const ampm = hours >= 12 ? 'pm' : 'am';
-
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-
-        return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
-    };
 
     // Fetch customers data
     const fetchCustomers = async () => {
@@ -109,6 +106,9 @@ const Customers = () => {
             setCustomers(data);
         } catch (error) {
             console.error('Error fetching customers:', error);
+            showToast('Failed to load customers!', 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -183,22 +183,6 @@ const Customers = () => {
         setIsRouteOpen(false);
     };
 
-    // Handle input change
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        if (name === 'openingBalanceType' && !value) {
-            setFormData(prev => ({ ...prev, openingBalanceType: '', openingBalance: '' }));
-            return;
-        }
-        setFormData(prev => {
-            const updated = { ...prev, [name]: value };
-            // If customerType changes to Retail, clear route
-            if (name === 'customerType' && value === 'Retail Customer') {
-                updated.route = '';
-            }
-            return updated;
-        });
-    };
 
     // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
     const displayFormattedDate = (dateString) => {
@@ -222,7 +206,6 @@ const Customers = () => {
         setFilters({
             startDate: '',
             endDate: '',
-            customerType: '',
             businessName: '',
             email: '',
             contactNumber: '',
@@ -234,77 +217,7 @@ const Customers = () => {
         setCurrentPage(1);
     };
 
-    // Handle Form Submit (Add or Update)
-    const handleSubmit = async (e) => {
-        e.preventDefault();
 
-        const contactInput = formData.contactNumber.trim();
-        const businessNoInput = formData.businessNumber.trim().toLowerCase();
-
-        const contactExists = customers.some(
-            (c) => c.contactNumber?.trim() === contactInput && c._id !== editingId
-        );
-        if (contactExists) {
-            showToast('This contact number already exists!', 'error');
-            return;
-        }
-
-        if (businessNoInput) {
-            const businessNoExists = customers.some(
-                (c) => c.businessNumber?.trim().toLowerCase() === businessNoInput && c._id !== editingId
-            );
-            if (businessNoExists) {
-                showToast('This business number already exists!', 'error');
-                return;
-            }
-        }
-
-        const submissionData = editingId
-            ? formData
-            : { ...formData, createdAt: formatDateTime(new Date()) };
-
-        const url = editingId
-            ? `https://squirrel-peace-server.onrender.com/customer/${editingId}`
-            : 'https://squirrel-peace-server.onrender.com/customer';
-
-        const method = editingId ? 'PUT' : 'POST';
-
-        try {
-            const res = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(submissionData),
-            });
-
-            const data = await res.json();
-            if (data.insertedId || data.modifiedCount > 0) {
-                showToast(editingId ? 'Customer updated successfully!' : 'Customer added successfully!', 'success');
-
-                // Reset form & Close it
-                setFormData({
-                    customerType: 'Wholesale Customer',
-                    businessName: '',
-                    contactNumber: '',
-                    email: '',
-                    contactName: '',
-                    businessNumber: '',
-                    openingBalance: '',
-                    openingBalanceType: '',
-                    creditLimit: '',
-                    address: '',
-                    route: '',
-                    note: ''
-                });
-                setEditingId(null);
-                setIsFormOpen(false);
-                fetchCustomers();
-            }
-        } catch (error) {
-            console.error('Error saving customer:', error);
-        }
-    };
 
     // Handle Delete with SweetAlert
     const handleDelete = (id) => {
@@ -320,62 +233,34 @@ const Customers = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/customer/${id}`, {
+                    const response = await fetch(`https://squirrel-peace-server.onrender.com/customer/${id}`, {
                         method: 'DELETE',
                     });
-                    const data = await res.json();
-                    if (data.deletedCount > 0) {
+
+                    if (response.ok) {
                         showToast('Customer deleted successfully!', 'success');
-                        fetchCustomers();
+                        setCustomers((prev) => prev.filter((customer) => customer._id !== id));
+                    } else {
+                        showToast('Failed to delete customer!', 'error');
                     }
                 } catch (error) {
                     console.error('Error deleting customer:', error);
+                    showToast('Server error while deleting!', 'error');
                 }
             }
         });
     };
 
-    // Handle Edit (Load data to form & Open form)
+    // Handle Edit (Open form with selected customer)
     const handleEdit = (customer) => {
         setOpenDropdownId(null);
-        setFormData({
-            customerType: customer.customerType || 'Wholesale Customer',
-            businessName: customer.businessName || '',
-            contactNumber: customer.contactNumber || '',
-            email: customer.email || '',
-            contactName: customer.contactName || '',
-            businessNumber: customer.businessNumber || '',
-            openingBalance: customer.openingBalance || '',
-            openingBalanceType: customer.openingBalanceType || '',
-            creditLimit: customer.creditLimit || '',
-            address: customer.address || '',
-            route: customer.route || '',
-            note: customer.note || ''
-        });
-        setEditingId(customer._id);
+        setEditingCustomer(customer);
         setIsFormOpen(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+            formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     };
 
-    // Handle Cancel Edit
-    const handleCancelEdit = () => {
-        setEditingId(null);
-        setFormData({
-            customerType: 'Wholesale Customer',
-            businessName: '',
-            contactNumber: '',
-            email: '',
-            contactName: '',
-            businessNumber: '',
-            openingBalance: '',
-            openingBalanceType: '',
-            creditLimit: '',
-            address: '',
-            route: '',
-            note: ''
-        });
-        setIsFormOpen(false);
-    };
 
     // Open Note Modal
     const handleOpenModal = (noteText) => {
@@ -401,9 +286,6 @@ const Customers = () => {
                 const endDateObj = new Date(filters.endDate);
                 if (!isNaN(endDateObj) && customerDate > endDateObj) return false;
             }
-        }
-        if (filters.customerType && customer.customerType !== filters.customerType) {
-            return false;
         }
         if (filters.businessName && !customer.businessName?.toLowerCase().includes(filters.businessName.toLowerCase())) {
             return false;
@@ -465,11 +347,8 @@ const Customers = () => {
 
                     <button
                         onClick={() => {
-                            if (isFormOpen && editingId) {
-                                handleCancelEdit();
-                            } else {
-                                setIsFormOpen(!isFormOpen);
-                            }
+                            setEditingCustomer(null);
+                            setIsFormOpen(!isFormOpen);
                         }}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${isFormOpen
                             ? 'bg-red-500 hover:bg-red-600 shadow-red-200'
@@ -480,20 +359,26 @@ const Customers = () => {
                     </button>
                 </div>
 
-                {/* Smooth Collapsible Form Component */}
-                <div
-                    className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormOpen ? 'max-h-[1200px] opacity-100 mb-8' : 'max-h-0 opacity-0 mb-0'
-                        }`}
-                >
-                    <CustomerForm
-                        formData={formData}
-                        handleChange={handleChange}
-                        handleSubmit={handleSubmit}
-                        editingId={editingId}
-                        handleCancelEdit={handleCancelEdit}
-                        routes={routes}
-                    />
-                </div>
+                {/* Collapsible Form Component */}
+                {isFormOpen && !loading && (
+                    <div ref={formSectionRef}>
+                        <CustomerForm
+                            key={editingCustomer?._id || 'new'}
+                            customers={customers}
+                            fetchCustomers={fetchCustomers}
+                            setShowForm={setIsFormOpen}
+                            editingCustomer={editingCustomer}
+                            setEditingCustomer={setEditingCustomer}
+                            showToast={showToast}
+                            routes={routes}
+                            scrollToTable={() => {
+                                setTimeout(() => {
+                                    tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
+                            }}
+                        />
+                    </div>
+                )}
 
                 {/* Filter & Search Panel */}
                 <div className="bg-white shadow-lg rounded-2xl p-5 mb-6 border border-indigo-100">
@@ -560,32 +445,65 @@ const Customers = () => {
                             </div>
                         </div>
 
-                        {/* Customer Type Select */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer Type</label>
-                            <select
-                                name="customerType"
-                                value={filters.customerType}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700"
-                            >
-                                <option value="">All Types</option>
-                                <option value="Wholesale Customer">Wholesale Customer</option>
-                                <option value="Retail Customer">Retail Customer</option>
-                            </select>
-                        </div>
-
-                        {/* Business Name Search */}
-                        <div>
+                        {/* Business Name Search (Select Input) */}
+                        <div className="relative" ref={customerFilterRef}>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Business Name</label>
-                            <input
-                                type="text"
-                                name="businessName"
-                                placeholder="Search business..."
-                                value={filters.businessName}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    name="businessName"
+                                    placeholder="Search or select customer..."
+                                    value={filters.businessName}
+                                    onChange={(e) => {
+                                        handleFilterChange(e);
+                                        setIsCustomerFilterOpen(true);
+                                    }}
+                                    onFocus={() => setIsCustomerFilterOpen(true)}
+                                    autoComplete="off"
+                                    className="w-full px-3 py-1.5 pr-14 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                />
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                    {filters.businessName && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFilters({ ...filters, businessName: '', contactNumber: '' });
+                                                setCurrentPage(1);
+                                                setIsCustomerFilterOpen(false);
+                                            }}
+                                            className="text-gray-400 hover:text-rose-500"
+                                        >
+                                            <FaTimes size={11} />
+                                        </button>
+                                    )}
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500 pointer-events-none">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {isCustomerFilterOpen && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
+                                    {customerFilterOptions.length > 0 ? (
+                                        customerFilterOptions.map((c) => (
+                                            <div
+                                                key={c._id}
+                                                onClick={() => {
+                                                    setFilters({ ...filters, businessName: c.businessName, contactNumber: c.contactNumber || '' });
+                                                    setCurrentPage(1);
+                                                    setIsCustomerFilterOpen(false);
+                                                }}
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                                            >
+                                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
+                                                <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Email Search */}
@@ -702,7 +620,7 @@ const Customers = () => {
                 </div>
 
                 {/* Table Section */}
-                <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
+                <div ref={tableSectionRef} className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
                     <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center">
                         <h2 className="text-xl font-bold">Customer Directory</h2>
                         <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
@@ -943,7 +861,6 @@ const Customers = () => {
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );

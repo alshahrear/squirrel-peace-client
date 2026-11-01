@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 
-const ExpenseForm = ({
-    fetchExpenses,
+const IncomeForm = ({
+    fetchIncomes,
     setShowForm,
-    editingExpense,
-    setEditingExpense,
+    editingIncome,
+    setEditingIncome,
     showToast,
     scrollToTable,
 }) => {
@@ -20,7 +20,8 @@ const ExpenseForm = ({
     };
 
     const emptyForm = {
-        expenseCategory: '',
+        incomeType: 'Inside',
+        incomeCategory: '',
         name: '',
         date: getFormattedToday(),
         accountType: '',
@@ -32,77 +33,55 @@ const ExpenseForm = ({
         note: '',
     };
 
-    const draftKey = editingExpense?._id ? `expenseForm:${editingExpense._id}` : 'expenseForm:new';
+    const draftKey = editingIncome?._id ? `incomeForm:${editingIncome._id}` : 'incomeForm:new';
     const [formData, setFormData] = useDraftState(draftKey, () =>
-        editingExpense
+        editingIncome
             ? {
-                expenseCategory: editingExpense.expenseCategory || '',
-                name: editingExpense.name || '',
-                date: editingExpense.date || getFormattedToday(),
-                accountType: editingExpense.accountType || '',
-                bankName: editingExpense.bankName || '',
-                accountNumber: editingExpense.accountNumber || '',
-                accountBranch: editingExpense.accountBranch || '',
-                accountName: editingExpense.accountName || '',
-                amount: editingExpense.amount ?? '',
-                note: editingExpense.note || '',
+                incomeType: editingIncome.incomeType || 'Inside',
+                incomeCategory: editingIncome.incomeCategory || '',
+                name: editingIncome.name || '',
+                date: editingIncome.date || getFormattedToday(),
+                accountType: editingIncome.accountType || '',
+                bankName: editingIncome.bankName || '',
+                accountNumber: editingIncome.accountNumber || '',
+                accountBranch: editingIncome.accountBranch || '',
+                accountName: editingIncome.accountName || '',
+                amount: editingIncome.amount ?? '',
+                note: editingIncome.note || '',
             }
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
-    const [expenseHeads, setExpenseHeads] = useState([]);
+    const [incomeHeads, setIncomeHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
-    const [adjustments, setAdjustments] = useState([]);
-    const [allIncomes, setAllIncomes] = useState([]);
-    const [allExpenses, setAllExpenses] = useState([]);
-    const [allRouteExpenses, setAllRouteExpenses] = useState([]);
-    const [allTransfers, setAllTransfers] = useState([]);
 
     const dateInputRef = useRef(null);
 
-    // Active Expense ক্যাটাগরির Account Heads fetch করা
+    // Active Income ক্যাটাগরির Account Heads fetch করা
     useEffect(() => {
-        const fetchExpenseHeads = async () => {
+        const fetchIncomeHeads = async () => {
             try {
                 const res = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
                 const data = await res.json();
                 const filtered = data.filter(
-                    (head) => head.category === 'Expense' && head.isActive === true
+                    (head) => head.category === 'Income' && head.isActive === true
                 );
-                setExpenseHeads(filtered);
+                setIncomeHeads(filtered);
             } catch (error) {
-                console.error('Error fetching expense heads:', error);
+                console.error('Error fetching income heads:', error);
             }
         };
 
-        fetchExpenseHeads();
+        fetchIncomeHeads();
     }, []);
 
-    // Investment + Balance সংক্রান্ত সব ডেটা ফেচ করা (Account Balance check করার জন্য)
+    // Investment API থেকে ব্যাংক বা অ্যাকাউন্ট ডেটা ফেচ করা
     useEffect(() => {
         const fetchInvestments = async () => {
             try {
-                const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, transferRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/investment'),
-                    fetch('https://squirrel-peace-server.onrender.com/adjustment'),
-                    fetch('https://squirrel-peace-server.onrender.com/income'),
-                    fetch('https://squirrel-peace-server.onrender.com/expense'),
-                    fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
-                    fetch('https://squirrel-peace-server.onrender.com/transfer'),
-                ]);
-                const data = await invRes.json();
-                const adjData = await adjRes.json();
-                const incomeData = await incomeRes.json();
-                const expenseData = await expenseRes.json();
-                const routeExpenseData = await routeExpenseRes.json();
-                const transferData = await transferRes.json();
-
+                const res = await fetch('https://squirrel-peace-server.onrender.com/investment');
+                const data = await res.json();
                 setInvestments(data);
-                setAdjustments(Array.isArray(adjData) ? adjData : []);
-                setAllIncomes(Array.isArray(incomeData) ? incomeData : []);
-                setAllExpenses(Array.isArray(expenseData) ? expenseData : []);
-                setAllRouteExpenses(Array.isArray(routeExpenseData) ? routeExpenseData : []);
-                setAllTransfers(Array.isArray(transferData) ? transferData : []);
             } catch (error) {
                 console.error('Error fetching investments:', error);
             }
@@ -110,7 +89,6 @@ const ExpenseForm = ({
 
         fetchInvestments();
     }, []);
-
 
 
     // ইউনিক ইনভয়েস নম্বর তৈরির ফাংশন (যেমন: 260901035526)
@@ -204,112 +182,9 @@ const ExpenseForm = ({
         }
     };
 
-    // accountType কে normalize করে cash/mobile/bank ক্যাটাগরিতে ভাগ করা (AccountBalance পেজের সাথে মিলিয়ে)
-    const getCategory = (accountType = '') => {
-        const type = accountType.toLowerCase();
-        if (type.includes('cash')) return 'cash';
-        if (type.includes('mobile')) return 'mobile';
-        if (type.includes('bank')) return 'bank';
-        return 'others';
-    };
-
-    // AccountBalance পেজের ensureKey এর সাথে মিলিয়ে account key বানানো
-    const buildAccountKey = (item) => {
-        const accountName = item.accountName || item.bankName || 'N/A';
-        const accountNumber = item.accountNumber || '';
-        const accountBranch = item.accountBranch || '';
-        return `${accountName}||${accountNumber}||${accountBranch}`;
-    };
-
-    // Transfer এর label এর সাথে investment মিলানোর জন্য
-    const getAccountLabelForTransfer = (acc) => {
-        if (acc.accountType === 'Cash') return 'Cash';
-        if (acc.accountType === 'Mobile Banking') {
-            return `${acc.accountName} (${acc.accountNumber})`;
-        }
-        if (acc.accountType === 'Bank') {
-            return `${acc.bankName} - ${acc.accountNumber} (${acc.accountBranch || 'Main'})`;
-        }
-        return acc.accountNumber || acc.accountType;
-    };
-
-    const resolveTransferAccountKey = (type, label) => {
-        if (label === 'Cash') {
-            const cashAcc = investments.find(inv => getCategory(inv.accountType) === 'cash');
-            return cashAcc ? buildAccountKey(cashAcc) : 'N/A||||';
-        }
-        const acc = investments.find(inv => inv.accountType === type && getAccountLabelForTransfer(inv) === label);
-        return acc ? buildAccountKey(acc) : null;
-    };
-
-    // একটা investment এর remaining amount (Deposit/Withdraw ধরে)
-    const getRemainingInvestment = (investment) => {
-        const relatedAdjustments = adjustments.filter(adj => adj.adjustmentID === investment._id);
-        const totalDeposit = relatedAdjustments
-            .filter(adj => adj.mode === 'Deposit')
-            .reduce((sum, adj) => sum + Number(adj.amount || 0), 0);
-        const totalWithdraw = relatedAdjustments
-            .filter(adj => adj.mode === 'Withdraw')
-            .reduce((sum, adj) => sum + Number(adj.amount || 0), 0);
-        return Number(investment.amount || 0) + totalDeposit - totalWithdraw;
-    };
-
-    // বর্তমান ফর্মে সিলেক্ট করা account এর key বের করা (Cash / Mobile Banking / Bank)
-    const getSelectedAccountKey = () => {
-        if (formData.accountType === 'Cash') {
-            return 'N/A||||';
-        }
-        if (formData.accountType === 'Bank') {
-            const accountName = formData.bankName || 'N/A';
-            return `${accountName}||${formData.accountNumber || ''}||${formData.accountBranch || ''}`;
-        }
-        if (formData.accountType === 'Mobile Banking') {
-            const accountName = formData.accountName || 'N/A';
-            return `${accountName}||${formData.accountNumber || ''}||`;
-        }
-        return null;
-    };
-
-    // নির্দিষ্ট account key এর বর্তমান remaining balance বের করা (Investment + Income - Expense - RouteExpense +/- Transfer)
-    const getAccountBalance = (targetKey) => {
-        if (!targetKey) return 0;
-
-        let balance = 0;
-
-        investments.forEach(inv => {
-            if (buildAccountKey(inv) === targetKey) balance += getRemainingInvestment(inv);
-        });
-
-        allIncomes.forEach(item => {
-            if (buildAccountKey(item) === targetKey) balance += Number(item.amount) || 0;
-        });
-
-        allExpenses.forEach(item => {
-            // এডিট মোডে থাকা এক্সপেন্স টা বাদ, কারণ সেটার effect আগে থেকেই ধরা আছে
-            if (editingExpense && item._id === editingExpense._id) return;
-            if (buildAccountKey(item) === targetKey) balance -= Number(item.amount) || 0;
-        });
-
-        allRouteExpenses.forEach(item => {
-            if (buildAccountKey(item) === targetKey) balance -= Number(item.amount) || 0;
-        });
-
-        allTransfers.forEach(item => {
-            const amt = Number(item.amount) || 0;
-
-            const fromKey = resolveTransferAccountKey(item.transferFrom, item.fromAccount);
-            if (fromKey && fromKey === targetKey) balance -= amt;
-
-            const toKey = resolveTransferAccountKey(item.transferTo, item.toAccount);
-            if (toKey && toKey === targetKey) balance += amt;
-        });
-
-        return balance;
-    };
-
     const handleCancel = () => {
         clearDraft(draftKey);
-        setEditingExpense(null);
+        setEditingIncome(null);
         setShowForm(false);
         if (scrollToTable) {
             scrollToTable();
@@ -318,22 +193,14 @@ const ExpenseForm = ({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        // সিলেক্ট করা account এ পর্যাপ্ত ব্যালেন্স আছে কিনা চেক করা হচ্ছে
-        const selectedAccountKey = getSelectedAccountKey();
-        const availableBalance = getAccountBalance(selectedAccountKey);
-        if (Number(formData.amount) > availableBalance) {
-            showToast('Insufficient balance in the selected account!', 'error', { position: 'top-right' });
-            return;
-        }
-
         setLoading(true);
 
-        const isEditing = Boolean(editingExpense && editingExpense._id);
+        const isEditing = Boolean(editingIncome && editingIncome._id);
 
         // অ্যাকাউন্ট টাইপ অনুযায়ী অপ্রয়োজনীয় ফিল্ডগুলো বাদ দিয়ে ফাইনাল ডাটা অবজেক্ট তৈরি
         const finalData = {
-            expenseCategory: formData.expenseCategory,
+            incomeType: formData.incomeType || 'Inside',
+            incomeCategory: formData.incomeCategory,
             name: formData.name,
             date: formData.date,
             accountType: formData.accountType,
@@ -344,8 +211,8 @@ const ExpenseForm = ({
             accountBranch: '',
             accountName: '',
             // নতুন রেকর্ড হলে ইনভয়েস যুক্ত হবে, এডিট হলে আগের ইনভয়েস ঠিক থাকবে বা নতুন জেনারেট হতে পারে
-            invoiceNumber: isEditing && editingExpense.invoiceNumber
-                ? editingExpense.invoiceNumber
+            invoiceNumber: isEditing && editingIncome.invoiceNumber
+                ? editingIncome.invoiceNumber
                 : generateInvoiceNumber(),
         };
 
@@ -359,8 +226,8 @@ const ExpenseForm = ({
         }
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/expense/${editingExpense._id}`
-            : 'https://squirrel-peace-server.onrender.com/expense';
+            ? `https://squirrel-peace-server.onrender.com/income/${editingIncome._id}`
+            : 'https://squirrel-peace-server.onrender.com/income';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
@@ -375,18 +242,18 @@ const ExpenseForm = ({
             if (response.ok) {
                 showToast(
                     isEditing
-                        ? 'Expense updated successfully!'
-                        : 'Expense added successfully!',
+                        ? 'Income updated successfully!'
+                        : 'Income added successfully!',
                     'success',
                     { position: 'top-right' }
                 );
 
-                if (fetchExpenses) {
-                    await fetchExpenses();
+                if (fetchIncomes) {
+                    await fetchIncomes();
                 }
 
                 clearDraft(draftKey);
-                setEditingExpense(null);
+                setEditingIncome(null);
                 setShowForm(false);
 
                 if (scrollToTable) {
@@ -395,7 +262,7 @@ const ExpenseForm = ({
             } else {
                 showToast(
                     isEditing
-                        ? 'Failed to update expense!'
+                        ? 'Failed to update income!'
                         : 'Something went wrong, please try again.',
                     'error',
                     { position: 'top-right' }
@@ -409,7 +276,7 @@ const ExpenseForm = ({
         }
     };
 
-    const isEditing = Boolean(editingExpense && editingExpense._id);
+    const isEditing = Boolean(editingIncome && editingIncome._id);
 
     // ব্যাংক এবং মোবাইল ব্যাংকিং ফিল্টার করা ইনভেস্টমেন্ট ডেটা
     const bankInvestments = investments.filter(item => item.accountType === 'Bank');
@@ -419,14 +286,14 @@ const ExpenseForm = ({
         <div className="relative">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-600 to-orange-500 flex items-center justify-center text-white shadow-md shadow-rose-200">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-pink-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.03-.659-1.172-.879-1.172-2.303 0-3.182s3.07-.879 4.242 0L15 9M9.5 21H14.5" />
                         </svg>
                     </div>
                     <div>
                         <h3 className="text-xl font-extrabold text-gray-800">
-                            {isEditing ? 'Edit Expense Record' : 'New Expense Record'}
+                            {isEditing ? 'Edit Income Record' : 'New Income Record'}
                         </h3>
 
                     </div>
@@ -434,21 +301,38 @@ const ExpenseForm = ({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Expense Category Field */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Income Type Field */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Expense Category <span className="text-red-500">*</span>
+                            Income Type <span className="text-red-500">*</span>
                         </label>
                         <select
-                            name="expenseCategory"
-                            value={formData.expenseCategory}
+                            name="incomeType"
+                            value={formData.incomeType || 'Inside'}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
                         >
-                            <option value="" disabled>Select expense category</option>
-                            {expenseHeads.map((head) => (
+                            <option value="Inside">Inside</option>
+                            <option value="Outside">Outside</option>
+                        </select>
+                    </div>
+
+                    {/* Income Category Field */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Income Category <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="incomeCategory"
+                            value={formData.incomeCategory}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                        >
+                            <option value="" disabled>Select income category</option>
+                            {incomeHeads.map((head) => (
                                 <option key={head._id} value={head.name}>
                                     {head.name}
                                 </option>
@@ -468,7 +352,7 @@ const ExpenseForm = ({
                             onChange={handleChange}
                             required
                             placeholder="Enter name"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
 
@@ -492,7 +376,7 @@ const ExpenseForm = ({
                                 readOnly
                                 value={formData.date}
                                 placeholder="Select date"
-                                className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer pointer-events-none"
+                                className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer pointer-events-none"
                             />
                         </div>
                     </div>
@@ -507,7 +391,7 @@ const ExpenseForm = ({
                             value={formData.accountType}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
                         >
                             <option value="" disabled>Select account type</option>
                             <option value="Cash">Cash</option>
@@ -515,11 +399,35 @@ const ExpenseForm = ({
                             <option value="Mobile Banking">Mobile Banking</option>
                         </select>
                     </div>
+
+                    {/* Amount Field */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Amount <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            name="amount"
+                            value={formData.amount}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                    handleChange(e);
+                                }
+                            }}
+                            required
+                            placeholder="Enter amount"
+                            step="0.01"
+                            min="0"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                        />
+                    </div>
                 </div>
 
                 {/* Conditional Fields for Bank */}
                 {formData.accountType === 'Bank' && (
-                    <div className="space-y-4 p-4 bg-rose-50/40 rounded-2xl border border-rose-100">
+                    <div className="space-y-4 p-4 bg-indigo-50/40 rounded-2xl border border-indigo-100">
                         {/* Select Bank from Investment API */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -536,7 +444,7 @@ const ExpenseForm = ({
                                 }
                                 onChange={handleBankSelectChange}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
                             >
                                 <option value="" disabled>Select saved bank account</option>
                                 {bankInvestments.map((inv) => (
@@ -559,7 +467,7 @@ const ExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. City Bank"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -573,7 +481,7 @@ const ExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="Enter account no"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -587,7 +495,7 @@ const ExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. Gulshan Branch"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                         </div>
@@ -596,7 +504,7 @@ const ExpenseForm = ({
 
                 {/* Conditional Fields for Mobile Banking */}
                 {formData.accountType === 'Mobile Banking' && (
-                    <div className="space-y-4 p-4 bg-orange-50/40 rounded-2xl border border-orange-100">
+                    <div className="space-y-4 p-4 bg-pink-50/40 rounded-2xl border border-pink-100">
                         {/* Select Mobile Banking from Investment API */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -612,7 +520,7 @@ const ExpenseForm = ({
                                 }
                                 onChange={handleMobileBankingSelectChange}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm cursor-pointer"
                             >
                                 <option value="" disabled>Select saved mobile account</option>
                                 {mobileInvestments.map((inv) => (
@@ -635,7 +543,7 @@ const ExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="e.g. bKash / Nagad"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                             <div>
@@ -649,38 +557,14 @@ const ExpenseForm = ({
                                     readOnly
                                     required
                                     placeholder="Enter mobile number"
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-white text-sm text-gray-700 shadow-sm"
                                 />
                             </div>
                         </div>
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Amount Field */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Amount <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="number"
-                            name="amount"
-                            value={formData.amount}
-                            onChange={(e) => {
-                                const value = e.target.value;
-
-                                if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                    handleChange(e);
-                                }
-                            }}
-                            required
-                            placeholder="Enter amount"
-                            step="0.01"
-                            min="0"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
-                        />
-                    </div>
-
+                <div className="grid grid-cols-1 gap-6">
                     {/* Note Field */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Note</label>
@@ -690,7 +574,7 @@ const ExpenseForm = ({
                             value={formData.note}
                             onChange={handleChange}
                             placeholder="Optional note or description"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>
                 </div>
@@ -700,15 +584,15 @@ const ExpenseForm = ({
                     <button
                         type="submit"
                         disabled={loading}
-                        className="flex-1 py-3.5 px-4 bg-gradient-to-r from-rose-600 to-orange-500 hover:from-rose-700 hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-rose-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer text-sm"
+                        className="flex-1 py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer text-sm"
                     >
                         {loading
                             ? isEditing
-                                ? 'Updating Expense...'
-                                : 'Submitting Expense...'
+                                ? 'Updating Income...'
+                                : 'Submitting Income...'
                             : isEditing
-                                ? 'Update Expense'
-                                : 'Submit Expense'}
+                                ? 'Update Income'
+                                : 'Submit Income'}
                     </button>
 
                     {isEditing && (
@@ -726,4 +610,4 @@ const ExpenseForm = ({
     );
 };
 
-export default ExpenseForm;
+export default IncomeForm;

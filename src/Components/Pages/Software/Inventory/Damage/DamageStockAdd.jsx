@@ -555,6 +555,142 @@ const DamageStockAdd = () => {
     const uniqueUnits = [...new Set(items.map((i) => i.unit || 'Pcs'))];
     const sellPriceUnitLabel = uniqueUnits.length === 1 ? uniqueUnits[0] : 'Unit';
 
+    // Credit Limit check: damage payment dile customer er Get amount creditLimit er beshi hobe kina
+    const checkCreditLimit = async (paidNow) => {
+        try {
+            const n = (v) => Number(v) || 0;
+            const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+            const name = String(formData.customer || '').trim().toLowerCase();
+            const same = (a) => String(a || '').trim().toLowerCase() === name;
+            const itemAmt = (it) =>
+                Number(it.itemTotal ?? it.subtotal ?? (n(it.sellPricePcs ?? it.sellPrice) * n(it.totalQty))) || 0;
+            const sumItems = (list) => (list || []).reduce((s, it) => s + itemAmt(it), 0);
+            const safe = (url) =>
+                fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
+
+            const [sales, bulks, damages, custList, duePays] = await Promise.all([
+                safe('https://squirrel-peace-server.onrender.com/sales'),
+                safe('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
+                safe('https://squirrel-peace-server.onrender.com/sales-damage'),
+                safe('https://squirrel-peace-server.onrender.com/customer'),
+                safe('https://squirrel-peace-server.onrender.com/sales-due-payment'),
+            ]);
+
+            const info =
+                custList.find((c) => String(c._id) === String(formData.customerId)) ||
+                custList.find((c) => String(c.businessName || '').trim().toLowerCase() === name);
+            const limitRaw = info?.creditLimit;
+            if (limitRaw === undefined || limitRaw === null || String(limitRaw).trim() === '') return true;
+            const limit = Number(limitRaw);
+            if (isNaN(limit)) return true;
+
+            let pay = 0;
+            let get = 0;
+
+            // Opening balance
+            const openAmt = r2(n(info?.openingBalance));
+            const openType = String(info?.openingBalanceType || '').trim().toLowerCase();
+            if (openAmt > 0 && (openType === 'pay' || openType === 'advance')) pay += openAmt;
+            if (openAmt > 0 && (openType === 'due' || openType === 'get')) get += openAmt;
+
+            // Sales payments
+            sales.forEach((s) => {
+                if (!same(s.customer)) return;
+                if (s.paidAmount === undefined || s.paidAmount === null || s.paidAmount === '' || !s.paymentMethod) return;
+                const prev = n(s.previousBalanceAmount);
+                const payable =
+                    n(s.payableAmount) -
+                    (s.previousBalanceType === 'Due' ? prev : 0) +
+                    (s.previousBalanceType === 'Get' ? prev : 0);
+                const paid = n(s.paidAmount);
+                const isDel = s.status === 'Delivered';
+                const balDue = payable < 0
+                    ? Math.max(r2(paid + payable), 0)
+                    : !isDel ? 0 : Math.max(r2(payable - paid), 0);
+                const balExtra = payable < 0
+                    ? Math.max(r2(-payable - paid), 0)
+                    : !isDel ? paid : Math.max(r2(paid - payable), 0);
+                pay += balExtra;
+                get += balDue;
+            });
+
+            // Sales return
+            sales.forEach((s) => {
+                if (!same(s.customer)) return;
+                (s.returnHistory || []).forEach((ret) => {
+                    const amt = n(ret.totalReturnAmount);
+                    const rec = ret.payment ? n(ret.payment.amount) : 0;
+                    pay += Math.max(amt - rec, 0);
+                    get += Math.max(rec - amt, 0);
+                });
+            });
+
+            // Bulk return
+            bulks.forEach((b) => {
+                if (!same(b.customer)) return;
+                const adj =
+                    b.fromSales === true
+                        ? n(sales.find((s) => String(s._id) === String(b.saleId))?.returnAdjustmentAmount)
+                        : 0;
+                const rec = adj > 0 ? adj : b.payment ? n(b.payment.amount) : 0;
+                const amt = n(b.returnAmount);
+                pay += Math.max(amt - rec, 0);
+                get += Math.max(rec - amt, 0);
+            });
+
+            // Damage (standalone) - edit hole nijer entry bad
+            damages.forEach((d) => {
+                if (!d.customer || !same(d.customer)) return;
+                if (isEditMode && String(d._id) === String(editId)) return;
+                const amt = n(d.damageAmount) || n(d.returnAmount) || sumItems(d.items);
+                const rec = d.payment ? n(d.payment.amount) : 0;
+                pay += Math.max(amt - rec, 0);
+                get += Math.max(rec - amt, 0);
+            });
+
+            // Damage (from sales)
+            sales.forEach((s) => {
+                if (!same(s.customer)) return;
+                if (s.status !== 'Delivered' || !(s.damageItems || []).length) return;
+                const amt = sumItems(s.damageItems);
+                const adj = n(s.damageAdjustmentAmount);
+                const rec = adj > 0 ? adj : s.damagePayment ? n(s.damagePayment.amount) : 0;
+                pay += Math.max(amt - rec, 0);
+                get += Math.max(rec - amt, 0);
+            });
+
+            // Customer due payment
+            duePays.forEach((p) => {
+                if (!same(p.customer)) return;
+                const amt = r2(n(p.amount));
+                const isPay = p.type === 'Pay' || p.status === 'Pay' || p.paymentAccount?.dueType === 'Pay';
+                if (isPay) get += amt;
+                else pay += amt;
+            });
+
+            // Ei damage + payment er effect
+            const thisAmt = roundTo2(damageAmount);
+            const thisPaid = roundTo2(paidNow);
+            pay += Math.max(thisAmt - thisPaid, 0);
+            get += Math.max(thisPaid - thisAmt, 0);
+
+            const net = r2(pay - get);
+            const finalGet = net < 0 ? -net : 0;
+
+            if (finalGet > limit) {
+                showToast(
+                    `Credit limit cross hoye jabe! Limit: ৳${limit}, Total Get hobe: ৳${finalGet}. Payment amount kom din.`,
+                    true
+                );
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error checking credit limit:', error);
+            return true;
+        }
+    };
+
     // ---------- Submit ----------
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -603,6 +739,8 @@ const DamageStockAdd = () => {
             } else {
                 accInfo = { accountName: 'Cash' };
             }
+            if (!(await checkCreditLimit(paymentAmount))) return;
+
             paymentData = {
                 amount: roundTo2(paymentAmount),
                 method: paymentAccountType,

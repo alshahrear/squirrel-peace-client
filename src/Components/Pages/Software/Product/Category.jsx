@@ -22,6 +22,7 @@ const Category = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const [activeDropdownId, setActiveDropdownId] = useState(null);
+    const [loading, setLoading] = useState(false);
 
     // Frontend Pagination states
     const [currentPage, setCurrentPage] = useState(1);
@@ -78,20 +79,34 @@ const Category = () => {
                 headers: { Authorization: `Bearer ${token}` }
             };
 
+            setLoading(true);
+
+            const finalData = { name: formData.name.trim(), isActive: formData.isActive };
+
             if (editingId) {
-                await axiosClient.put(`/category/${editingId}`, { name: formData.name, isActive: formData.isActive }, config);
+                await axiosClient.put(`/category/${editingId}`, finalData, config);
                 showToast('Category updated successfully!', 'success');
             } else {
-                await axiosClient.post('/category', { name: formData.name, isActive: formData.isActive }, config);
+                await axiosClient.post('/category', finalData, config);
                 showToast('Category added successfully!', 'success');
             }
 
-            fetchCategories();
+            await fetchCategories();
             setFormData({ name: "", isActive: true });
             setEditingId(null);
         } catch (error) {
-            showToast('Server error occurred!', 'error');
+            showToast(
+                editingId ? 'Failed to update category!' : 'Something went wrong, please try again.',
+                'error'
+            );
+        } finally {
+            setLoading(false);
         }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setFormData({ name: "", isActive: true });
     };
 
     const handleDelete = async (id) => {
@@ -108,7 +123,8 @@ const Category = () => {
             if (result.isConfirmed) {
                 try {
                     await axiosClient.delete(`/category/${id}`);
-                    fetchCategories();
+                    setCategories((prev) => prev.filter((category) => category._id !== id));
+                    if (editingId === id) handleCancelEdit();
                     showToast('Category deleted successfully!', 'success');
                 } catch (error) {
                     showToast('Failed to delete category!', 'error');
@@ -201,10 +217,23 @@ const Category = () => {
 
                         <button
                             onClick={handleSubmit}
+                            disabled={loading}
                             className={`w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition duration-300 active:scale-95 shrink-0 cursor-pointer whitespace-nowrap ${editingId ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200" : "bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 shadow-indigo-200"}`}
                         >
-                            {editingId ? <><FiEdit3 size={18} /> Update</> : <><FiPlus size={18} /> Add Category</>}
+                            {loading
+                                ? editingId ? 'Updating...' : 'Adding...'
+                                : editingId ? <><FiEdit3 size={18} /> Update</> : <><FiPlus size={18} /> Add Category</>}
                         </button>
+
+                        {editingId && (
+                            <button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition duration-300 shrink-0 cursor-pointer whitespace-nowrap"
+                            >
+                                Cancel Edit
+                            </button>
+                        )}
                     </div>
                 </div>
 

@@ -13,6 +13,8 @@ import {
     FiRepeat,
     FiArrowRight,
     FiBell,
+    FiShoppingCart,
+    FiChevronDown,
     FiX
 } from 'react-icons/fi';
 import { FaRoute } from 'react-icons/fa';
@@ -22,12 +24,28 @@ import { IoWalletOutline } from 'react-icons/io5';
 const POLL_INTERVAL = 5000;
 
 // ৪টা ট্যাব কনফিগ (Accounts ডিফল্ট)
+// Parent tab গুলো — নতুন parent tab যোগ করতে এখানে নতুন object দিন
 const TABS = [
-    { key: 'accounts', label: 'Accounts', icon: <FiLayers className="w-4 h-4" /> },
-    { key: 'income', label: 'Income', icon: <FiArrowUpCircle className="w-4 h-4" /> },
-    { key: 'expense', label: 'Expense', icon: <FiArrowDownCircle className="w-4 h-4" /> },
-    { key: 'routeExpense', label: 'Route Expense', icon: <FaRoute className="w-4 h-4" /> },
-    { key: 'transfer', label: 'Transfer', icon: <FiRepeat className="w-4 h-4" /> },
+    {
+        key: 'accounts',
+        label: 'Accounts',
+        icon: <FiLayers className="w-4 h-4" />,
+        children: [
+            { key: 'accounts', label: 'Accounts', icon: <FiLayers className="w-3.5 h-3.5" /> },
+            { key: 'income', label: 'Income', icon: <FiArrowUpCircle className="w-3.5 h-3.5" /> },
+            { key: 'expense', label: 'Expense', icon: <FiArrowDownCircle className="w-3.5 h-3.5" /> },
+            { key: 'routeExpense', label: 'Route Expense', icon: <FaRoute className="w-3.5 h-3.5" /> },
+            { key: 'transfer', label: 'Transfer', icon: <FiRepeat className="w-3.5 h-3.5" /> },
+        ],
+    },
+    {
+        key: 'purchaseParent',
+        label: 'Purchase',
+        icon: <FiShoppingCart className="w-4 h-4" />,
+        children: [
+            { key: 'purchase', label: 'Purchase', icon: <FiShoppingCart className="w-3.5 h-3.5" /> },
+        ],
+    },
 ];
 
 const AccountBalance = () => {
@@ -37,8 +55,10 @@ const AccountBalance = () => {
     const [expenses, setExpenses] = useState([]);
     const [routeExpenses, setRouteExpenses] = useState([]);
     const [transfers, setTransfers] = useState([]);
+    const [purchasePays, setPurchasePays] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('accounts');
+    const [activeParent, setActiveParent] = useState(null);
     const isFirstLoad = useRef(true);
 
     const [seenTime, setSeenTime] = useState(() => {
@@ -54,12 +74,13 @@ const AccountBalance = () => {
     // Investment + Adjustment + Income + Expense + Route Expense ডাটা fetch করা (silent background refresh সাপোর্ট করে)
     const fetchAllData = useCallback(async () => {
         try {
-            const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, transferRes] = await Promise.all([
+            const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, purchaseRes, transferRes] = await Promise.all([
                 fetch('https://squirrel-peace-server.onrender.com/investment'),
                 fetch('https://squirrel-peace-server.onrender.com/adjustment'),
                 fetch('https://squirrel-peace-server.onrender.com/income'),
                 fetch('https://squirrel-peace-server.onrender.com/expense'),
                 fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
+                fetch('https://squirrel-peace-server.onrender.com/purchase'),
                 fetch('https://squirrel-peace-server.onrender.com/transfer')
             ]);
             const invData = await invRes.json();
@@ -68,6 +89,24 @@ const AccountBalance = () => {
             const expenseData = await expenseRes.json();
             const routeExpenseData = await routeExpenseRes.json();
             const transferData = await transferRes.json();
+            const purchaseData = await purchaseRes.json();
+            const safePurchasePays = (Array.isArray(purchaseData) ? purchaseData : [])
+                .filter((p) => (Number(p.paidAmount) || 0) > 0 && p.paymentMethod)
+                .map((p) => {
+                    const a = p.paymentAccount || {};
+                    return {
+                        _id: p._id,
+                        createdAt: p.paymentEditedAt || p.paymentDate,
+                        accountType: p.paymentMethod,
+                        accountName: a.accountName || '',
+                        bankName: a.bankName || '',
+                        accountNumber: a.accountNumber || '',
+                        accountBranch: a.accountBranch || '',
+                        amount: Number(p.paidAmount) || 0,
+                        isOut: (Number(p.payableAmount) || 0) >= 0,
+                        company: p.company,
+                    };
+                });
 
             const safeInv = Array.isArray(invData) ? invData : [];
             const safeAdj = Array.isArray(adjData) ? adjData : [];
@@ -84,6 +123,7 @@ const AccountBalance = () => {
             setExpenses(safeExpense);
             setRouteExpenses(safeRouteExpense);
             setTransfers(safeTransfer);
+            setPurchasePays(safePurchasePays);
         } catch (error) {
             console.error('Error fetching balance data:', error);
         } finally {
@@ -208,6 +248,12 @@ const AccountBalance = () => {
             grouped[key].amount -= Number(item.amount) || 0;
         });
 
+        purchasePays.forEach((item) => {
+            if (getCategory(item.accountType) !== category) return;
+            const key = ensureKey(item);
+            grouped[key].amount += item.isOut ? -item.amount : item.amount;
+        });
+
         // Transfer এর effect: source account থেকে minus, destination account এ plus
         const resolveTransferAccountItem = (type, label) => {
             if (label === 'Cash') {
@@ -284,6 +330,18 @@ const AccountBalance = () => {
     const routeExpenseGrandTotal = routeExpenseCashTotal + routeExpenseMobileTotal + routeExpenseBankTotal;
 
     const transferGrandTotal = transfers.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+    // ---- Purchase breakdown (signed: paid = minus, received = plus) ----
+    const purchaseSigned = purchasePays.map((p) => ({ ...p, amount: p.isOut ? -p.amount : p.amount }));
+    const purchaseCashAccounts = groupTransactionsByAccount(purchaseSigned, 'cash');
+    const purchaseMobileAccounts = groupTransactionsByAccount(purchaseSigned, 'mobile');
+    const purchaseBankAccounts = groupTransactionsByAccount(purchaseSigned, 'bank');
+    const purchaseCashTotal = sumOf(purchaseCashAccounts);
+    const purchaseMobileTotal = sumOf(purchaseMobileAccounts);
+    const purchaseBankTotal = sumOf(purchaseBankAccounts);
+    const purchaseNetTotal = purchaseCashTotal + purchaseMobileTotal + purchaseBankTotal;
+    const purchasePaidTotal = purchasePays.filter((p) => p.isOut).reduce((s, p) => s + p.amount, 0);
+    const purchaseReceivedTotal = purchasePays.filter((p) => !p.isOut).reduce((s, p) => s + p.amount, 0);
     // ---- Flow Data: kon account theke kon account e koto taka gese ----
 
     const getFlowData = () => {
@@ -350,11 +408,13 @@ const AccountBalance = () => {
         return !isNaN(c) ? c : oidTime(o?._id);
     };
     const getAccName = (item) => item.accountName || item.bankName || 'Cash';
+    const getAccNum = (item) => item.accountNumber || '';
 
     const notifications = [
         ...investments.map((item) => ({
             id: `accounts-${item._id}`,
             tab: 'Account',
+            accountNumber: getAccNum(item),
             accountName: getAccName(item),
             amount: Number(item.amount) || 0,
             isPositive: true,
@@ -366,6 +426,7 @@ const AccountBalance = () => {
             return {
                 id: `adjustment-${item._id}`,
                 tab: 'Adjustment',
+                accountNumber: relatedInv ? getAccNum(relatedInv) : '',
                 accountName: relatedInv ? getAccName(relatedInv) : 'Cash',
                 amount: Number(item.amount) || 0,
                 isPositive: item.mode === 'Deposit',
@@ -376,6 +437,7 @@ const AccountBalance = () => {
         ...incomes.map((item) => ({
             id: `income-${item._id}`,
             tab: 'Income',
+            accountNumber: getAccNum(item),
             accountName: getAccName(item),
             amount: Number(item.amount) || 0,
             isPositive: true,
@@ -385,6 +447,7 @@ const AccountBalance = () => {
         ...expenses.map((item) => ({
             id: `expense-${item._id}`,
             tab: 'Expense',
+            accountNumber: getAccNum(item),
             accountName: getAccName(item),
             amount: Number(item.amount) || 0,
             isPositive: false,
@@ -394,9 +457,20 @@ const AccountBalance = () => {
         ...routeExpenses.map((item) => ({
             id: `routeExpense-${item._id}`,
             tab: 'Route Expense',
+            accountNumber: getAccNum(item),
             accountName: getAccName(item),
             amount: Number(item.amount) || 0,
             isPositive: false,
+            isTransfer: false,
+            time: getTs(item),
+        })),
+        ...purchasePays.map((item) => ({
+            id: `purchase-${item._id}`,
+            tab: 'Purchase',
+            accountNumber: getAccNum(item),
+            accountName: `${item.company || ''} - ${getAccName(item)}`,
+            amount: item.amount,
+            isPositive: !item.isOut,
             isTransfer: false,
             time: getTs(item),
         })),
@@ -443,7 +517,8 @@ const AccountBalance = () => {
 
     // ---- Total Remaining Balance = (Accounts + Income) - (Expense + Route Expense) ----
     const totalRemainingBalance =
-        (grandTotal + incomeGrandTotal) - (expenseGrandTotal + routeExpenseGrandTotal);
+        (grandTotal + incomeGrandTotal) - (expenseGrandTotal + routeExpenseGrandTotal) +
+        purchasePays.reduce((s, i) => s + (i.isOut ? -i.amount : i.amount), 0);
 
     // ---- Account-wise Net Remaining Balance breakdown (Cash / Mobile Banking / Bank, প্রতিটা account আলাদা করে) ----
     const remainingCashAccounts = groupNetRemainingByAccount('cash');
@@ -703,6 +778,11 @@ const AccountBalance = () => {
                                         ) : (
                                             <div className="min-w-0">
                                                 <p className="font-bold text-gray-800 text-sm truncate">{n.accountName}</p>
+                                                {n.accountNumber && (
+                                                    <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1 truncate">
+                                                        <FiHash className="w-3 h-3 flex-shrink-0" /> {n.accountNumber}
+                                                    </p>
+                                                )}
                                             </div>
                                         )}
                                         <div className="text-right">
@@ -852,22 +932,150 @@ const AccountBalance = () => {
                     )}
                 </div>
 
-                {/* Tab Switcher */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-white p-2 flex flex-col sm:flex-row gap-2">
-                    {TABS.map((tab) => (
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
-                            className={`flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-bold text-sm transition duration-200 cursor-pointer ${activeTab === tab.key
-                                ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-lg shadow-indigo-200'
-                                : 'text-gray-500 hover:bg-gray-100'
-                                }`}
-                        >
-                            {tab.icon}
-                            {tab.label}
-                        </button>
+                {/* Parent Tab Switcher (click করলে child tab খুলবে / বন্ধ হবে) */}
+                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-white p-2 space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                        {TABS.map((parent) => {
+                            const isOpen = activeParent === parent.key;
+                            const hasActiveChild = parent.children.some((c) => c.key === activeTab);
+                            return (
+                                <button
+                                    key={parent.key}
+                                    onClick={() => {
+                                        if (isOpen) {
+                                            setActiveParent(null);
+                                        } else {
+                                            setActiveParent(parent.key);
+                                            if (!hasActiveChild) setActiveTab(parent.children[0].key);
+                                        }
+                                    }}
+                                    className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition duration-200 cursor-pointer ${isOpen || hasActiveChild
+                                        ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-lg shadow-indigo-200'
+                                        : 'text-gray-500 hover:bg-gray-100'
+                                        }`}
+                                >
+                                    {parent.icon}
+                                    {parent.label}
+                                    <FiChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Child Tabs (ছোট সাইজ) */}
+                    {TABS.filter((p) => p.key === activeParent).map((parent) => (
+                        <div key={parent.key} className="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
+                            {parent.children.map((child) => (
+                                <button
+                                    key={child.key}
+                                    onClick={() => setActiveTab(child.key)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold text-xs transition duration-200 cursor-pointer ${activeTab === child.key
+                                        ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                                        : 'text-gray-500 bg-gray-50 border border-gray-100 hover:bg-gray-100'
+                                        }`}
+                                >
+                                    {child.icon}
+                                    {child.label}
+                                </button>
+                            ))}
+                        </div>
                     ))}
                 </div>
+
+                {/* ================= Purchase Tab ================= */}
+                {activeTab === 'purchase' && (
+                    <div className="space-y-6">
+                        <div className="relative overflow-hidden bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 rounded-3xl shadow-2xl p-8 text-white">
+                            <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full"></div>
+                            <div className="absolute right-20 -bottom-16 w-36 h-36 bg-white/10 rounded-full"></div>
+                            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl">
+                                        <FiShoppingCart />
+                                    </div>
+                                    <div>
+                                        <p className="text-white/80 text-sm font-medium">Net Purchase Payment (Paid - Received)</p>
+                                        <p className="text-3xl md:text-4xl font-extrabold tracking-tight">
+                                            ৳ {formatAmount(purchaseNetTotal)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-start md:items-end gap-1 text-xs md:text-sm text-white/80 font-medium">
+                                    <span className="flex items-center gap-1.5 text-rose-300">
+                                        <FiTrendingDown className="w-3.5 h-3.5" /> - Paid: ৳ {formatAmount(purchasePaidTotal)}
+                                    </span>
+                                    <span className="flex items-center gap-1.5 text-emerald-300">
+                                        <FiTrendingUp className="w-3.5 h-3.5" /> + Received: ৳ {formatAmount(purchaseReceivedTotal)}
+                                    </span>
+                                    <span className="flex items-center gap-1.5">
+                                        <FiShoppingCart className="w-3.5 h-3.5" />
+                                        {purchasePays.length} total purchase payment record{purchasePays.length !== 1 ? 's' : ''}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                            <SummaryCard
+                                title="Purchase - Cash"
+                                amount={purchaseCashTotal}
+                                count={purchaseCashAccounts.length}
+                                icon={<FiDollarSign />}
+                                gradient="bg-gradient-to-br from-violet-500 to-purple-600"
+                            />
+                            <SummaryCard
+                                title="Purchase - Mobile Banking"
+                                amount={purchaseMobileTotal}
+                                count={purchaseMobileAccounts.length}
+                                icon={<FiSmartphone />}
+                                gradient="bg-gradient-to-br from-purple-500 to-fuchsia-600"
+                            />
+                            <SummaryCard
+                                title="Purchase - Bank"
+                                amount={purchaseBankTotal}
+                                count={purchaseBankAccounts.length}
+                                icon={<FiCreditCard />}
+                                gradient="bg-gradient-to-br from-fuchsia-500 to-pink-600"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <DetailPanel
+                                title="Cash Purchase"
+                                icon={<FiDollarSign />}
+                                accounts={purchaseCashAccounts}
+                                total={purchaseCashTotal}
+                                accentColor="bg-gradient-to-tr from-violet-500 to-purple-600"
+                                showNumberBranch={false}
+                                dynamicColor
+                            />
+                            <DetailPanel
+                                title="Mobile Banking Purchase"
+                                icon={<FiSmartphone />}
+                                accounts={purchaseMobileAccounts}
+                                total={purchaseMobileTotal}
+                                accentColor="bg-gradient-to-tr from-purple-500 to-fuchsia-600"
+                                showNumberBranch
+                                dynamicColor
+                            />
+                            <DetailPanel
+                                title="Bank Purchase"
+                                icon={<FiCreditCard />}
+                                accounts={purchaseBankAccounts}
+                                total={purchaseBankTotal}
+                                accentColor="bg-gradient-to-tr from-fuchsia-500 to-pink-600"
+                                showNumberBranch
+                                dynamicColor
+                            />
+                        </div>
+
+                        {purchasePays.length === 0 && (
+                            <div className="text-center py-12 text-gray-400 font-medium bg-white/60 rounded-3xl border border-white shadow-sm">
+                                No purchase payment data found yet!
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* ================= Accounts Tab ================= */}
                 {activeTab === 'accounts' && (

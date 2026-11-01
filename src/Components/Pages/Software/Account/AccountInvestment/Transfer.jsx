@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import TransferForm from './TransferForm';
-import useDraftState from '../../../../hooks/useDraftState';
+import useDraftState from '../../../../../hooks/useDraftState';
 import { FiPieChart, FiX, FiArrowRight, FiChevronLeft, FiChevronRight, FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const Transfer = () => {
@@ -406,7 +406,7 @@ const Transfer = () => {
     };
 
     return (
-       <div className="p-4 md:p-6 relative">
+        <div className="p-4 md:p-6 relative">
 
             {/* Top Right Toast Notification */}
             {toast.show && (
@@ -613,19 +613,11 @@ const Transfer = () => {
                         <TransferForm
                             key={editingTransfer?._id || 'new'}
                             showToast={showToast}
+                            fetchTransfers={fetchTransfers}
+                            setShowForm={setShowForm}
                             editingTransfer={editingTransfer}
-                            onTransferAdded={(newTransfer) => {
-                                setTransfers(prev => [newTransfer, ...prev]);
-                                setShowForm(false);
-                                setEditingTransfer(null);
-                                setTimeout(() => {
-                                    tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-                                }, 100);
-                            }}
-                            onTransferSaved={(updatedTransfer) => {
-                                setTransfers(prev => prev.map(item => item._id === updatedTransfer._id ? updatedTransfer : item));
-                                setShowForm(false);
-                                setEditingTransfer(null);
+                            setEditingTransfer={setEditingTransfer}
+                            scrollToTable={() => {
                                 setTimeout(() => {
                                     tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
                                 }, 100);

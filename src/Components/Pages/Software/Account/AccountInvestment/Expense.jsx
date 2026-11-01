@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import ExpenseForm from './ExpenseForm';
-import useDraftState from '../../../../hooks/useDraftState';
+import useDraftState from '../../../../../hooks/useDraftState';
 import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight, FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const Expense = () => {
@@ -124,7 +124,8 @@ const Expense = () => {
         const accNoMatch = expense.accountNumber?.toLowerCase().includes(search);
         const accNameMatch = expense.accountName?.toLowerCase().includes(search);
         const branchMatch = expense.accountBranch?.toLowerCase().includes(search);
-        return categoryMatch || nameMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
+        const typeMatch = expense.expenseType?.toLowerCase().includes(search);
+        return typeMatch || categoryMatch || nameMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
     });
 
     // Pagination Calculations
@@ -223,7 +224,7 @@ const Expense = () => {
     const grandTotal = filteredExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     return (
-       <div className="p-4 md:p-6 relative">
+        <div className="p-4 md:p-6 relative">
 
             {/* Top Right Toast Notification */}
             {toast.show && (
@@ -397,6 +398,7 @@ const Expense = () => {
                                         <th className="py-4 px-4">#</th>
                                         <th className="py-4 px-4">Date</th>
                                         <th className="py-4 px-4">Invoice</th>
+                                        <th className="py-4 px-4">Expense Type</th>
                                         <th className="py-4 px-4">Category</th>
                                         <th className="py-4 px-4">Name</th>
                                         <th className="py-4 px-4">Account Type</th>
@@ -412,6 +414,15 @@ const Expense = () => {
                                             <td className="py-4 px-4 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-4 text-gray-600 whitespace-nowrap">{expense.date || 'N/A'}</td>
                                             <td className="py-4 px-4 font-mono text-xs text-rose-600 font-semibold">{expense.invoiceNumber || 'N/A'}</td>
+                                            <td className="py-4 px-4">
+                                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border font-semibold text-xs whitespace-nowrap ${(expense.expenseType || 'Inside') === 'Outside'
+                                                    ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                                    : 'bg-teal-50 text-teal-700 border-teal-200'
+                                                    }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${(expense.expenseType || 'Inside') === 'Outside' ? 'bg-orange-500' : 'bg-teal-500'}`}></span>
+                                                    {expense.expenseType || 'Inside'}
+                                                </span>
+                                            </td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{expense.expenseCategory || 'N/A'}</td>
                                             <td className="py-4 px-4 text-gray-600">{expense.name || 'N/A'}</td>
                                             <td className="py-4 px-4">

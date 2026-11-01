@@ -20,7 +20,10 @@ const formatCreatedDate = (value) => {
 const Company = () => {
     const navigate = useNavigate();
     const [companies, setCompanies] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useDraftState('companyEditingId', null);
+    const editingCompany = companies.find((c) => c._id === editingId) || null;
+    const setEditingCompany = (c) => setEditingId(c ? c._id : null);
 
     // Action Dropdown state
     const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -52,22 +55,35 @@ const Company = () => {
         address: ''
     });
 
-    // Form state
-    const [formData, setFormData] = useDraftState('companyFormData', {
-        businessName: '',
-        contactNumber: '',
-        email: '',
-        contactName: '',
-        businessNumber: '',
-        openingBalance: '',
-        openingBalanceType: '',
-        address: '',
-        note: ''
-    });
+    // Section refs for auto scrolling
+    const tableSectionRef = useRef(null);
+    const formSectionRef = useRef(null);
 
     // Refs for triggering date pickers
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
+
+    // Company search dropdown (filter panel)
+    const [isCompanyFilterOpen, setIsCompanyFilterOpen] = useState(false);
+    const companyFilterRef = useRef(null);
+
+    useEffect(() => {
+        const handleOutside = (event) => {
+            if (companyFilterRef.current && !companyFilterRef.current.contains(event.target)) {
+                setIsCompanyFilterOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, []);
+
+    const companyFilterOptions = companies.filter((c) => {
+        const s = filters.businessName.toLowerCase();
+        return (
+            c.businessName?.toLowerCase().includes(s) ||
+            c.contactNumber?.toLowerCase().includes(s)
+        );
+    });
 
     // Show Toast Notification
     const showToast = (message, type = 'success') => {
@@ -77,22 +93,7 @@ const Company = () => {
         }, 3500);
     };
 
-    // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
-    const formatDateTime = (date = new Date()) => {
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
 
-        let hours = date.getHours();
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        const ampm = hours >= 12 ? 'pm' : 'am';
-
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-
-        return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
-    };
 
     // Fetch companies data
     const fetchCompanies = async () => {
@@ -102,6 +103,9 @@ const Company = () => {
             setCompanies(data);
         } catch (error) {
             console.error('Error fetching companies:', error);
+            showToast('Failed to load companies!', 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -132,15 +136,7 @@ const Company = () => {
         return () => window.removeEventListener('scroll', handleScroll, true);
     }, [openDropdownId]);
 
-    // Handle input change
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        if (name === 'openingBalanceType' && !value) {
-            setFormData({ ...formData, openingBalanceType: '', openingBalance: '' });
-            return;
-        }
-        setFormData({ ...formData, [name]: value });
-    };
+
 
     // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
     const displayFormattedDate = (dateString) => {
@@ -174,74 +170,6 @@ const Company = () => {
         setCurrentPage(1);
     };
 
-    // Handle Form Submit (Add or Update)
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        const contactInput = formData.contactNumber.trim();
-        const businessNoInput = formData.businessNumber.trim().toLowerCase();
-
-        const contactExists = companies.some(
-            (c) => c.contactNumber?.trim() === contactInput && c._id !== editingId
-        );
-        if (contactExists) {
-            showToast('This contact number already exists!', 'error');
-            return;
-        }
-
-        if (businessNoInput) {
-            const businessNoExists = companies.some(
-                (c) => c.businessNumber?.trim().toLowerCase() === businessNoInput && c._id !== editingId
-            );
-            if (businessNoExists) {
-                showToast('This business number already exists!', 'error');
-                return;
-            }
-        }
-
-        const submissionData = editingId
-            ? formData
-            : { ...formData, createdAt: formatDateTime(new Date()) };
-
-        const url = editingId
-            ? `https://squirrel-peace-server.onrender.com/company/${editingId}`
-            : 'https://squirrel-peace-server.onrender.com/company';
-
-        const method = editingId ? 'PUT' : 'POST';
-
-        try {
-            const res = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(submissionData),
-            });
-
-            const data = await res.json();
-            if (data.insertedId || data.modifiedCount > 0) {
-                showToast(editingId ? 'Company updated successfully!' : 'Company added successfully!', 'success');
-
-                // Reset form & Close it
-                setFormData({
-                    businessName: '',
-                    contactNumber: '',
-                    email: '',
-                    contactName: '',
-                    businessNumber: '',
-                    openingBalance: '',
-                    openingBalanceType: '',
-                    address: '',
-                    note: ''
-                });
-                setEditingId(null);
-                setIsFormOpen(false);
-                fetchCompanies();
-            }
-        } catch (error) {
-            console.error('Error saving company:', error);
-        }
-    };
 
     // Handle Delete with SweetAlert
     const handleDelete = (id) => {
@@ -257,45 +185,32 @@ const Company = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/company/${id}`, {
+                    const response = await fetch(`https://squirrel-peace-server.onrender.com/company/${id}`, {
                         method: 'DELETE',
                     });
-                    const data = await res.json();
-                    if (data.deletedCount > 0) {
+
+                    if (response.ok) {
                         showToast('Company deleted successfully!', 'success');
-                        fetchCompanies();
+                        setCompanies((prev) => prev.filter((company) => company._id !== id));
+                    } else {
+                        showToast('Failed to delete company!', 'error');
                     }
                 } catch (error) {
                     console.error('Error deleting company:', error);
+                    showToast('Server error while deleting!', 'error');
                 }
             }
         });
     };
 
-    // Handle Edit (Load data to form & Open form)
+    // Handle Edit (Open form with selected company)
     const handleEdit = (company) => {
         setOpenDropdownId(null);
-        setFormData({
-            businessName: company.businessName || '',
-            contactNumber: company.contactNumber || '',
-            email: company.email || '',
-            contactName: company.contactName || '',
-            businessNumber: company.businessNumber || '',
-            openingBalance: company.openingBalance || '',
-            openingBalanceType: company.openingBalanceType || '',
-            address: company.address || '',
-            note: company.note || ''
-        });
-        setEditingId(company._id);
+        setEditingCompany(company);
         setIsFormOpen(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    // Handle Cancel Edit
-    const handleCancelEdit = () => {
-        setEditingId(null);
-        setFormData({ businessName: '', contactNumber: '', email: '', contactName: '', businessNumber: '', openingBalance: '', openingBalanceType: '', address: '', note: '' });
-        setIsFormOpen(false);
+        setTimeout(() => {
+            formSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     };
 
     // Open Note Modal
@@ -390,11 +305,8 @@ const Company = () => {
                     {/* Toggle Button for Form */}
                     <button
                         onClick={() => {
-                            if (isFormOpen && editingId) {
-                                handleCancelEdit();
-                            } else {
-                                setIsFormOpen(!isFormOpen);
-                            }
+                            setEditingCompany(null);
+                            setIsFormOpen(!isFormOpen);
                         }}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${isFormOpen
                             ? 'bg-red-500 hover:bg-red-600 shadow-red-200'
@@ -405,19 +317,25 @@ const Company = () => {
                     </button>
                 </div>
 
-                {/* Smooth Collapsible Form Component */}
-                <div
-                    className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormOpen ? 'max-h-[1000px] opacity-100 mb-8' : 'max-h-0 opacity-0 mb-0'
-                        }`}
-                >
-                    <CompanyForm
-                        formData={formData}
-                        handleChange={handleChange}
-                        handleSubmit={handleSubmit}
-                        editingId={editingId}
-                        handleCancelEdit={handleCancelEdit}
-                    />
-                </div>
+                {/* Collapsible Form Component */}
+                {isFormOpen && !loading && (
+                    <div ref={formSectionRef}>
+                        <CompanyForm
+                            key={editingCompany?._id || 'new'}
+                            companies={companies}
+                            fetchCompanies={fetchCompanies}
+                            setShowForm={setIsFormOpen}
+                            editingCompany={editingCompany}
+                            setEditingCompany={setEditingCompany}
+                            showToast={showToast}
+                            scrollToTable={() => {
+                                setTimeout(() => {
+                                    tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                }, 100);
+                            }}
+                        />
+                    </div>
+                )}
 
                 {/* Separate Multi-Search Filter Panel (Above Table) */}
                 <div className="bg-white shadow-lg rounded-2xl p-5 mb-6 border border-indigo-100">
@@ -484,17 +402,65 @@ const Company = () => {
                             </div>
                         </div>
 
-                        {/* Business Name Search */}
-                        <div>
+                        {/* Business Name Search (Select Input) */}
+                        <div className="relative" ref={companyFilterRef}>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Business Name</label>
-                            <input
-                                type="text"
-                                name="businessName"
-                                placeholder="Search business..."
-                                value={filters.businessName}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    name="businessName"
+                                    placeholder="Search or select company..."
+                                    value={filters.businessName}
+                                    onChange={(e) => {
+                                        handleFilterChange(e);
+                                        setIsCompanyFilterOpen(true);
+                                    }}
+                                    onFocus={() => setIsCompanyFilterOpen(true)}
+                                    autoComplete="off"
+                                    className="w-full px-3 py-1.5 pr-14 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                />
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                    {filters.businessName && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFilters({ ...filters, businessName: '' });
+                                                setCurrentPage(1);
+                                                setIsCompanyFilterOpen(false);
+                                            }}
+                                            className="text-gray-400 hover:text-rose-500"
+                                        >
+                                            <FaTimes size={11} />
+                                        </button>
+                                    )}
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500 pointer-events-none">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {isCompanyFilterOpen && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
+                                    {companyFilterOptions.length > 0 ? (
+                                        companyFilterOptions.map((c) => (
+                                            <div
+                                                key={c._id}
+                                                onClick={() => {
+                                                    setFilters({ ...filters, businessName: c.businessName, contactNumber: c.contactNumber || '' });
+                                                    setCurrentPage(1);
+                                                    setIsCompanyFilterOpen(false);
+                                                }}
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                                            >
+                                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
+                                                <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Contact Number Search */}
@@ -565,7 +531,7 @@ const Company = () => {
                 </div>
 
                 {/* Table Section */}
-                <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
+                <div ref={tableSectionRef} className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
                     <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center">
                         <h2 className="text-xl font-bold">Company Directory</h2>
                         <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">

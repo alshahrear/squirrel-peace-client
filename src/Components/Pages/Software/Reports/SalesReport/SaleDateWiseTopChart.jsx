@@ -136,12 +136,168 @@ const FilterSelect = ({ label, placeholder, value, options, onChange, emptyText 
     );
 };
 
+// Product searchable dropdown (name + company + phone)
+const ProductSelect = ({ value, items, onType, onSelect, onClear }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+
+    const s = (value || '').toLowerCase();
+    const list = items.filter(
+        (it) =>
+            it.name.toLowerCase().includes(s) ||
+            it.company.toLowerCase().includes(s) ||
+            it.phone.toLowerCase().includes(s)
+    );
+
+    return (
+        <div className="relative" ref={ref}>
+            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Product</label>
+            <div
+                onClick={() => setOpen(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+            >
+                <input
+                    type="text"
+                    placeholder="Search or select product..."
+                    value={value}
+                    onChange={(e) => {
+                        onType(e.target.value);
+                        setOpen(true);
+                    }}
+                    onFocus={() => setOpen(true)}
+                    autoComplete="off"
+                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClear();
+                            setOpen(false);
+                        }}
+                        className="text-gray-400 hover:text-red-500 pl-1"
+                    >
+                        <FaTimes size={10} />
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                    {list.length > 0 ? (
+                        list.map((it) => (
+                            <div
+                                key={it.key}
+                                onClick={() => {
+                                    onSelect(it);
+                                    setOpen(false);
+                                }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                            >
+                                <p className="text-xs font-semibold text-gray-800">{it.name}</p>
+                                <p className="text-[11px] text-gray-500 mt-0.5">
+                                    🏢 {it.company || 'N/A'}{it.phone ? ` | 📞 ${it.phone}` : ''}
+                                </p>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No product found</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Name + phone searchable dropdown (Company)
+const ContactSelect = ({ label, placeholder, value, items, onType, onSelect, onClear, emptyText }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+
+    const s = (value || '').toLowerCase();
+    const list = items.filter(
+        (it) => (it.name || '').toLowerCase().includes(s) || (it.phone || '').toLowerCase().includes(s)
+    );
+
+    return (
+        <div className="relative" ref={ref}>
+            <label className="block text-gray-600 text-[11px] font-semibold mb-1">{label}</label>
+            <div
+                onClick={() => setOpen(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+            >
+                <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => {
+                        onType(e.target.value);
+                        setOpen(true);
+                    }}
+                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClear();
+                            setOpen(false);
+                        }}
+                        className="text-gray-400 hover:text-red-500 pl-1"
+                    >
+                        <FaTimes size={10} />
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                    {list.length > 0 ? (
+                        list.map((it) => (
+                            <div
+                                key={it._id}
+                                onClick={() => {
+                                    onSelect(it);
+                                    setOpen(false);
+                                }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                            >
+                                <p className="text-xs font-semibold text-gray-800">{it.name}</p>
+                                {it.phone && <p className="text-[11px] text-gray-500 mt-0.5">📞 {it.phone}</p>}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">{emptyText}</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const SaleDateWiseTopChart = () => {
     const location = useLocation();
 
     const [orders, setOrders] = useState([]);
     const [products, setProducts] = useState([]);
     const [users, setUsers] = useState([]);
+    const [companies, setCompanies] = useState([]);
     const [isPriceView, setIsPriceView] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -155,6 +311,7 @@ const SaleDateWiseTopChart = () => {
         endDate: '',
         product: '',
         company: '',
+        companyContact: '',
         deliveredBy: '',
         sr: '',
         route: '',
@@ -172,14 +329,17 @@ const SaleDateWiseTopChart = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const [sRes, pRes, uRes] = await Promise.all([
+                const [sRes, pRes, uRes, coRes] = await Promise.all([
                     fetch('https://squirrel-peace-server.onrender.com/sales'),
                     fetch('https://squirrel-peace-server.onrender.com/product'),
                     fetch('https://squirrel-peace-server.onrender.com/user'),
+                    fetch('https://squirrel-peace-server.onrender.com/company'),
                 ]);
                 const sData = await sRes.json();
                 const pData = await pRes.json();
                 const uData = await uRes.json().catch(() => []);
+                const coData = await coRes.json().catch(() => []);
+                setCompanies(Array.isArray(coData) ? coData : []);
                 setUsers(Array.isArray(uData) ? uData : []);
                 setOrders(Array.isArray(sData) ? sData : []);
                 setProducts(Array.isArray(pData) ? pData : []);
@@ -370,8 +530,19 @@ const SaleDateWiseTopChart = () => {
         });
 
     const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-    const productOptions = uniq(rows.map((r) => r.productName));
-    const companyOptions = uniq(rows.map((r) => r.company));
+    const companyItems = companies.map((c) => ({ _id: c._id, name: c.businessName || '', phone: c.contactNumber || '' }));
+    const getCompanyPhone = (name) =>
+        companyItems.find((c) => c.name.trim().toLowerCase() === (name || '').trim().toLowerCase())?.phone || '';
+    const productOptionMap = new Map();
+    rows.forEach((r) => {
+        if (!r.productName) return;
+        const phone = getCompanyPhone(r.company);
+        const key = `${r.productName}|${r.company || ''}|${phone}`;
+        if (!productOptionMap.has(key)) {
+            productOptionMap.set(key, { key, name: r.productName, company: r.company || '', phone });
+        }
+    });
+    const productOptions = Array.from(productOptionMap.values());
     const deliveredByOptions = uniq(orders.filter(isDelivered).map(getDeliveredBy));
     const srOptions = uniq(users.filter((u) => u.role === 'SR').map((u) => u.name));
     const routeOptions = uniq(orders.map((o) => o.route));
@@ -382,6 +553,10 @@ const SaleDateWiseTopChart = () => {
     const baseFilteredRows = rows.filter((r) => {
         if (filters.product && !has(r.productName, filters.product)) return false;
         if (filters.company && !has(r.company, filters.company)) return false;
+        if (filters.companyContact) {
+            const phone = getCompanyPhone(r.company);
+            if (phone && phone !== filters.companyContact) return false;
+        }
         return true;
     });
 
@@ -521,22 +696,41 @@ const SaleDateWiseTopChart = () => {
                                 </div>
                             </div>
 
-                            <FilterSelect
-                                label="Product"
-                                placeholder="Search or select product..."
+                            <ProductSelect
                                 value={filters.product}
-                                options={productOptions}
-                                onChange={(v) => setFilter('product', v)}
-                                emptyText="No product found"
+                                items={productOptions}
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, product: v, company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(o) => {
+                                    setFilters((prev) => ({ ...prev, product: o.name, company: o.company, companyContact: o.phone }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, product: '', company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                             />
 
-                            <FilterSelect
+                            <ContactSelect
                                 label="Company"
                                 placeholder="Search or select company..."
                                 value={filters.company}
-                                options={companyOptions}
-                                onChange={(v) => setFilter('company', v)}
+                                items={companyItems}
                                 emptyText="No company found"
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, company: v, companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(c) => {
+                                    setFilters((prev) => ({ ...prev, company: c.name, companyContact: c.phone || '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                             />
 
                             <FilterSelect
@@ -685,7 +879,12 @@ const SaleDateWiseTopChart = () => {
                                                 )}
                                             </td>
                                             <td className="font-bold text-gray-800">{r.productName}</td>
-                                            <td className="text-gray-600">{r.company || 'N/A'}</td>
+                                            <td className="text-gray-600">
+                                                <div>{r.company || 'N/A'}</div>
+                                                {getCompanyPhone(r.company) && (
+                                                    <div className="text-[11px] text-gray-400 mt-0.5">📞 {getCompanyPhone(r.company)}</div>
+                                                )}
+                                            </td>
                                             <td>
                                                 <QtyCell lines={r.lines} unit={r.unit} subUnit={r.subUnit} parentMode={r.parentMode} />
                                             </td>

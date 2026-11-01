@@ -3,6 +3,81 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import PurchaseForm from "./PurchaseForm";
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
+const ACC_API = 'https://squirrel-peace-server.onrender.com';
+
+const accSafe = (url) =>
+    fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
+
+const accGetCategory = (t = '') => {
+    const type = String(t).toLowerCase();
+    if (type.includes('cash')) return 'cash';
+    if (type.includes('mobile')) return 'mobile';
+    if (type.includes('bank')) return 'bank';
+    return 'others';
+};
+
+const accKeyOf = (i = {}) =>
+    `${i.accountName || i.bankName || 'Cash'}||${i.accountNumber || ''}||${i.accountBranch || ''}`;
+
+const accLabelOf = (acc) => {
+    if (acc.accountType === 'Cash') return 'Cash';
+    if (acc.accountType === 'Mobile Banking') return `${acc.accountName} (${acc.accountNumber})`;
+    if (acc.accountType === 'Bank') return `${acc.bankName} - ${acc.accountNumber} (${acc.accountBranch || 'Main'})`;
+    return acc.accountNumber || acc.accountType;
+};
+
+// নির্দিষ্ট account এ বর্তমানে কত টাকা আছে (Purchase payment ধরে)
+const getAccountAvailable = async (paymentAccount, excludePurchaseId = null) => {
+    const [inv, adj, inc, exp, rexp, tr, pur] = await Promise.all([
+        accSafe(`${ACC_API}/investment`),
+        accSafe(`${ACC_API}/adjustment`),
+        accSafe(`${ACC_API}/income`),
+        accSafe(`${ACC_API}/expense`),
+        accSafe(`${ACC_API}/routeExpense`),
+        accSafe(`${ACC_API}/transfer`),
+        accSafe(`${ACC_API}/purchase`),
+    ]);
+
+    const target = accKeyOf(paymentAccount || {});
+    let bal = 0;
+
+    inv.forEach((i) => {
+        if (accKeyOf(i) !== target) return;
+        const rel = adj.filter((a) => a.adjustmentID === i._id);
+        const dep = rel.filter((a) => a.mode === 'Deposit').reduce((s, a) => s + (Number(a.amount) || 0), 0);
+        const wd = rel.filter((a) => a.mode === 'Withdraw').reduce((s, a) => s + (Number(a.amount) || 0), 0);
+        bal += (Number(i.amount) || 0) + dep - wd;
+    });
+
+    inc.forEach((i) => { if (accKeyOf(i) === target) bal += Number(i.amount) || 0; });
+    exp.forEach((i) => { if (accKeyOf(i) === target) bal -= Number(i.amount) || 0; });
+    rexp.forEach((i) => { if (accKeyOf(i) === target) bal -= Number(i.amount) || 0; });
+
+    const resolve = (type, label) => {
+        if (label === 'Cash') {
+            const c = inv.find((x) => accGetCategory(x.accountType) === 'cash');
+            return c ? accKeyOf(c) : 'Cash||||';
+        }
+        const a = inv.find((x) => x.accountType === type && accLabelOf(x) === label);
+        return a ? accKeyOf(a) : null;
+    };
+    tr.forEach((t) => {
+        const amt = Number(t.amount) || 0;
+        if (resolve(t.transferFrom, t.fromAccount) === target) bal -= amt;
+        if (resolve(t.transferTo, t.toAccount) === target) bal += amt;
+    });
+
+    pur.forEach((p) => {
+        if (excludePurchaseId && String(p._id) === String(excludePurchaseId)) return;
+        const paid = Number(p.paidAmount) || 0;
+        if (!(paid > 0) || !p.paymentMethod) return;
+        if (accKeyOf(p.paymentAccount || {}) !== target) return;
+        bal += (Number(p.payableAmount) || 0) < 0 ? paid : -paid;
+    });
+
+    return Math.round(bal * 100) / 100;
+};
+
 const matchesSearch = (text, fields) => {
     const q = (text || '').toString().trim().toLowerCase();
     if (!q) return true;
@@ -1779,7 +1854,11 @@ const PurchaseAddInner = () => {
                 return;
             }
             if (!(Number(paymentAmount) > 0)) {
-                showErr('Payment amount must be greater than 0! (or Skip payment)');
+                showErr(
+                    payableAmount < 0
+                        ? 'Company payment must be greater than 0! (or Skip payment)'
+                        : 'Payment amount must be greater than 0! (or Skip payment)'
+                );
                 return;
             }
             if (!paymentAccountType) {
@@ -1818,8 +1897,8 @@ const PurchaseAddInner = () => {
                 setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
                 return;
             }
-            if (!(Number(paymentAmount) > 0)) {
-                setToast({ show: true, message: 'Payment amount must be greater than 0!', isError: true });
+            if (Number(paymentAmount) < 0) {
+                setToast({ show: true, message: 'Payment amount cannot be negative!', isError: true });
                 setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
                 return;
             }
@@ -1858,6 +1937,14 @@ const PurchaseAddInner = () => {
                 paymentAccount: accInfo,
                 paymentNote: paymentNote,
             };
+        }
+        if (receivedPaymentData.paidAmount > 0 && receivedPaymentData.paymentAccount && payableAmount >= 0) {
+            const available = await getAccountAvailable(receivedPaymentData.paymentAccount, editId);
+            if (receivedPaymentData.paidAmount > available) {
+                setToast({ show: true, message: `Insufficient balance in the selected account! Available: ৳${available.toFixed(2)}`, isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                return;
+            }
         }
         // ---------------- Validation End ----------------
 
@@ -2069,8 +2156,8 @@ const PurchaseAddInner = () => {
             setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
             return;
         }
-        if (!(Number(paymentAmount) > 0)) {
-            setToast({ show: true, message: 'Payment amount must be greater than 0!', isError: true });
+        if (Number(paymentAmount) < 0) {
+            setToast({ show: true, message: 'Payment amount cannot be negative!', isError: true });
             setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
             return;
         }
@@ -2147,6 +2234,15 @@ const PurchaseAddInner = () => {
                 itemTotal: rowSubtotal,
             };
         });
+
+        if (payableAmount >= 0 && roundTo2(paymentAmount) > 0) {
+            const available = await getAccountAvailable(accountInfo, editId);
+            if (roundTo2(paymentAmount) > available) {
+                setToast({ show: true, message: `Insufficient balance in the selected account! Available: ৳${available.toFixed(2)}`, isError: true });
+                setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+                return;
+            }
+        }
 
         const receiveData = {
             company: purchaseFormData.company,

@@ -120,9 +120,23 @@ const SalesDuePayment = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', customer: '', invoiceNo: '', status: '' });
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', customer: '', customerContact: '', invoiceNo: '', status: '' });
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
+
+    // Customer searchable-select state (filter)
+    const [isCustomerFilterOpen, setIsCustomerFilterOpen] = useState(false);
+    const customerFilterRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutsideCustomerFilter = (event) => {
+            if (customerFilterRef.current && !customerFilterRef.current.contains(event.target)) {
+                setIsCustomerFilterOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutsideCustomerFilter);
+        return () => document.removeEventListener('mousedown', handleClickOutsideCustomerFilter);
+    }, []);
 
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
@@ -297,6 +311,33 @@ const SalesDuePayment = () => {
 
         const dueType = formData.type === 'Pay' ? 'Pay' : 'Get';
 
+        // Credit Limit check: customer ke Pay dile customer er Get amount creditLimit er beshi hoye jabe kina
+        if (dueType === 'Pay') {
+            const custInfo =
+                customers.find((c) => String(c._id) === String(formData.customerId)) ||
+                customers.find(
+                    (c) =>
+                        String(c.businessName || '').trim().toLowerCase() ===
+                        String(formData.customer || '').trim().toLowerCase()
+                );
+            const limitRaw = custInfo?.creditLimit;
+            const hasLimit =
+                limitRaw !== undefined && limitRaw !== null && String(limitRaw).trim() !== '' && !isNaN(Number(limitRaw));
+            if (hasLimit) {
+                const limit = Number(limitRaw);
+                const payAmt = Math.round((Number(formData.amount) || 0) * 100) / 100;
+                const netAfter = Math.round((balance.pay - balance.get - payAmt) * 100) / 100;
+                const getAfter = netAfter < 0 ? -netAfter : 0;
+                if (getAfter > limit) {
+                    showToast(
+                        `Credit limit cross hoye jabe! Limit: ৳${limit}, Total Get hobe: ৳${getAfter}. Pay amount kom din.`,
+                        'error'
+                    );
+                    return;
+                }
+            }
+        }
+
         const payload = {
             customer: formData.customer,
             customerId: formData.customerId,
@@ -379,14 +420,43 @@ const SalesDuePayment = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', customer: '', invoiceNo: '', status: '' });
+        setFilters({ startDate: '', endDate: '', customer: '', customerContact: '', invoiceNo: '', status: '' });
         setCurrentPage(1);
+    };
+
+    const filteredCustomerOptions = customers.filter((c) => {
+        const s = filters.customer.toLowerCase();
+        return (
+            c.businessName?.toLowerCase().includes(s) ||
+            c.contactNumber?.toLowerCase().includes(s)
+        );
+    });
+
+    const getPhoneByName = (name) =>
+        customers.find((c) => (c.businessName || '').trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
+    const getPaymentPhone = (p) => p.customerContact || getPhoneByName(p.customer);
+
+    const handleSelectCustomerFilter = (c) => {
+        setFilters({ ...filters, customer: c.businessName, customerContact: c.contactNumber || '' });
+        setCurrentPage(1);
+        setIsCustomerFilterOpen(false);
+    };
+
+    const handleClearCustomerFilter = (e) => {
+        e.stopPropagation();
+        setFilters({ ...filters, customer: '', customerContact: '' });
+        setCurrentPage(1);
+        setIsCustomerFilterOpen(false);
     };
 
     const filteredPayments = payments.filter((p) => {
         if (filters.startDate && (!p.date || p.date < filters.startDate)) return false;
         if (filters.endDate && (!p.date || p.date > filters.endDate)) return false;
         if (filters.customer && !p.customer?.toLowerCase().includes(filters.customer.toLowerCase())) return false;
+        if (filters.customerContact) {
+            const phone = getPaymentPhone(p);
+            if (phone && phone !== filters.customerContact) return false;
+        }
         if (filters.invoiceNo && !getInvoiceNo(p).toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
         if (filters.status && getDueType(p) !== filters.status) return false;
         return true;
@@ -547,16 +617,50 @@ const SalesDuePayment = () => {
                             </select>
                         </div>
 
-                        <div>
+                        <div className="relative" ref={customerFilterRef}>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer</label>
-                            <input
-                                type="text"
-                                name="customer"
-                                placeholder="Search customer..."
-                                value={filters.customer}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
+                            <div
+                                onClick={() => setIsCustomerFilterOpen(true)}
+                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+                            >
+                                <input
+                                    type="text"
+                                    placeholder="Search or select customer..."
+                                    value={filters.customer}
+                                    onChange={(e) => {
+                                        setFilters({ ...filters, customer: e.target.value, customerContact: '' });
+                                        setCurrentPage(1);
+                                        setIsCustomerFilterOpen(true);
+                                    }}
+                                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                                />
+                                {filters.customer && (
+                                    <button type="button" onClick={handleClearCustomerFilter} className="text-gray-400 hover:text-red-500 pl-1">
+                                        <FaTimes size={10} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {isCustomerFilterOpen && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                                    {filteredCustomerOptions.length > 0 ? (
+                                        filteredCustomerOptions.map((c) => (
+                                            <div
+                                                key={c._id}
+                                                onClick={() => handleSelectCustomerFilter(c)}
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                                            >
+                                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
+                                                {c.contactNumber && (
+                                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -597,8 +701,8 @@ const SalesDuePayment = () => {
                                         <tr key={p._id} className="hover:bg-indigo-50/50 transition-colors">
                                             <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
                                                 {p.customer}
-                                                {p.customerContact && (
-                                                    <div className="text-xs font-normal text-gray-400">{p.customerContact}</div>
+                                                {getPaymentPhone(p) && (
+                                                    <div className="text-xs font-normal text-gray-400">📞 {getPaymentPhone(p)}</div>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">

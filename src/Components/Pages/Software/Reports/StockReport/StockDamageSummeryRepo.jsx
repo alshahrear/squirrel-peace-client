@@ -109,6 +109,78 @@ const FilterSelect = ({ label, placeholder, value, options, onChange, emptyText 
     );
 };
 
+// Searchable dropdown (name + company/phone line)
+const ContactFilterSelect = ({ label, placeholder, value, options, onType, onSelect, onClear, emptyText }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+
+    const s = (value || '').toLowerCase();
+    const list = options.filter((o) => o.search.toLowerCase().includes(s));
+
+    return (
+        <div className="relative" ref={ref}>
+            <label className="block text-gray-600 text-[11px] font-semibold mb-1">{label}</label>
+            <div
+                onClick={() => setOpen(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+            >
+                <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => {
+                        onType(e.target.value);
+                        setOpen(true);
+                    }}
+                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClear();
+                            setOpen(false);
+                        }}
+                        className="text-gray-400 hover:text-red-500 pl-1"
+                    >
+                        <FaTimes size={10} />
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                    {list.length > 0 ? (
+                        list.map((o) => (
+                            <div
+                                key={o.id}
+                                onClick={() => {
+                                    onSelect(o);
+                                    setOpen(false);
+                                }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                            >
+                                <p className="text-xs font-semibold text-gray-800">{o.title}</p>
+                                {o.sub && <p className="text-[11px] text-gray-500 mt-0.5">{o.sub}</p>}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">{emptyText}</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const keyOf = (name, company) =>
     `${(name || '').toString().trim().toLowerCase()}|${(company || '').toString().trim().toLowerCase()}`;
 
@@ -116,9 +188,10 @@ const StockDamageSummeryRepo = () => {
     const [orders, setOrders] = useState([]);
     const [purchases, setPurchases] = useState([]);
     const [damageReturns, setDamageReturns] = useState([]);
+    const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const [filters, setFilters] = useState({ product: '', company: '' });
+    const [filters, setFilters] = useState({ product: '', company: '', companyContact: '' });
     const [selectedKeys, setSelectedKeys] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
@@ -131,11 +204,12 @@ const StockDamageSummeryRepo = () => {
                     const data = await res.json().catch(() => []);
                     return Array.isArray(data) ? data : [];
                 };
-                const [sales, dmg, pur, dr] = await Promise.all([
+                const [sales, dmg, pur, dr, comp] = await Promise.all([
                     get('https://squirrel-peace-server.onrender.com/sales'),
                     get('https://squirrel-peace-server.onrender.com/sales-damage'),
                     get('https://squirrel-peace-server.onrender.com/purchase'),
                     get('https://squirrel-peace-server.onrender.com/damage-return'),
+                    get('https://squirrel-peace-server.onrender.com/company'),
                 ]);
                 setOrders([
                     ...sales,
@@ -143,6 +217,7 @@ const StockDamageSummeryRepo = () => {
                 ]);
                 setPurchases(pur);
                 setDamageReturns(dr);
+                setCompanies(comp);
             } catch (error) {
                 console.error('Error fetching damage summary:', error);
             } finally {
@@ -185,6 +260,7 @@ const StockDamageSummeryRepo = () => {
                             key,
                             productName: name || 'N/A',
                             company: company || 'N/A',
+                            companyPhone: '',
                             main: 0,
                             free: 0,
                             amount: 0,
@@ -193,6 +269,13 @@ const StockDamageSummeryRepo = () => {
                         });
                     }
                     const g = map.get(key);
+                    if (!g.companyPhone) {
+                        g.companyPhone = (
+                            it.companyContact ||
+                            companies.find((c) => (c.businessName || '').trim().toLowerCase() === company.toLowerCase())?.contactNumber ||
+                            ''
+                        ).toString().trim();
+                    }
                     g.main += Number(it.totalQty) || 0;
                     g.free += Number(it.freeQty) || 0;
                     g.amount += Number(it.itemTotal ?? it.subtotal) || 0;
@@ -225,27 +308,49 @@ const StockDamageSummeryRepo = () => {
             })
             .filter((g) => g.total > 0)
             .sort((a, b) => b.lastIdx - a.lastIdx);
-    }, [orders, returnedMap]);
+    }, [orders, returnedMap, companies]);
 
-    const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-    const productOptions = uniq(products.map((p) => p.productName));
-    const companyOptions = uniq(products.map((p) => p.company));
+    const productOptions = products.map((p) => ({
+        id: p.key,
+        title: p.productName,
+        sub: `🏢 ${p.company || 'N/A'}${p.companyPhone ? ` | 📞 ${p.companyPhone}` : ''}`,
+        search: `${p.productName} ${p.company || ''} ${p.companyPhone || ''}`,
+        data: p,
+    }));
+
+    const companyOptions = (() => {
+        const m = new Map();
+        products.forEach((p) => {
+            const k = `${p.company}|${p.companyPhone || ''}`.toLowerCase();
+            if (p.company && !m.has(k)) {
+                m.set(k, {
+                    id: k,
+                    title: p.company,
+                    sub: p.companyPhone ? `📞 ${p.companyPhone}` : '',
+                    search: `${p.company} ${p.companyPhone || ''}`,
+                    data: p,
+                });
+            }
+        });
+        return Array.from(m.values());
+    })();
 
     const setFilter = (name, value) => {
         setFilters((prev) => ({ ...prev, [name]: value }));
         setCurrentPage(1);
     };
     const handleClearFilters = () => {
-        setFilters({ product: '', company: '' });
+        setFilters({ product: '', company: '', companyContact: '' });
         setSelectedKeys([]);
         setCurrentPage(1);
     };
 
-    const filtered = products.filter(
-        (p) =>
-            p.productName.toLowerCase().includes(filters.product.trim().toLowerCase()) &&
-            p.company.toLowerCase().includes(filters.company.trim().toLowerCase())
-    );
+    const filtered = products.filter((p) => {
+        if (!p.productName.toLowerCase().includes(filters.product.trim().toLowerCase())) return false;
+        if (!p.company.toLowerCase().includes(filters.company.trim().toLowerCase())) return false;
+        if (filters.companyContact && p.companyPhone && p.companyPhone !== filters.companyContact) return false;
+        return true;
+    });
 
     // Pagination
     const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
@@ -311,20 +416,50 @@ const StockDamageSummeryRepo = () => {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <FilterSelect
+                            <ContactFilterSelect
                                 label="Product"
                                 placeholder="Search or select product..."
                                 value={filters.product}
                                 options={productOptions}
-                                onChange={(v) => setFilter('product', v)}
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, product: v, company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(o) => {
+                                    setFilters({
+                                        product: o.data.productName === 'N/A' ? '' : o.data.productName,
+                                        company: o.data.company === 'N/A' ? '' : o.data.company,
+                                        companyContact: o.data.companyPhone || '',
+                                    });
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, product: '', company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                                 emptyText="No product found"
                             />
-                            <FilterSelect
+                            <ContactFilterSelect
                                 label="Company"
                                 placeholder="Search or select company..."
                                 value={filters.company}
                                 options={companyOptions}
-                                onChange={(v) => setFilter('company', v)}
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, company: v, companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(o) => {
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        company: o.data.company === 'N/A' ? '' : o.data.company,
+                                        companyContact: o.data.companyPhone || '',
+                                    }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                                 emptyText="No company found"
                             />
                         </div>
@@ -394,7 +529,12 @@ const StockDamageSummeryRepo = () => {
                                                 />
                                             </td>
                                             <td className="font-bold text-gray-800">{p.productName}</td>
-                                            <td className="text-gray-600">{p.company}</td>
+                                            <td className="text-gray-600">
+                                                <div>{p.company}</div>
+                                                {p.companyPhone && (
+                                                    <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {p.companyPhone}</div>
+                                                )}
+                                            </td>
                                             <td>
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="flex items-center gap-1.5">

@@ -8,8 +8,8 @@ import {
     FiEdit3,
     FiX
 } from 'react-icons/fi';
-import useAuth from '../../../Layout/useAuth';
-import useAdmin from '../../../../hooks/useAdmin';
+import useAuth from '../../../../Layout/useAuth';
+import useAdmin from '../../../../../hooks/useAdmin';
 import AdjustmentForm from './Adjustment';
 
 const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {

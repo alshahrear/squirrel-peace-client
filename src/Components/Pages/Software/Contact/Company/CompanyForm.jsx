@@ -1,7 +1,158 @@
-import React from 'react';
+import React, { useState } from 'react';
+import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 import { FaBuilding, FaPhone, FaUser, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave } from 'react-icons/fa';
 
-const CompanyForm = ({ formData, handleChange, handleSubmit, editingId, handleCancelEdit }) => {
+// Helper function to format date & time like: 26/08/2026, 3:19:09 pm
+const formatDateTime = (date = new Date()) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+
+    return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
+};
+
+const CompanyForm = ({
+    companies,
+    fetchCompanies,
+    setShowForm,
+    editingCompany,
+    setEditingCompany,
+    showToast,
+    scrollToTable,
+}) => {
+    const emptyForm = {
+        businessName: '',
+        contactNumber: '',
+        email: '',
+        contactName: '',
+        businessNumber: '',
+        openingBalance: '',
+        openingBalanceType: '',
+        address: '',
+        note: '',
+    };
+
+    const draftKey = editingCompany?._id ? `companyForm:${editingCompany._id}` : 'companyForm:new';
+    const [formData, setFormData] = useDraftState(draftKey, () =>
+        editingCompany
+            ? {
+                businessName: editingCompany.businessName || '',
+                contactNumber: editingCompany.contactNumber || '',
+                email: editingCompany.email || '',
+                contactName: editingCompany.contactName || '',
+                businessNumber: editingCompany.businessNumber || '',
+                openingBalance: editingCompany.openingBalance || '',
+                openingBalanceType: editingCompany.openingBalanceType || '',
+                address: editingCompany.address || '',
+                note: editingCompany.note || '',
+            }
+            : emptyForm
+    );
+    const [loading, setLoading] = useState(false);
+
+    const isEditing = Boolean(editingCompany && editingCompany._id);
+    const editingId = isEditing ? editingCompany._id : null;
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        if (name === 'openingBalanceType' && !value) {
+            setFormData({ ...formData, openingBalanceType: '', openingBalance: '' });
+            return;
+        }
+        setFormData({ ...formData, [name]: value });
+    };
+
+    const handleCancelEdit = () => {
+        clearDraft(draftKey);
+        setEditingCompany(null);
+        setShowForm(false);
+        if (scrollToTable) {
+            scrollToTable();
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        const contactInput = formData.contactNumber.trim();
+        const businessNoInput = formData.businessNumber.trim().toLowerCase();
+
+        const contactExists = companies.some(
+            (c) => c.contactNumber?.trim() === contactInput && c._id !== editingId
+        );
+        if (contactExists) {
+            showToast('This contact number already exists!', 'error');
+            return;
+        }
+
+        if (businessNoInput) {
+            const businessNoExists = companies.some(
+                (c) => c.businessNumber?.trim().toLowerCase() === businessNoInput && c._id !== editingId
+            );
+            if (businessNoExists) {
+                showToast('This business number already exists!', 'error');
+                return;
+            }
+        }
+
+        setLoading(true);
+
+        const finalData = isEditing
+            ? { ...formData }
+            : { ...formData, createdAt: formatDateTime(new Date()) };
+
+        const url = isEditing
+            ? `https://squirrel-peace-server.onrender.com/company/${editingCompany._id}`
+            : 'https://squirrel-peace-server.onrender.com/company';
+        const method = isEditing ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(finalData),
+            });
+
+            if (response.ok) {
+                showToast(
+                    isEditing ? 'Company updated successfully!' : 'Company added successfully!',
+                    'success'
+                );
+
+                if (fetchCompanies) {
+                    await fetchCompanies();
+                }
+
+                clearDraft(draftKey);
+                setEditingCompany(null);
+                setShowForm(false);
+
+                if (scrollToTable) {
+                    scrollToTable();
+                }
+            } else {
+                showToast(
+                    isEditing ? 'Failed to update company!' : 'Something went wrong, please try again.',
+                    'error'
+                );
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Failed to connect to the server.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
     return (
         <div className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-indigo-100 backdrop-blur-sm transition-all duration-300">
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
@@ -170,12 +321,19 @@ const CompanyForm = ({ formData, handleChange, handleSubmit, editingId, handleCa
                 <div className="sm:col-span-2 md:col-span-3 flex justify-end mt-2">
                     <button
                         type="submit"
+                        disabled={loading}
                         className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${editingId
                             ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200'
                             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
                             }`}
                     >
-                        {editingId ? 'Update Company Details' : 'Add Company'}
+                        {loading
+                            ? editingId
+                                ? 'Updating Company...'
+                                : 'Adding Company...'
+                            : editingId
+                                ? 'Update Company Details'
+                                : 'Add Company'}
                     </button>
                 </div>
             </form>

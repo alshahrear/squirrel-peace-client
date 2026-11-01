@@ -1,32 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { FaTimes } from 'react-icons/fa';
+import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 
-const HeadsForm = ({ showToast, editingHead, onHeadAdded, onHeadSaved }) => {
-    const isEditMode = Boolean(editingHead);
+// Helper function to format date & time like: 26/08/2026, 3:19:09 pm
+const formatDateTime = (date = new Date()) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
 
-    const [formData, setFormData] = useState({
-        category: '',
-        name: '',
-        isActive: true,
-    });
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+
+    return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
+};
+
+const HeadsForm = ({
+    showToast,
+    fetchAccountHeads,
+    setShowForm,
+    editingHead,
+    setEditingHead,
+    scrollToTable,
+}) => {
+    const isEditMode = Boolean(editingHead && editingHead._id);
+
+    const draftKey = isEditMode ? `headForm:${editingHead._id}` : 'headForm:new';
+    const [formData, setFormData] = useDraftState(draftKey, () => ({
+        category: editingHead?.category || '',
+        name: editingHead?.name || '',
+        isActive: editingHead?.isActive ?? true,
+    }));
 
     const [loading, setLoading] = useState(false);
-
-    // এডিট মোডে ঢুকলে ফর্ম প্রি-ফিল করে দেয়
-    useEffect(() => {
-        if (editingHead) {
-            setFormData({
-                category: editingHead.category || '',
-                name: editingHead.name || '',
-                isActive: editingHead.isActive ?? true,
-            });
-        } else {
-            setFormData({
-                category: '',
-                name: '',
-                isActive: true,
-            });
-        }
-    }, [editingHead]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -36,80 +46,63 @@ const HeadsForm = ({ showToast, editingHead, onHeadAdded, onHeadSaved }) => {
         });
     };
 
+    const handleCancelEdit = () => {
+        clearDraft(draftKey);
+        setEditingHead(null);
+        setShowForm(false);
+        if (scrollToTable) {
+            scrollToTable();
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
-        const now = new Date();
-        const formattedDate = now.toLocaleString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true,
-        }).toLowerCase().replace(',', ',');
+        const finalData = isEditMode
+            ? { ...formData }
+            : { ...formData, createdAt: formatDateTime(new Date()) };
+
+        const url = isEditMode
+            ? `https://squirrel-peace-server.onrender.com/account-heads/${editingHead._id}`
+            : 'https://squirrel-peace-server.onrender.com/account-heads';
+        const method = isEditMode ? 'PUT' : 'POST';
 
         try {
-            if (isEditMode) {
-                // আপডেট (PUT)
-                const finalData = { ...formData };
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(finalData),
+            });
 
-                const response = await fetch(`https://squirrel-peace-server.onrender.com/account-heads/${editingHead._id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(finalData),
-                });
+            if (response.ok) {
+                showToast(
+                    isEditMode ? 'Account Head updated successfully!' : 'Account Head created successfully!',
+                    'success'
+                );
 
-                if (response.ok) {
-                    if (showToast) showToast('Account Head updated successfully!', 'success');
+                if (fetchAccountHeads) {
+                    await fetchAccountHeads();
+                }
 
-                    if (onHeadSaved) {
-                        onHeadSaved({
-                            ...editingHead,
-                            ...finalData,
-                        });
-                    }
-                } else {
-                    if (showToast) showToast('Something went wrong while updating.', 'error');
+                clearDraft(draftKey);
+                setEditingHead(null);
+                setShowForm(false);
+
+                if (scrollToTable) {
+                    scrollToTable();
                 }
             } else {
-                // নতুন তৈরি (POST)
-                const finalData = {
-                    ...formData,
-                    createdAt: formattedDate,
-                };
-
-                const response = await fetch('https://squirrel-peace-server.onrender.com/account-heads', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(finalData),
-                });
-
-                if (response.ok) {
-                    const resultData = await response.json();
-
-                    if (showToast) showToast('Account Head created successfully!', 'success');
-
-                    if (onHeadAdded) {
-                        const newHeadId = resultData.insertedId || resultData._id || Date.now().toString();
-                        onHeadAdded({ ...finalData, _id: newHeadId });
-                    }
-
-                    // ফর্ম রিসেট
-                    setFormData({
-                        category: '',
-                        name: '',
-                        isActive: true,
-                    });
-                } else {
-                    if (showToast) showToast('Something went wrong, please try again.', 'error');
-                }
+                showToast(
+                    isEditMode ? 'Failed to update account head!' : 'Something went wrong, please try again.',
+                    'error'
+                );
             }
         } catch (error) {
             console.error('Error:', error);
-            if (showToast) showToast('Failed to connect to the server.', 'error');
+            showToast('Failed to connect to the server.', 'error');
         } finally {
             setLoading(false);
         }
@@ -133,6 +126,15 @@ const HeadsForm = ({ showToast, editingHead, onHeadAdded, onHeadSaved }) => {
                         </p>
                     </div>
                 </div>
+                {isEditMode && (
+                    <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full transition-all cursor-pointer"
+                    >
+                        <FaTimes /> Cancel Edit
+                    </button>
+                )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -194,7 +196,7 @@ const HeadsForm = ({ showToast, editingHead, onHeadAdded, onHeadSaved }) => {
                             disabled={loading}
                             className="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                         >
-                            {loading ? 'Submitting...' : isEditMode ? 'Update Account Head' : 'Submit Account Head'}
+                            {loading ? (isEditMode ? 'Updating Account Head...' : 'Adding Account Head...') : (isEditMode ? 'Update Account Head' : 'Add Account Head')}
                         </button>
                     </div>
                 </div>

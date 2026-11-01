@@ -22,7 +22,8 @@ const Purchase = () => {
         company: '',
         invoiceNo: '',
         status: '',
-        dueStatus: ''
+        dueStatus: '',
+        companyContact: ''
     });
 
     // Refs for triggering date pickers
@@ -173,18 +174,24 @@ const Purchase = () => {
     }, []);
 
     // Filter companies based on search typing
-    const filteredCompanies = companies.filter((comp) =>
-        comp.businessName?.toLowerCase().includes(filters.company.toLowerCase())
-    );
+    const filteredCompanies = companies.filter((comp) => {
+        const s = filters.company.toLowerCase();
+        return (
+            comp.businessName?.toLowerCase().includes(s) ||
+            comp.contactNumber?.toLowerCase().includes(s)
+        );
+    });
 
     const handleSelectCompany = (comp) => {
-        setFilters({ ...filters, company: comp.businessName });
+        setFilters({ ...filters, company: comp.businessName, companyContact: comp.contactNumber || '' });
+        setCurrentPage(1);
         setIsCompanyOpen(false);
     };
 
     const handleClearCompany = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, company: '' });
+        setFilters({ ...filters, company: '', companyContact: '' });
+        setCurrentPage(1);
         setIsCompanyOpen(false);
     };
 
@@ -234,7 +241,8 @@ const Purchase = () => {
             company: '',
             invoiceNo: '',
             status: '',
-            dueStatus: ''
+            dueStatus: '',
+            companyContact: ''
         });
         setExtraFilter([...EXTRA_OPTIONS]);
         setIsExtraOpen(false);
@@ -380,6 +388,9 @@ const Purchase = () => {
 
         // Company Filter
         if (filters.company && !item.company?.toLowerCase().includes(filters.company.toLowerCase())) {
+            return false;
+        }
+        if (filters.companyContact && item.companyContact && item.companyContact !== filters.companyContact) {
             return false;
         }
         // Invoice No Filter
@@ -616,7 +627,8 @@ const Purchase = () => {
                                         placeholder="Search or select company..."
                                         value={filters.company}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'company', value: e.target.value } });
+                                            setFilters({ ...filters, company: e.target.value, companyContact: '' });
+                                            setCurrentPage(1);
                                             setIsCompanyOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -635,9 +647,12 @@ const Purchase = () => {
                                                 <div
                                                     key={comp._id}
                                                     onClick={() => handleSelectCompany(comp)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                 >
-                                                    {comp.businessName}
+                                                    <p className="text-xs font-semibold text-gray-800">{comp.businessName}</p>
+                                                    {comp.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {comp.contactNumber}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (

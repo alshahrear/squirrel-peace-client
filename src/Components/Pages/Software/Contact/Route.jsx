@@ -23,6 +23,7 @@ const Route = () => {
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeDropdownId, setActiveDropdownId] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   // Frontend Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,6 +80,8 @@ const Route = () => {
         isActive: formData.isActive
       };
 
+      setLoading(true);
+
       if (editingId) {
         await axiosClient.put(`/route/${editingId}`, payload, config);
         toast.success("Route updated successfully");
@@ -87,12 +90,22 @@ const Route = () => {
         toast.success("Route added successfully");
       }
 
-      fetchRoutes();
+      await fetchRoutes();
       setFormData({ name: "", isActive: true });
       setEditingId(null);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Server error occurred");
+      toast.error(
+        error.response?.data?.message ||
+        (editingId ? "Failed to update route" : "Something went wrong, please try again.")
+      );
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData({ name: "", isActive: true });
   };
 
   const handleDelete = async (id) => {
@@ -110,7 +123,8 @@ const Route = () => {
       if (result.isConfirmed) {
         try {
           await axiosClient.delete(`/route/${id}`);
-          fetchRoutes();
+          setRoutes((prev) => prev.filter((route) => route._id !== id));
+          if (editingId === id) handleCancelEdit();
           toast.success("Deleted successfully");
         } catch (error) {
           toast.error("Failed to delete");
@@ -167,23 +181,21 @@ const Route = () => {
 
         {/* Input Form Section with Code and Active Toggle */}
         <div ref={formRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-4">
-          <div className="grid grid-cols-1 gap-3">
-            <div>
-              <label className="block text-gray-600 text-[11px] font-semibold mb-1.5">Route Name</label>
+          <div className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="w-full">
+              <label className="block text-gray-700 text-xs font-semibold mb-1.5">Route Name</label>
               <input
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all text-sm bg-gray-50/50 font-semibold"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
                 placeholder="Enter route name..."
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
-          </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between pt-2">
             {/* Active Toggle Switch */}
             <div className="w-full sm:w-auto flex flex-col justify-center">
-              <label className="block text-gray-600 text-[11px] font-semibold mb-1.5">Status</label>
-              <div className="flex items-center h-[42px] px-3 bg-gray-50/50 border border-gray-200 rounded-xl gap-3">
+              <label className="block text-gray-700 text-xs font-semibold mb-1.5">Status</label>
+              <div className="flex items-center h-[46px] px-4 bg-gray-50/50 border border-gray-200 rounded-2xl gap-3">
                 <span className="text-xs font-bold text-gray-600">{formData.isActive ? "Active" : "Inactive"}</span>
                 <input
                   type="checkbox"
@@ -196,13 +208,26 @@ const Route = () => {
 
             <button
               onClick={handleSubmit}
-              className={`w-full sm:w-auto px-6 py-2.5 rounded-2xl font-bold text-white shadow-md flex items-center justify-center gap-2 transition duration-300 active:scale-95 shrink-0 cursor-pointer ${editingId
+              disabled={loading}
+              className={`w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition duration-300 active:scale-95 shrink-0 cursor-pointer whitespace-nowrap disabled:opacity-50 ${editingId
                 ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200"
                 : "bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 shadow-indigo-200"
                 }`}
             >
-              {editingId ? <><FiEdit3 size={18} /> Update Route</> : <><FiPlus size={18} /> Add Route</>}
+              {loading
+                ? editingId ? 'Updating...' : 'Adding...'
+                : editingId ? <><FiEdit3 size={18} /> Update Route</> : <><FiPlus size={18} /> Add Route</>}
             </button>
+
+            {editingId && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition duration-300 shrink-0 cursor-pointer whitespace-nowrap"
+              >
+                Cancel Edit
+              </button>
+            )}
           </div>
         </div>
 

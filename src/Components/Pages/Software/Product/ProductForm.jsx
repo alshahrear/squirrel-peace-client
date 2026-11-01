@@ -78,6 +78,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
         setFormData({
             productName: '',
             company: '',
+            companyContact: '',
             sku: '',
             category: '',
             alertQuantity: '',
@@ -123,10 +124,13 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
         const nameInput = formData.productName.trim().toLowerCase();
         const companyInput = formData.company.trim().toLowerCase();
 
+        const contactInput = (formData.companyContact || '').trim();
+
         const isDuplicate = products.some(
             (p) =>
                 p.productName?.trim().toLowerCase() === nameInput &&
                 p.company?.trim().toLowerCase() === companyInput &&
+                (!p.companyContact || !contactInput || p.companyContact.trim() === contactInput) &&
                 p._id !== editingId
         );
         if (isDuplicate) {
@@ -162,6 +166,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
         const baseData = {
             productName: formData.productName,
             company: formData.company,
+            companyContact: formData.companyContact || '',
             sku: formData.sku,
             category: formData.category,
             alertQuantity: formData.alertQuantity,
@@ -274,7 +279,7 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                                     const val = e.target.value;
                                     setCompanyInput(val);
                                     setShowCompanyDropdown(true);
-                                    setFormData({ ...formData, company: val });
+                                    setFormData({ ...formData, company: val, companyContact: '' });
                                 }}
                                 onFocus={() => setShowCompanyDropdown(true)}
                                 onBlur={() => setTimeout(() => setShowCompanyDropdown(false), 200)}
@@ -291,23 +296,23 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
                         {showCompanyDropdown && (
                             <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
                                 {companies
-                                    .filter(c => c.businessName.toLowerCase().includes(companyInput.toLowerCase()))
+                                    .filter(c => c.businessName?.toLowerCase().includes(companyInput.toLowerCase()) || c.contactNumber?.toLowerCase().includes(companyInput.toLowerCase()))
                                     .length > 0 ? (
                                     companies
-                                        .filter(c => c.businessName.toLowerCase().includes(companyInput.toLowerCase()))
+                                        .filter(c => c.businessName?.toLowerCase().includes(companyInput.toLowerCase()) || c.contactNumber?.toLowerCase().includes(companyInput.toLowerCase()))
                                         .map((comp) => (
                                             <li
                                                 key={comp._id}
                                                 onClick={() => {
                                                     setCompanyInput(comp.businessName);
-                                                    setFormData({ ...formData, company: comp.businessName });
+                                                    setFormData({ ...formData, company: comp.businessName, companyContact: comp.contactNumber || '' });
                                                     setShowCompanyDropdown(false);
                                                 }}
-                                                className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer text-gray-700"
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                             >
-                                                                                               {comp.businessName}
+                                                <p className="text-sm font-semibold text-gray-800">{comp.businessName}</p>
                                                 {comp.contactNumber && (
-                                                    <span className="text-gray-400 ml-1">({comp.contactNumber})</span>
+                                                    <p className="text-xs text-gray-500 mt-0.5">📞 {comp.contactNumber}</p>
                                                 )}
                                             </li>
                                         ))

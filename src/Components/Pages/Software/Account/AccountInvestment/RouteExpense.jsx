@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaFilter, FaRedo } from 'react-icons/fa';
 import RouteExpenseForm from './RouteExpenseForm';
-import useDraftState from '../../../../hooks/useDraftState';
+import useDraftState from '../../../../../hooks/useDraftState';
 import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight, FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const RouteExpense = () => {
@@ -615,6 +615,7 @@ const RouteExpense = () => {
                                         <th className="py-4 px-4">#</th>
                                         <th className="py-4 px-4">Date</th>
                                         <th className="py-4 px-4">Invoice</th>
+                                        <th className="py-4 px-4">Route Expense Type</th>
                                         <th className="py-4 px-4">Delivered By</th>
                                         <th className="py-4 px-4">Route Name</th>
                                         <th className="py-4 px-4">Category</th>
@@ -632,6 +633,15 @@ const RouteExpense = () => {
                                             <td className="py-4 px-4 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-4 text-gray-600 whitespace-nowrap">{routeExpense.date || 'N/A'}</td>
                                             <td className="py-4 px-4 font-mono text-xs text-cyan-600 font-semibold">{routeExpense.invoiceNumber || 'N/A'}</td>
+                                            <td className="py-4 px-4">
+                                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border font-semibold text-xs whitespace-nowrap ${(routeExpense.routeExpenseType || 'Inside') === 'Outside'
+                                                    ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                                    : 'bg-teal-50 text-teal-700 border-teal-200'
+                                                    }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${(routeExpense.routeExpenseType || 'Inside') === 'Outside' ? 'bg-orange-500' : 'bg-teal-500'}`}></span>
+                                                    {routeExpense.routeExpenseType || 'Inside'}
+                                                </span>
+                                            </td>
                                             <td className="py-4 px-4">
                                                 <span className="px-3 py-1 bg-sky-100 text-sky-700 rounded-full font-semibold text-xs whitespace-nowrap">
                                                     {routeExpense.deliveredBy || 'N/A'}

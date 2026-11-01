@@ -1458,6 +1458,40 @@ const OrderAdd = () => {
     // --------------------------------------------------
     // Submit (এখন শুধু Frontend — Backend পরে যোগ হবে)
     // --------------------------------------------------
+    // Credit Limit check: customer er Get (baki) amount creditLimit er beshi hole order hobe na
+    const checkCreditLimit = async () => {
+        try {
+            const res = await fetch('https://squirrel-peace-server.onrender.com/customer');
+            const list = await res.json();
+            const cust = (Array.isArray(list) ? list : []).find(
+                (c) => String(c._id) === String(orderFormData.customerId)
+            );
+            const limitRaw = cust?.creditLimit;
+            if (limitRaw === undefined || limitRaw === null || String(limitRaw).trim() === '') return true;
+            const limit = Number(limitRaw);
+            if (isNaN(limit)) return true;
+
+            const prevSigned =
+                prevBalance.type === 'Due' ? prevBalance.amount : prevBalance.type === 'Get' ? -prevBalance.amount : 0;
+            const base = prevApplied ? 0 : prevSigned;
+            const paid = Number(paymentAmount) || 0;
+            const thisOrderDue = payableAmount >= 0 ? payableAmount - paid : payableAmount + paid;
+            const totalGet = roundTo2(base + thisOrderDue);
+
+            if (totalGet > limit) {
+                showToast(
+                    `Credit limit cross hoye jabe! Limit: ৳${limit}, Total Get hobe: ৳${totalGet}. Aro beshi amount pay nin.`,
+                    true
+                );
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error checking credit limit:', error);
+            return true;
+        }
+    };
+
     // Damage-only update: শুধু damage related field পাঠাবে (stock এ হাত দেবে না)
     const handleDamageOnlySubmit = async () => {
         if (damageItems.length === 0) {
@@ -1650,6 +1684,8 @@ const OrderAdd = () => {
             } else {
                 accInfo = { accountName: 'Cash' };
             }
+
+            if (!(await checkCreditLimit())) return;
 
             deliveredPaymentData = {
                 paidAmount: roundTo2(paymentAmount),
@@ -1933,6 +1969,8 @@ const OrderAdd = () => {
             showToast('Please select an account!', true);
             return;
         }
+
+        if (!(await checkCreditLimit())) return;
 
         const today = new Date();
         const deliveryDate = today.toLocaleDateString('en-GB', {

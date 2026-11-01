@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 import Swal from 'sweetalert2';
 import IncomeForm from './IncomeForm';
 import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight, FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
@@ -124,7 +124,8 @@ const Income = () => {
         const accNoMatch = income.accountNumber?.toLowerCase().includes(search);
         const accNameMatch = income.accountName?.toLowerCase().includes(search);
         const branchMatch = income.accountBranch?.toLowerCase().includes(search);
-        return categoryMatch || nameMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
+        const typeMatch = income.incomeType?.toLowerCase().includes(search);
+        return typeMatch || categoryMatch || nameMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
     });
 
     // Pagination Calculations
@@ -397,6 +398,7 @@ const Income = () => {
                                         <th className="py-4 px-4">#</th>
                                         <th className="py-4 px-4">Date</th>
                                         <th className="py-4 px-4">Invoice</th>
+                                        <th className="py-4 px-4">Income Type</th>
                                         <th className="py-4 px-4">Income Category</th>
                                         <th className="py-4 px-4">Name</th>
                                         <th className="py-4 px-4">Account Type</th>
@@ -412,6 +414,15 @@ const Income = () => {
                                             <td className="py-4 px-4 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-4 text-gray-600 whitespace-nowrap">{income.date || 'N/A'}</td>
                                             <td className="py-4 px-4 font-mono text-xs text-indigo-600 font-semibold">{income.invoiceNumber || 'N/A'}</td>
+                                            <td className="py-4 px-4">
+                                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border font-semibold text-xs whitespace-nowrap ${(income.incomeType || 'Inside') === 'Outside'
+                                                    ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                                    : 'bg-teal-50 text-teal-700 border-teal-200'
+                                                    }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${(income.incomeType || 'Inside') === 'Outside' ? 'bg-orange-500' : 'bg-teal-500'}`}></span>
+                                                    {income.incomeType || 'Inside'}
+                                                </span>
+                                            </td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{income.incomeCategory || 'N/A'}</td>
                                             <td className="py-4 px-4 text-gray-600">{income.name || 'N/A'}</td>
                                             <td className="py-4 px-4">

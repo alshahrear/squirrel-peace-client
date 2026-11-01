@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import { FaTimes } from 'react-icons/fa';
+import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 
-const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferSaved }) => {
+const TransferForm = ({
+    showToast,
+    fetchTransfers,
+    setShowForm,
+    editingTransfer,
+    setEditingTransfer,
+    scrollToTable,
+}) => {
+    const isEditing = Boolean(editingTransfer && editingTransfer._id);
 
     // আজকের ডেট ফরম্যাট করার ফাংশন (যেমন: "03 Sep 2026")
     const getFormattedToday = () => {
@@ -165,51 +174,59 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
 
         setLoading(true);
 
-        const url = editingTransfer
+        const finalData = { ...formData };
+
+        const url = isEditing
             ? `https://squirrel-peace-server.onrender.com/transfer/${editingTransfer._id}`
             : 'https://squirrel-peace-server.onrender.com/transfer';
-
-        const method = editingTransfer ? 'PUT' : 'POST';
+        const method = isEditing ? 'PUT' : 'POST';
 
         try {
             const response = await fetch(url, {
-                method: method,
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(finalData),
             });
 
             if (response.ok) {
-                const resultData = await response.json();
+                showToast(
+                    isEditing ? 'Transfer updated successfully!' : 'Transfer created successfully!',
+                    'success'
+                );
 
-                showToast(editingTransfer ? 'Transfer updated successfully!' : 'Transfer created successfully!', 'success');
-
-                if (editingTransfer && onTransferSaved) {
-                    const updatedTransferObj = {
-                        ...editingTransfer,
-                        ...formData,
-                    };
-                    onTransferSaved(updatedTransferObj);
-                } else if (onTransferAdded) {
-                    const newTransferId = resultData.insertedId || resultData._id || Date.now().toString();
-                    const createdTransferObj = {
-                        ...formData,
-                        _id: newTransferId
-                    };
-                    onTransferAdded(createdTransferObj);
+                if (fetchTransfers) {
+                    await fetchTransfers();
                 }
 
-                // ফর্ম রিসেট (draft মুছে ফেলা)
                 clearDraft(draftKey);
+                setEditingTransfer(null);
+                setShowForm(false);
+
+                if (scrollToTable) {
+                    scrollToTable();
+                }
             } else {
-                showToast('Something went wrong, please try again.', 'error');
+                showToast(
+                    isEditing ? 'Failed to update transfer!' : 'Something went wrong, please try again.',
+                    'error'
+                );
             }
         } catch (error) {
             console.error('Error:', error);
             showToast('Failed to connect to the server.', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        clearDraft(draftKey);
+        setEditingTransfer(null);
+        setShowForm(false);
+        if (scrollToTable) {
+            scrollToTable();
         }
     };
 
@@ -329,11 +346,20 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
                     </div>
                     <div>
                         <h3 className="text-xl font-extrabold text-gray-800">
-                            {editingTransfer ? 'Edit Transfer Information' : 'New Balance Transfer'}
+                            {isEditing ? 'Edit Transfer Information' : 'New Balance Transfer'}
                         </h3>
                         <p className="text-xs text-gray-400 mt-0.5">Fill out the essential transfer details below</p>
                     </div>
                 </div>
+                {isEditing && (
+                    <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full transition-all cursor-pointer"
+                    >
+                        <FaTimes /> Cancel Edit
+                    </button>
+                )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -528,7 +554,7 @@ const TransferForm = ({ showToast, editingTransfer, onTransferAdded, onTransferS
                             disabled={loading || areTransferDropdownsEmpty}
                             className="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                         >
-                            {loading ? (editingTransfer ? 'Updating Transfer...' : 'Processing Transfer...') : (editingTransfer ? 'Update Transfer' : 'Transfer')}
+                            {loading ? (isEditing ? 'Updating Transfer...' : 'Processing Transfer...') : (isEditing ? 'Update Transfer' : 'Transfer')}
                         </button>
                     </div>
                 </div>

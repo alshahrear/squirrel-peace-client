@@ -82,7 +82,7 @@ const StockProducts = () => {
     const [damages, setDamages] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filters, setFilters] = useState({ product: '', company: '' });
+    const [filters, setFilters] = useState({ product: '', company: '', companyContact: '' });
     const [hideEmpty, setHideEmpty] = useState(false);
     const [qtyType, setQtyType] = useState('all');
     const [historyOpen, setHistoryOpen] = useState(false);
@@ -121,39 +121,51 @@ const StockProducts = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredCompanyOptions = companies.filter((c) =>
-        (c.businessName || '').toLowerCase().includes(filters.company.toLowerCase())
-    );
+    const filteredCompanyOptions = companies.filter((c) => {
+        const s = filters.company.toLowerCase();
+        return (
+            (c.businessName || '').toLowerCase().includes(s) ||
+            (c.contactNumber || '').toLowerCase().includes(s)
+        );
+    });
+    const getCompanyPhone = (p) =>
+        p.companyContact ||
+        companies.find((c) => (c.businessName || '').trim().toLowerCase() === (p.company || '').trim().toLowerCase())?.contactNumber ||
+        '';
     const filteredProductOptions = productOptions.filter((p) => {
-        if (!p.productName || p.isActive === false) return false;
-        if (filters.company && !(p.company || '').toLowerCase().includes(filters.company.toLowerCase())) return false;
-        return p.productName.toLowerCase().includes(filters.product.toLowerCase());
+               if (!p.productName || p.isActive === false) return false;
+        const s = filters.product.toLowerCase();
+        return (
+            p.productName.toLowerCase().includes(s) ||
+            (p.company || '').toLowerCase().includes(s) ||
+            (p.companyContact || '').toLowerCase().includes(s)
+        );
     });
 
     const handleSelectCompany = (c) => {
-        setFilters({ company: c.businessName, product: '' });
+        setFilters({ company: c.businessName, companyContact: c.contactNumber || '', product: '' });
         setIsCompanyOpen(false);
         setCurrentPage(1);
     };
     const handleClearCompany = (e) => {
         e.stopPropagation();
-        setFilters((prev) => ({ ...prev, company: '' }));
+        setFilters((prev) => ({ ...prev, company: '', companyContact: '' }));
         setIsCompanyOpen(false);
         setCurrentPage(1);
     };
     const handleSelectProduct = (p) => {
-        setFilters({ product: p.productName, company: p.company || '' });
+       setFilters({ product: p.productName?.trim() || '', company: p.company?.trim() || '', companyContact: getCompanyPhone(p) });
         setIsProductOpen(false);
         setCurrentPage(1);
     };
     const handleClearProduct = (e) => {
         e.stopPropagation();
-        setFilters((prev) => ({ ...prev, product: '' }));
+       setFilters((prev) => ({ ...prev, product: '', company: '', companyContact: '' }));
         setIsProductOpen(false);
         setCurrentPage(1);
     };
     const handleClearFilters = () => {
-        setFilters({ product: '', company: '' });
+        setFilters({ product: '', company: '', companyContact: '' });
         setHideEmpty(false);
         setQtyType('all');
         setIsProductOpen(false);
@@ -319,6 +331,7 @@ const StockProducts = () => {
                     key,
                     productName: name || 'N/A',
                     company: company || 'N/A',
+                    companyContact: (b.companyContact || '').toString().trim(),
                     main: 0,
                     free: 0,
                     value: 0,
@@ -577,6 +590,7 @@ const StockProducts = () => {
             if (qtyType === 'free' && p.free <= 0) return false;
             if (pq && !p.productName.toLowerCase().includes(pq)) return false;
             if (cq && !p.company.toLowerCase().includes(cq)) return false;
+            if (filters.companyContact && p.companyContact && p.companyContact !== filters.companyContact) return false;
             return true;
         });
     }, [products, filters, hideEmpty, qtyType]);
@@ -806,10 +820,12 @@ const StockProducts = () => {
                                     >
                                         <input
                                             type="text"
-                                            placeholder="Search or select product..."
+                                           placeholder="Search or select product..."
+                                            onFocus={() => setIsProductOpen(true)}
+                                            autoComplete="off"
                                             value={filters.product}
                                             onChange={(e) => {
-                                                setFilters((prev) => ({ ...prev, product: e.target.value }));
+                                               setFilters((prev) => ({ ...prev, product: e.target.value, company: '', companyContact: '' }));
                                                 setIsProductOpen(true);
                                                 setCurrentPage(1);
                                             }}
@@ -830,8 +846,10 @@ const StockProducts = () => {
                                                         onClick={() => handleSelectProduct(p)}
                                                         className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none"
                                                     >
-                                                        <div className="text-xs font-medium text-gray-700">{p.productName}</div>
-                                                        {p.company && <div className="text-[10px] text-gray-400">{p.company}</div>}
+                                                        <div className="text-xs font-semibold text-gray-800">{p.productName}</div>
+                                                        <div className="text-[11px] text-gray-500 mt-0.5">
+                                                            🏢 {p.company || 'N/A'}{getCompanyPhone(p) ? ` | 📞 ${getCompanyPhone(p)}` : ''}
+                                                        </div>
                                                     </div>
                                                 ))
                                             ) : (
@@ -853,7 +871,7 @@ const StockProducts = () => {
                                             placeholder="Search or select company..."
                                             value={filters.company}
                                             onChange={(e) => {
-                                                setFilters((prev) => ({ ...prev, company: e.target.value }));
+                                                setFilters((prev) => ({ ...prev, company: e.target.value, companyContact: '' }));
                                                 setIsCompanyOpen(true);
                                                 setCurrentPage(1);
                                             }}
@@ -872,9 +890,12 @@ const StockProducts = () => {
                                                     <div
                                                         key={c._id}
                                                         onClick={() => handleSelectCompany(c)}
-                                                        className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                        className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                     >
-                                                        {c.businessName}
+                                                        <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
+                                                        {c.contactNumber && (
+                                                            <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                                        )}
                                                     </div>
                                                 ))
                                             ) : (
@@ -947,7 +968,12 @@ const StockProducts = () => {
                                                         {p.batchCount} batch{p.batchCount > 1 ? 'es' : ''}
                                                     </div>
                                                 </td>
-                                                <td className="py-3 px-3 text-gray-600 font-medium whitespace-nowrap">{p.company}</td>
+                                                <td className="py-3 px-3 text-gray-600 font-medium whitespace-nowrap">
+                                                    <div>{p.company}</div>
+                                                    {p.companyContact && (
+                                                        <div className="text-[11px] text-gray-400 mt-0.5">📞 {p.companyContact}</div>
+                                                    )}
+                                                </td>
                                                 <td className="py-3 px-3 whitespace-nowrap">
                                                     <div className="flex items-start gap-2">
 

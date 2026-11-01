@@ -68,6 +68,7 @@ const PurTopChartRepo = () => {
         endDate: '',
         product: '',
         company: '',
+        companyContact: '',
         status: '',
     });
 
@@ -158,23 +159,31 @@ const PurTopChartRepo = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', product: '', company: '', status: '' });
+        setFilters({ startDate: '', endDate: '', product: '', company: '', companyContact: '', status: '' });
         setCurrentPage(1);
     };
 
-    const filteredCompanies = companies.filter((comp) =>
-        comp.businessName?.toLowerCase().includes(filters.company.toLowerCase())
-    );
+    const filteredCompanies = companies.filter((comp) => {
+        const s = filters.company.toLowerCase();
+        return (
+            comp.businessName?.toLowerCase().includes(s) ||
+            comp.contactNumber?.toLowerCase().includes(s)
+        );
+    });
+
+    const getPhoneByName = (name) =>
+        companies.find((c) => (c.businessName || '').trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
+    const getPurchasePhone = (p) => p.companyContact || getPhoneByName(p.company);
 
     const handleSelectCompany = (comp) => {
-        setFilters({ ...filters, company: comp.businessName });
+        setFilters({ ...filters, company: comp.businessName, companyContact: comp.contactNumber || '' });
         setCurrentPage(1);
         setIsCompanyOpen(false);
     };
 
     const handleClearCompany = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, company: '' });
+        setFilters({ ...filters, company: '', companyContact: '' });
         setCurrentPage(1);
         setIsCompanyOpen(false);
     };
@@ -229,8 +238,11 @@ const PurTopChartRepo = () => {
         return e;
     };
 
+    const phoneMap = new Map();
+
     dateFilteredPurchases.forEach((p) => {
         const company = p.company || '';
+        if (!phoneMap.get(company)) phoneMap.set(company, getPurchasePhone(p));
 
         // Main products
         (p.items || []).forEach((it) => {
@@ -291,6 +303,7 @@ const PurTopChartRepo = () => {
             if (e.othersQty > 0) lines.push({ label: 'Others Free', tuple: mk(e.othersQty) });
             return {
                 ...e,
+                phone: phoneMap.get(e.company) || '',
                 lines,
                 buyPrice: productPriceById.get(String(e.productId)) ?? productPriceByName.get(e.productName) ?? e.buyPrice,
                 costRows: Array.from(e.byCost.values())
@@ -317,13 +330,26 @@ const PurTopChartRepo = () => {
         .sort((a, b) => b.grandTotal - a.grandTotal || a.productName.localeCompare(b.productName));
 
     // Unique product name list (dropdown er jonno)
-    const productNames = [...new Set(rows.map((r) => r.productName).filter(Boolean))];
-    const filteredProductNames = productNames.filter((name) =>
-        name.toLowerCase().includes(filters.product.toLowerCase())
-    );
+    const productOptionMap = new Map();
+    rows.forEach((r) => {
+        if (!r.productName) return;
+        const key = `${r.productName}|${r.company || ''}|${r.phone || ''}`;
+        if (!productOptionMap.has(key)) {
+            productOptionMap.set(key, { key, name: r.productName, company: r.company || '', phone: r.phone || '' });
+        }
+    });
+    const productOptions = Array.from(productOptionMap.values());
+    const filteredProductOptions = productOptions.filter((o) => {
+        const s = filters.product.toLowerCase();
+        return (
+            o.name.toLowerCase().includes(s) ||
+            o.company.toLowerCase().includes(s) ||
+            o.phone.toLowerCase().includes(s)
+        );
+    });
 
-    const handleSelectProduct = (name) => {
-        setFilters({ ...filters, product: name });
+    const handleSelectProduct = (o) => {
+        setFilters({ ...filters, product: o.name, company: o.company, companyContact: o.phone });
         setCurrentPage(1);
         setIsProductOpen(false);
     };
@@ -339,6 +365,7 @@ const PurTopChartRepo = () => {
     const baseFilteredRows = rows.filter((r) => {
         if (filters.product && !r.productName?.toLowerCase().includes(filters.product.toLowerCase())) return false;
         if (filters.company && !r.company?.toLowerCase().includes(filters.company.toLowerCase())) return false;
+        if (filters.companyContact && r.phone && r.phone !== filters.companyContact) return false;
         return true;
     });
 
@@ -490,7 +517,8 @@ const PurTopChartRepo = () => {
                                         placeholder="Search or select product..."
                                         value={filters.product}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'product', value: e.target.value } });
+                                            setFilters({ ...filters, product: e.target.value, company: '', companyContact: '' });
+                                            setCurrentPage(1);
                                             setIsProductOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -504,14 +532,17 @@ const PurTopChartRepo = () => {
 
                                 {isProductOpen && (
                                     <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredProductNames.length > 0 ? (
-                                            filteredProductNames.map((name) => (
+                                        {filteredProductOptions.length > 0 ? (
+                                            filteredProductOptions.map((o) => (
                                                 <div
-                                                    key={name}
-                                                    onClick={() => handleSelectProduct(name)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                    key={o.key}
+                                                    onClick={() => handleSelectProduct(o)}
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                 >
-                                                    {name}
+                                                    <p className="text-xs font-semibold text-gray-800">{o.name}</p>
+                                                    <p className="text-[11px] text-gray-500 mt-0.5">
+                                                        🏢 {o.company || 'N/A'}{o.phone ? ` | 📞 ${o.phone}` : ''}
+                                                    </p>
                                                 </div>
                                             ))
                                         ) : (
@@ -533,7 +564,8 @@ const PurTopChartRepo = () => {
                                         placeholder="Search or select company..."
                                         value={filters.company}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'company', value: e.target.value } });
+                                            setFilters({ ...filters, company: e.target.value, companyContact: '' });
+                                            setCurrentPage(1);
                                             setIsCompanyOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -552,9 +584,12 @@ const PurTopChartRepo = () => {
                                                 <div
                                                     key={comp._id}
                                                     onClick={() => handleSelectCompany(comp)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                 >
-                                                    {comp.businessName}
+                                                    <p className="text-xs font-semibold text-gray-800">{comp.businessName}</p>
+                                                    {comp.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {comp.contactNumber}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
@@ -660,7 +695,12 @@ const PurTopChartRepo = () => {
                                                         />
                                                     </td>
                                                     <td className="font-bold text-gray-800">{r.productName}</td>
-                                                    <td className="text-gray-600">{r.company}</td>
+                                                    <td className="text-gray-600">
+                                                        <div>{r.company}</div>
+                                                        {r.phone && (
+                                                            <div className="text-[11px] text-gray-400 mt-0.5">📞 {r.phone}</div>
+                                                        )}
+                                                    </td>
                                                     <td>
                                                         <QtyCell lines={r.lines} unit={r.unit} subUnit={r.subUnit} parentMode={r.parentMode} />
                                                     </td>

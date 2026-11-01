@@ -241,16 +241,21 @@ const CompanyAccountAc = () => {
             const name = String(n || '').trim();
             if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), name);
         };
+        const phoneOf = (name) =>
+            companies.find((c) => sameCompany(c.businessName, name))?.contactNumber || '';
         companies.forEach((c) => put(c.businessName));
         duePayments.forEach((d) => put(d.company));
         purchases.forEach((p) => put(p.company));
         bulkReturns.forEach((b) => put(b.company));
         damageReturns.forEach((d) => put(d.company));
         // company list er company gulo age (je order e add kora hoyeche), tarpor onno gulo
-        return [...seen.values()];
+        return [...seen.values()].map((name) => ({ name, phone: phoneOf(name) }));
     })();
 
-    const companyOptions = companyNames.filter((n) => n.toLowerCase().includes(query.trim().toLowerCase()));
+    const companyOptions = companyNames.filter((c) => {
+        const s = query.trim().toLowerCase();
+        return c.name.toLowerCase().includes(s) || (c.phone || '').toLowerCase().includes(s);
+    });
     const companyInfo = companies.find((c) => sameCompany(c.businessName, selectedCompany));
 
     // Opening balance (faka thakle 0)
@@ -636,15 +641,20 @@ const CompanyAccountAc = () => {
                                 {loading ? (
                                     <div className="px-4 py-3 text-xs text-gray-400 text-center">Loading...</div>
                                 ) : companyOptions.length > 0 ? (
-                                    companyOptions.map((name) => (
+                                    companyOptions.map((c) => (
                                         <div
-                                            key={name}
-                                            onClick={() => handleSelectCompany(name)}
-                                            className={`px-4 py-2.5 cursor-pointer border-b border-gray-50 last:border-none text-sm font-medium flex items-center gap-2 hover:bg-indigo-50 ${sameCompany(name, selectedCompany) ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                                            key={c.name}
+                                            onClick={() => handleSelectCompany(c.name)}
+                                            className={`px-4 py-2.5 cursor-pointer border-b border-gray-50 last:border-none flex items-center gap-2 hover:bg-indigo-50 ${sameCompany(c.name, selectedCompany) ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
                                                 }`}
                                         >
-                                            <FaBuilding size={11} className="text-indigo-300" />
-                                            {name}
+                                            <FaBuilding size={11} className="text-indigo-300 shrink-0" />
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-800">{c.name}</p>
+                                                {c.phone && (
+                                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.phone}</p>
+                                                )}
+                                            </div>
                                         </div>
                                     ))
                                 ) : (

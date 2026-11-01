@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import UserForm from './UserForm';
 import useDraftState from '../../../../hooks/useDraftState';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaTimes } from 'react-icons/fa';
 import { FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 // "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
@@ -26,7 +26,47 @@ const User = () => {
     const itemsPerPage = 30;
 
     // Search, Form & Edit Modal States
-    const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        role: '',
+        address: '',
+        status: ''
+    });
+    const [isNameOpen, setIsNameOpen] = useState(false);
+    const nameFilterRef = useRef(null);
+
+    useEffect(() => {
+        const handleOutside = (event) => {
+            if (nameFilterRef.current && !nameFilterRef.current.contains(event.target)) {
+                setIsNameOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, []);
+
+    const handleFilterChange = (e) => {
+        setFilters({ ...filters, [e.target.name]: e.target.value });
+        setCurrentPage(1);
+    };
+
+    const handleClearFilters = () => {
+        setFilters({ name: '', email: '', phone: '', role: '', address: '', status: '' });
+        setCurrentPage(1);
+    };
+
+    const nameFilterOptions = users.filter((u) => {
+        const s = filters.name.toLowerCase();
+        return (
+            u.name?.toLowerCase().includes(s) ||
+            u.phone?.toLowerCase().includes(s) ||
+            u.email?.toLowerCase().includes(s)
+        );
+    });
+
+    const roleOptions = [...new Set(users.map((u) => u.role).filter(Boolean))];
     const [showForm, setShowForm] = useDraftState('userFormOpen', false);
     const [editingUserId, setEditingUserId] = useDraftState('userEditingId', null);
     const editingUser = users.find((u) => u._id === editingUserId) || null;
@@ -110,11 +150,13 @@ const User = () => {
 
     // Filtered Users based on Search
     const filteredUsers = users.filter((user) => {
-        const search = searchTerm.toLowerCase();
-        const nameMatch = user.name?.toLowerCase().includes(search);
-        const emailMatch = user.email?.toLowerCase().includes(search);
-        const phoneMatch = user.phone?.toLowerCase().includes(search);
-        return nameMatch || emailMatch || phoneMatch;
+        if (filters.name && !user.name?.toLowerCase().includes(filters.name.toLowerCase())) return false;
+        if (filters.email && !user.email?.toLowerCase().includes(filters.email.toLowerCase())) return false;
+        if (filters.phone && !user.phone?.toLowerCase().includes(filters.phone.toLowerCase())) return false;
+        if (filters.role && user.role !== filters.role) return false;
+        if (filters.address && !user.address?.toLowerCase().includes(filters.address.toLowerCase())) return false;
+        if (filters.status !== '' && String(!!user.isActive) !== filters.status) return false;
+        return true;
     });
 
     // Pagination Calculations
@@ -183,21 +225,11 @@ const User = () => {
                             key={editingUser?._id || 'new'}
                             showToast={showToast}
                             users={users}
+                            fetchUsers={fetchUsers}
+                            setShowForm={setShowForm}
                             editingUser={editingUser}
-                            onUserAdded={(newUser) => {
-                                // নতুন ইউজার সাথে সাথে স্টেটে যোগ করা (রিফ্রেশ ছাড়া)
-                                setUsers(prevUsers => [newUser, ...prevUsers]);
-                                setShowForm(false);
-                                setEditingUser(null);
-                                setTimeout(() => {
-                                    tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-                                }, 100);
-                            }}
-                            onUserSaved={(updatedUser) => {
-                                // এডিট করা ইউজার সাথে সাথে স্টেটে আপডেট করা (রিফ্রেশ ছাড়া)
-                                setUsers(prevUsers => prevUsers.map(u => u._id === updatedUser._id ? updatedUser : u));
-                                setShowForm(false);
-                                setEditingUser(null);
+                            setEditingUser={setEditingUser}
+                            scrollToTable={() => {
                                 setTimeout(() => {
                                     tableSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
                                 }, 100);
@@ -217,19 +249,156 @@ const User = () => {
                             </span>
                         </div>
 
-                        <div className="relative w-full md:w-80">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                                </svg>
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Search by name, email, phone..."
-                                value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
-                            />
+                    </div>
+
+                    {/* Filter & Search Panel */}
+                    <div className="bg-white shadow-lg rounded-2xl p-5 border border-indigo-100">
+                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                <FaFilter className="text-indigo-600" /> Filter & Search Panel
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={handleClearFilters}
+                                className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+                            >
+                                <FaRedo size={11} /> Clear All Filters
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                            {/* Name (Select Input) */}
+                            <div className="relative" ref={nameFilterRef}>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Name</label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        placeholder="Search or select user..."
+                                        value={filters.name}
+                                        onChange={(e) => {
+                                            handleFilterChange(e);
+                                            setIsNameOpen(true);
+                                        }}
+                                        onFocus={() => setIsNameOpen(true)}
+                                        autoComplete="off"
+                                        className="w-full px-3 py-1.5 pr-14 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                    />
+                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                        {filters.name && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setFilters({ ...filters, name: '' });
+                                                    setCurrentPage(1);
+                                                    setIsNameOpen(false);
+                                                }}
+                                                className="text-gray-400 hover:text-rose-500"
+                                            >
+                                                <FaTimes size={11} />
+                                            </button>
+                                        )}
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500 pointer-events-none">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                {isNameOpen && (
+                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
+                                        {nameFilterOptions.length > 0 ? (
+                                            nameFilterOptions.map((u) => (
+                                                <div
+                                                    key={u._id}
+                                                    onClick={() => {
+                                                        setFilters({ ...filters, name: u.name || '' });
+                                                        setCurrentPage(1);
+                                                        setIsNameOpen(false);
+                                                    }}
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                                                >
+                                                    <p className="text-xs font-semibold text-gray-800">{u.name}</p>
+                                                    <p className="text-[11px] text-gray-500 mt-0.5">
+                                                        {u.phone ? `📞 ${u.phone}` : ''}{u.phone && u.email ? ' | ' : ''}{u.email ? `✉️ ${u.email}` : ''}
+                                                    </p>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No user found</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Email */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Email</label>
+                                <input
+                                    type="text"
+                                    name="email"
+                                    placeholder="Search email..."
+                                    value={filters.email}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                />
+                            </div>
+
+                            {/* Phone */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Phone</label>
+                                <input
+                                    type="text"
+                                    name="phone"
+                                    placeholder="Search phone..."
+                                    value={filters.phone}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                />
+                            </div>
+
+                            {/* Role */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Role</label>
+                                <select
+                                    name="role"
+                                    value={filters.role}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">All Roles</option>
+                                    {roleOptions.map((r) => (
+                                        <option key={r} value={r}>{r}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Address */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Address</label>
+                                <input
+                                    type="text"
+                                    name="address"
+                                    placeholder="Search address..."
+                                    value={filters.address}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                />
+                            </div>
+
+                            {/* Status */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
+                                <select
+                                    name="status"
+                                    value={filters.status}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">All Status</option>
+                                    <option value="true">Active</option>
+                                    <option value="false">Inactive</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 

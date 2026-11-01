@@ -59,7 +59,7 @@ const UserRole = () => {
                 const response = await axios.put(`https://squirrel-peace-server.onrender.com/userRole/${editingId}`, {
                     role: roleInput,
                 });
-                if (response.data.modifiedCount > 0) {
+               if (response.status === 200) {
                     toast.success('Role updated successfully!');
                 }
                 setEditingId(null);

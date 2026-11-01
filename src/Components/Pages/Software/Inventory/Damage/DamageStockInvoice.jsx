@@ -59,8 +59,73 @@ const FilterSelect = ({ label, placeholder, value, options, onChange }) => {
     );
 };
 
+const CustomerFilterSelect = ({ value, customers, onSelect, onType, onClear }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+    const s = (value || '').toLowerCase();
+    const list = customers.filter(
+        (c) =>
+            (c.businessName || '').toLowerCase().includes(s) ||
+            (c.contactNumber || '').toLowerCase().includes(s)
+    );
+    return (
+        <div className="relative" ref={ref}>
+            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer</label>
+            <div
+                onClick={() => setOpen(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+            >
+                <input
+                    type="text"
+                    placeholder="Search or select customer..."
+                    value={value}
+                    onChange={(e) => { onType(e.target.value); setOpen(true); }}
+                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
+                        className="text-gray-400 hover:text-red-500 pl-1"
+                    >
+                        <FaTimes size={10} />
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                    {list.length > 0 ? (
+                        list.map((c) => (
+                            <div
+                                key={c._id}
+                                onClick={() => { onSelect(c); setOpen(false); }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                            >
+                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
+                                {c.contactNumber && (
+                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const DamageStockInvoice = () => {
     const [orders, setOrders] = useState([]);
+    const [customerList, setCustomerList] = useState([]);
     const [purchaseList, setPurchaseList] = useState([]);
     const [damageReturnList, setDamageReturnList] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -79,6 +144,7 @@ const DamageStockInvoice = () => {
         startDate: '',
         endDate: '',
         customer: '',
+        customerContact: '',
         invoiceNo: '',
         sr: '',
         deliveredBy: '',
@@ -147,8 +213,10 @@ const DamageStockInvoice = () => {
             fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((res) => res.json()).catch(() => []),
             fetch('https://squirrel-peace-server.onrender.com/purchase').then((res) => res.json()).catch(() => []),
             fetch('https://squirrel-peace-server.onrender.com/damage-return').then((res) => res.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/customer').then((res) => res.json()).catch(() => []),
         ])
-            .then(([sales, dmg, purchases, dmgReturns]) => {
+            .then(([sales, dmg, purchases, dmgReturns, custs]) => {
+                setCustomerList(Array.isArray(custs) ? custs : []);
                 setPurchaseList(Array.isArray(purchases) ? purchases : []);
                 setDamageReturnList(Array.isArray(dmgReturns) ? dmgReturns : []);
                 const salesList = Array.isArray(sales) ? sales : [];
@@ -174,7 +242,8 @@ const DamageStockInvoice = () => {
     );
 
     const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-    const customerOptions = uniq(baseDamageOrders.map((o) => o.customer));
+    const getPhoneByName = (name) =>
+        customerList.find((c) => (c.businessName || '').trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
     const srOptions = uniq(baseDamageOrders.map((o) => o.sr));
     const deliveryOptions = uniq(baseDamageOrders.map((o) => o.deliveredBy));
 
@@ -194,6 +263,10 @@ const DamageStockInvoice = () => {
             }
         }
         if (filters.customer && !has(item.customer, filters.customer)) return false;
+        if (filters.customerContact) {
+            const phone = getPhoneByName(item.customer);
+            if (phone && phone !== filters.customerContact) return false;
+        }
         if (filters.invoiceNo && !has(item.invoiceNo || item.orderNo, filters.invoiceNo)) return false;
         if (filters.sr && !has(item.sr, filters.sr)) return false;
         if (filters.deliveredBy && !has(item.deliveredBy, filters.deliveredBy)) return false;
@@ -529,12 +602,21 @@ const DamageStockInvoice = () => {
                                 </div>
                             </div>
 
-                            <FilterSelect
-                                label="Customer"
-                                placeholder="Search or select customer..."
+                            <CustomerFilterSelect
                                 value={filters.customer}
-                                options={customerOptions}
-                                onChange={(v) => setFilter('customer', v)}
+                                customers={customerList}
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, customer: v, customerContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(c) => {
+                                    setFilters((prev) => ({ ...prev, customer: c.businessName, customerContact: c.contactNumber || '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, customer: '', customerContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                             />
 
                             <div>
@@ -628,7 +710,12 @@ const DamageStockInvoice = () => {
                                                         : (item.deliveryDate || item.orderDate || 'N/A')}
                                                 </div>
                                             </td>
-                                            <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">{item.customer || 'N/A'}</td>
+                                            <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">
+                                                <div>{item.customer || 'N/A'}</div>
+                                                {getPhoneByName(item.customer) && (
+                                                    <div className="text-[10px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
+                                                )}
+                                            </td>
                                             <td className="py-3 px-2.5 text-gray-600 font-medium whitespace-nowrap">
                                                 <div>{item.invoiceNo || item.orderNo}</div>
                                                 {!item.isStandaloneDamage && (

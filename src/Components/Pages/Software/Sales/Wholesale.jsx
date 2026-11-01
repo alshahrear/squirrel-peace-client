@@ -20,6 +20,7 @@ const Wholesale = () => {
         startDate: '',
         endDate: '',
         customer: '',
+        customerContact: '',
         invoiceNo: '',
         sr: '',
         deliveredBy: '',
@@ -194,18 +195,29 @@ const Wholesale = () => {
         return list;
     };
 
-    const filteredCustomers = customers.filter((c) =>
-        c.name?.toLowerCase().includes(filters.customer.toLowerCase())
-    );
+    const getCustomerName = (c) => c.businessName || c.name || '';
+
+    const filteredCustomers = customers.filter((c) => {
+        const s = filters.customer.toLowerCase();
+        return (
+            getCustomerName(c).toLowerCase().includes(s) ||
+            c.contactNumber?.toLowerCase().includes(s)
+        );
+    });
+
+    const getPhoneByName = (name) =>
+        customers.find((c) => getCustomerName(c).trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
 
     const handleSelectCustomer = (c) => {
-        setFilters({ ...filters, customer: c.name });
+        setFilters({ ...filters, customer: getCustomerName(c), customerContact: c.contactNumber || '' });
+        setCurrentPage(1);
         setIsCustomerOpen(false);
     };
 
     const handleClearCustomer = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, customer: '' });
+        setFilters({ ...filters, customer: '', customerContact: '' });
+        setCurrentPage(1);
         setIsCustomerOpen(false);
     };
 
@@ -248,6 +260,7 @@ const Wholesale = () => {
             startDate: '',
             endDate: '',
             customer: '',
+            customerContact: '',
             invoiceNo: '',
             sr: '',
             deliveredBy: '',
@@ -374,6 +387,10 @@ const Wholesale = () => {
 
         if (filters.customer && !item.customer?.toLowerCase().includes(filters.customer.toLowerCase())) {
             return false;
+        }
+        if (filters.customerContact) {
+            const phone = getPhoneByName(item.customer);
+            if (phone && phone !== filters.customerContact) return false;
         }
         if (filters.invoiceNo) {
             const inv = (item.invoiceNo || item.orderNo || '').toLowerCase();
@@ -602,7 +619,8 @@ const Wholesale = () => {
                                         placeholder="Search or select customer..."
                                         value={filters.customer}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'customer', value: e.target.value } });
+                                            setFilters({ ...filters, customer: e.target.value, customerContact: '' });
+                                            setCurrentPage(1);
                                             setIsCustomerOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -621,9 +639,12 @@ const Wholesale = () => {
                                                 <div
                                                     key={c._id}
                                                     onClick={() => handleSelectCustomer(c)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                                 >
-                                                    {c.name}
+                                                    <p className="text-xs font-semibold text-gray-800">{getCustomerName(c)}</p>
+                                                    {c.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
@@ -1035,7 +1056,12 @@ const Wholesale = () => {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">{item.customer}</td>
+                                                <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">
+                                                    <div>{item.customer}</div>
+                                                    {getPhoneByName(item.customer) && (
+                                                        <div className="text-[10px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
+                                                    )}
+                                                </td>
                                                 <td className="py-3 px-2.5 text-gray-600 font-medium whitespace-nowrap">
                                                     <div>{item.invoiceNo || item.orderNo}</div>
                                                     {item.directSales && (

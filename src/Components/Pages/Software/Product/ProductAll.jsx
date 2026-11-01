@@ -49,6 +49,7 @@ const ProductAll = () => {
         sku: '',
         category: '',
         company: '',
+        companyContact: '',
         supplier: '',
         price: '',
         status: ''
@@ -58,6 +59,7 @@ const ProductAll = () => {
     const [formData, setFormData] = useDraftState('productFormData', {
         productName: '',
         company: '',
+        companyContact: '',
         sku: '',
         category: '',
         alertQuantity: '',
@@ -81,6 +83,29 @@ const ProductAll = () => {
     const [isCompanyOpen, setIsCompanyOpen] = useState(false);
     const categoryDropdownRef = useRef(null);
     const companyDropdownRef = useRef(null);
+
+    // Product name searchable-select state
+    const [isProductFilterOpen, setIsProductFilterOpen] = useState(false);
+    const productFilterRef = useRef(null);
+
+    useEffect(() => {
+        const handleOutside = (event) => {
+            if (productFilterRef.current && !productFilterRef.current.contains(event.target)) {
+                setIsProductFilterOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, []);
+
+    const productFilterOptions = products.filter((p) => {
+        const s = filters.productName.toLowerCase();
+        return (
+            p.productName?.toLowerCase().includes(s) ||
+            p.company?.toLowerCase().includes(s) ||
+            p.companyContact?.toLowerCase().includes(s)
+        );
+    });
 
     // Helper function to format date & time like: 28/08/2026, 4:26:09 pm
     const formatDateTime = (date = new Date()) => {
@@ -226,19 +251,23 @@ const ProductAll = () => {
     };
 
     // Filter companies based on search typing
-    const filteredCompanies = companies.filter((comp) =>
-        comp.businessName?.toLowerCase().includes(filters.company.toLowerCase())
-    );
+    const filteredCompanies = companies.filter((comp) => {
+        const s = filters.company.toLowerCase();
+        return (
+            comp.businessName?.toLowerCase().includes(s) ||
+            comp.contactNumber?.toLowerCase().includes(s)
+        );
+    });
 
     const handleSelectCompany = (comp) => {
-        setFilters({ ...filters, company: comp.businessName });
+        setFilters({ ...filters, company: comp.businessName, companyContact: comp.contactNumber || '' });
         setCurrentPage(1);
         setIsCompanyOpen(false);
     };
 
     const handleClearCompany = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, company: '' });
+        setFilters({ ...filters, company: '', companyContact: '' });
         setCurrentPage(1);
         setIsCompanyOpen(false);
     };
@@ -258,6 +287,7 @@ const ProductAll = () => {
             sku: '',
             category: '',
             company: '',
+            companyContact: '',
             supplier: '',
             price: '',
             status: '',
@@ -360,6 +390,7 @@ const ProductAll = () => {
         setFormData({
             productName: product.productName || '',
             company: product.company || '',
+            companyContact: product.companyContact || '',
             sku: product.sku || '',
             category: product.category || '',
             alertQuantity: product.alertQuantity || '',
@@ -400,6 +431,7 @@ const ProductAll = () => {
         setFormData({
             productName: '',
             company: '',
+            companyContact: '',
             sku: '',
             category: '',
             alertQuantity: '',
@@ -463,8 +495,11 @@ const ProductAll = () => {
         if (filters.category && !product.category?.toLowerCase().includes(filters.category.toLowerCase())) {
             return false;
         }
-        // Company Filter
+        // Company Filter (name + phone)
         if (filters.company && !product.company?.toLowerCase().includes(filters.company.toLowerCase())) {
+            return false;
+        }
+        if (filters.companyContact && product.companyContact && product.companyContact !== filters.companyContact) {
             return false;
         }
         // Status Filter
@@ -611,17 +646,73 @@ const ProductAll = () => {
                             </div>
                         </div>
 
-                        {/* Product Name Search */}
-                        <div>
+                        {/* Product Name Search (Select Input) */}
+                        <div className="relative" ref={productFilterRef}>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Product Name</label>
-                            <input
-                                type="text"
-                                name="productName"
-                                placeholder="Search product..."
-                                value={filters.productName}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 outline-none bg-gray-50/50"
-                            />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    name="productName"
+                                    placeholder="Search or select product..."
+                                    value={filters.productName}
+                                    onChange={(e) => {
+                                        setFilters({ ...filters, productName: e.target.value, company: '', companyContact: '' });
+                                        setCurrentPage(1);
+                                        setIsProductFilterOpen(true);
+                                    }}
+                                    onFocus={() => setIsProductFilterOpen(true)}
+                                    autoComplete="off"
+                                    className="w-full px-3 py-1.5 pr-14 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 outline-none bg-gray-50/50"
+                                />
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                    {filters.productName && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFilters({ ...filters, productName: '', company: '', companyContact: '' });
+                                                setCurrentPage(1);
+                                                setIsProductFilterOpen(false);
+                                            }}
+                                            className="text-gray-400 hover:text-rose-500"
+                                        >
+                                            <FaTimes size={11} />
+                                        </button>
+                                    )}
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500 pointer-events-none">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {isProductFilterOpen && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
+                                    {productFilterOptions.length > 0 ? (
+                                        productFilterOptions.map((p) => (
+                                            <div
+                                                key={p._id}
+                                                onClick={() => {
+                                                    setFilters({
+                                                        ...filters,
+                                                        productName: p.productName?.trim() || '',
+                                                        company: p.company?.trim() || '',
+                                                        companyContact: p.companyContact || companies.find(c => c.businessName?.trim().toLowerCase() === p.company?.trim().toLowerCase())?.contactNumber || ''
+                                                    });
+                                                    setCurrentPage(1);
+                                                    setIsProductFilterOpen(false);
+                                                }}
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                                            >
+                                                <p className="text-xs font-semibold text-gray-800">{p.productName}</p>
+                                                <p className="text-[11px] text-gray-500 mt-0.5">
+                                                    🏢 {p.company || 'N/A'}{(p.companyContact || companies.find(c => c.businessName?.trim().toLowerCase() === p.company?.trim().toLowerCase())?.contactNumber) ? ` | 📞 ${p.companyContact || companies.find(c => c.businessName?.trim().toLowerCase() === p.company?.trim().toLowerCase())?.contactNumber}` : ''}
+                                                </p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No product found</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* SKU Search */}
@@ -692,7 +783,8 @@ const ProductAll = () => {
                                     placeholder="Search or select company..."
                                     value={filters.company}
                                     onChange={(e) => {
-                                        handleFilterChange({ target: { name: 'company', value: e.target.value } });
+                                        setFilters({ ...filters, company: e.target.value, companyContact: '' });
+                                        setCurrentPage(1);
                                         setIsCompanyOpen(true);
                                     }}
                                     className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -711,9 +803,12 @@ const ProductAll = () => {
                                             <div
                                                 key={comp._id}
                                                 onClick={() => handleSelectCompany(comp)}
-                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
+                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
                                             >
-                                                {comp.businessName}
+                                                <p className="text-xs font-semibold text-gray-800">{comp.businessName}</p>
+                                                {comp.contactNumber && (
+                                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {comp.contactNumber}</p>
+                                                )}
                                             </div>
                                         ))
                                     ) : (
@@ -782,9 +877,12 @@ const ProductAll = () => {
                                                 </button>
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
-                                                {product.company || 'N/A'}
+                                                <div className="font-medium text-gray-700">{product.company || 'N/A'}</div>
+                                                {(() => {
+                                                    const phone = product.companyContact || companies.find(c => c.businessName?.trim().toLowerCase() === product.company?.trim().toLowerCase())?.contactNumber;
+                                                    return phone ? <div className="text-[11px] text-gray-400 mt-0.5">📞 {phone}</div> : null;
+                                                })()}
                                             </td>
-
                                             <td className="px-3 py-3 whitespace-nowrap text-gray-600">
                                                 {product.category || 'N/A'}
                                             </td>

@@ -23,6 +23,7 @@ const Units = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const [activeDropdownId, setActiveDropdownId] = useState(null);
+    const [loading, setLoading] = useState(false);
 
     // Frontend Pagination states
     const [currentPage, setCurrentPage] = useState(1);
@@ -79,20 +80,34 @@ const Units = () => {
                 headers: { Authorization: `Bearer ${token}` }
             };
 
+            setLoading(true);
+
+            const finalData = { name: formData.name.trim(), isActive: formData.isActive };
+
             if (editingId) {
-                await axiosClient.put(`/unit/${editingId}`, { name: formData.name, isActive: formData.isActive }, config);
+                await axiosClient.put(`/unit/${editingId}`, finalData, config);
                 showToast('Unit updated successfully!', 'success');
             } else {
-                await axiosClient.post('/unit', { name: formData.name, isActive: formData.isActive }, config);
+                await axiosClient.post('/unit', finalData, config);
                 showToast('Unit added successfully!', 'success');
             }
 
-            fetchUnits();
+            await fetchUnits();
             setFormData({ name: "", isActive: true });
             setEditingId(null);
         } catch (error) {
-            showToast('Something went wrong on the server!', 'error');
+            showToast(
+                editingId ? 'Failed to update unit!' : 'Something went wrong, please try again.',
+                'error'
+            );
+        } finally {
+            setLoading(false);
         }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setFormData({ name: "", isActive: true });
     };
 
     const handleDelete = async (id) => {
@@ -109,7 +124,8 @@ const Units = () => {
             if (result.isConfirmed) {
                 try {
                     await axiosClient.delete(`/unit/${id}`);
-                    fetchUnits();
+                    setUnits((prev) => prev.filter((unit) => unit._id !== id));
+                    if (editingId === id) handleCancelEdit();
                     showToast('Unit deleted successfully!', 'success');
                 } catch (error) {
                     showToast('Failed to delete unit!', 'error');
@@ -201,13 +217,26 @@ const Units = () => {
 
                         <button
                             onClick={handleSubmit}
-                            className={`w-full sm:w-auto px-6 py-2.5 rounded-2xl font-bold text-white shadow-md flex items-center justify-center gap-2 transition duration-300 active:scale-95 shrink-0 cursor-pointer ${editingId
+                            disabled={loading}
+                            className={`w-full sm:w-auto px-6 py-2.5 rounded-2xl font-bold text-white shadow-md flex items-center justify-center gap-2 transition duration-300 active:scale-95 shrink-0 cursor-pointer whitespace-nowrap disabled:opacity-50 ${editingId
                                 ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200"
                                 : "bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 shadow-indigo-200"
                                 }`}
                         >
-                            {editingId ? <><FiEdit3 size={18} /> Update</> : <><FiPlus size={18} /> Add Unit</>}
+                            {loading
+                                ? editingId ? 'Updating...' : 'Adding...'
+                                : editingId ? <><FiEdit3 size={18} /> Update</> : <><FiPlus size={18} /> Add Unit</>}
                         </button>
+
+                        {editingId && (
+                            <button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                className="w-full sm:w-auto px-6 py-2.5 rounded-2xl font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition duration-300 shrink-0 cursor-pointer whitespace-nowrap"
+                            >
+                                Cancel Edit
+                            </button>
+                        )}
                     </div>
                 </div>
 

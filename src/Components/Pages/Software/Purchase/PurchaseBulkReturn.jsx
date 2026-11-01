@@ -14,7 +14,7 @@ const PurchaseBulkReturn = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', invoiceNo: '' });
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '' });
 
     const startDateRef = useRef(null);
     const endDateRef = useRef(null);
@@ -102,18 +102,24 @@ const PurchaseBulkReturn = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname]);
 
-    const filteredCompanies = companies.filter((c) =>
-        c.businessName?.toLowerCase().includes(filters.company.toLowerCase())
-    );
+    const filteredCompanies = companies.filter((c) => {
+        const s = filters.company.toLowerCase();
+        return (
+            c.businessName?.toLowerCase().includes(s) ||
+            c.contactNumber?.toLowerCase().includes(s)
+        );
+    });
 
     const handleSelectCompany = (comp) => {
-        setFilters({ ...filters, company: comp.businessName });
+        setFilters({ ...filters, company: comp.businessName, companyContact: comp.contactNumber || '' });
+        setCurrentPage(1);
         setIsCompanyOpen(false);
     };
 
     const handleClearCompany = (e) => {
         e.stopPropagation();
-        setFilters({ ...filters, company: '' });
+        setFilters({ ...filters, company: '', companyContact: '' });
+        setCurrentPage(1);
         setIsCompanyOpen(false);
     };
 
@@ -146,7 +152,7 @@ const PurchaseBulkReturn = () => {
     };
 
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', company: '', invoiceNo: '' });
+        setFilters({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '' });
         setCurrentPage(1);
     };
 
@@ -262,6 +268,7 @@ const PurchaseBulkReturn = () => {
             }
         }
         if (filters.company && !item.company?.toLowerCase().includes(filters.company.toLowerCase())) return false;
+        if (filters.companyContact && item.companyContact && item.companyContact !== filters.companyContact) return false;
         if (filters.invoiceNo && !item.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
         return true;
     });
@@ -490,7 +497,8 @@ const PurchaseBulkReturn = () => {
                                         placeholder="Search or select company..."
                                         value={filters.company}
                                         onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'company', value: e.target.value } });
+                                            setFilters({ ...filters, company: e.target.value, companyContact: '' });
+                                            setCurrentPage(1);
                                             setIsCompanyOpen(true);
                                         }}
                                         className="bg-transparent outline-none w-full text-xs text-gray-700"
@@ -505,8 +513,11 @@ const PurchaseBulkReturn = () => {
                                     <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
                                         {filteredCompanies.length > 0 ? (
                                             filteredCompanies.map((comp) => (
-                                                <div key={comp._id} onClick={() => handleSelectCompany(comp)} className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700">
-                                                    {comp.businessName}
+                                                <div key={comp._id} onClick={() => handleSelectCompany(comp)} className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150">
+                                                    <p className="text-xs font-semibold text-gray-800">{comp.businessName}</p>
+                                                    {comp.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {comp.contactNumber}</p>
+                                                    )}
                                                 </div>
                                             ))
                                         ) : (
@@ -619,7 +630,7 @@ const PurchaseBulkReturn = () => {
                                                 <td className="px-2.5 font-semibold text-emerald-600 whitespace-nowrap">
                                                     {renderLines(freeLines, 'text-emerald-700')}
                                                 </td>
-                                                                                               <td className="px-2.5 font-bold text-orange-600 whitespace-nowrap">
+                                                <td className="px-2.5 font-bold text-orange-600 whitespace-nowrap">
                                                     <div>৳{Number(item.returnAmount).toFixed(2)}</div>
                                                     {item.payment ? (
                                                         <div className="text-[10px] font-bold mt-0.5">

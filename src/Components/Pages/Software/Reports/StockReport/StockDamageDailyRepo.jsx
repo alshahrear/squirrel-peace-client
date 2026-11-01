@@ -116,11 +116,84 @@ const FilterSelect = ({ label, placeholder, value, options, onChange, emptyText 
     );
 };
 
+// Searchable dropdown (name + company/phone line)
+const ContactFilterSelect = ({ label, placeholder, value, options, onType, onSelect, onClear, emptyText }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+
+    const s = (value || '').toLowerCase();
+    const list = options.filter((o) => o.search.toLowerCase().includes(s));
+
+    return (
+        <div className="relative" ref={ref}>
+            <label className="block text-gray-600 text-[11px] font-semibold mb-1">{label}</label>
+            <div
+                onClick={() => setOpen(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+            >
+                <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => {
+                        onType(e.target.value);
+                        setOpen(true);
+                    }}
+                    className="bg-transparent outline-none w-full text-xs text-gray-700"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClear();
+                            setOpen(false);
+                        }}
+                        className="text-gray-400 hover:text-red-500 pl-1"
+                    >
+                        <FaTimes size={10} />
+                    </button>
+                )}
+            </div>
+            {open && (
+                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                    {list.length > 0 ? (
+                        list.map((o) => (
+                            <div
+                                key={o.id}
+                                onClick={() => {
+                                    onSelect(o);
+                                    setOpen(false);
+                                }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                            >
+                                <p className="text-xs font-semibold text-gray-800">{o.title}</p>
+                                {o.sub && <p className="text-[11px] text-gray-500 mt-0.5">{o.sub}</p>}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-xs text-gray-400 text-center">{emptyText}</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const StockDamageDailyRepo = () => {
     const navigate = useNavigate();
 
     const [orders, setOrders] = useState([]);
     const [customers, setCustomers] = useState([]);
+    const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Pagination
@@ -134,7 +207,9 @@ const StockDamageDailyRepo = () => {
         invoiceNo: '',
         product: '',
         company: '',
+        companyContact: '',
         customer: '',
+        customerContact: '',
         route: '',
     };
     const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -153,12 +228,14 @@ const StockDamageDailyRepo = () => {
                     const data = await res.json().catch(() => []);
                     return Array.isArray(data) ? data : [];
                 };
-                const [sales, dmg, cust] = await Promise.all([
+                const [sales, dmg, cust, comp] = await Promise.all([
                     get('https://squirrel-peace-server.onrender.com/sales'),
                     get('https://squirrel-peace-server.onrender.com/sales-damage'),
                     get('https://squirrel-peace-server.onrender.com/customer'),
+                    get('https://squirrel-peace-server.onrender.com/company'),
                 ]);
                 setCustomers(cust);
+                setCompanies(comp);
                 const all = [
                     ...sales
                         .filter((s) => s.status === 'Delivered' && (s.damageItems || []).length > 0)
@@ -199,6 +276,20 @@ const StockDamageDailyRepo = () => {
 
     // ---------- Row build (proti damage product alada row) ----------
     const customerRouteMap = new Map(customers.map((c) => [String(c._id), c.route || '']));
+    const customerPhoneById = new Map(customers.map((c) => [String(c._id), c.contactNumber || '']));
+    const getCustomerPhone = (o) => {
+        if (o.customerContact) return o.customerContact;
+        const byId = o.customerId ? customerPhoneById.get(String(o.customerId)) : '';
+        if (byId) return byId;
+        const nm = (o.customer || '').trim().toLowerCase();
+        return (
+            customers.find((c) => (c.businessName || c.name || '').trim().toLowerCase() === nm)?.contactNumber || ''
+        );
+    };
+    const getCompanyPhone = (it) =>
+        it.companyContact ||
+        companies.find((c) => (c.businessName || '').trim().toLowerCase() === (it.company || '').trim().toLowerCase())?.contactNumber ||
+        '';
 
     const rows = [];
     orders.forEach((o) => {
@@ -233,6 +324,8 @@ const StockDamageDailyRepo = () => {
                 route,
                 productName: it.productName,
                 company: it.company,
+                companyPhone: getCompanyPhone(it),
+                customerPhone: hasCustomer ? getCustomerPhone(o) : '',
                 unit: it.unit,
                 subUnit: it.subUnit,
                 parentMode,
@@ -247,9 +340,45 @@ const StockDamageDailyRepo = () => {
     });
 
     const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-    const productOptions = uniq(rows.map((r) => r.productName));
-    const companyOptions = uniq(rows.map((r) => r.company));
-    const customerOptions = uniq(rows.map((r) => r.customer));
+    const buildOptions = (keyFn, mapFn) => {
+        const m = new Map();
+        rows.forEach((r) => {
+            const k = keyFn(r);
+            if (k && !m.has(k)) m.set(k, mapFn(r, k));
+        });
+        return Array.from(m.values());
+    };
+
+    const productOptions = buildOptions(
+        (r) => r.productName && `${r.productName}|${r.company || ''}`.toLowerCase(),
+        (r, k) => ({
+            id: k,
+            title: r.productName,
+            sub: `🏢 ${r.company || 'N/A'}${r.companyPhone ? ` | 📞 ${r.companyPhone}` : ''}`,
+            search: `${r.productName} ${r.company || ''} ${r.companyPhone || ''}`,
+            data: r,
+        })
+    );
+    const companyOptions = buildOptions(
+        (r) => r.company && `${r.company}|${r.companyPhone || ''}`.toLowerCase(),
+        (r, k) => ({
+            id: k,
+            title: r.company,
+            sub: r.companyPhone ? `📞 ${r.companyPhone}` : '',
+            search: `${r.company} ${r.companyPhone || ''}`,
+            data: r,
+        })
+    );
+    const customerOptions = buildOptions(
+        (r) => r.customer && `${r.customer}|${r.customerPhone || ''}`.toLowerCase(),
+        (r, k) => ({
+            id: k,
+            title: r.customer,
+            sub: r.customerPhone ? `📞 ${r.customerPhone}` : '',
+            search: `${r.customer} ${r.customerPhone || ''}`,
+            data: r,
+        })
+    );
     const routeOptions = uniq(rows.map((r) => r.route));
 
     const has = (val, q) => String(val || '').toLowerCase().includes(String(q).toLowerCase());
@@ -272,7 +401,9 @@ const StockDamageDailyRepo = () => {
         if (filters.invoiceNo && !has(o.invoiceNo || o.orderNo, filters.invoiceNo)) return false;
         if (filters.product && !has(r.productName, filters.product)) return false;
         if (filters.company && !has(r.company, filters.company)) return false;
+        if (filters.companyContact && r.companyPhone && r.companyPhone !== filters.companyContact) return false;
         if (filters.customer && !has(r.customer, filters.customer)) return false;
+        if (filters.customerContact && r.customerPhone && r.customerPhone !== filters.customerContact) return false;
         if (filters.route && !has(r.route, filters.route)) return false;
         return true;
     });
@@ -415,30 +546,76 @@ const StockDamageDailyRepo = () => {
                                 />
                             </div>
 
-                            <FilterSelect
+                            <ContactFilterSelect
                                 label="Product"
                                 placeholder="Search or select product..."
                                 value={filters.product}
                                 options={productOptions}
-                                onChange={(v) => setFilter('product', v)}
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, product: v, company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(o) => {
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        product: o.data.productName || '',
+                                        company: o.data.company || '',
+                                        companyContact: o.data.companyPhone || '',
+                                    }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, product: '', company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                                 emptyText="No product found"
                             />
 
-                            <FilterSelect
+                            <ContactFilterSelect
                                 label="Company"
                                 placeholder="Search or select company..."
                                 value={filters.company}
                                 options={companyOptions}
-                                onChange={(v) => setFilter('company', v)}
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, company: v, companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(o) => {
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        company: o.data.company || '',
+                                        companyContact: o.data.companyPhone || '',
+                                    }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, company: '', companyContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                                 emptyText="No company found"
                             />
 
-                            <FilterSelect
+                            <ContactFilterSelect
                                 label="Customer"
                                 placeholder="Search or select customer..."
                                 value={filters.customer}
                                 options={customerOptions}
-                                onChange={(v) => setFilter('customer', v)}
+                                onType={(v) => {
+                                    setFilters((prev) => ({ ...prev, customer: v, customerContact: '' }));
+                                    setCurrentPage(1);
+                                }}
+                                onSelect={(o) => {
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        customer: o.data.customer || '',
+                                        customerContact: o.data.customerPhone || '',
+                                    }));
+                                    setCurrentPage(1);
+                                }}
+                                onClear={() => {
+                                    setFilters((prev) => ({ ...prev, customer: '', customerContact: '' }));
+                                    setCurrentPage(1);
+                                }}
                                 emptyText="No customer found"
                             />
 
@@ -545,7 +722,12 @@ const StockDamageDailyRepo = () => {
                                                 </td>
 
                                                 {/* Company */}
-                                                <td className="text-gray-600">{r.company || 'N/A'}</td>
+                                                <td className="text-gray-600">
+                                                    <div>{r.company || 'N/A'}</div>
+                                                    {r.companyPhone && (
+                                                        <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {r.companyPhone}</div>
+                                                    )}
+                                                </td>
 
                                                 {/* Route */}
                                                 <td className="text-gray-600">{r.route || ''}</td>
@@ -553,7 +735,12 @@ const StockDamageDailyRepo = () => {
                                                 {/* Customer */}
                                                 <td className="font-medium">
                                                     {r.hasCustomer ? (
-                                                        <span className="text-gray-700">{r.customer}</span>
+                                                        <>
+                                                            <div className="text-gray-700">{r.customer}</div>
+                                                            {r.customerPhone && (
+                                                                <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {r.customerPhone}</div>
+                                                            )}
+                                                        </>
                                                     ) : (
                                                         <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">
                                                             {IN_HOUSE}

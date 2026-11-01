@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
-import { FaFilter, FaRedo, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
@@ -38,7 +38,22 @@ const StockAdjustment = () => {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', invoiceNo: '' });
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '' });
+    const [companies, setCompanies] = useState([]);
+
+    // Company searchable-select state
+    const [isCompanyOpen, setIsCompanyOpen] = useState(false);
+    const companyDropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutsideCompany = (event) => {
+            if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target)) {
+                setIsCompanyOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutsideCompany);
+        return () => document.removeEventListener('mousedown', handleClickOutsideCompany);
+    }, []);
     const [currentPage, setCurrentPage] = useState(1);
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const itemsPerPage = 30;
@@ -70,13 +85,45 @@ const StockAdjustment = () => {
             .finally(() => setLoading(false));
     }, []);
 
+    useEffect(() => {
+        fetch('https://squirrel-peace-server.onrender.com/company')
+            .then((res) => res.json())
+            .then((data) => setCompanies(Array.isArray(data) ? data : []))
+            .catch((err) => console.error('Error fetching companies:', err));
+    }, []);
+
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
         setCurrentPage(1);
     };
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', company: '', invoiceNo: '' });
+        setFilters({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '' });
         setCurrentPage(1);
+    };
+
+    const filteredCompanies = companies.filter((comp) => {
+        const s = filters.company.toLowerCase();
+        return (
+            comp.businessName?.toLowerCase().includes(s) ||
+            comp.contactNumber?.toLowerCase().includes(s)
+        );
+    });
+
+    const getPhoneByName = (name) =>
+        companies.find((c) => (c.businessName || '').trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
+    const getRowPhone = (r) => r.companyContact || getPhoneByName(r.company);
+
+    const handleSelectCompany = (comp) => {
+        setFilters({ ...filters, company: comp.businessName, companyContact: comp.contactNumber || '' });
+        setCurrentPage(1);
+        setIsCompanyOpen(false);
+    };
+
+    const handleClearCompany = (e) => {
+        e.stopPropagation();
+        setFilters({ ...filters, company: '', companyContact: '' });
+        setCurrentPage(1);
+        setIsCompanyOpen(false);
     };
 
     const handleDelete = async (id) => {
@@ -115,6 +162,10 @@ const StockAdjustment = () => {
             if (e && d > e) return false;
         }
         if (filters.company && !r.company?.toLowerCase().includes(filters.company.toLowerCase())) return false;
+        if (filters.companyContact) {
+            const phone = getRowPhone(r);
+            if (phone && phone !== filters.companyContact) return false;
+        }
         if (filters.invoiceNo && !r.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
         return true;
     });
@@ -194,9 +245,50 @@ const StockAdjustment = () => {
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
                                 <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50" />
                             </div>
-                            <div>
+                            <div className="relative" ref={companyDropdownRef}>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
-                                <input type="text" name="company" placeholder="Search company..." value={filters.company} onChange={handleFilterChange} className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 outline-none bg-gray-50/50" />
+                                <div
+                                    onClick={() => setIsCompanyOpen(true)}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
+                                >
+                                    <input
+                                        type="text"
+                                        placeholder="Search or select company..."
+                                        value={filters.company}
+                                        onChange={(e) => {
+                                            setFilters({ ...filters, company: e.target.value, companyContact: '' });
+                                            setCurrentPage(1);
+                                            setIsCompanyOpen(true);
+                                        }}
+                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
+                                    />
+                                    {filters.company && (
+                                        <button type="button" onClick={handleClearCompany} className="text-gray-400 hover:text-red-500 pl-1">
+                                            <FaTimes size={10} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isCompanyOpen && (
+                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
+                                        {filteredCompanies.length > 0 ? (
+                                            filteredCompanies.map((comp) => (
+                                                <div
+                                                    key={comp._id}
+                                                    onClick={() => handleSelectCompany(comp)}
+                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
+                                                >
+                                                    <p className="text-xs font-semibold text-gray-800">{comp.businessName}</p>
+                                                    {comp.contactNumber && (
+                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {comp.contactNumber}</p>
+                                                    )}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
@@ -228,7 +320,12 @@ const StockAdjustment = () => {
                                         return (
                                             <tr key={r._id} className="hover:bg-indigo-50/40 transition">
                                                 <td className="py-3 px-3 whitespace-nowrap text-gray-600 font-medium">{r.adjustmentDate || 'N/A'}</td>
-                                                <td className="py-3 px-3 whitespace-nowrap font-bold text-gray-800">{r.company}</td>
+                                                <td className="py-3 px-3 whitespace-nowrap font-bold text-gray-800">
+                                                    <div>{r.company}</div>
+                                                    {getRowPhone(r) && (
+                                                        <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {getRowPhone(r)}</div>
+                                                    )}
+                                                </td>
                                                 <td className="py-3 px-3 whitespace-nowrap text-gray-600 font-medium">#{r.invoiceNo}</td>
                                                 <td className="py-3 px-3 whitespace-nowrap font-bold text-emerald-600">{t.inn > 0 ? `+${fmt(t.inn)} pcs` : <span className="text-gray-300">—</span>}</td>
                                                 <td className="py-3 px-3 whitespace-nowrap font-bold text-rose-600">{t.out > 0 ? `−${fmt(t.out)} pcs` : <span className="text-gray-300">—</span>}</td>
