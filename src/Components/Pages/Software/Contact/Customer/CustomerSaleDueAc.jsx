@@ -20,6 +20,8 @@ const CustomerSaleDueAc = ({ rows = [], loading = false }) => {
                         <th className={TH}>Customer</th>
                         <th className={TH}>Date</th>
                         <th className={TH}>Invoice</th>
+                        <th className={TH}>SR</th>
+                        <th className={TH}>Delivery Man</th>
                         <th className={TH}>Payment Method</th>
                         <th className={TH}>Payment Account</th>
                         <th className={TH}>Amount</th>
@@ -29,7 +31,7 @@ const CustomerSaleDueAc = ({ rows = [], loading = false }) => {
                 <tbody className="bg-white divide-y divide-gray-100">
                     {loading ? (
                         <tr>
-                            <td colSpan="7" className="text-center py-10 text-gray-400 text-sm">Loading...</td>
+                            <td colSpan="9" className="text-center py-10 text-gray-400 text-sm">Loading...</td>
                         </tr>
                     ) : rows.length > 0 ? (
                         rows.map((r) => (
@@ -37,6 +39,8 @@ const CustomerSaleDueAc = ({ rows = [], loading = false }) => {
                                 <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">{r.company}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{formatDateOnly(r.date) || 'N/A'}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">{r.invoiceNo || 'N/A'}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{r.sr || 'N/A'}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{r.deliveredBy || 'N/A'}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm">
                                     <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">{r.method}</span>
                                 </td>
@@ -53,7 +57,7 @@ const CustomerSaleDueAc = ({ rows = [], loading = false }) => {
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="7" className="text-center py-10 text-gray-400 text-sm">
+                            <td colSpan="9" className="text-center py-10 text-gray-400 text-sm">
                                 No records found for this customer!
                             </td>
                         </tr>

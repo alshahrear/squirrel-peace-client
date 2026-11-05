@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -343,6 +344,7 @@ const SalesBulkReturnForm = () => {
         return 'cash';
     });
     const [paymentNote, setPaymentNote] = useState(savedPay?.note || '');
+    const [accAvailable, setAccAvailable] = useState(null);
 
     const showToast = (message, isError = false) => {
         setToast({ show: true, message, isError });
@@ -506,6 +508,46 @@ const SalesBulkReturnForm = () => {
     }, [returnAmount, paymentAmountTouched]);
 
     // Credit Limit check: return payment dile customer er Get amount creditLimit er beshi hobe kina
+    // Selected account e ekhon koto tk ache (live, 5 sec por por refresh)
+    useEffect(() => {
+        if (!paymentOpen || !selectedAccountInfo) {
+            setAccAvailable(null);
+            return;
+        }
+        let cancelled = false;
+        let acc = { accountName: 'Cash' };
+        if (paymentAccountType === 'Bank') {
+            acc = {
+                bankName: selectedAccountInfo.bankName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+                accountBranch: selectedAccountInfo.accountBranch || '',
+            };
+        } else if (paymentAccountType === 'Mobile Banking') {
+            acc = {
+                accountName: selectedAccountInfo.accountName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+            };
+        }
+        const keyOf = (a) => `${a?.accountName || a?.bankName || 'Cash'}||${a?.accountNumber || ''}||${a?.accountBranch || ''}`;
+        const loadBal = () =>
+            fetchAccountBalance(acc).then((bal) => {
+                if (cancelled) return;
+                let avail = bal;
+                const oldPay = editingReturn?.payment;
+                if (isEditMode && oldPay && Number(oldPay.amount) > 0 && keyOf(oldPay.account) === keyOf(acc)) {
+                    avail += Number(oldPay.amount) || 0;
+                }
+                setAccAvailable(Math.round(avail * 100) / 100);
+            });
+        loadBal();
+        const balTimer = setInterval(loadBal, 5000);
+        return () => {
+            cancelled = true;
+            clearInterval(balTimer);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paymentOpen, selectedAccountKey, paymentAccountType, investments]);
+
     const checkCreditLimit = async (paidNow) => {
         try {
             const n = (v) => Number(v) || 0;
@@ -681,6 +723,19 @@ const SalesBulkReturnForm = () => {
                 accInfo = { accountName: 'Cash' };
             }
             if (!(await checkCreditLimit(paymentAmount))) return;
+
+            // Account e tk ache kina check (edit hole nijer ager payment bad)
+            const sameAcc = (a, b) =>
+                `${a?.accountName || a?.bankName || 'Cash'}||${a?.accountNumber || ''}||${a?.accountBranch || ''}` ===
+                `${b?.accountName || b?.bankName || 'Cash'}||${b?.accountNumber || ''}||${b?.accountBranch || ''}`;
+            let available = await fetchAccountBalance(accInfo);
+            const oldPay = editingReturn?.payment;
+            if (isEditMode && oldPay && Number(oldPay.amount) > 0 && sameAcc(oldPay.account, accInfo)) {
+                available += Number(oldPay.amount) || 0;
+            }
+            if (roundTo2(paymentAmount) > available) {
+                return showToast(`Insufficient balance in the selected account! Available: ৳${available.toFixed(2)}`, true);
+            }
 
             paymentData = {
                 amount: roundTo2(paymentAmount),
@@ -1112,6 +1167,10 @@ const SalesBulkReturnForm = () => {
                                                     onChange={(e) => {
                                                         const value = e.target.value;
                                                         if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                            if (accAvailable !== null && Number(value) > accAvailable) {
+                                                                showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, true);
+                                                                return;
+                                                            }
                                                             setPaymentAmount(value);
                                                             setPaymentAmountTouched(true);
                                                         }
@@ -1170,6 +1229,11 @@ const SalesBulkReturnForm = () => {
                                                         return <option key={key} value={key}>{label}</option>;
                                                     })}
                                                 </select>
+                                                {accAvailable !== null && (
+                                                    <p className={`mt-1.5 text-xs font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                        Available: ৳{accAvailable.toFixed(2)}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
 

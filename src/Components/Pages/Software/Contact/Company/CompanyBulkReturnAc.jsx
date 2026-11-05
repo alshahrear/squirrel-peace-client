@@ -126,7 +126,8 @@ const CompanyBulkReturnAc = () => {
     const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
     // ---------- Rows ----------
-    const returnRows = bulkReturns
+        const returnRows = bulkReturns
+        .filter((b) => b.fromPurchase === true || (b.status || 'Approved') !== 'Pending')
         .map((b) => {
             // Purchase theke ashle, purchase bill e adjust kora hoyeche kina
             const adj =

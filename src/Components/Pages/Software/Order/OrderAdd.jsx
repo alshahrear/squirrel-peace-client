@@ -3,6 +3,8 @@ import OrderForm, { SearchSelect, matchesSearch } from './OrderForm';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 import Swal from 'sweetalert2';
+import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
+import { fetchCustomerBalance } from '../../Software/Contact/Customer/CustomerAccountAc';
 
 const clearOrderDrafts = () => {
     ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'search', 'routeLocked', 'freeItems', 'freeFilter', 'freeSearch', 'damageItems', 'damageFilter', 'damageSearch', 'returnItems', 'returnFilter', 'returnSearch', 'directSales']
@@ -1220,122 +1222,15 @@ const OrderAdd = () => {
     const [prevBalance, setPrevBalance] = useState({ amount: 0, type: '' }); // 'Due' (customer dibe) | 'Get' (ami dibo) | ''
     const [usePrevBalance, setUsePrevBalance] = useState(false);
     useEffect(() => {
-        const customerName = (orderFormData.customer || '').toString().trim().toLowerCase();
+        const customerName = (orderFormData.customer || '').toString().trim();
         if (!customerName) {
             setPrevBalance({ amount: 0, type: '' });
             return;
         }
         let cancelled = false;
-        const n = (v) => Number(v) || 0;
-        const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
-        const same = (a) => String(a || '').trim().toLowerCase() === customerName;
-        const itemAmt = (it) =>
-            Number(it.itemTotal ?? it.subtotal ?? (n(it.sellPricePcs ?? it.sellPrice) * n(it.totalQty))) || 0;
-        const sumItems = (items) => (items || []).reduce((s, it) => s + itemAmt(it), 0);
-        const safe = (url) =>
-            fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
-        const editId = editingOrder?._id ? String(editingOrder._id) : null;
-
-        Promise.all([
-            safe('https://squirrel-peace-server.onrender.com/sales'),
-            safe('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-            safe('https://squirrel-peace-server.onrender.com/sales-damage'),
-            safe('https://squirrel-peace-server.onrender.com/customer'),
-            safe('https://squirrel-peace-server.onrender.com/sales-due-payment'),
-        ]).then(([sales, bulks, damages, customers, duePays]) => {
+        fetchCustomerBalance(customerName, editingOrder?._id || null).then((b) => {
             if (cancelled) return;
-            let pay = 0;
-            let get = 0;
-
-            // Opening balance
-            const info = customers.find((c) => same(c.businessName));
-            const openAmt = r2(n(info?.openingBalance));
-            const openType = String(info?.openingBalanceType || '').trim().toLowerCase();
-            if (openAmt > 0 && (openType === 'pay' || openType === 'advance')) pay += openAmt;
-            if (openAmt > 0 && (openType === 'due' || openType === 'get')) get += openAmt;
-
-            // Sales payments (current edit order bad)
-            sales.forEach((s) => {
-                if (editId && String(s._id) === editId) return;
-                if (!same(s.customer)) return;
-                if (s.paidAmount === undefined || s.paidAmount === null || s.paidAmount === '' || !s.paymentMethod) return;
-                const prev = n(s.previousBalanceAmount);
-                const payable =
-                    n(s.payableAmount) -
-                    (s.previousBalanceType === 'Due' ? prev : 0) +
-                    (s.previousBalanceType === 'Get' ? prev : 0);
-                const paid = n(s.paidAmount);
-                const isDel = s.status === 'Delivered';
-                const balDue = payable < 0
-                    ? Math.max(r2(paid + payable), 0)
-                    : !isDel ? 0 : Math.max(r2(payable - paid), 0);
-                const balExtra = payable < 0
-                    ? Math.max(r2(-payable - paid), 0)
-                    : !isDel ? paid : Math.max(r2(paid - payable), 0);
-                pay += balExtra;
-                get += balDue;
-            });
-
-            // Sales return
-            sales.forEach((s) => {
-                if (editId && String(s._id) === editId) return;
-                if (!same(s.customer)) return;
-                (s.returnHistory || []).forEach((ret) => {
-                    const amt = n(ret.totalReturnAmount);
-                    const rec = ret.payment ? n(ret.payment.amount) : 0;
-                    pay += Math.max(amt - rec, 0);
-                    get += Math.max(rec - amt, 0);
-                });
-            });
-
-            // Bulk return
-            bulks.forEach((b) => {
-                if (!same(b.customer)) return;
-                if (editId && b.fromSales === true && String(b.saleId) === editId) return;
-                const adj =
-                    b.fromSales === true
-                        ? n(sales.find((s) => String(s._id) === String(b.saleId))?.returnAdjustmentAmount)
-                        : 0;
-                const rec = adj > 0 ? adj : b.payment ? n(b.payment.amount) : 0;
-                const amt = n(b.returnAmount);
-                pay += Math.max(amt - rec, 0);
-                get += Math.max(rec - amt, 0);
-            });
-
-            // Damage (standalone)
-            damages.forEach((d) => {
-                if (!d.customer || !same(d.customer)) return;
-                const amt = n(d.damageAmount) || n(d.returnAmount) || sumItems(d.items);
-                const rec = d.payment ? n(d.payment.amount) : 0;
-                pay += Math.max(amt - rec, 0);
-                get += Math.max(rec - amt, 0);
-            });
-
-            // Damage (from sales)
-            sales.forEach((s) => {
-                if (editId && String(s._id) === editId) return;
-                if (!same(s.customer)) return;
-                if (s.status !== 'Delivered' || !(s.damageItems || []).length) return;
-                const amt = sumItems(s.damageItems);
-                const adj = n(s.damageAdjustmentAmount);
-                const rec = adj > 0 ? adj : s.damagePayment ? n(s.damagePayment.amount) : 0;
-                pay += Math.max(amt - rec, 0);
-                get += Math.max(rec - amt, 0);
-            });
-
-            // Customer due payment
-            duePays.forEach((p) => {
-                if (!same(p.customer)) return;
-                const amt = r2(n(p.amount));
-                const isPay = p.type === 'Pay' || p.status === 'Pay' || p.paymentAccount?.dueType === 'Pay';
-                if (isPay) get += amt;
-                else pay += amt;
-            });
-
-            const net = r2(pay - get);
-            if (net > 0) setPrevBalance({ amount: net, type: 'Get' }); // ami customer ke dibo => bill theke minus
-            else if (net < 0) setPrevBalance({ amount: -net, type: 'Due' }); // customer amake dibe => bill e plus
-            else setPrevBalance({ amount: 0, type: '' });
+            setPrevBalance({ amount: b.amount, type: b.type });
         });
         return () => {
             cancelled = true;
@@ -1564,6 +1459,31 @@ const OrderAdd = () => {
         }
     };
 
+    // Payable negative hole (ami customer ke dibo) account e tk ache kina check
+    const checkPayBalance = async () => {
+        const paid = roundTo2(paymentAmount);
+        if (!(payableAmount < 0) || !(paid > 0) || !selectedAccountInfo) return true;
+        let acc = { accountName: 'Cash' };
+        if (paymentAccountType === 'Bank') {
+            acc = {
+                bankName: selectedAccountInfo.bankName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+                accountBranch: selectedAccountInfo.accountBranch || '',
+            };
+        } else if (paymentAccountType === 'Mobile Banking') {
+            acc = {
+                accountName: selectedAccountInfo.accountName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+            };
+        }
+        const available = await fetchAccountBalance(acc, null, editingOrder?._id || null);
+        if (paid > available) {
+            showToast(`Insufficient balance in the selected account! Available: ৳${available.toFixed(2)}`, true);
+            return false;
+        }
+        return true;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (submitLock.current) return;
@@ -1686,6 +1606,7 @@ const OrderAdd = () => {
             }
 
             if (!(await checkCreditLimit())) return;
+            if (!(await checkPayBalance())) return;
 
             deliveredPaymentData = {
                 paidAmount: roundTo2(paymentAmount),
@@ -1971,6 +1892,7 @@ const OrderAdd = () => {
         }
 
         if (!(await checkCreditLimit())) return;
+        if (!(await checkPayBalance())) return;
 
         const today = new Date();
         const deliveryDate = today.toLocaleDateString('en-GB', {

@@ -13,6 +13,89 @@ const displayFormattedDate = (dateString) => {
 const inputBase =
     'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed';
 
+const personName = (u) => u.name || u.userName || u.fullName || u.email || '';
+
+const PersonSelect = ({ label, placeholder, list, value, onSelect, onClear, disabled = false }) => {
+    const [search, setSearch] = useState(value || '');
+    const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        if (!value) setSearch('');
+    }, [value]);
+
+    const filtered = list.filter((u) => {
+        const q = search.trim().toLowerCase();
+        if (!q) return true;
+        return (
+            personName(u).toLowerCase().includes(q) ||
+            String(u.phone || u.contactNumber || '').toLowerCase().includes(q)
+        );
+    });
+
+    return (
+        <div className="relative">
+            <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
+                <FaUser className="text-indigo-500" /> {label}{' '}
+                <span className="text-gray-400 font-normal">(Optional)</span>
+            </label>
+            <div className="relative">
+                <input
+                    type="text"
+                    value={search}
+                    disabled={disabled}
+                    placeholder={disabled ? 'Disabled' : placeholder}
+                    onFocus={() => !disabled && setOpen(true)}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setOpen(true);
+                        if (value) onClear();
+                    }}
+                    onBlur={() => setTimeout(() => setOpen(false), 150)}
+                    className={`${inputBase} pr-8`}
+                />
+                {search && !disabled && (
+                    <button
+                        type="button"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSearch('');
+                            onClear();
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-500 cursor-pointer"
+                    >
+                        <FaTimes size={12} />
+                    </button>
+                )}
+            </div>
+            {open && !disabled && (
+                <div className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+                    {filtered.length === 0 ? (
+                        <p className="px-4 py-3 text-sm text-gray-400">No data found</p>
+                    ) : (
+                        filtered.map((u) => (
+                            <div
+                                key={u._id}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setSearch(personName(u));
+                                    setOpen(false);
+                                    onSelect(u);
+                                }}
+                                className="px-4 py-2.5 cursor-pointer hover:bg-indigo-50 border-b border-gray-100 last:border-b-0"
+                            >
+                                <p className="text-sm font-semibold text-gray-800">{personName(u)}</p>
+                                {(u.phone || u.contactNumber) && (
+                                    <p className="text-xs text-gray-500 mt-0.5">{u.phone || u.contactNumber}</p>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const SalesDuePaymentForm = ({
     formData,
     setFormData,
@@ -24,6 +107,8 @@ const SalesDuePaymentForm = ({
     canPay,
     isSubmitting,
     dueAmount = 0,
+    srList = [],
+    deliveryList = [],
 }) => {
     const [customerSearch, setCustomerSearch] = useState('');
     const [customerOpen, setCustomerOpen] = useState(false);
@@ -103,6 +188,28 @@ const SalesDuePaymentForm = ({
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+
+                {/* SR */}
+                <PersonSelect
+                    label="SR"
+                    placeholder="Search or select SR..."
+                    list={srList}
+                    disabled={!!formData.deliveredById}
+                    value={formData.srId}
+                    onSelect={(u) => setFormData((prev) => ({ ...prev, srId: u._id, sr: personName(u) }))}
+                    onClear={() => setFormData((prev) => ({ ...prev, srId: '', sr: '' }))}
+                />
+
+                {/* Delivery Man */}
+                <PersonSelect
+                    label="Delivery Man"
+                    placeholder="Search or select delivery man..."
+                    list={deliveryList}
+                    disabled={!!formData.srId}
+                    value={formData.deliveredById}
+                    onSelect={(u) => setFormData((prev) => ({ ...prev, deliveredById: u._id, deliveredBy: personName(u) }))}
+                    onClear={() => setFormData((prev) => ({ ...prev, deliveredById: '', deliveredBy: '' }))}
+                />
 
                 {/* Customer Name */}
                 <div className="relative">

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getPurchaseItemCostPerPcs } from '../../Software/Inventory/Stock/StockPurchase';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Phone,
@@ -114,27 +115,13 @@ const PurchaseReturnDetails = () => {
                         })
                     );
 
-                    // StockPurchase এর "Per Pcs Price" এর মতো: discount/adjustment এর পর আসল cost per pcs
-                    // Cost: shudhu product subtotal - overall discount +/- adjustment (damage/return/previous due-get bad)
-                    const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
-                    const ovAmt =
-                        data.overallDiscountValue !== undefined && data.overallDiscountValue !== null && data.overallDiscountValue !== ''
-                            ? Number(data.overallDiscountValue) || 0
-                            : data.overallDiscountType === 'percent'
-                                ? (subtotalSum * (Number(data.overallDiscount) || 0)) / 100
-                                : Number(data.overallDiscount) || 0;
-                    const adjAmt = Number(data.adjustment?.amount) || 0;
-                    const payableNum = Math.max(
-                        subtotalSum - ovAmt + (data.adjustment?.type === '-' ? -adjAmt : adjAmt),
-                        0
-                    );
+                    // Cost StockPurchase.jsx er central function theke ashche
                     setReturnPrices(
                         (data.items || []).map((item) => {
-                            const paidQty = Number(item.totalPcs) || 0;
-                            const netCost = subtotalSum > 0
-                                ? (payableNum * (Number(item.itemTotal ?? item.subtotal) || 0)) / subtotalSum
-                                : 0;
-                            return paidQty > 0 ? roundTo2(netCost / paidQty) : (Number(item.buyPrice) || 0);
+                            const found = editingEntry?.items?.find((it) => it.productId === item.productId);
+                            const savedQty = Number(found?.returnTotalQty) || 0;
+                            if (found && savedQty > 0) return roundTo2((Number(found.returnAmount) || 0) / savedQty);
+                            return getPurchaseItemCostPerPcs(data, item);
                         })
                     );
 
@@ -443,7 +430,7 @@ const PurchaseReturnDetails = () => {
     const getReturnAmount = (index, item) => {
         const totalRtQty = getTotalRtQty(index, item);
         const price = returnPrices[index] !== undefined ? Number(returnPrices[index]) || 0 : (Number(item.buyPrice) || 0);
-        return totalRtQty * price;
+        return roundTo2(totalRtQty * price);
     };
 
 
@@ -674,7 +661,7 @@ const PurchaseReturnDetails = () => {
         : 0;
 
     const totalReturnAmount = selectedInvoice
-        ? selectedInvoice.items.reduce((sum, item, index) => sum + getReturnAmount(index, item), 0)
+        ? roundTo2(selectedInvoice.items.reduce((sum, item, index) => sum + getReturnAmount(index, item), 0))
         : 0;
 
     const totalReturnFreeItemsQty = selectedInvoice
@@ -724,6 +711,13 @@ const PurchaseReturnDetails = () => {
         if (overStockItem) {
             const split = getStockSplit(overStockItem, false);
             showToast(`${overStockItem.productName}: স্টকে মেইন ${split.paid} পিস, ফ্রি ${split.free} পিস আছে, এর বেশি ফেরত দেওয়া যাবে না!`, 'error');
+            return;
+        }
+        const overFreeItem = (selectedInvoice.freeItems || []).find(
+            (item, index) => getFreeItemTotalRtQty(index, item) > getStockSplit(item, true).free
+        );
+        if (overFreeItem) {
+            showToast(`${overFreeItem.productName}: স্টকে ${getStockSplit(overFreeItem, true).free} পিস আছে, এর বেশি ফেরত দেওয়া যাবে না!`, 'error');
             return;
         }
         if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0 && totalReturnFreeItemsQty <= 0) {

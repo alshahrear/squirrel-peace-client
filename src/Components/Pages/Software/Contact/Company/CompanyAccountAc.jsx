@@ -78,6 +78,134 @@ const accountLabel = (method, acc = {}) => {
     return acc.accountName || 'Cash';
 };
 
+// ---------- Shared company balance (PurchaseAdd o eta use kore) ----------
+export const calcCompanyBalance = (
+    { purchases = [], bulkReturns = [], damageReturns = [], duePayments = [], companies = [] },
+    company,
+    excludePurchaseId = null
+) => {
+    if (!String(company || '').trim()) return { pay: 0, get: 0, net: 0, amount: 0, type: '' };
+    const same = (a) => sameCompany(a, company);
+    const isRecv = (p) => p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
+    const skip = (p) => excludePurchaseId && String(p._id) === String(excludePurchaseId);
+    let pay = 0;
+    let get = 0;
+
+    // Opening balance
+    const info = companies.find((c) => same(c.businessName));
+    const openAmt = r2(num(info?.openingBalance));
+    const openType = String(info?.openingBalanceType || '').trim().toLowerCase();
+    if (openAmt > 0 && openType === 'pay') pay += openAmt;
+    if (openAmt > 0 && openType === 'get') get += openAmt;
+
+    // Purchase payments
+    purchases.forEach((p) => {
+        if (skip(p)) return;
+        if (!same(p.company)) return;
+        if (p.paidAmount === undefined || p.paidAmount === null || p.paidAmount === '' || !p.paymentMethod) return;
+        const prev = num(p.previousBalanceAmount);
+        let payable = num(p.payableAmount);
+        if (p.previousBalanceType === 'Due') payable -= prev;
+        else if (p.previousBalanceType === 'Get') payable += prev;
+        const paid = num(p.paidAmount);
+        const recvd = isRecv(p);
+        if (num(p.payableAmount) < 0) {
+            pay += (recvd ? Math.max(payable, 0) : 0) + paid;
+            get += Math.max(-payable, 0);
+        } else {
+            pay += recvd ? Math.max(payable - paid, 0) : 0;
+            get += recvd ? Math.max(paid - payable, 0) : paid;
+        }
+    });
+
+    // Purchase return
+    purchases.forEach((order) => {
+        if (!same(order.company)) return;
+        (order.returnHistory || []).forEach((ret) => {
+            if ((ret.status || 'Approved') === 'Pending') return;
+            const amt = num(ret.totalReturnAmount);
+            const rec = ret.payment ? num(ret.payment.amount) : 0;
+            pay += Math.max(rec - amt, 0);
+            get += Math.max(amt - rec, 0);
+        });
+    });
+
+    // Bulk return
+    bulkReturns.forEach((b) => {
+        if (!same(b.company)) return;
+        if (excludePurchaseId && b.fromPurchase === true && String(b.purchaseId) === String(excludePurchaseId)) return;
+        if (b.fromPurchase !== true && (b.status || 'Approved') === 'Pending') return;
+        const adj =
+            b.fromPurchase === true
+                ? num(purchases.find((p) => String(p._id) === String(b.purchaseId))?.returnAdjustmentAmount)
+                : 0;
+        const rec = adj > 0 ? adj : b.payment ? num(b.payment.amount) : 0;
+        const amt = num(b.returnAmount);
+        pay += Math.max(rec - amt, 0);
+        get += Math.max(amt - rec, 0);
+    });
+
+    // Damage return (standalone)
+    damageReturns.forEach((d) => {
+        if (!same(d.company)) return;
+        if (d.status !== 'Approved') return;
+        const amt = num(d.damageAmount) || num(d.returnAmount) || sumItems(d.items);
+        const rec = d.payment ? num(d.payment.amount) : 0;
+        pay += Math.max(rec - amt, 0);
+        get += Math.max(amt - rec, 0);
+    });
+
+    // Damage return (from purchase)
+    purchases.forEach((p) => {
+        if (skip(p)) return;
+        if (!same(p.company)) return;
+        if (!isRecv(p)) return;
+        if (!(p.damageItems || []).length) return;
+        if (!(num(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')) return;
+        const amt = sumItems(p.damageItems);
+        const rec = num(p.damageAdjustmentAmount);
+        pay += Math.max(rec - amt, 0);
+        get += Math.max(amt - rec, 0);
+    });
+
+    // Company due payment
+    duePayments.forEach((d) => {
+        if (!same(d.company)) return;
+        const amt = r2(num(d.amount));
+        const isGet = d.type === 'Get' || d.status === 'Get' || d.paymentAccount?.dueType === 'Get';
+        if (isGet) pay += amt;
+        else get += amt;
+    });
+
+    const net = r2(pay - get);
+    return {
+        pay: r2(pay),
+        get: r2(get),
+        net,
+        amount: Math.abs(net),
+        type: net > 0 ? 'Due' : net < 0 ? 'Get' : '',
+    };
+};
+
+const safeList = (url) =>
+    fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
+
+// Fresh data fetch kore balance dey (refresh lagbe na)
+export const fetchCompanyBalance = async (company, excludePurchaseId = null) => {
+    const [purchases, bulkReturns, damageReturns, companies, duePayments] = await Promise.all([
+        safeList('https://squirrel-peace-server.onrender.com/purchase'),
+        safeList('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
+        safeList('https://squirrel-peace-server.onrender.com/damage-return'),
+        safeList('https://squirrel-peace-server.onrender.com/company'),
+        safeList('https://squirrel-peace-server.onrender.com/purchase-due-payment'),
+    ]);
+    return calcCompanyBalance(
+        { purchases, bulkReturns, damageReturns, companies, duePayments },
+        company,
+        excludePurchaseId
+    );
+};
+
 const TH = 'px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider';
 const NOT_USED_BADGE =
     'inline-block px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full font-semibold text-[10px]';
@@ -362,6 +490,7 @@ const CompanyAccountAc = () => {
     const purReturnAll = [];
     purchases.forEach((order) => {
         (order.returnHistory || []).forEach((ret) => {
+            if ((ret.status || 'Approved') === 'Pending') return;
             const createdMs = ret.createdAt ? new Date(ret.createdAt).getTime() : NaN;
             const idMatch = String(ret.returnId || '').match(/\d{13}/);
             const d = parseToLocalDate(ret.returnDate);
@@ -398,32 +527,34 @@ const CompanyAccountAc = () => {
         return d ? d.getTime() : 0;
     };
 
-    const bulkAll = bulkReturns.map((b) => {
-        const adj =
-            b.fromPurchase === true
-                ? num(purchases.find((p) => String(p._id) === String(b.purchaseId))?.returnAdjustmentAmount)
-                : 0;
-        const payment = adj > 0 ? { amount: adj, method: 'Purchase Adjustment', account: {} } : b.payment || null;
-        const fromPurchase = b.fromPurchase === true;
-        return makeReturnRow(
-            {
-                key: b._id,
-                company: b.company,
-                invoiceNo: b.invoiceNo,
-                returnDate: b.returnDate,
-                dateRaw: b.returnDate,
-                editedAt: b.editedAt,
-                fromPurchase,
-                badgeGrad: 'from-violet-500 to-purple-500',
-                nav: fromPurchase && b.purchaseId
-                    ? { path: `/purchase-details/${b.purchaseId}`, state: { scrollToReturn: true } }
-                    : { path: `/purchase-bulk-return-view/${b._id}` },
-                time: rowTimeOf(b.createdAt, b._id, b.returnDate),
-            },
-            num(b.returnAmount),
-            payment
-        );
-    });
+    const bulkAll = bulkReturns
+        .filter((b) => b.fromPurchase === true || (b.status || 'Approved') !== 'Pending')
+        .map((b) => {
+            const adj =
+                b.fromPurchase === true
+                    ? num(purchases.find((p) => String(p._id) === String(b.purchaseId))?.returnAdjustmentAmount)
+                    : 0;
+            const payment = adj > 0 ? { amount: adj, method: 'Purchase Adjustment', account: {} } : b.payment || null;
+            const fromPurchase = b.fromPurchase === true;
+            return makeReturnRow(
+                {
+                    key: b._id,
+                    company: b.company,
+                    invoiceNo: b.invoiceNo,
+                    returnDate: b.returnDate,
+                    dateRaw: b.returnDate,
+                    editedAt: b.editedAt,
+                    fromPurchase,
+                    badgeGrad: 'from-violet-500 to-purple-500',
+                    nav: fromPurchase && b.purchaseId
+                        ? { path: `/purchase-details/${b.purchaseId}`, state: { scrollToReturn: true } }
+                        : { path: `/purchase-bulk-return-view/${b._id}` },
+                    time: rowTimeOf(b.createdAt, b._id, b.returnDate),
+                },
+                num(b.returnAmount),
+                payment
+            );
+        });
 
     // 4) Damage return (shudhu Approved / Auto Approved)
     const damageAll = [
@@ -525,11 +656,12 @@ const CompanyAccountAc = () => {
     };
 
     // Final: opening balance + sob mile katakati, ekta 0 hobe
-    const grossPay = r2(Object.values(balances).reduce((s, b) => s + b.pay, 0) + openingPay);
-    const grossGet = r2(Object.values(balances).reduce((s, b) => s + b.get, 0) + openingGet);
-    const finalNet = r2(grossPay - grossGet);
-    const finalPay = finalNet > 0 ? finalNet : 0;
-    const finalGet = finalNet < 0 ? -finalNet : 0;
+    const finalBalance = calcCompanyBalance(
+        { purchases, bulkReturns, damageReturns, duePayments, companies },
+        selectedCompany
+    );
+    const finalPay = finalBalance.net > 0 ? finalBalance.net : 0;
+    const finalGet = finalBalance.net < 0 ? -finalBalance.net : 0;
 
     // ---------- Current tab rows ----------
     const currentAll = data[activeTab] || [];

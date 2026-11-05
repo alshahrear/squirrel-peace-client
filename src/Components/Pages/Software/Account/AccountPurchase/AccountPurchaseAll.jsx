@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { FaMoneyCheckAlt } from 'react-icons/fa';
 import PurchaseAccountMon from './PurchaseAccountMon';
+import PurchaseReturnAcMon from './PurchaseReturnAcMon';
+import PurchaseBulkReturnAcMon from './PurchaseBulkReturnAcMon';
+import PurchaseDamageReturnAcMon from './PurchaseDamageReturnAcMon';
+import PurchaseCompanyDueAcMon from './PurchaseCompanyDueAcMon';
 
 const TABS = [
     { key: 'purchaseaccountmon', label: 'Purchase Account', icon: FaMoneyCheckAlt },
+    { key: 'purchasereturnacmon', label: 'Purchase Return', icon: FaMoneyCheckAlt },
+    { key: 'purchasebulkreturnacmon', label: 'Bulk Return', icon: FaMoneyCheckAlt },
+    { key: 'purchasedamagereturnacmon', label: 'Damage Return', icon: FaMoneyCheckAlt },
+    { key: 'purchasecompanydueacmon', label: 'Due Payment', icon: FaMoneyCheckAlt },
 ];
 
 const AccountPurchaseAll = () => {
@@ -51,6 +59,10 @@ const AccountPurchaseAll = () => {
 
             {/* Tab Content */}
             {activeTab === 'purchaseaccountmon' && <PurchaseAccountMon />}
+            {activeTab === 'purchasereturnacmon' && <PurchaseReturnAcMon />}
+            {activeTab === 'purchasebulkreturnacmon' && <PurchaseBulkReturnAcMon />}
+            {activeTab === 'purchasedamagereturnacmon' && <PurchaseDamageReturnAcMon />}
+            {activeTab === 'purchasecompanydueacmon' && <PurchaseCompanyDueAcMon />}
         </div>
     );
 };

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { getSaleItemNetPricePerPcs } from '../../Software/Inventory/Stock/StockPurchase';
+import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Phone,
@@ -35,6 +37,7 @@ const SalesReturnDetails = () => {
     const [paymentAccountType, setPaymentAccountType] = useState('');
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
     const [paymentNote, setPaymentNote] = useState('');
+    const [accAvailable, setAccAvailable] = useState(null);
 
     const [submitting, setSubmitting] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
@@ -129,28 +132,9 @@ const SalesReturnDetails = () => {
                     setReturnPricesUnit(
                         (data.items || []).map((item) => Number(item.sellPriceUnit) || 0)
                     );
-                    // Discount / overall discount / adjustment er por asol net price per pcs
-                    // Sell Price: shudhu product subtotal - overall discount +/- adjustment (damage / bulk return / previous due-pay bad)
-                    const subtotalSum = (data.items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
-                    const ovAmt =
-                        data.overallDiscountValue !== undefined && data.overallDiscountValue !== null && data.overallDiscountValue !== ''
-                            ? Number(data.overallDiscountValue) || 0
-                            : data.overallDiscountType === 'percent'
-                                ? (subtotalSum * (Number(data.overallDiscount) || 0)) / 100
-                                : Number(data.overallDiscount) || 0;
-                    const adjAmt = Number(data.adjustment?.amount) || 0;
-                    const payableNum = Math.max(
-                        subtotalSum - ovAmt + (data.adjustment?.type === '-' ? -adjAmt : adjAmt),
-                        0
-                    );
+                    // Sell price StockPurchase.jsx er central function theke ashche
                     setReturnPricesPcs(
-                        (data.items || []).map((item) => {
-                            const paidQty = Number(item.totalPcs) || 0;
-                            const netAmount = subtotalSum > 0
-                                ? (payableNum * (Number(item.itemTotal ?? item.subtotal) || 0)) / subtotalSum
-                                : 0;
-                            return paidQty > 0 ? roundTo2(netAmount / paidQty) : (Number(item.sellPricePcs) || 0);
-                        })
+                        (data.items || []).map((item) => getSaleItemNetPricePerPcs(data, item))
                     );
                     setReturnPricesSub(
                         (data.items || []).map((item) => Number(item.sellPriceSub) || 0)
@@ -607,6 +591,48 @@ const SalesReturnDetails = () => {
     const uniqueAccounts = Array.from(uniqueAccountsMap.values());
     const selectedAccountInfo = uniqueAccounts.find((inv) => getAccountKey(inv) === selectedAccountKey);
 
+    // Selected account e ekhon koto tk ache (live)
+    useEffect(() => {
+        if (!paymentOpen || !selectedAccountInfo || !selectedOrder) {
+            setAccAvailable(null);
+            return;
+        }
+        let cancelled = false;
+        let acc = { accountName: 'Cash' };
+        if (paymentAccountType === 'Bank') {
+            acc = {
+                bankName: selectedAccountInfo.bankName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+                accountBranch: selectedAccountInfo.accountBranch || '',
+            };
+        } else if (paymentAccountType === 'Mobile Banking') {
+            acc = {
+                accountName: selectedAccountInfo.accountName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+            };
+        }
+        const keyOf = (a) => `${a?.accountName || a?.bankName || 'Cash'}||${a?.accountNumber || ''}||${a?.accountBranch || ''}`;
+        const loadBal = () =>
+            fetchAccountBalance(acc).then((bal) => {
+                if (cancelled) return;
+                let avail = bal;
+                if (isEditMode) {
+                    const oldPay = (selectedOrder.returnHistory || []).find((r) => r.returnId === editReturnId)?.payment;
+                    if (oldPay && Number(oldPay.amount) > 0 && keyOf(oldPay.account) === keyOf(acc)) {
+                        avail += Number(oldPay.amount) || 0;
+                    }
+                }
+                setAccAvailable(Math.round(avail * 100) / 100);
+            });
+        loadBal();
+        const balTimer = setInterval(loadBal, 5000);
+        return () => {
+            cancelled = true;
+            clearInterval(balTimer);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paymentOpen, selectedAccountKey, paymentAccountType, investments, selectedOrder]);
+
     // User nijer hate change na korle Payment Amount = Total Return Amount auto sync
     useEffect(() => {
         if (!paymentAmountTouched) {
@@ -788,6 +814,23 @@ const SalesReturnDetails = () => {
                 accInfo = { accountName: 'Cash' };
             }
             if (!(await checkCreditLimit(paymentAmount))) return;
+
+            // Customer ke return payment dile account e tk ache kina check (edit hole nijer ager payment bad)
+            const payAmt = roundTo2(paymentAmount);
+            const sameAcc = (a, b) =>
+                `${a?.accountName || a?.bankName || 'Cash'}||${a?.accountNumber || ''}||${a?.accountBranch || ''}` ===
+                `${b?.accountName || b?.bankName || 'Cash'}||${b?.accountNumber || ''}||${b?.accountBranch || ''}`;
+            let available = await fetchAccountBalance(accInfo);
+            if (isEditMode) {
+                const oldPay = (selectedOrder.returnHistory || []).find((r) => r.returnId === editReturnId)?.payment;
+                if (oldPay && Number(oldPay.amount) > 0 && sameAcc(oldPay.account, accInfo)) {
+                    available += Number(oldPay.amount) || 0;
+                }
+            }
+            if (payAmt > available) {
+                showToast(`Insufficient balance in the selected account! Available: ৳${available.toFixed(2)}`, 'error');
+                return;
+            }
 
             paymentData = {
                 amount: roundTo2(paymentAmount),
@@ -1372,6 +1415,10 @@ const SalesReturnDetails = () => {
                                                 onChange={(e) => {
                                                     const value = e.target.value;
                                                     if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                        if (accAvailable !== null && Number(value) > accAvailable) {
+                                                            showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, 'error');
+                                                            return;
+                                                        }
                                                         setPaymentAmount(value);
                                                         setPaymentAmountTouched(true);
                                                     }
@@ -1430,6 +1477,11 @@ const SalesReturnDetails = () => {
                                                     return <option key={key} value={key}>{label}</option>;
                                                 })}
                                             </select>
+                                            {accAvailable !== null && (
+                                                <p className={`mt-1.5 text-xs font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                    Available: ৳{accAvailable.toFixed(2)}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 

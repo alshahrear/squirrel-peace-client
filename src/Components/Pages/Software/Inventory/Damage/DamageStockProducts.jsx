@@ -139,8 +139,8 @@ const DamageStockProducts = () => {
 
         evs.forEach((ev) =>
             ev.items.forEach((it) => {
-                let mq = num(it.totalQty);
-                let fq = num(it.freeQty);
+                let mq = num(it.totalQty) - num(it.mainFromFree) + num(it.freeFromMain);
+                let fq = num(it.freeQty) - num(it.freeFromMain) + num(it.mainFromFree);
                 for (const l of lineMap.get(kOf(it)) || []) {
                     if (mq <= 0 && fq <= 0) break;
                     if (!ev.ts || l.ts > ev.ts) continue;

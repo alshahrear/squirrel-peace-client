@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaTrash, FaStickyNote, FaTimes, FaEye, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight, FaPlus, FaMinus } from 'react-icons/fa';
 import SalesDuePaymentForm from './SalesDuePaymentForm';
-
+import { calcCustomerBalance } from '../../Software/Contact/Customer/CustomerAccountAc'; // path ta nijer folder onujayi thik koro
+import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 const getTodayISO = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -18,6 +19,10 @@ const emptyForm = () => ({
     amount: '',
     note: '',
     type: 'Get',
+    srId: '',
+    sr: '',
+    deliveredById: '',
+    deliveredBy: '',
 });
 
 // 26/08/2026, 3:19:09 pm
@@ -101,6 +106,7 @@ const SalesDuePayment = () => {
     const [customers, setCustomers] = useState([]);
     const [investments, setInvestments] = useState([]);
     const [sales, setSales] = useState([]);
+    const [users, setUsers] = useState([]);
     const [bulkReturns, setBulkReturns] = useState([]);
     const [damageReturns, setDamageReturns] = useState([]);
     const [formData, setFormData] = useState(emptyForm());
@@ -168,6 +174,7 @@ const SalesDuePayment = () => {
         load('https://squirrel-peace-server.onrender.com/sales-bulk-return', setBulkReturns, 'bulk returns');
         load('https://squirrel-peace-server.onrender.com/sales-damage', setDamageReturns, 'damage returns');
         load('https://squirrel-peace-server.onrender.com/investment', setInvestments, 'investments');
+        load('https://squirrel-peace-server.onrender.com/user', setUsers, 'users');
     }, []);
 
     useEffect(() => {
@@ -185,6 +192,13 @@ const SalesDuePayment = () => {
         return () => window.removeEventListener('scroll', handleScroll, true);
     }, [openDropdownId]);
 
+    // ---------------- SR / Delivery Man list ----------------
+    const roleOf = (u) => String(u.role || u.userRole || u.designation || '').toLowerCase();
+    const srFiltered = users.filter((u) => roleOf(u).includes('sr'));
+    const deliveryFiltered = users.filter((u) => roleOf(u).includes('deliver'));
+    const srList = srFiltered.length > 0 ? srFiltered : users;
+    const deliveryList = deliveryFiltered.length > 0 ? deliveryFiltered : users;
+
     // ---------------- Payment accounts ----------------
     const accountTypes = [...new Set(investments.map((inv) => inv.accountType).filter(Boolean))];
 
@@ -199,80 +213,11 @@ const SalesDuePayment = () => {
 
     // ---------------- Balance (CustomerAccountAc er final Pay / Get) ----------------
     const balance = (() => {
-        if (!formData.customer) return { pay: 0, get: 0 };
-        const num = (v) => Number(v) || 0;
-        const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-        const same = (a) =>
-            String(a || '').trim().toLowerCase() === String(formData.customer || '').trim().toLowerCase();
-        const itemAmt = (it) =>
-            Number(it.itemTotal ?? it.subtotal ?? (num(it.sellPricePcs ?? it.sellPrice) * num(it.totalQty))) || 0;
-        const sumItems = (items) => (items || []).reduce((s, it) => s + itemAmt(it), 0);
-
-        let pay = 0;
-        let get = 0;
-
-        // customer return: amt = return value, refunded = amra ferot dilam
-        const addReturn = (amt, payment) => {
-            const refunded = payment ? num(payment.amount) : 0;
-            pay += Math.max(amt - refunded, 0);
-            get += Math.max(refunded - amt, 0);
-        };
-
-        // Opening balance
-        const info = customers.find((c) => same(c.businessName));
-        const oa = r2(num(info?.openingBalance));
-        const ot = String(info?.openingBalanceType || '').trim().toLowerCase();
-        if (oa > 0 && (ot === 'due' || ot === 'get')) get += oa;
-        else if (oa > 0 && (ot === 'pay' || ot === 'advance')) pay += oa;
-
-        // Sales + Sales return + Damage (from sales)
-        sales.filter((s) => same(s.customer)).forEach((s) => {
-            const isDel = s.status === 'Delivered';
-            if (s.paidAmount !== undefined && s.paidAmount !== null && s.paidAmount !== '' && !!s.paymentMethod) {
-                const prevBal = num(s.previousBalanceAmount);
-                const payable =
-                    num(s.payableAmount) -
-                    (s.previousBalanceType === 'Due' ? prevBal : 0) +
-                    (s.previousBalanceType === 'Get' ? prevBal : 0);
-                const paid = num(s.paidAmount);
-                const balDue = payable < 0
-                    ? Math.max(r2(paid + payable), 0)
-                    : !isDel ? 0 : Math.max(r2(payable - paid), 0);
-                const balExtra = payable < 0
-                    ? Math.max(r2(-payable - paid), 0)
-                    : !isDel ? paid : Math.max(r2(paid - payable), 0);
-                get += balDue;
-                pay += balExtra;
-            }
-            (s.returnHistory || []).forEach((ret) => addReturn(num(ret.totalReturnAmount), ret.payment || null));
-            if (isDel && (s.damageItems || []).length > 0) {
-                const adj = num(s.damageAdjustmentAmount);
-                addReturn(sumItems(s.damageItems), adj > 0 ? { amount: adj } : s.damagePayment || null);
-            }
-        });
-
-        // Bulk return
-        bulkReturns.filter((b) => same(b.customer)).forEach((b) => {
-            const adj =
-                b.fromSales === true
-                    ? num(sales.find((s) => String(s._id) === String(b.saleId))?.returnAdjustmentAmount)
-                    : 0;
-            addReturn(num(b.returnAmount), adj > 0 ? { amount: adj } : b.payment || null);
-        });
-
-        // Damage return (customer wala)
-        damageReturns.filter((d) => d.customer && same(d.customer)).forEach((d) => {
-            addReturn(num(d.damageAmount) || num(d.returnAmount) || sumItems(d.items), d.payment || null);
-        });
-
-        // Customer due payment
-        payments.filter((p) => same(p.customer)).forEach((p) => {
-            if (getDueType(p) === 'Get') pay += r2(num(p.amount));
-            else get += r2(num(p.amount));
-        });
-
-        const net = r2(pay - get);
-        return { pay: net > 0 ? net : 0, get: net < 0 ? -net : 0 };
+        const b = calcCustomerBalance(
+            { sales, bulkReturns, damageReturns, duePayments: payments, customers },
+            formData.customer
+        );
+        return { pay: b.net > 0 ? b.net : 0, get: b.net < 0 ? -b.net : 0 };
     })();
 
     const canPay =
@@ -311,6 +256,27 @@ const SalesDuePayment = () => {
 
         const dueType = formData.type === 'Pay' ? 'Pay' : 'Get';
 
+        // Pay hole (customer ke dile) oi account e porjapto balance ache kina check
+        if (dueType === 'Pay') {
+            const payAmt = Math.round((Number(formData.amount) || 0) * 100) / 100;
+            let available = 0;
+            try {
+                available = Number(await fetchAccountBalance(paymentAccount)) || 0;
+            } catch (err) {
+                console.error('Balance check failed:', err);
+                showToast('Account balance check korte problem hoyeche, abar try korun!', 'error');
+                return;
+            }
+            available = Math.round(available * 100) / 100;
+            if (available <= 0 || payAmt > available) {
+                showToast(
+                    `Ei account e etoh balance nai! Available: ৳${Math.max(available, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    'error'
+                );
+                return;
+            }
+        }
+
         // Credit Limit check: customer ke Pay dile customer er Get amount creditLimit er beshi hoye jabe kina
         if (dueType === 'Pay') {
             const custInfo =
@@ -342,6 +308,10 @@ const SalesDuePayment = () => {
             customer: formData.customer,
             customerId: formData.customerId,
             customerContact: formData.customerContact,
+            srId: formData.srId || '',
+            sr: formData.sr || '',
+            deliveredById: formData.deliveredById || '',
+            deliveredBy: formData.deliveredBy || '',
             date: formData.date,
             paymentMethod: formData.paymentMethod,
             paymentAccount: { ...paymentAccount, dueType },
@@ -524,6 +494,8 @@ const SalesDuePayment = () => {
                         getAccountKey={getAccountKey}
                         canPay={canPay}
                         dueAmount={formData.type === 'Pay' ? balance.pay : balance.get}
+                        srList={srList}
+                        deliveryList={deliveryList}
                         isSubmitting={isSubmitting}
                     />
                 </div>
@@ -686,6 +658,8 @@ const SalesDuePayment = () => {
                                     <th className={TH}>Customer</th>
                                     <th className={TH}>Date</th>
                                     <th className={TH}>Invoice</th>
+                                    <th className={TH}>SR</th>
+                                    <th className={TH}>Delivery Man</th>
                                     <th className={TH}>Payment Method</th>
                                     <th className={TH}>Payment Account</th>
                                     <th className={TH}>Amount</th>
@@ -710,6 +684,12 @@ const SalesDuePayment = () => {
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">
                                                 {getInvoiceNo(p) || 'N/A'}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                                {p.sr || 'N/A'}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                                {p.deliveredBy || 'N/A'}
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                                 <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">
@@ -787,7 +767,7 @@ const SalesDuePayment = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="10" className="text-center py-10 text-gray-400 text-sm">
+                                        <td colSpan="12" className="text-center py-10 text-gray-400 text-sm">
                                             No matching payments found!
                                         </td>
                                     </tr>

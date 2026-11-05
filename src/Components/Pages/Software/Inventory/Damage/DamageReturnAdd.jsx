@@ -206,7 +206,7 @@ const DamageReturnAdd = () => {
             fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
             fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
         ])
-                      .then(([sales, dmg, purchases, returns]) => {
+            .then(([sales, dmg, purchases, returns]) => {
                 const num = (v) => Number(v) || 0;
 
                 // ---- Damage invoice gulo (stock in) ----
@@ -279,8 +279,8 @@ const DamageReturnAdd = () => {
                 evs.sort((a, b) => a.ts - b.ts);
                 evs.forEach((ev) =>
                     ev.items.forEach((it) => {
-                        let m = num(it.totalQty);
-                        let f = num(it.freeQty);
+                        let m = num(it.totalQty) - num(it.mainFromFree) + num(it.freeFromMain);
+                        let f = num(it.freeQty) - num(it.freeFromMain) + num(it.mainFromFree);
                         for (const l of lineMap.get(damageKey(it.productName, it.company)) || []) {
                             if (m <= 0 && f <= 0) break;
                             if (ev.ts && l.ts > ev.ts) continue;
@@ -384,6 +384,47 @@ const DamageReturnAdd = () => {
         return f ? { paid: f.paid, free: f.free } : { paid: 0, free: 0 };
     };
 
+    const calcBorrow = (it) => {
+        const st = getStock(it);
+        if (!st) return { mainFromFree: 0, freeFromMain: 0 };
+        const mainShort = Math.max((Number(it.totalQty) || 0) - st.paid, 0);
+        const freeShort = Math.max((Number(it.freeQty) || 0) - st.free, 0);
+        return {
+            mainFromFree: it.borrowMain ? mainShort : 0,
+            freeFromMain: it.borrowFree ? freeShort : 0,
+        };
+    };
+
+    const checkStock = (it) => {
+        const st = getStock(it);
+        if (!st) return null;
+        const total = Number(it.totalQty) || 0;
+        const free = Number(it.freeQty) || 0;
+        const mainShort = Math.max(total - st.paid, 0);
+        const freeShort = Math.max(free - st.free, 0);
+        const surplusFree = Math.max(st.free - free, 0);
+        const surplusPaid = Math.max(st.paid - total, 0);
+        if (mainShort > 0) {
+            if (!it.borrowMain) return `Damage main stock e matro ${st.paid} pcs ache! Free theke nite "Free +" click korun.`;
+            if (surplusFree < mainShort) return `Main er jonno Free soho matro ${st.paid + surplusFree} pcs ache!`;
+        }
+        if (freeShort > 0) {
+            if (!it.borrowFree) return `Damage free stock e matro ${st.free} pcs ache! Main theke nite "Main +" click korun.`;
+            if (surplusPaid < freeShort) return `Free er jonno Main soho matro ${st.free + surplusPaid} pcs ache!`;
+        }
+        return null;
+    };
+
+    const handleToggleBorrow = (uniqueId, field) => {
+        const item = items.find((i) => i.uniqueId === uniqueId);
+        if (!item) return;
+        const next = { ...item, [field]: !item[field] };
+        if (item[field]) {
+            if (checkStock(next)) return showToast('Age quantity komiye nin, tarpor off korun!', true);
+        }
+        setItems((prev) => prev.map((i) => (i.uniqueId === uniqueId ? next : i)));
+    };
+
     const filteredProducts = (stockList || []).filter((s) => {
         if (!formData.company) return false;
         if (damageKey('', s.company) !== damageKey('', formData.company)) return false;
@@ -416,6 +457,8 @@ const DamageReturnAdd = () => {
             freeSubQty: '',
             freePcsQty: '',
             freeQty: 0,
+            borrowMain: false,
+            borrowFree: false,
         };
         setItems((prev) => [...prev, newItem]);
         updateSearch('product', '');
@@ -431,15 +474,8 @@ const DamageReturnAdd = () => {
 
         if (QTY_FIELDS.includes(field)) {
             const next = applyQty(cur, field, value);
-            const stock = getStock(cur);
-            if (stock) {
-                if (Number(next.totalQty) > stock.paid) {
-                    return showToast(`Damage main stock e matro ${stock.paid} pcs ache!`, true);
-                }
-                if (Number(next.freeQty) > stock.free) {
-                    return showToast(`Damage free stock e matro ${stock.free} pcs ache!`, true);
-                }
-            }
+            const msg = checkStock(next);
+            if (msg) return showToast(msg, true);
             setItems((prev) => prev.map((i) => (i.uniqueId === uniqueId ? next : i)));
             return;
         }
@@ -457,19 +493,19 @@ const DamageReturnAdd = () => {
         const lots = stockList?.find((d) => d.key === key)?.lots || [];
         const master = products.find((p) => damageKey(p.productName, p.company) === key);
         const fallback = Number(master?.purchasePrice) || 0;
-        let remaining = Number(item.totalQty) || 0;
+        let remaining = Math.max((Number(item.totalQty) || 0) - calcBorrow(item).mainFromFree, 0);
         const lines = [];
         lots.forEach((l) => {
             if (remaining <= 0) return;
             const take = Math.min(l.qty, remaining);
             if (take <= 0) return;
             const cost = l.cost ?? fallback;
-            lines.push({ invoiceNo: l.label, qty: take, cost: roundTo2(cost), amount: roundTo2(take * cost) });
+            lines.push({ invoiceNo: l.label, qty: take, cost: roundTo2(cost), amount: roundTo2(take * cost), est: l.cost == null });
             remaining -= take;
         });
         return lines;
     };
-    
+
 
     // ---------- Payment (optional, default disabled) ----------
     const savedPay = editing?.payment || null;
@@ -529,10 +565,8 @@ const DamageReturnAdd = () => {
         if (!stockList) return showToast('Stock is loading, please wait...', true);
 
         for (const i of items) {
-            const st = getStock(i);
-            if (Number(i.totalQty) > st.paid || Number(i.freeQty) > st.free) {
-                return showToast(`${i.productName}: damage stock e Main ${st.paid}, Free ${st.free} pcs ache!`, true);
-            }
+            const msg = checkStock(i);
+            if (msg) return showToast(`${i.productName}: ${msg}`, true);
         }
 
         // ---------- Payment validation (shudhu Payment open thakle) ----------
@@ -589,6 +623,10 @@ const DamageReturnAdd = () => {
             freePcsQty: Number(i.freePcsQty) || 0,
             freeQty: Number(i.freeQty) || 0,
             itemTotal: roundTo2(getRowTotal(i)),
+            borrowMain: i.borrowMain === true,
+            borrowFree: i.borrowFree === true,
+            mainFromFree: calcBorrow(i).mainFromFree,
+            freeFromMain: calcBorrow(i).freeFromMain,
             costBreakdown: getCostBreakdown(i),
         }));
 
@@ -784,7 +822,17 @@ const DamageReturnAdd = () => {
 
                                                     <td className="relative py-3 pl-2 pr-0">
                                                         <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.totalQty} | Stock: {stock ? stock.paid : '...'}
+                                                            Total: {item.totalQty} | Stock: {stock ? stock.paid - calcBorrow(item).freeFromMain : '...'}
+                                                            {calcBorrow(item).mainFromFree > 0 && (
+                                                                <span className="ml-1 text-amber-600">(Free theke: {calcBorrow(item).mainFromFree})</span>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleToggleBorrow(item.uniqueId, 'borrowMain')}
+                                                                className={`pointer-events-auto ml-1.5 px-1.5 rounded-full text-[9px] font-extrabold cursor-pointer ${item.borrowMain ? 'bg-amber-500 text-white' : 'bg-white border border-red-300 text-red-600 hover:bg-red-500 hover:text-white'}`}
+                                                            >
+                                                                Free {item.borrowMain ? '✓' : '+'}
+                                                            </button>
                                                         </div>
                                                         <div className="p-1.5 bg-red-50 border border-r-0 border-red-200 rounded-l-2xl">
                                                             <QtyBox value={item.unitQty} onChange={ch('unitQty')} label={unitLabel} grad="from-red-500 to-rose-500" border="border-red-200" />
@@ -809,7 +857,17 @@ const DamageReturnAdd = () => {
 
                                                     <td className="relative py-3 pl-2 pr-0">
                                                         <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.freeQty} | Stock: {stock ? stock.free : '...'}
+                                                            Total: {item.freeQty} | Stock: {stock ? stock.free - calcBorrow(item).mainFromFree : '...'}
+                                                            {calcBorrow(item).freeFromMain > 0 && (
+                                                                <span className="ml-1 text-amber-600">(Main theke: {calcBorrow(item).freeFromMain})</span>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleToggleBorrow(item.uniqueId, 'borrowFree')}
+                                                                className={`pointer-events-auto ml-1.5 px-1.5 rounded-full text-[9px] font-extrabold cursor-pointer ${item.borrowFree ? 'bg-amber-500 text-white' : 'bg-white border border-emerald-300 text-emerald-600 hover:bg-emerald-500 hover:text-white'}`}
+                                                            >
+                                                                Main {item.borrowFree ? '✓' : '+'}
+                                                            </button>
                                                         </div>
                                                         <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
                                                             <QtyBox value={item.freeUnitQty} onChange={ch('freeUnitQty')} label={unitLabel} grad="from-emerald-500 to-teal-500" border="border-emerald-200" />

@@ -80,6 +80,133 @@ const accountLabel = (method, acc = {}) => {
     return acc.accountName || 'Cash';
 };
 
+// ---------- Shared customer balance (OrderAdd o eta use kore) ----------
+// net > 0 => ami customer ke dibo (type 'Get'), net < 0 => customer amake dibe (type 'Due')
+export const calcCustomerBalance = (
+    { sales = [], bulkReturns = [], damageReturns = [], duePayments = [], customers = [] },
+    customer,
+    excludeSaleId = null
+) => {
+    if (!String(customer || '').trim()) return { pay: 0, get: 0, net: 0, amount: 0, type: '' };
+    const same = (a) => sameName(a, customer);
+    const skip = (s) => excludeSaleId && String(s._id) === String(excludeSaleId);
+    let pay = 0;
+    let get = 0;
+
+    // Opening balance
+    const info = customers.find((c) => same(c.businessName));
+    const openAmt = r2(num(info?.openingBalance));
+    const openType = String(info?.openingBalanceType || '').trim().toLowerCase();
+    if (openAmt > 0 && (openType === 'pay' || openType === 'advance')) pay += openAmt;
+    if (openAmt > 0 && (openType === 'due' || openType === 'get')) get += openAmt;
+
+    // Sales payments
+    sales.forEach((s) => {
+        if (skip(s)) return;
+        if (!same(s.customer)) return;
+        if (s.paidAmount === undefined || s.paidAmount === null || s.paidAmount === '' || !s.paymentMethod) return;
+        const prev = num(s.previousBalanceAmount);
+        const payable =
+            num(s.payableAmount) -
+            (s.previousBalanceType === 'Due' ? prev : 0) +
+            (s.previousBalanceType === 'Get' ? prev : 0);
+        const paid = num(s.paidAmount);
+        const isDel = s.status === 'Delivered';
+        const balDue = payable < 0
+            ? Math.max(r2(paid + payable), 0)
+            : !isDel ? 0 : Math.max(r2(payable - paid), 0);
+        const balExtra = payable < 0
+            ? Math.max(r2(-payable - paid), 0)
+            : !isDel ? paid : Math.max(r2(paid - payable), 0);
+        pay += balExtra;
+        get += balDue;
+    });
+
+    // Sales return
+    sales.forEach((s) => {
+        if (skip(s)) return;
+        if (!same(s.customer)) return;
+        (s.returnHistory || []).forEach((ret) => {
+            const amt = num(ret.totalReturnAmount);
+            const rec = ret.payment ? num(ret.payment.amount) : 0;
+            pay += Math.max(amt - rec, 0);
+            get += Math.max(rec - amt, 0);
+        });
+    });
+
+    // Bulk return
+    bulkReturns.forEach((b) => {
+        if (!same(b.customer)) return;
+        if (excludeSaleId && b.fromSales === true && String(b.saleId) === String(excludeSaleId)) return;
+        const adj =
+            b.fromSales === true
+                ? num(sales.find((s) => String(s._id) === String(b.saleId))?.returnAdjustmentAmount)
+                : 0;
+        const rec = adj > 0 ? adj : b.payment ? num(b.payment.amount) : 0;
+        const amt = num(b.returnAmount);
+        pay += Math.max(amt - rec, 0);
+        get += Math.max(rec - amt, 0);
+    });
+
+    // Damage (standalone)
+    damageReturns.forEach((d) => {
+        if (!d.customer || !same(d.customer)) return;
+        const amt = num(d.damageAmount) || num(d.returnAmount) || sumItems(d.items);
+        const rec = d.payment ? num(d.payment.amount) : 0;
+        pay += Math.max(amt - rec, 0);
+        get += Math.max(rec - amt, 0);
+    });
+
+    // Damage (from sales)
+    sales.forEach((s) => {
+        if (skip(s)) return;
+        if (!same(s.customer)) return;
+        if (s.status !== 'Delivered' || !(s.damageItems || []).length) return;
+        const amt = sumItems(s.damageItems);
+        const adj = num(s.damageAdjustmentAmount);
+        const rec = adj > 0 ? adj : s.damagePayment ? num(s.damagePayment.amount) : 0;
+        pay += Math.max(amt - rec, 0);
+        get += Math.max(rec - amt, 0);
+    });
+
+    // Customer due payment
+    duePayments.forEach((p) => {
+        if (!same(p.customer)) return;
+        const amt = r2(num(p.amount));
+        const isPay = p.type === 'Pay' || p.status === 'Pay' || p.paymentAccount?.dueType === 'Pay';
+        if (isPay) get += amt;
+        else pay += amt;
+    });
+
+    const net = r2(pay - get);
+    return {
+        pay: r2(pay),
+        get: r2(get),
+        net,
+        amount: Math.abs(net),
+        type: net > 0 ? 'Get' : net < 0 ? 'Due' : '',
+    };
+};
+
+const safeList = (url) =>
+    fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
+
+// Fresh data fetch kore balance dey (refresh lagbe na)
+export const fetchCustomerBalance = async (customer, excludeSaleId = null) => {
+    const [sales, bulkReturns, damageReturns, customers, duePayments] = await Promise.all([
+        safeList('https://squirrel-peace-server.onrender.com/sales'),
+        safeList('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
+        safeList('https://squirrel-peace-server.onrender.com/sales-damage'),
+        safeList('https://squirrel-peace-server.onrender.com/customer'),
+        safeList('https://squirrel-peace-server.onrender.com/sales-due-payment'),
+    ]);
+    return calcCustomerBalance(
+        { sales, bulkReturns, damageReturns, customers, duePayments },
+        customer,
+        excludeSaleId
+    );
+};
+
 const TH = 'px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider';
 const NOT_USED_BADGE =
     'inline-block px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full font-semibold text-[10px]';
@@ -492,6 +619,8 @@ const CustomerAccountAc = () => {
             pay: isPay ? 0 : amt,
             get: isPay ? amt : 0,
             status: isPay ? 'Pay' : 'Get',
+            sr: p.sr || '',
+            deliveredBy: p.deliveredBy || '',
             time: idTimeOf(p._id) || (parseToLocalDate(p.date)?.getTime() || 0),
         };
     });
@@ -523,9 +652,10 @@ const CustomerAccountAc = () => {
         duePay: sourceBalance(data.duePay),
     };
 
-    const grossPay = r2(Object.values(balances).reduce((s, b) => s + b.pay, 0) + openingPay);
-    const grossGet = r2(Object.values(balances).reduce((s, b) => s + b.get, 0) + openingGet);
-    const finalNet = r2(grossPay - grossGet);
+    const finalNet = calcCustomerBalance(
+        { sales, bulkReturns, damageReturns, duePayments, customers },
+        selectedCustomer
+    ).net;
     const finalPay = finalNet > 0 ? finalNet : 0;
     const finalGet = finalNet < 0 ? -finalNet : 0;
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { getBatchCostPerPcs } from '../../Software/Inventory/Stock/StockPurchase';
 
 const PurchaseBulkReturn = () => {
     const [returns, setReturns] = useState([]);
@@ -25,6 +26,7 @@ const PurchaseBulkReturn = () => {
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const [selectedIds, setSelectedIds] = useState([]);
     const [stockBatches, setStockBatches] = useState([]);
+    const [purchases, setPurchases] = useState([]);
     const [costRow, setCostRow] = useState(null);
     const [costModalShow, setCostModalShow] = useState(false);
 
@@ -44,6 +46,10 @@ const PurchaseBulkReturn = () => {
             const res = await fetch('https://squirrel-peace-server.onrender.com/stock-purchase');
             const data = await res.json();
             setStockBatches(Array.isArray(data) ? data : []);
+
+            const pRes = await fetch('https://squirrel-peace-server.onrender.com/purchase');
+            const pData = await pRes.json();
+            setPurchases(Array.isArray(pData) ? pData : []);
         } catch (error) {
             console.error(error);
         }
@@ -163,6 +169,34 @@ const PurchaseBulkReturn = () => {
             return;
         }
         navigate(`/purchase-bulk-return-view/${item._id}`);
+    };
+
+    const handleApprove = (item) => {
+        setOpenDropdownId(null);
+        Swal.fire({
+            title: 'Approve this bulk return?',
+            text: 'Approve korle status Approved hoye jabe!',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#f43f5e',
+            confirmButtonText: 'Yes, approve it!',
+        }).then(async (result) => {
+            if (!result.isConfirmed) return;
+            try {
+                const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase-bulk-return/${item._id}/approve`, {
+                    method: 'PATCH',
+                });
+                if (!res.ok) throw new Error('Failed');
+                setReturns((prev) =>
+                    prev.map((o) => (o._id === item._id ? { ...o, status: 'Approved' } : o))
+                );
+                showToast('Bulk return approved successfully!', 'success');
+            } catch (error) {
+                console.error(error);
+                showToast('Failed to approve!', 'error');
+            }
+        });
     };
 
     const handleEdit = async (item) => {
@@ -313,12 +347,12 @@ const PurchaseBulkReturn = () => {
                 ? { label: 'Profit', box: 'bg-emerald-50 border-emerald-200 text-emerald-700', card: 'bg-emerald-50 border-emerald-100', lbl: 'text-emerald-400', val: 'text-emerald-600', sub: 'text-emerald-500', tag: 'bg-emerald-500 text-white' }
                 : { label: 'Even', box: 'bg-gray-50 border-gray-200 text-gray-600', card: 'bg-gray-50 border-gray-100', lbl: 'text-gray-400', val: 'text-gray-600', sub: 'text-gray-500', tag: 'bg-gray-400 text-white' };
 
+    const purchaseMap = new Map(purchases.map((p) => [String(p._id), p]));
     const batchCostMap = new Map(
-        stockBatches.map((b) => {
-            const paidQ = Number(b.paidQty) || 0;
-            const c = b.isFreeProduct || paidQ <= 0 ? 0 : (Number(b.netCost) || 0) / paidQ;
-            return [String(b._id), c];
-        })
+        stockBatches.map((b) => [
+            String(b._id),
+            getBatchCostPerPcs(b, purchaseMap.get(String(b.purchaseId))),
+        ])
     );
 
     const calcCost = (row) => {
@@ -600,6 +634,7 @@ const PurchaseBulkReturn = () => {
                                         <th className="py-3 px-2.5">Return Quantity</th>
                                         <th className="py-3 px-2.5">Return Free Quantity</th>
                                         <th className="py-3 px-2.5">Return Amount</th>
+                                        <th className="py-3 px-2.5">Status</th>
                                         <th className="py-3 px-2.5">Cost Calculation</th>
                                         <th className="py-3 px-2.5 text-center">Action</th>
                                     </tr>
@@ -645,6 +680,21 @@ const PurchaseBulkReturn = () => {
                                                         </span>
                                                     )}
                                                 </td>
+                                                <td className="px-2.5 whitespace-nowrap">
+                                                    {item.fromPurchase ? (
+                                                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-700 font-bold text-[11px]">
+                                                            Auto Approved
+                                                        </span>
+                                                    ) : (item.status || 'Approved') === 'Approved' ? (
+                                                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[11px]">
+                                                            Approved
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold text-[11px]">
+                                                            Pending
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="px-2.5 align-top whitespace-nowrap">
                                                     <button
                                                         type="button"
@@ -675,6 +725,11 @@ const PurchaseBulkReturn = () => {
 
                                                         {openDropdownId === item._id && (
                                                             <div className="absolute right-0 bottom-full mb-2 w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left">
+                                                                {!item.fromPurchase && (item.status || 'Approved') !== 'Approved' && (
+                                                                    <button onClick={() => handleApprove(item)} className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer">
+                                                                        Approval
+                                                                    </button>
+                                                                )}
                                                                 <button onClick={() => handleView(item)} className="w-full px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition duration-150 cursor-pointer">
                                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-slate-500">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />

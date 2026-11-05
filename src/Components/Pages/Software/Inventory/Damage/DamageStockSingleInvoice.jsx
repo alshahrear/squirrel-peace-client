@@ -238,39 +238,54 @@ const DamageStockSingleInvoice = () => {
             ev.items.forEach((it) => {
                 const k = keyOf(it);
                 const queue = lineMap.get(k) || [];
-                let m = num(it.totalQty);
-                let f = num(it.freeQty);
+                let m = num(it.totalQty) - num(it.mainFromFree) + num(it.freeFromMain);
+                let f = num(it.freeQty) - num(it.freeFromMain) + num(it.mainFromFree);
                 const bp = num(it.buyPrice);
                 const per = num(it.pcsPerUnit);
                 const info =
                     per > 1
                         ? { per, perSub: it.parentMode === true ? num(it.pcsPerSub) : 0, unit: it.unit, subUnit: it.subUnit }
                         : null;
+                let bMFLeft = num(it.mainFromFree);
+                let bFMLeft = num(it.freeFromMain);
                 for (const l of queue) {
                     if (m <= 0 && f <= 0) break;
                     if (!ev.ts || l.ts > ev.ts) continue;
                     const tm = Math.min(m, l.main - l.retMain);
                     const tf = Math.min(f, l.free - l.retFree);
                     if (tm <= 0 && tf <= 0) continue;
-                    l.retMain += Math.max(tm, 0);
-                    l.retFree += Math.max(tf, 0);
-                    m -= Math.max(tm, 0);
-                    f -= Math.max(tf, 0);
+                    const tmP = Math.max(tm, 0);
+                    const tfP = Math.max(tf, 0);
+                    l.retMain += tmP;
+                    l.retFree += tfP;
+                    m -= tmP;
+                    f -= tfP;
+                    // stock theke physical kothay theke gese (tmP/tfP), ar company k logically ki hisebe return (main/free)
+                    const bMF = Math.min(bMFLeft, tfP);
+                    const bFM = Math.min(bFMLeft, tmP);
+                    bMFLeft -= bMF;
+                    bFMLeft -= bFM;
+                    const logMain = tmP - bFM + bMF;
+                    const logFree = tfP - bMF + bFM;
                     l.returns.push({
                         evId: ev.id,
                         kind: ev.kind,
                         ref: ev.ref,
                         date: ev.date,
                         ts: ev.ts,
-                        main: Math.max(tm, 0),
-                        free: Math.max(tf, 0),
-                        value: r2(Math.max(tm, 0) * bp),
+                        main: logMain,
+                        free: logFree,
+                        bMF,
+                        bFM,
+                        value: r2(logMain * bp),
                     });
                     ev.parts.push({
                         key: k,
                         name: it.productName,
-                        main: Math.max(tm, 0),
-                        free: Math.max(tf, 0),
+                        main: logMain,
+                        free: logFree,
+                        bMF,
+                        bFM,
                         invNo: l.invNo,
                         info: l.info || info,
                     });
@@ -371,6 +386,8 @@ const DamageStockSingleInvoice = () => {
                 const x = g.get(p.key);
                 x.main += p.main;
                 x.free += p.free;
+                x.bMF = (x.bMF || 0) + (p.bMF || 0);
+                x.bFM = (x.bFM || 0) + (p.bFM || 0);
                 x.from.push(p);
             });
             if (g.size === 0) return;
@@ -762,6 +779,12 @@ const DamageStockSingleInvoice = () => {
                                                                                 </div>
                                                                             );
                                                                         })}
+                                                                        {l.bMF > 0 && (
+                                                                            <div className="text-[10px] font-semibold text-amber-600">Main-এর {qtyText(l.bMF, l.info).text}, Free স্টক থেকে নেওয়া</div>
+                                                                        )}
+                                                                        {l.bFM > 0 && (
+                                                                            <div className="text-[10px] font-semibold text-amber-600">Free-এর {qtyText(l.bFM, l.info).text}, Main স্টক থেকে নেওয়া</div>
+                                                                        )}
                                                                         {l.from.length > 0 && (
                                                                             <div className="text-[10px] font-semibold text-amber-600">
                                                                                 ↳ Damage Invoice: {[...new Set(l.from.map((f) => `#${f.invNo}`))].join(', ')}
@@ -909,7 +932,15 @@ const DamageStockSingleInvoice = () => {
                                                                 </td>
                                                                 <td className="py-3 px-3 font-semibold text-gray-800 whitespace-nowrap">{l.productName}</td>
                                                                 <td className="py-3 px-3 text-gray-600 whitespace-nowrap">{l.company}</td>
-                                                                <td className="py-3 px-3 whitespace-nowrap"><QtyStack main={r.main} free={r.free} info={l.info} valueClass="text-violet-600" /></td>
+                                                                <td className="py-3 px-3 whitespace-nowrap">
+                                                                    <QtyStack main={r.main} free={r.free} info={l.info} valueClass="text-violet-600" />
+                                                                    {r.bMF > 0 && (
+                                                                        <div className="mt-1 text-[10px] font-semibold text-amber-600 whitespace-nowrap">Main-এর {qtyText(r.bMF, l.info).text}, Free স্টক থেকে নেওয়া</div>
+                                                                    )}
+                                                                    {r.bFM > 0 && (
+                                                                        <div className="mt-1 text-[10px] font-semibold text-amber-600 whitespace-nowrap">Free-এর {qtyText(r.bFM, l.info).text}, Main স্টক থেকে নেওয়া</div>
+                                                                    )}
+                                                                </td>
                                                                 <td className="py-3 px-3 text-right font-bold text-rose-600 whitespace-nowrap">{r.value > 0 ? `৳${fmt(r.value)}` : <span className="text-gray-300">—</span>}</td>
                                                             </tr>
                                                         ))

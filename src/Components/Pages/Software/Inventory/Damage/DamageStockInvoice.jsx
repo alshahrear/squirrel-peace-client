@@ -343,8 +343,8 @@ const DamageStockInvoice = () => {
         damageReturnList.forEach((r) => (r.items || []).forEach((it) => retItems.push({ ...it, _ts: Date.parse(r.createdAt) || 0 })));
 
         retItems.forEach((it) => {
-            let m = num(it.totalQty);
-            let f = num(it.freeQty);
+            let m = num(it.totalQty) - num(it.mainFromFree) + num(it.freeFromMain);
+            let f = num(it.freeQty) - num(it.freeFromMain) + num(it.mainFromFree);
             for (const l of lineMap.get(keyOf(it)) || []) {
                 if (m <= 0 && f <= 0) break;
                 if (!it._ts || l.ts > it._ts) continue;

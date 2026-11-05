@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { getBatchCostPerPcs } from '../../../Software/Inventory/Stock/StockPurchase';
+import { fetchAccountBalance } from '../../../Software/Account/AccountBalance';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -359,6 +361,7 @@ const DamageStockAdd = () => {
         return 'cash';
     });
     const [paymentNote, setPaymentNote] = useState(savedPay?.note || '');
+        const [accAvailable, setAccAvailable] = useState(null);
 
     useEffect(() => {
         fetch('https://squirrel-peace-server.onrender.com/investment')
@@ -383,6 +386,46 @@ const DamageStockAdd = () => {
     const uniqueAccounts = Array.from(uniqueAccountsMap.values());
     const selectedAccountInfo = uniqueAccounts.find((inv) => getAccountKey(inv) === selectedAccountKey);
 
+    // Selected account e ekhon koto tk ache (live, 5 sec por por refresh)
+    useEffect(() => {
+        if (!paymentOpen || !formData.customerId || !selectedAccountInfo) {
+            setAccAvailable(null);
+            return;
+        }
+        let cancelled = false;
+        let acc = { accountName: 'Cash' };
+        if (paymentAccountType === 'Bank') {
+            acc = {
+                bankName: selectedAccountInfo.bankName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+                accountBranch: selectedAccountInfo.accountBranch || '',
+            };
+        } else if (paymentAccountType === 'Mobile Banking') {
+            acc = {
+                accountName: selectedAccountInfo.accountName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+            };
+        }
+        const keyOf = (a) => `${a?.accountName || a?.bankName || 'Cash'}||${a?.accountNumber || ''}||${a?.accountBranch || ''}`;
+        const loadBal = () =>
+            fetchAccountBalance(acc).then((bal) => {
+                if (cancelled) return;
+                let avail = bal;
+                const oldPay = editingDamage?.payment;
+                if (isEditMode && oldPay && Number(oldPay.amount) > 0 && keyOf(oldPay.account) === keyOf(acc)) {
+                    avail += Number(oldPay.amount) || 0;
+                }
+                setAccAvailable(Math.round(avail * 100) / 100);
+            });
+        loadBal();
+        const balTimer = setInterval(loadBal, 5000);
+        return () => {
+            cancelled = true;
+            clearInterval(balTimer);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paymentOpen, selectedAccountKey, paymentAccountType, investments, formData.customerId]);
+
     const showToast = (message, isError = false) => {
         setToast({ show: true, message, isError });
         setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
@@ -399,9 +442,28 @@ const DamageStockAdd = () => {
         load('company', setCompanies);
         load('category', setCategories, (c) => c.isActive === true);
         load('product', setProducts);
-        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${editId ? `?excludeDamageId=${editId}` : ''}`)
-            .then((r) => r.json())
-            .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
+        // Cost StockPurchase.jsx er central function (getBatchCostPerPcs) theke ashbe
+        Promise.all([
+            fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${editId ? `?excludeDamageId=${editId}` : ''}`).then((r) => r.json()),
+            fetch('https://squirrel-peace-server.onrender.com/stock-purchase').then((r) => r.json()).catch(() => []),
+            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
+        ])
+            .then(([d, batchList, purchaseList]) => {
+                const stock = d && typeof d === 'object' ? d : {};
+                const bMap = new Map((Array.isArray(batchList) ? batchList : []).map((b) => [String(b._id), b]));
+                const pMap = new Map((Array.isArray(purchaseList) ? purchaseList : []).map((p) => [String(p._id), p]));
+                const fixed = {};
+                Object.keys(stock).forEach((k) => {
+                    fixed[k] = {
+                        ...stock[k],
+                        batches: (stock[k].batches || []).map((bt) => {
+                            const b = bMap.get(String(bt.batchId));
+                            return b ? { ...bt, cost: getBatchCostPerPcs(b, pMap.get(String(b.purchaseId))) } : bt;
+                        }),
+                    };
+                });
+                setStockMap(fixed);
+            })
             .catch((e) => console.error(e));
     }, []);
 
@@ -740,6 +802,20 @@ const DamageStockAdd = () => {
                 accInfo = { accountName: 'Cash' };
             }
             if (!(await checkCreditLimit(paymentAmount))) return;
+
+            // Account e tk ache kina check (edit hole nijer ager payment bad)
+            const sameAcc = (a, b) =>
+                `${a?.accountName || a?.bankName || 'Cash'}||${a?.accountNumber || ''}||${a?.accountBranch || ''}` ===
+                `${b?.accountName || b?.bankName || 'Cash'}||${b?.accountNumber || ''}||${b?.accountBranch || ''}`;
+            let available = await fetchAccountBalance(accInfo);
+            const oldPay = editingDamage?.payment;
+            if (isEditMode && oldPay && Number(oldPay.amount) > 0 && sameAcc(oldPay.account, accInfo)) {
+                available += Number(oldPay.amount) || 0;
+            }
+            if (roundTo2(paymentAmount) > available) {
+                return showToast(`Insufficient balance in the selected account! Available: ৳${available.toFixed(2)}`, true);
+            }
+
 
             paymentData = {
                 amount: roundTo2(paymentAmount),
@@ -1181,6 +1257,11 @@ const DamageStockAdd = () => {
                                                 <div>
                                                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                                                         Payment Amount <span className="text-rose-500">*</span>
+                                                        {accAvailable !== null && (
+                                                            <span className={`ml-2 text-xs font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                                Available: ৳{accAvailable.toFixed(2)}
+                                                            </span>
+                                                        )}
                                                     </label>
                                                     <input
                                                         type="number"
@@ -1190,6 +1271,10 @@ const DamageStockAdd = () => {
                                                         onChange={(e) => {
                                                             const value = e.target.value;
                                                             if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                                if (accAvailable !== null && Number(value) > accAvailable) {
+                                                                    showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, true);
+                                                                    return;
+                                                                }
                                                                 setPaymentAmount(value);
                                                                 setPaymentAmountTouched(true);
                                                             }

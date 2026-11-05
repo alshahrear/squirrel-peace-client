@@ -81,6 +81,7 @@ import RouteExpense from "../Components/Pages/Software/Account/AccountInvestment
 import Transfer from "../Components/Pages/Software/Account/AccountInvestment/Transfer";
 import AccountHeads from "../Components/Pages/Software/Account/AccountInvestment/AccountHeads";
 import AccountPurchaseAll from "../Components/Pages/Software/Account/AccountPurchase/AccountPurchaseAll";
+import AccountSalesAll from "../Components/Pages/Software/Account/AccountSales/AccountSalesAll";
 
 
 
@@ -388,13 +389,13 @@ export const router = createBrowserRouter([
             path: "/account-purchase",
             element: <ClientRoute><AccountPurchaseAll></AccountPurchaseAll></ClientRoute>
           },
+           {
+            path: "/account-sales",
+            element: <ClientRoute><AccountSalesAll></AccountSalesAll></ClientRoute>
+          },
           {
             path: "/account-balance",
             element: <ClientRoute><AccountBalance></AccountBalance></ClientRoute>
-          },
-          {
-            path: "/account-purchase-all",
-            element: <ClientRoute><AccountPurchaseAll></AccountPurchaseAll></ClientRoute>
           },
           {
             path: "/account-all",

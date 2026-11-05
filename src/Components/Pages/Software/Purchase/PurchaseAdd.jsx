@@ -2,81 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PurchaseForm from "./PurchaseForm";
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import { fetchCompanyBalance } from '../../Software/Contact/Company/CompanyAccountAc';
+import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 
-const ACC_API = 'https://squirrel-peace-server.onrender.com';
-
-const accSafe = (url) =>
-    fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
-
-const accGetCategory = (t = '') => {
-    const type = String(t).toLowerCase();
-    if (type.includes('cash')) return 'cash';
-    if (type.includes('mobile')) return 'mobile';
-    if (type.includes('bank')) return 'bank';
-    return 'others';
-};
-
-const accKeyOf = (i = {}) =>
-    `${i.accountName || i.bankName || 'Cash'}||${i.accountNumber || ''}||${i.accountBranch || ''}`;
-
-const accLabelOf = (acc) => {
-    if (acc.accountType === 'Cash') return 'Cash';
-    if (acc.accountType === 'Mobile Banking') return `${acc.accountName} (${acc.accountNumber})`;
-    if (acc.accountType === 'Bank') return `${acc.bankName} - ${acc.accountNumber} (${acc.accountBranch || 'Main'})`;
-    return acc.accountNumber || acc.accountType;
-};
-
-// নির্দিষ্ট account এ বর্তমানে কত টাকা আছে (Purchase payment ধরে)
-const getAccountAvailable = async (paymentAccount, excludePurchaseId = null) => {
-    const [inv, adj, inc, exp, rexp, tr, pur] = await Promise.all([
-        accSafe(`${ACC_API}/investment`),
-        accSafe(`${ACC_API}/adjustment`),
-        accSafe(`${ACC_API}/income`),
-        accSafe(`${ACC_API}/expense`),
-        accSafe(`${ACC_API}/routeExpense`),
-        accSafe(`${ACC_API}/transfer`),
-        accSafe(`${ACC_API}/purchase`),
-    ]);
-
-    const target = accKeyOf(paymentAccount || {});
-    let bal = 0;
-
-    inv.forEach((i) => {
-        if (accKeyOf(i) !== target) return;
-        const rel = adj.filter((a) => a.adjustmentID === i._id);
-        const dep = rel.filter((a) => a.mode === 'Deposit').reduce((s, a) => s + (Number(a.amount) || 0), 0);
-        const wd = rel.filter((a) => a.mode === 'Withdraw').reduce((s, a) => s + (Number(a.amount) || 0), 0);
-        bal += (Number(i.amount) || 0) + dep - wd;
-    });
-
-    inc.forEach((i) => { if (accKeyOf(i) === target) bal += Number(i.amount) || 0; });
-    exp.forEach((i) => { if (accKeyOf(i) === target) bal -= Number(i.amount) || 0; });
-    rexp.forEach((i) => { if (accKeyOf(i) === target) bal -= Number(i.amount) || 0; });
-
-    const resolve = (type, label) => {
-        if (label === 'Cash') {
-            const c = inv.find((x) => accGetCategory(x.accountType) === 'cash');
-            return c ? accKeyOf(c) : 'Cash||||';
-        }
-        const a = inv.find((x) => x.accountType === type && accLabelOf(x) === label);
-        return a ? accKeyOf(a) : null;
-    };
-    tr.forEach((t) => {
-        const amt = Number(t.amount) || 0;
-        if (resolve(t.transferFrom, t.fromAccount) === target) bal -= amt;
-        if (resolve(t.transferTo, t.toAccount) === target) bal += amt;
-    });
-
-    pur.forEach((p) => {
-        if (excludePurchaseId && String(p._id) === String(excludePurchaseId)) return;
-        const paid = Number(p.paidAmount) || 0;
-        if (!(paid > 0) || !p.paymentMethod) return;
-        if (accKeyOf(p.paymentAccount || {}) !== target) return;
-        bal += (Number(p.payableAmount) || 0) < 0 ? paid : -paid;
-    });
-
-    return Math.round(bal * 100) / 100;
-};
+// Account e koto taka ache -> AccountBalance file theke (refresh lagbe na)
+const getAccountAvailable = (paymentAccount, excludePurchaseId = null) =>
+    fetchAccountBalance(paymentAccount, excludePurchaseId);
 
 const matchesSearch = (text, fields) => {
     const q = (text || '').toString().trim().toLowerCase();
@@ -399,119 +330,15 @@ const PurchaseAddInner = () => {
     const [prevBalance, setPrevBalance] = useState({ amount: 0, type: '' }); // type: 'Due' | 'Get' | ''
     const [usePrevBalance, setUsePrevBalance] = useState(false);
     useEffect(() => {
-        const company = (purchaseFormData.company || '').toString().trim().toLowerCase();
+        const company = (purchaseFormData.company || '').toString().trim();
         if (!company) {
             setPrevBalance({ amount: 0, type: '' });
             return;
         }
         let cancelled = false;
-        const n = (v) => Number(v) || 0;
-        const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
-        const same = (a) => String(a || '').trim().toLowerCase() === company;
-        const sumItems = (items) =>
-            (items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
-        const safe = (url) =>
-            fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
-
-        Promise.all([
-            safe('https://squirrel-peace-server.onrender.com/purchase'),
-            safe('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-            safe('https://squirrel-peace-server.onrender.com/damage-return'),
-            safe('https://squirrel-peace-server.onrender.com/company'),
-            safe('https://squirrel-peace-server.onrender.com/purchase-due-payment'),
-        ]).then(([purchases, bulks, damages, companies, duePays]) => {
+        fetchCompanyBalance(company, editId).then((b) => {
             if (cancelled) return;
-            let pay = 0;
-            let get = 0;
-
-            // Opening balance
-            const info = companies.find((c) => same(c.businessName));
-            const openAmt = r2(n(info?.openingBalance));
-            const openType = String(info?.openingBalanceType || '').trim().toLowerCase();
-            if (openAmt > 0 && openType === 'pay') pay += openAmt;
-            if (openAmt > 0 && openType === 'get') get += openAmt;
-
-            // Purchase payments (current edit purchase bad)
-            purchases.forEach((p) => {
-                if (editId && String(p._id) === String(editId)) return;
-                if (!same(p.company)) return;
-                if (p.paidAmount === undefined || p.paidAmount === null || p.paidAmount === '' || !p.paymentMethod) return;
-                const prev = n(p.previousBalanceAmount);
-                let payable = n(p.payableAmount);
-                if (p.previousBalanceType === 'Due') payable -= prev;
-                else if (p.previousBalanceType === 'Get') payable += prev;
-                const paid = n(p.paidAmount);
-                const recvd = p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
-                if (n(p.payableAmount) < 0) {
-                    pay += (recvd ? Math.max(payable, 0) : 0) + paid;
-                    get += Math.max(-payable, 0);
-                } else {
-                    pay += recvd ? Math.max(payable - paid, 0) : 0;
-                    get += recvd ? Math.max(paid - payable, 0) : paid;
-                }
-            });
-
-            // Purchase return
-            purchases.forEach((order) => {
-                if (!same(order.company)) return;
-                (order.returnHistory || []).forEach((ret) => {
-                    const amt = n(ret.totalReturnAmount);
-                    const rec = ret.payment ? n(ret.payment.amount) : 0;
-                    pay += Math.max(rec - amt, 0);
-                    get += Math.max(amt - rec, 0);
-                });
-            });
-
-            // Bulk return
-            bulks.forEach((b) => {
-                if (!same(b.company)) return;
-                if (editId && b.fromPurchase === true && String(b.purchaseId) === String(editId)) return;
-                const adj =
-                    b.fromPurchase === true
-                        ? n(purchases.find((p) => String(p._id) === String(b.purchaseId))?.returnAdjustmentAmount)
-                        : 0;
-                const rec = adj > 0 ? adj : b.payment ? n(b.payment.amount) : 0;
-                const amt = n(b.returnAmount);
-                pay += Math.max(rec - amt, 0);
-                get += Math.max(amt - rec, 0);
-            });
-
-            // Damage return (standalone)
-            damages.forEach((d) => {
-                if (!same(d.company)) return;
-                if (d.status !== 'Approved') return;
-                const amt = n(d.damageAmount) || n(d.returnAmount) || sumItems(d.items);
-                const rec = d.payment ? n(d.payment.amount) : 0;
-                pay += Math.max(rec - amt, 0);
-                get += Math.max(amt - rec, 0);
-            });
-
-            // Damage return (from purchase)
-            purchases.forEach((p) => {
-                if (editId && String(p._id) === String(editId)) return;
-                if (!same(p.company)) return;
-                if (!(p.receiveStatus === 'Received' || p.receiveStatus === 'Yes')) return;
-                if (!(p.damageItems || []).length) return;
-                if (!(n(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')) return;
-                const amt = sumItems(p.damageItems);
-                const rec = n(p.damageAdjustmentAmount);
-                pay += Math.max(rec - amt, 0);
-                get += Math.max(amt - rec, 0);
-            });
-
-            // Company due payment
-            duePays.forEach((d) => {
-                if (!same(d.company)) return;
-                const amt = r2(n(d.amount));
-                const isGet = d.type === 'Get' || d.status === 'Get' || d.paymentAccount?.dueType === 'Get';
-                if (isGet) pay += amt;
-                else get += amt;
-            });
-
-            const net = r2(pay - get);
-            if (net > 0) setPrevBalance({ amount: net, type: 'Due' });
-            else if (net < 0) setPrevBalance({ amount: -net, type: 'Get' });
-            else setPrevBalance({ amount: 0, type: '' });
+            setPrevBalance({ amount: b.amount, type: b.type });
         });
         return () => {
             cancelled = true;

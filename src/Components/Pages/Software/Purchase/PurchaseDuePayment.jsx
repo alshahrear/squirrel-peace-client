@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaTrash, FaStickyNote, FaTimes, FaEye, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight, FaPlus, FaMinus } from 'react-icons/fa';
 import PurchaseDuePaymentForm from './PurchaseDuePaymentForm';
+import { calcCompanyBalance } from '../../Software/Contact/Company/CompanyAccountAc';
+import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
+
 
 // Local timezone er today (YYYY-MM-DD)
 const getTodayISO = () => {
@@ -231,80 +234,11 @@ const PurchaseDuePayment = () => {
 
     // ---------------- Due amount (CompanyAccountAc er final Pay amount) ----------------
     const balance = (() => {
-        if (!formData.company) return { pay: 0, get: 0 };
-        const num = (v) => Number(v) || 0;
-        const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-        const same = (a) =>
-            String(a || '').trim().toLowerCase() === String(formData.company || '').trim().toLowerCase();
-        const sumItems = (items) =>
-            (items || []).reduce((s, it) => s + (Number(it.itemTotal ?? it.subtotal) || 0), 0);
-
-        let pay = 0;
-        let get = 0;
-
-        const addReturn = (amt, payment) => {
-            const received = payment ? num(payment.amount) : 0;
-            pay += Math.max(received - amt, 0);
-            get += Math.max(amt - received, 0);
-        };
-
-        // Opening balance
-        const info = companies.find((c) => same(c.businessName));
-        const oa = r2(num(info?.openingBalance));
-        const ot = String(info?.openingBalanceType || '').trim().toLowerCase();
-        if (oa > 0 && ot === 'pay') pay += oa;
-        else if (oa > 0 && ot === 'get') get += oa;
-
-        // Purchase + Purchase return + Damage (from purchase)
-        purchases.filter((p) => same(p.company)).forEach((p) => {
-            const isRecv = p.receiveStatus === 'Received' || p.receiveStatus === 'Yes';
-            if (p.paidAmount !== undefined && p.paidAmount !== null && p.paidAmount !== '' && !!p.paymentMethod) {
-                const prevBal = num(p.previousBalanceAmount);
-                // Previous Due/Get bade payable
-                const payable =
-                    num(p.payableAmount) -
-                    (p.previousBalanceType === 'Due' ? prevBal : 0) +
-                    (p.previousBalanceType === 'Get' ? prevBal : 0);
-                const paid = num(p.paidAmount);
-                const fullPayable = num(p.payableAmount);
-                const balDue = fullPayable < 0
-                    ? (isRecv ? Math.max(r2(payable), 0) : 0) + paid
-                    : !isRecv ? 0 : Math.max(r2(payable - paid), 0);
-                const balExtra = fullPayable < 0
-                    ? Math.max(r2(-payable), 0)
-                    : !isRecv ? paid : Math.max(r2(paid - payable), 0);
-                pay += balDue;
-                get += balExtra;
-            }
-            (p.returnHistory || []).forEach((ret) => addReturn(num(ret.totalReturnAmount), ret.payment || null));
-            if (isRecv && (p.damageItems || []).length > 0 && (num(p.damageAdjustmentAmount) > 0 || p.damageStatus === 'Approved')) {
-                const adj = num(p.damageAdjustmentAmount);
-                addReturn(sumItems(p.damageItems), adj > 0 ? { amount: adj } : null);
-            }
-        });
-
-        // Bulk return
-        bulkReturns.filter((b) => same(b.company)).forEach((b) => {
-            const adj =
-                b.fromPurchase === true
-                    ? num(purchases.find((p) => String(p._id) === String(b.purchaseId))?.returnAdjustmentAmount)
-                    : 0;
-            addReturn(num(b.returnAmount), adj > 0 ? { amount: adj } : b.payment || null);
-        });
-
-        // Damage return
-        damageReturns.filter((d) => same(d.company) && d.status === 'Approved').forEach((d) => {
-            addReturn(num(d.damageAmount) || num(d.returnAmount) || sumItems(d.items), d.payment || null);
-        });
-
-        // Company due payment
-        payments.filter((p) => same(p.company)).forEach((p) => {
-            if (getDueType(p) === 'Get') pay += r2(num(p.amount));
-            else get += r2(num(p.amount));
-        });
-
-        const net = r2(pay - get);
-        return { pay: net > 0 ? net : 0, get: net < 0 ? -net : 0 };
+        const b = calcCompanyBalance(
+            { purchases, bulkReturns, damageReturns, duePayments: payments, companies },
+            formData.company
+        );
+        return { pay: b.net > 0 ? b.net : 0, get: b.net < 0 ? -b.net : 0 };
     })();
 
     const canPay =
@@ -339,6 +273,27 @@ const PurchaseDuePayment = () => {
             };
         } else {
             paymentAccount = { accountName: 'Cash' };
+        }
+
+        // Pay hole oi account e porjapto balance ache kina check
+        if (formData.type !== 'Get') {
+            const payAmt = Math.round((Number(formData.amount) || 0) * 100) / 100;
+            let available = 0;
+            try {
+                available = Number(await fetchAccountBalance(paymentAccount)) || 0;
+            } catch (err) {
+                console.error('Balance check failed:', err);
+                showToast('Account balance check korte problem hoyeche, abar try korun!', 'error');
+                return;
+            }
+            available = Math.round(available * 100) / 100;
+            if (available <= 0 || payAmt > available) {
+                showToast(
+                    `Ei account e etoh balance nai! Available: ৳${Math.max(available, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    'error'
+                );
+                return;
+            }
         }
 
         const payload = {

@@ -308,6 +308,58 @@ const KindStack = ({ notes, ...rest }) => (
 
 // Cost sudhu paid qty diye hisab hobe, free qty er kono effect nai
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+// ===== Central cost calculation (shob file ei function use korbe) =====
+export const getPurchaseItemNetCost = (purchase, item) => {
+    const pItems = purchase?.items || [];
+    const sumSub = pItems.reduce((s, x) => s + (Number(x.itemTotal ?? x.subtotal) || 0), 0);
+    if (!item || sumSub <= 0) return null;
+    const ov =
+        purchase.overallDiscountValue !== undefined && purchase.overallDiscountValue !== null && purchase.overallDiscountValue !== ''
+            ? Number(purchase.overallDiscountValue) || 0
+            : purchase.overallDiscountType === 'percent'
+                ? (sumSub * (Number(purchase.overallDiscount) || 0)) / 100
+                : Number(purchase.overallDiscount) || 0;
+    const adj = Number(purchase.adjustment?.amount) || 0;
+    const pay = Math.max(sumSub - ov + (purchase.adjustment?.type === '-' ? -adj : adj), 0);
+    return r2((pay * (Number(item.itemTotal ?? item.subtotal) || 0)) / sumSub);
+};
+
+export const getPurchaseItemCostPerPcs = (purchase, item) => {
+    const paidQty = Number(item?.totalPcs) || 0;
+    if (paidQty <= 0) return Number(item?.buyPrice) || 0;
+    return r2((getPurchaseItemNetCost(purchase, item) || 0) / paidQty);
+};
+// ===== Central batch cost per pcs (Bulk page o ei function use korbe) =====
+export const getBatchCostPerPcs = (batch, purchase) => {
+    if (!batch || batch.isFreeProduct) return 0;
+    let netCost = Number(batch.netCost) || 0;
+    if (purchase) {
+        const pIt = (purchase.items || []).find((x) => String(x.productId) === String(batch.productId));
+        const nc = pIt ? getPurchaseItemNetCost(purchase, pIt) : null;
+        if (nc !== null) netCost = nc;
+    }
+    const origPaid = Number(batch.paidQty) || 0;
+    return origPaid > 0 ? r2(netCost / origPaid) : 0;
+};
+// ===== Central sale price per pcs (Sales Return page o ei function use korbe) =====
+export const getSaleItemNetPricePerPcs = (sale, item) => {
+    const sItems = sale?.items || [];
+    const sumSub = sItems.reduce((s, x) => s + (Number(x.itemTotal ?? x.subtotal) || 0), 0);
+    const paidQty = Number(item?.totalPcs) || 0;
+    if (!item || sumSub <= 0 || paidQty <= 0) return Number(item?.sellPricePcs ?? item?.sellPrice) || 0;
+    const ov =
+        sale.overallDiscountValue !== undefined && sale.overallDiscountValue !== null && sale.overallDiscountValue !== ''
+            ? Number(sale.overallDiscountValue) || 0
+            : sale.overallDiscountType === 'percent'
+                ? (sumSub * (Number(sale.overallDiscount) || 0)) / 100
+                : Number(sale.overallDiscount) || 0;
+    const adj = Number(sale.adjustment?.amount) || 0;
+    const pay = Math.max(sumSub - ov + (sale.adjustment?.type === '-' ? -adj : adj), 0);
+    const net = (pay * (Number(item.itemTotal ?? item.subtotal) || 0)) / sumSub;
+    return r2(net / paidQty);
+};
+
 const getCost = (b) => {
     if (b.isFreeProduct) return 0;
     const origPaid = Number(b.origPaidQty ?? b.paidQty) || 0;
@@ -336,23 +388,7 @@ const calcProfit = (b, sales, unitCost) => {
             if (kind === 'main') {
                 const it = (s.items || []).find((x) => String(x.productId) === String(a.productId));
                 if (it) {
-                    const tp = Number(it.totalPcs) || 0;
-                    const tot = Number(it.itemTotal ?? it.subtotal);
-                    // product discount er por sob item er total
-                    const itemsSum = (s.items || []).reduce((sum, x) => sum + (Number(x.itemTotal ?? x.subtotal) || 0), 0);
-                    // sell price: product discount + overall discount + adjustment hisab hobe
-                    // damage / bulk return adjustment ar previous get/pay hisab hobe na
-                    const ovVal =
-                        s.overallDiscountType === 'percent'
-                            ? (itemsSum * (Number(s.overallDiscount) || 0)) / 100
-                            : Number(s.overallDiscount) || 0;
-                    const adjAmt = Number(s.adjustment?.amount) || 0;
-                    const base = Math.max(
-                        itemsSum - ovVal + (s.adjustment?.type === '-' ? -adjAmt : adjAmt),
-                        0
-                    );
-                    const ratio = itemsSum > 0 ? base / itemsSum : 1;
-                    const unit = tp > 0 && !isNaN(tot) ? (tot * ratio) / tp : Number(it.sellPricePcs ?? it.sellPrice) || 0;
+                    const unit = getSaleItemNetPricePerPcs(s, it);
                     r = r2(unit * net);
                 }
             }
@@ -686,20 +722,9 @@ const StockPurchase = () => {
             // Cost: shudhu product subtotal - overall discount +/- adjustment (damage/return/previous due-get bad)
             let netCostFixed = Number(b.netCost) || 0;
             if (purchase && !b.isFreeProduct) {
-                const pItems = purchase.items || [];
-                const sumSub = pItems.reduce((s, x) => s + (Number(x.itemTotal ?? x.subtotal) || 0), 0);
-                const ov =
-                    purchase.overallDiscountValue !== undefined && purchase.overallDiscountValue !== null && purchase.overallDiscountValue !== ''
-                        ? Number(purchase.overallDiscountValue) || 0
-                        : purchase.overallDiscountType === 'percent'
-                            ? (sumSub * (Number(purchase.overallDiscount) || 0)) / 100
-                            : Number(purchase.overallDiscount) || 0;
-                const adj = Number(purchase.adjustment?.amount) || 0;
-                const pay = Math.max(sumSub - ov + (purchase.adjustment?.type === '-' ? -adj : adj), 0);
-                const pIt = pItems.find((x) => String(x.productId) === String(b.productId));
-                if (pIt && sumSub > 0) {
-                    netCostFixed = r2((pay * (Number(pIt.itemTotal ?? pIt.subtotal) || 0)) / sumSub);
-                }
+                const pIt = (purchase.items || []).find((x) => String(x.productId) === String(b.productId));
+                const nc = pIt ? getPurchaseItemNetCost(purchase, pIt) : null;
+                if (nc !== null) netCostFixed = nc;
             }
             const curFree = Math.max(origFree - retFree, 0);
             let availPaid = 0;

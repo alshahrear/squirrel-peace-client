@@ -3,6 +3,16 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const n = (v) => Number(v) || 0;
+const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+
+const itemAmt = (it) =>
+    Number(it.itemTotal ?? it.subtotal ?? (n(it.sellPricePcs ?? it.sellPrice) * n(it.totalQty))) || 0;
+const sumItems = (items) => (items || []).reduce((s, it) => s + itemAmt(it), 0);
+
+const idTimeOf = (id) => {
+    const t = parseInt(String(id || '').slice(0, 8), 16) * 1000;
+    return isNaN(t) ? 0 : t;
+};
 
 const parseToLocalDate = (dateStr) => {
     if (!dateStr) return null;
@@ -48,18 +58,41 @@ const getTime = (v) => {
     return d ? d.getTime() : 0;
 };
 
-const getAccountLabel = (p) => {
-    const a = p.paymentAccount || {};
-    if (p.paymentMethod === 'Bank') {
-        return [a.bankName, a.accountNumber].filter(Boolean).join(' - ') + (a.accountBranch ? ` (${a.accountBranch})` : '');
+const rowTimeOf = (createdAt, id, dateVal) => {
+    if (createdAt) {
+        const c = new Date(createdAt).getTime();
+        if (!isNaN(c)) return c;
     }
-    if (p.paymentMethod === 'Mobile Banking') {
-        return [a.accountName, a.accountNumber].filter(Boolean).join(' - ');
+    const it = idTimeOf(id);
+    if (it > 0) return it;
+    return getTime(dateVal);
+};
+
+const accountLabel = (method, acc = {}) => {
+    if (method === 'Sales Adjustment') return 'Adjusted in Sales Bill';
+    if (method === 'Bank') {
+        return (
+            [acc.bankName, acc.accountNumber].filter(Boolean).join(' - ') +
+            (acc.accountBranch ? ` (${acc.accountBranch})` : '')
+        );
     }
-    return a.accountName || 'Cash';
+    if (method === 'Mobile Banking') return [acc.accountName, acc.accountNumber].filter(Boolean).join(' - ');
+    return acc.accountName || 'Cash';
 };
 
 const getStatus = (o) => (o.status === 'Delivered' ? 'Delivered' : 'New Order');
+
+const SOURCES = ['Sale', 'Sales Return', 'Bulk Return', 'Damage Return', 'Due Payment'];
+
+const SOURCE_BADGE = {
+    'Sale': 'bg-indigo-50 text-indigo-700 border-indigo-100',
+    'Sales Return': 'bg-orange-50 text-orange-700 border-orange-100',
+    'Bulk Return': 'bg-violet-50 text-violet-700 border-violet-100',
+    'Damage Return': 'bg-rose-50 text-rose-700 border-rose-100',
+    'Due Payment': 'bg-emerald-50 text-emerald-700 border-emerald-100',
+};
+
+const Dash = () => <span className="text-gray-300">—</span>;
 
 // Searchable dropdown (SR / Delivery Man / Route)
 const FilterSelect = ({ label, placeholder, value, options, onChange, emptyText }) => {
@@ -136,6 +169,9 @@ const SaleCustomerLedgerRepo = () => {
     const navigate = useNavigate();
 
     const [orders, setOrders] = useState([]);
+    const [bulkReturns, setBulkReturns] = useState([]);
+    const [damageReturns, setDamageReturns] = useState([]);
+    const [duePayments, setDuePayments] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -151,13 +187,14 @@ const SaleCustomerLedgerRepo = () => {
         invoiceNo: '',
         customer: '',
         customerContact: '',
+        source: '',
         method: '',
         account: '',
         dueStatus: '',
         sr: '',
         deliveredBy: '',
         route: '',
-        status: 'Delivered', // default Delivered
+        status: 'Delivered', // default Delivered (shudhu Sale source er jonno)
     };
     const [filters, setFilters] = useState(EMPTY_FILTERS);
     const [directOnly, setDirectOnly] = useState(false);
@@ -199,17 +236,26 @@ const SaleCustomerLedgerRepo = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const [sRes, cRes, uRes] = await Promise.all([
+                const [sRes, cRes, uRes, bRes, dRes, dpRes] = await Promise.all([
                     fetch('https://squirrel-peace-server.onrender.com/sales'),
                     fetch('https://squirrel-peace-server.onrender.com/customer'),
                     fetch('https://squirrel-peace-server.onrender.com/user'),
+                    fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
+                    fetch('https://squirrel-peace-server.onrender.com/sales-damage'),
+                    fetch('https://squirrel-peace-server.onrender.com/sales-due-payment'),
                 ]);
                 const sData = await sRes.json();
                 const cData = await cRes.json();
                 const uData = await uRes.json().catch(() => []);
+                const bData = await bRes.json().catch(() => []);
+                const dData = await dRes.json().catch(() => []);
+                const dpData = await dpRes.json().catch(() => []);
                 setOrders(Array.isArray(sData) ? sData : []);
                 setCustomers(Array.isArray(cData) ? cData : []);
                 setUsers(Array.isArray(uData) ? uData : []);
+                setBulkReturns(Array.isArray(bData) ? bData : []);
+                setDamageReturns(Array.isArray(dData) ? dData : []);
+                setDuePayments(Array.isArray(dpData) ? dpData : []);
             } catch (error) {
                 console.error('Error fetching customer ledger data:', error);
             } finally {
@@ -264,24 +310,51 @@ const SaleCustomerLedgerRepo = () => {
         setIsCustomerOpen(false);
     };
 
-    // Delivered (payment kora) + New Order sob ashbe, status filter e alada hobe
-    const rows = orders
+    // ---------- Build rows (sob source) ----------
+    // Return type row: amt = return value, payment = customer ke ferot dewa
+    const makeReturnRow = (base, amt, payment) => {
+        const refunded = payment ? n(payment.amount) : 0;
+        return {
+            ...base,
+            phone: getPhoneByName(base.customer),
+            method: payment?.method || '',
+            account: payment ? accountLabel(payment.method, payment.account || {}) : '',
+            receivable: 0,
+            payable: amt,
+            received: 0,
+            paid: refunded,
+            pay: Math.max(r2(amt - refunded), 0),
+            get: Math.max(r2(refunded - amt), 0),
+        };
+    };
+
+    // 1) Sales (Delivered payment + New Order)
+    const saleRows = orders
         .map((o, idx) => ({ o, idx }))
         .filter(({ o }) => getStatus(o) === 'New Order' || n(o.paidAmount) > 0)
         .map(({ o, idx }) => {
             const status = getStatus(o);
-            const payDate =
-                status === 'Delivered'
-                    ? o.deliveredAt || o.deliveryDate || o.orderDate || ''
-                    : o.createdAt || o.orderDate || '';
-            const payable = n(o.payableAmount ?? o.grandTotal);
-            const paid = n(o.paidAmount);
+            const isDel = status === 'Delivered';
+            const payDate = isDel
+                ? o.paymentDate || o.deliveredAt || o.deliveryDate || o.orderDate || ''
+                : o.createdAt || o.orderDate || '';
+            const fullPayable = n(o.payableAmount ?? o.grandTotal);
+            const paidRaw = n(o.paidAmount);
+            const isPayable = fullPayable < 0;
+            const due = isPayable
+                ? Math.max(r2(paidRaw + fullPayable), 0)
+                : !isDel ? 0 : Math.max(r2(fullPayable - paidRaw), 0);
+            const extra = isPayable
+                ? Math.max(r2(-fullPayable - paidRaw), 0)
+                : !isDel ? paidRaw : Math.max(r2(paidRaw - fullPayable), 0);
             return {
-                rowId: o._id,
-                orderId: o._id,
+                rowId: `s-${o._id}`,
+                source: 'Sale',
+                nav: { path: `/sales-details/${o._id}`, state: { fromReport: true } },
                 idx,
                 payDate,
-                payTime: getTime(payDate),
+                payTime: getTime(payDate) || idTimeOf(o._id),
+                editedAt: o.paymentEditedAt || '',
                 invoiceNo: o.invoiceNo || o.orderNo || '',
                 customer: o.customer || '',
                 phone: getPhoneByName(o.customer),
@@ -291,13 +364,162 @@ const SaleCustomerLedgerRepo = () => {
                 direct: o.directSales === true,
                 status,
                 method: o.paymentMethod || '',
-                account: getAccountLabel(o),
-                payable,
-                paid,
-                due: Math.max(payable - paid, 0),
+                account: o.paymentMethod ? accountLabel(o.paymentMethod, o.paymentAccount || {}) : '',
+                receivable: isPayable ? 0 : fullPayable,
+                payable: isPayable ? -fullPayable : 0,
+                received: isPayable ? 0 : paidRaw,
+                paid: isPayable ? paidRaw : 0,
+                get: due,
+                pay: extra,
             };
-        })
-        .sort((a, b) => b.payTime - a.payTime || b.idx - a.idx);
+        });
+
+    // 2) Sales return
+    const saleReturnRows = [];
+    orders.forEach((order) => {
+        (order.returnHistory || []).forEach((ret) => {
+            const idMatch = String(ret.returnId || '').match(/\d{13}/);
+            const time = rowTimeOf(ret.createdAt, '', ret.returnDate) || (idMatch ? Number(idMatch[0]) : 0);
+            saleReturnRows.push(
+                makeReturnRow(
+                    {
+                        rowId: `sr-${order._id}-${ret.returnId}`,
+                        source: 'Sales Return',
+                        nav: { path: `/sales-return-view/${order._id}?returnId=${ret.returnId}` },
+                        payDate: ret.returnDate || '',
+                        payTime: time,
+                        editedAt: ret.editedAt || '',
+                        invoiceNo: order.invoiceNo || order.orderNo || '',
+                        customer: order.customer || '',
+                        sr: order.sr || '',
+                        deliveredBy: order.deliveredBy || '',
+                        route: order.route || '',
+                        direct: order.directSales === true,
+                        status: '',
+                    },
+                    n(ret.totalReturnAmount),
+                    ret.payment || null
+                )
+            );
+        });
+    });
+
+    // 3) Bulk return
+    const bulkRows = bulkReturns.map((b) => {
+        const adj =
+            b.fromSales === true
+                ? n(orders.find((s) => String(s._id) === String(b.saleId))?.returnAdjustmentAmount)
+                : 0;
+        const payment = adj > 0 ? { amount: adj, method: 'Sales Adjustment', account: {} } : b.payment || null;
+        const fromSales = b.fromSales === true;
+        return makeReturnRow(
+            {
+                rowId: `bk-${b._id}`,
+                source: 'Bulk Return',
+                nav: fromSales && b.saleId
+                    ? { path: `/sales-details/${b.saleId}`, state: { scrollToReturn: true } }
+                    : { path: `/sales-bulk-return-view/${b._id}` },
+                payDate: b.returnDate || '',
+                payTime: rowTimeOf(b.createdAt, b._id, b.returnDate),
+                editedAt: b.editedAt || '',
+                invoiceNo: b.invoiceNo || '',
+                customer: b.customer || '',
+                sr: '',
+                deliveredBy: '',
+                route: '',
+                direct: false,
+                status: '',
+            },
+            n(b.returnAmount),
+            payment
+        );
+    });
+
+    // 4) Damage return (standalone customer damage + sales theke damage)
+    const damageRows = [
+        ...damageReturns
+            .filter((d) => d.customer)
+            .map((d) =>
+                makeReturnRow(
+                    {
+                        rowId: `sd-${d._id}`,
+                        source: 'Damage Return',
+                        nav: { path: `/sales-damage-details/${d._id}` },
+                        payDate: d.returnDate || d.date || '',
+                        payTime: rowTimeOf(d.createdAt, d._id, d.returnDate || d.date),
+                        editedAt: d.editedAt || '',
+                        invoiceNo: d.invoiceNo || '',
+                        customer: d.customer || '',
+                        sr: '',
+                        deliveredBy: '',
+                        route: '',
+                        direct: false,
+                        status: '',
+                    },
+                    n(d.damageAmount) || n(d.returnAmount) || sumItems(d.items),
+                    d.payment || null
+                )
+            ),
+        ...orders
+            .filter((s) => s.status === 'Delivered' && (s.damageItems || []).length > 0)
+            .map((s) => {
+                const adj = n(s.damageAdjustmentAmount);
+                return makeReturnRow(
+                    {
+                        rowId: `sa-${s._id}`,
+                        source: 'Damage Return',
+                        nav: { path: `/sales-details/${s._id}`, state: { scrollTo: 'damage-products-section' } },
+                        payDate: s.deliveryDate || s.orderDate || '',
+                        payTime: rowTimeOf(s.damageAt || s.createdAt, s._id, s.deliveryDate || s.orderDate),
+                        editedAt: s.damageEditedAt || '',
+                        invoiceNo: s.invoiceNo || s.orderNo || '',
+                        customer: s.customer || '',
+                        sr: s.sr || '',
+                        deliveredBy: s.deliveredBy || '',
+                        route: s.route || '',
+                        direct: s.directSales === true,
+                        status: '',
+                    },
+                    sumItems(s.damageItems),
+                    adj > 0 ? { amount: adj, method: 'Sales Adjustment', account: {} } : s.damagePayment || null
+                );
+            }),
+    ];
+
+    // 5) Customer due payment (Get = customer theke nilam, Pay = customer ke dilam)
+    const duePayRows = duePayments.map((p) => {
+        const amt = r2(n(p.amount));
+        const isPay = p.type === 'Pay' || p.status === 'Pay' || p.paymentAccount?.dueType === 'Pay';
+        return {
+            rowId: `dp-${p._id}`,
+            source: 'Due Payment',
+            nav: null,
+            payDate: p.date || '',
+            payTime: idTimeOf(p._id) || getTime(p.date),
+            editedAt: '',
+            invoiceNo: p.invoiceNo || '',
+            customer: p.customer || '',
+            phone: p.customerContact || getPhoneByName(p.customer),
+            sr: p.sr || '',
+            deliveredBy: p.deliveredBy || '',
+            route: '',
+            direct: false,
+            status: '',
+            method: p.paymentMethod || '',
+            account: accountLabel(p.paymentMethod, p.paymentAccount || {}),
+            receivable: 0,
+            payable: 0,
+            received: isPay ? 0 : amt,
+            paid: isPay ? amt : 0,
+            pay: 0,
+            get: 0,
+        };
+    });
+
+    // Sob mile (notun age)
+    const rows = [...saleRows, ...saleReturnRows, ...bulkRows, ...damageRows, ...duePayRows]
+        .filter((r) => r.receivable > 0 || r.payable > 0 || r.received > 0 || r.paid > 0)
+        .sort((a, b) => b.payTime - a.payTime);
 
     const methodOptions = [...new Set(rows.map((r) => r.method).filter(Boolean))];
 
@@ -339,18 +561,19 @@ const SaleCustomerLedgerRepo = () => {
                 if (e && d > e) return false;
             }
         }
-        if (filters.invoiceNo && !r.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
+        if (filters.invoiceNo && !String(r.invoiceNo || '').toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
         if (filters.customer && !r.customer?.toLowerCase().includes(filters.customer.toLowerCase())) return false;
         if (filters.customerContact && r.phone && r.phone !== filters.customerContact) return false;
+        if (filters.source && r.source !== filters.source) return false;
         if (filters.method && r.method !== filters.method) return false;
         if (filters.account && !r.account?.toLowerCase().includes(filters.account.toLowerCase())) return false;
-        if (filters.dueStatus === 'Due' && !(r.due > 0)) return false;
-        if (filters.dueStatus === 'NoDue' && !(r.due <= 0)) return false;
+        if (filters.dueStatus === 'Due' && !(r.pay > 0 || r.get > 0)) return false;
+        if (filters.dueStatus === 'NoDue' && (r.pay > 0 || r.get > 0)) return false;
         if (directOnly && !r.direct) return false;
         if (filters.sr && !r.sr?.toLowerCase().includes(filters.sr.toLowerCase())) return false;
         if (filters.deliveredBy && !r.deliveredBy?.toLowerCase().includes(filters.deliveredBy.toLowerCase())) return false;
         if (filters.route && !r.route?.toLowerCase().includes(filters.route.toLowerCase())) return false;
-        if (filters.status && r.status !== filters.status) return false;
+        if (filters.status && r.source === 'Sale' && r.status !== filters.status) return false;
         return true;
     });
 
@@ -382,14 +605,21 @@ const SaleCustomerLedgerRepo = () => {
     const isSelectionMode = selectedRows.length > 0;
     const summaryRows = isSelectionMode ? selectedRows : filteredRows;
 
-    const summaryPayable = summaryRows.reduce((s, r) => s + r.payable, 0);
-    const summaryPaid = summaryRows.reduce((s, r) => s + r.paid, 0);
-    const summaryDue = summaryRows.reduce((s, r) => s + r.due, 0);
+    const sum = (key) => summaryRows.reduce((s, r) => s + (r[key] || 0), 0);
+    const summaryReceivable = sum('receivable');
+    const summaryPayable = sum('payable');
+    const summaryReceived = sum('received');
+    const summaryPaid = sum('paid');
+    const summaryGet = sum('get');
+    const summaryPay = sum('pay');
     const fmt = (v) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-    const handleInvoiceClick = (id) => {
-        navigate(`/sales-details/${id}`, { state: { fromReport: true } });
+    const handleInvoiceClick = (r) => {
+        if (!r.nav) return;
+        navigate(r.nav.path, r.nav.state ? { state: r.nav.state } : undefined);
     };
+
+    const amtCell = (v, cls) => (v > 0 ? <span className={cls}>৳{v.toFixed(2)}</span> : <Dash />);
 
     return (
         <div className="p-4 md:p-6">
@@ -400,7 +630,7 @@ const SaleCustomerLedgerRepo = () => {
                     <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
                         Sales Customer Ledger
                     </h2>
-                    <p className="text-gray-500 text-sm mt-1">প্রতিটি invoice এর payment এর হিসাব — নতুন payment সবার উপরে</p>
+                    <p className="text-gray-500 text-sm mt-1">Sale, Sales Return, Bulk Return, Damage Return ar Due Payment — sob hisab, notun entry sobar upore</p>
                 </div>
 
                 <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
@@ -551,6 +781,22 @@ const SaleCustomerLedgerRepo = () => {
                                 )}
                             </div>
 
+                            {/* Source */}
+                            <div>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Source</label>
+                                <select
+                                    name="source"
+                                    value={filters.source}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">All</option>
+                                    {SOURCES.map((s) => (
+                                        <option key={s} value={s}>{s}</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             {/* Payment Method */}
                             <div>
                                 <label className="block text-gray-600 text-[11px] font-semibold mb-1">Payment Method</label>
@@ -649,9 +895,9 @@ const SaleCustomerLedgerRepo = () => {
                                 emptyText="No route found"
                             />
 
-                            {/* Status */}
+                            {/* Status (Sale source er jonno) */}
                             <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
+                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Sale Status</label>
                                 <select
                                     name="status"
                                     value={filters.status}
@@ -674,8 +920,8 @@ const SaleCustomerLedgerRepo = () => {
                                     className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
                                 >
                                     <option value="">All</option>
-                                    <option value="Due">Has Due</option>
-                                    <option value="NoDue">Fully Paid</option>
+                                    <option value="Due">Has Pay / Get</option>
+                                    <option value="NoDue">Settled</option>
                                 </select>
                             </div>
                         </div>
@@ -690,13 +936,22 @@ const SaleCustomerLedgerRepo = () => {
                             Rows: <b className="text-gray-800">{summaryRows.length}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
-                            Total Payable: <b className="text-indigo-600">৳{fmt(summaryPayable)}</b>
+                            Receivable: <b className="text-indigo-600">৳{fmt(summaryReceivable)}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
-                            Total Payment: <b className="text-emerald-600">৳{fmt(summaryPaid)}</b>
+                            Payable: <b className="text-rose-600">৳{fmt(summaryPayable)}</b>
                         </span>
                         <span className="font-semibold text-gray-600">
-                            Total Due: <b className="text-rose-600">৳{fmt(summaryDue)}</b>
+                            Received: <b className="text-emerald-600">৳{fmt(summaryReceived)}</b>
+                        </span>
+                        <span className="font-semibold text-gray-600">
+                            Paid: <b className="text-orange-600">৳{fmt(summaryPaid)}</b>
+                        </span>
+                        <span className="font-semibold text-gray-600">
+                            Get: <b className="text-sky-600">৳{fmt(summaryGet)}</b>
+                        </span>
+                        <span className="font-semibold text-gray-600">
+                            Pay: <b className="text-rose-600">৳{fmt(summaryPay)}</b>
                         </span>
                         {isSelectionMode && (
                             <button
@@ -712,7 +967,7 @@ const SaleCustomerLedgerRepo = () => {
                     {loading ? (
                         <div className="text-center py-20 text-gray-500 font-medium">Loading ledger...</div>
                     ) : filteredRows.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400 font-medium">No payments found!</div>
+                        <div className="text-center py-20 text-gray-400 font-medium">No records found!</div>
                     ) : (
                         <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
                             <table className="w-full text-left border-collapse [&_th]:px-2 [&_th]:py-2.5 [&_th]:text-[11px] [&_td]:px-2 [&_td]:py-2.5 [&_td]:text-xs [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_td]:align-top">
@@ -730,11 +985,15 @@ const SaleCustomerLedgerRepo = () => {
                                         <th>Invoice</th>
                                         <th>Info</th>
                                         <th>Customer</th>
+                                        <th>Source</th>
                                         <th>Payment Method</th>
                                         <th>Account</th>
+                                        <th>Receivable Amount</th>
                                         <th>Payable Amount</th>
-                                        <th>Payment Amount</th>
-                                        <th>Due Amount</th>
+                                        <th>Received Amount</th>
+                                        <th>Paid Amount</th>
+                                        <th>Get Amount</th>
+                                        <th>Pay Amount</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
@@ -754,26 +1013,37 @@ const SaleCustomerLedgerRepo = () => {
                                             </td>
                                             <td className="text-gray-600">
                                                 <div className="font-medium">{fmtDateTime(r.payDate) || 'N/A'}</div>
+                                                {r.editedAt && (
+                                                    <div className="text-[11px] text-amber-600 font-semibold">
+                                                        Edited: {fmtDateTime(r.editedAt)}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td>
-                                                <button
-                                                    onClick={() => handleInvoiceClick(r.orderId)}
-                                                    className="text-indigo-700 hover:text-pink-600 hover:underline font-bold cursor-pointer transition-colors"
-                                                >
-                                                    {r.invoiceNo}
-                                                </button>
+                                                {r.nav ? (
+                                                    <button
+                                                        onClick={() => handleInvoiceClick(r)}
+                                                        className="text-indigo-700 hover:text-pink-600 hover:underline font-bold cursor-pointer transition-colors"
+                                                    >
+                                                        {r.invoiceNo}
+                                                    </button>
+                                                ) : (
+                                                    <span className="font-bold text-gray-700">{r.invoiceNo || 'N/A'}</span>
+                                                )}
                                             </td>
                                             <td className="text-gray-600">
                                                 {r.direct ? (
                                                     <span className="inline-block px-1.5 py-0.5 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-[9px] leading-none shadow-sm">
                                                         ⚡ Direct Sales
                                                     </span>
-                                                ) : (
+                                                ) : r.sr || r.deliveredBy || r.route ? (
                                                     <div className="space-y-0.5 leading-tight">
                                                         <div>SR: <b className="text-gray-700">{r.sr || 'N/A'}</b></div>
                                                         <div>Delivery By: <b className="text-gray-700">{r.deliveredBy || 'N/A'}</b></div>
-                                                        <div>Route: <b className="text-gray-700">{r.route || 'N/A'}</b></div>
+                                                        {r.route && <div>Route: <b className="text-gray-700">{r.route}</b></div>}
                                                     </div>
+                                                ) : (
+                                                    <Dash />
                                                 )}
                                             </td>
                                             <td className="text-gray-600">
@@ -782,15 +1052,27 @@ const SaleCustomerLedgerRepo = () => {
                                                     <div className="text-[11px] text-gray-400 mt-0.5">📞 {r.phone}</div>
                                                 )}
                                             </td>
+                                            <td>
+                                                <span className={`inline-block px-2 py-0.5 rounded-full border font-bold text-[10px] ${SOURCE_BADGE[r.source] || 'bg-gray-50 text-gray-600 border-gray-100'}`}>
+                                                    {r.source}
+                                                </span>
+                                            </td>
                                             <td className="font-semibold text-gray-700">{r.method || 'N/A'}</td>
                                             <td className="text-gray-600">{r.account || 'N/A'}</td>
-                                            <td className="font-semibold text-indigo-600">৳{r.payable.toFixed(2)}</td>
-                                            <td className="font-bold text-emerald-600">৳{r.paid.toFixed(2)}</td>
-                                            <td className={`font-bold ${r.due > 0 ? 'text-rose-600' : 'text-slate-400'}`}>৳{r.due.toFixed(2)}</td>
+                                            <td className="font-semibold">{amtCell(r.receivable, 'text-indigo-600')}</td>
+                                            <td className="font-semibold">{amtCell(r.payable, 'text-rose-600')}</td>
+                                            <td className="font-bold">{amtCell(r.received, 'text-emerald-600')}</td>
+                                            <td className="font-bold">{amtCell(r.paid, 'text-orange-600')}</td>
+                                            <td className={`font-bold ${r.get > 0 ? 'text-sky-600' : 'text-slate-400'}`}>৳{r.get.toFixed(2)}</td>
+                                            <td className={`font-bold ${r.pay > 0 ? 'text-rose-600' : 'text-slate-400'}`}>৳{r.pay.toFixed(2)}</td>
                                             <td>
-                                                <span className={`inline-block px-2 py-0.5 rounded-full font-semibold text-[11px] ${r.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                    {r.status}
-                                                </span>
+                                                {r.source === 'Sale' ? (
+                                                    <span className={`inline-block px-2 py-0.5 rounded-full font-semibold text-[11px] ${r.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        {r.status}
+                                                    </span>
+                                                ) : (
+                                                    <Dash />
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

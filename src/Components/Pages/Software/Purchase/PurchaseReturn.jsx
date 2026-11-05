@@ -124,6 +124,7 @@ const PurchaseReturn = () => {
                         seq: flattenedReturns.length,
                         createdAt: ret.createdAt,
                         returnIdRaw: ret.returnId,
+                        status: ret.status || 'Approved',
                         orderId: order._id,
                         returnId: ret.returnId,
                         returnDate: ret.returnDate,
@@ -314,6 +315,41 @@ const PurchaseReturn = () => {
     };
 
     // Edit Return Handler -> return form a existing value prefill kore edit kora jabe
+    const handleApprove = (item) => {
+        setOpenDropdownId(null);
+        Swal.fire({
+            title: 'Approve this purchase return?',
+            text: 'Approve korle ar Pending kora jabe na!',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#f43f5e',
+            confirmButtonText: 'Yes, approve it!'
+        }).then(async (result) => {
+            if (!result.isConfirmed) return;
+            try {
+                const orderRes = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item.orderId}`);
+                const order = await orderRes.json();
+                const updatedHistory = (order.returnHistory || []).map((ret) =>
+                    ret.returnId === item.returnId ? { ...ret, status: 'Approved' } : ret
+                );
+                const response = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item.orderId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ returnHistory: updatedHistory }),
+                });
+                if (!response.ok) throw new Error('Failed');
+                setReturns((prev) =>
+                    prev.map((r) => (r.returnId === item.returnId ? { ...r, status: 'Approved' } : r))
+                );
+                showToast('Purchase return approved successfully!', 'success');
+            } catch (error) {
+                console.error('Error approving return:', error);
+                showToast('Failed to approve!', 'error');
+            }
+        });
+    };
+
     const handleEditReturn = (item) => {
         setOpenDropdownId(null);
         navigate(`/purchase-return-details/${item.orderId}?returnId=${item.returnId}`);
@@ -791,6 +827,7 @@ const PurchaseReturn = () => {
                                         <th className="py-4 px-4">Return Free Quantity</th>
                                         <th className="py-4 px-4">Others Free Product</th>
                                         <th className="py-4 px-4">Return Amount</th>
+                                        <th className="py-4 px-4">Status</th>
                                         <th className="py-4 px-4 text-center">Action</th>
                                     </tr>
                                 </thead>
@@ -838,6 +875,17 @@ const PurchaseReturn = () => {
                                                 {renderLines(item.otherLines, item.totalReturnFreeItemsQty, 'text-amber-700')}
                                             </td>
                                             <td className="py-4 px-4 font-bold text-orange-600">৳{Number(item.totalReturnAmount).toFixed(2)}</td>
+                                            <td className="py-4 px-4 whitespace-nowrap">
+                                                {item.status === 'Approved' ? (
+                                                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[11px]">
+                                                        Approved
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold text-[11px]">
+                                                        Pending
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td className="py-3 px-2.5 text-center relative">
                                                 <div className="relative inline-block action-dropdown-container">
 
@@ -864,6 +912,15 @@ const PurchaseReturn = () => {
 
                                                     {openDropdownId === item.returnId && (
                                                         <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150">
+
+                                                            {item.status !== 'Approved' && (
+                                                                <button
+                                                                    onClick={() => handleApprove(item)}
+                                                                    className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                                >
+                                                                    Approval
+                                                                </button>
+                                                            )}
 
                                                             <button
                                                                 onClick={() => handleViewReturn(item)}
