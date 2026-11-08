@@ -113,10 +113,9 @@ const Expense = () => {
     };
 
     // Filtered Expenses based on Search
-    const filteredExpenses = expenses.filter((expense) => {
+    const filteredExpenses = [...expenses].reverse().filter((expense) => {
         const search = searchTerm.toLowerCase();
         const categoryMatch = expense.expenseCategory?.toLowerCase().includes(search);
-        const nameMatch = expense.name?.toLowerCase().includes(search);
         const accountMatch = expense.accountType?.toLowerCase().includes(search);
         const noteMatch = expense.note?.toLowerCase().includes(search);
         const invoiceMatch = expense.invoiceNumber?.toLowerCase().includes(search);
@@ -125,7 +124,7 @@ const Expense = () => {
         const accNameMatch = expense.accountName?.toLowerCase().includes(search);
         const branchMatch = expense.accountBranch?.toLowerCase().includes(search);
         const typeMatch = expense.expenseType?.toLowerCase().includes(search);
-        return typeMatch || categoryMatch || nameMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
+        return typeMatch || categoryMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
     });
 
     // Pagination Calculations
@@ -377,7 +376,7 @@ const Expense = () => {
                             </span>
                             <input
                                 type="text"
-                                placeholder="Search by category, name, account, invoice..."
+                                placeholder="Search by category, account, invoice..."
                                 value={searchTerm}
                                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                 className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
@@ -400,7 +399,6 @@ const Expense = () => {
                                         <th className="py-4 px-4">Invoice</th>
                                         <th className="py-4 px-4">Expense Type</th>
                                         <th className="py-4 px-4">Category</th>
-                                        <th className="py-4 px-4">Name</th>
                                         <th className="py-4 px-4">Account Type</th>
                                         <th className="py-4 px-4">Account Details</th>
                                         <th className="py-4 px-4">Amount</th>
@@ -424,7 +422,6 @@ const Expense = () => {
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{expense.expenseCategory || 'N/A'}</td>
-                                            <td className="py-4 px-4 text-gray-600">{expense.name || 'N/A'}</td>
                                             <td className="py-4 px-4">
                                                 {expense.accountType === 'Mobile Banking' ? (
                                                     <div className="flex flex-col gap-1.5">

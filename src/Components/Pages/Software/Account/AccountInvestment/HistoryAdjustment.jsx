@@ -6,7 +6,9 @@ import {
     FiCalendar,
     FiTrash2,
     FiEdit3,
-    FiX
+    FiX,
+    FiChevronLeft,
+    FiChevronRight
 } from 'react-icons/fi';
 import useAuth from '../../../../Layout/useAuth';
 import useAdmin from '../../../../../hooks/useAdmin';
@@ -27,6 +29,10 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
     // Edit Modal States
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAdjustment, setEditingAdjustment] = useState(null);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     const { user } = useAuth();
     const [isAdmin] = useAdmin();
@@ -94,7 +100,7 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
     };
 
     // ফিল্টার লজিক
-    const filteredHistory = historyData.filter((item) => {
+    const filteredHistory = [...historyData].reverse().filter((item) => {
         const modeMatch = searchMode === '' || item.mode?.toLowerCase() === searchMode.toLowerCase();
 
         let dateMatch = true;
@@ -125,6 +131,23 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
     const totalWithdraw = filteredHistory
         .filter(item => item.mode === 'Withdraw')
         .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+    // Pagination Calculations
+    const totalPages = Math.ceil(filteredHistory.length / itemsPerPage) || 1;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentHistory = filteredHistory.slice(indexOfFirstItem, indexOfLastItem);
+
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
+
+    // ফিল্টার বদলালে প্রথম পেজে ফিরে যাবে
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchMode, startDateRaw, endDateRaw]);
 
     const initialAmount = Number(selectedInvestment?.amount || 0);
     const totalRemaining = initialAmount + totalDeposit - totalWithdraw;
@@ -321,7 +344,7 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
                 ) : filteredHistory.length === 0 ? (
                     <div className="text-center py-8 text-gray-400 text-xs font-medium">No records found!</div>
                 ) : (
-                    <div className="max-h-60 overflow-y-auto rounded-xl border border-gray-100 shadow-2xs">
+                    <div className="max-h-[55vh] overflow-y-auto rounded-xl border border-gray-100 shadow-2xs">
                         <table className="w-full text-left border-collapse text-xs">
                             <thead className="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white uppercase text-[10px] z-10">
                                 <tr>
@@ -333,9 +356,9 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 text-gray-700">
-                                {filteredHistory.map((item, index) => (
+                                {currentHistory.map((item, index) => (
                                     <tr key={item._id || index} className="hover:bg-indigo-50/30 transition duration-150">
-                                        <td className="py-2.5 px-3 text-gray-400">{index + 1}</td>
+                                        <td className="py-2.5 px-3 text-gray-400">{indexOfFirstItem + index + 1}</td>
                                         <td className="py-2.5 px-3 text-gray-600">{item.date}</td>
                                         <td className="py-2.5 px-3">
                                             <span className={`px-2.5 py-0.5 rounded-full font-semibold text-[10px] ${item.mode === 'Deposit' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
@@ -379,6 +402,73 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                )}
+
+                {/* Pagination Footer */}
+                {!loading && filteredHistory.length > 0 && (
+                    <div className="px-1 py-1 flex flex-col sm:flex-row justify-between items-center gap-3">
+                        <span className="text-[11px] text-gray-500 font-medium">
+                            Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                            {' '}({filteredHistory.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredHistory.length)}` : 0} of {filteredHistory.length})
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
+                                    }`}
+                            >
+                                <FiChevronLeft size={12} /> Previous
+                            </button>
+
+                            <div className="hidden sm:flex items-center gap-1">
+                                {[...Array(totalPages)].map((_, index) => {
+                                    const pageNum = index + 1;
+                                    if (
+                                        pageNum === 1 ||
+                                        pageNum === totalPages ||
+                                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                    ) {
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={pageNum}
+                                                onClick={() => handlePageChange(pageNum)}
+                                                className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
+                                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                    }`}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        );
+                                    } else if (
+                                        pageNum === currentPage - 2 ||
+                                        pageNum === currentPage + 2
+                                    ) {
+                                        return <span key={pageNum} className="text-gray-400 px-1">...</span>;
+                                    }
+                                    return null;
+                                })}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
+                                    }`}
+                            >
+                                Next <FiChevronRight size={12} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

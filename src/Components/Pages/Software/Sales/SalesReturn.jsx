@@ -129,6 +129,7 @@ const SalesReturn = () => {
                         returnDate: ret.returnDate,
                         orderNo: order.orderNo,
                         customer: order.customer,
+                        collectedBy: ret.collectedBy || '',
                         totalReturnPcs: ret.totalReturnPcs,
                         totalReturnFreeQty: ret.totalReturnFreeQty,
                         totalReturnAmount: ret.totalReturnAmount,
@@ -791,6 +792,7 @@ const SalesReturn = () => {
                                         <th className="py-4 px-4">Date</th>
                                         <th className="py-4 px-4">Order No</th>
                                         <th className="py-4 px-4">Customer</th>
+                                        <th className="py-4 px-4">Collected By</th>
                                         <th className="py-4 px-4">Return Quantity</th>
                                         <th className="py-4 px-4">Return Free Quantity</th>
                                         <th className="py-4 px-4">Others Free Product</th>
@@ -836,6 +838,9 @@ const SalesReturn = () => {
                                                 {getPhoneByName(item.customer) && (
                                                     <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
                                                 )}
+                                            </td>
+                                            <td className="py-4 px-4 font-semibold text-gray-700">
+                                                {item.collectedBy || 'N/A'}
                                             </td>
                                             <td className="py-4 px-4 font-semibold text-orange-600">
                                                 {renderLines(item.retLines, item.totalReturnPcs, 'text-indigo-600')}

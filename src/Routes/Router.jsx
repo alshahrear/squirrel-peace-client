@@ -79,9 +79,10 @@ import StockReportAll from "../Components/Pages/Software/Reports/StockReport/Sto
 import Income from "../Components/Pages/Software/Account/AccountInvestment/Income";
 import RouteExpense from "../Components/Pages/Software/Account/AccountInvestment/RouteExpense";
 import Transfer from "../Components/Pages/Software/Account/AccountInvestment/Transfer";
-import AccountHeads from "../Components/Pages/Software/Account/AccountInvestment/AccountHeads";
 import AccountPurchaseAll from "../Components/Pages/Software/Account/AccountPurchase/AccountPurchaseAll";
 import AccountSalesAll from "../Components/Pages/Software/Account/AccountSales/AccountSalesAll";
+import SalesSrTarget from "../Components/Pages/Software/Sales/SalesSrTarget";
+import AccountReportAll from "../Components/Pages/Software/Reports/AccountReport/AccountReportAll";
 
 
 
@@ -193,6 +194,10 @@ export const router = createBrowserRouter([
           {
             path: "/sales-bulk-return-view/:id",
             element: <ClientRoute><SalesBulkDetails></SalesBulkDetails></ClientRoute>
+          },
+          {
+            path: "/sales-sr-target",
+            element: <ClientRoute><SalesSrTarget></SalesSrTarget></ClientRoute>
           },
           {
             path: "/units",
@@ -329,6 +334,10 @@ export const router = createBrowserRouter([
             element: <ClientRoute><StockReportAll></StockReportAll></ClientRoute>
           },
           {
+            path: "/account-report",
+            element: <ClientRoute><AccountReportAll></AccountReportAll></ClientRoute>
+          },
+          {
             path: "/profit-all",
             element: <ClientRoute><ProfitTabAll></ProfitTabAll></ClientRoute>
           },
@@ -378,10 +387,6 @@ export const router = createBrowserRouter([
               {
                 path: "/transfer",
                 element: <Transfer></Transfer>
-              },
-              {
-                path: "/account-heads",
-                element: <AccountHeads></AccountHeads>
               }
             ]
           },

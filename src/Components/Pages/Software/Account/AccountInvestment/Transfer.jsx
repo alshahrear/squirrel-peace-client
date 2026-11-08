@@ -144,7 +144,7 @@ const Transfer = () => {
     };
 
     // Filtered Transfers based on Advanced Filters
-    const filteredTransfers = transfers.filter((item) => {
+        const filteredTransfers = [...transfers].reverse().filter((item) => {
         // Transfer From Filter (dropdown / select match)
         const matchTransferFrom = transferFromFilter === '' || item.transferFrom === transferFromFilter;
 

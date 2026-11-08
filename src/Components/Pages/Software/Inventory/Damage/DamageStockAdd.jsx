@@ -323,8 +323,11 @@ const DamageStockAdd = () => {
         company: editingDamage?.company || '',
         category: editingDamage?.category || '',
         date: editingDamage?.damageDate || getFormattedToday(),
+        collectedById: editingDamage?.collectedById || '',
+        collectedBy: editingDamage?.collectedBy || '',
     });
 
+    const [deliveryMen, setDeliveryMen] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [companies, setCompanies] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -335,6 +338,7 @@ const DamageStockAdd = () => {
         customer: editingDamage?.customer || '',
         company: editingDamage?.company || '',
         category: editingDamage?.category || '',
+        collectedBy: editingDamage?.collectedBy || '',
         product: '',
     });
     const updateSearch = (key, value) => setSearch((p) => ({ ...p, [key]: value }));
@@ -361,7 +365,7 @@ const DamageStockAdd = () => {
         return 'cash';
     });
     const [paymentNote, setPaymentNote] = useState(savedPay?.note || '');
-        const [accAvailable, setAccAvailable] = useState(null);
+    const [accAvailable, setAccAvailable] = useState(null);
 
     useEffect(() => {
         fetch('https://squirrel-peace-server.onrender.com/investment')
@@ -442,6 +446,7 @@ const DamageStockAdd = () => {
         load('company', setCompanies);
         load('category', setCategories, (c) => c.isActive === true);
         load('product', setProducts);
+        load('user', setDeliveryMen);
         // Cost StockPurchase.jsx er central function (getBatchCostPerPcs) theke ashbe
         Promise.all([
             fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${editId ? `?excludeDamageId=${editId}` : ''}`).then((r) => r.json()),
@@ -484,10 +489,25 @@ const DamageStockAdd = () => {
     const resetPageData = () => {
         setItems([]);
         setNote('');
-        setFormData((p) => ({ ...p, company: '', category: '' }));
+        setFormData((p) => ({ ...p, company: '', category: '', collectedById: '', collectedBy: '' }));
         setPaymentOpen(false);
         setPaymentAmountTouched(false);
-        setSearch((p) => ({ ...p, company: '', category: '', product: '' }));
+        setSearch((p) => ({ ...p, company: '', category: '', collectedBy: '', product: '' }));
+    };
+
+    // ---------- Collected By (Delivery Man, optional, customer select korle enable) ----------
+    const filteredDeliveryMen = deliveryMen
+        .filter((u) => u.role === 'Delivery Man' && u.isActive === true)
+        .filter((u) => matchesSearch(search.collectedBy, [u.name, u.phone]));
+
+    const handleSelectCollectedBy = (u) => {
+        updateForm({ collectedById: u._id, collectedBy: u.name });
+        updateSearch('collectedBy', u.name);
+    };
+
+    const handleClearCollectedBy = () => {
+        updateSearch('collectedBy', '');
+        updateForm({ collectedById: '', collectedBy: '' });
     };
 
     const handleSelectCustomer = (c) => {
@@ -859,6 +879,8 @@ const DamageStockAdd = () => {
             company: formData.company,
             category: formData.category,
             damageDate: formData.date,
+            collectedById: formData.customerId ? (formData.collectedById || '') : '',
+            collectedBy: formData.customerId ? (formData.collectedBy || '') : '',
             payment: paymentData,
             items: itemsPayload,
             damageAmount,
@@ -924,7 +946,7 @@ const DamageStockAdd = () => {
                     </div>
 
                     <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                             <SearchSelect
                                 label="Customer"
                                 placeholder="Search or select customer (optional)..."
@@ -980,6 +1002,29 @@ const DamageStockAdd = () => {
                                     <input type="text" readOnly value={formData.date} placeholder="Select date" className={`${inputCls} cursor-pointer pointer-events-none`} />
                                 </div>
                             </div>
+
+                            <SearchSelect
+                                label="Collected By"
+                                hint={!formData.customerId ? '(Select customer first)' : '(Optional)'}
+                                placeholder={formData.customerId ? 'Search or select delivery man...' : 'Select a customer first...'}
+                                disabled={!formData.customerId}
+                                searchValue={search.collectedBy}
+                                onSearchChange={(text) => {
+                                    updateSearch('collectedBy', text);
+                                    updateForm({ collectedById: '', collectedBy: '' });
+                                }}
+                                onClear={handleClearCollectedBy}
+                                onSelect={handleSelectCollectedBy}
+                                items={filteredDeliveryMen}
+                                getKey={(u) => u._id}
+                                emptyText="No active delivery man found"
+                                renderItem={(u) => (
+                                    <>
+                                        <p className="text-sm font-semibold text-slate-800">{u.name}</p>
+                                        {u.phone && <p className="text-xs text-slate-500 mt-0.5">📞 {u.phone}</p>}
+                                    </>
+                                )}
+                            />
 
                             <SearchSelect
                                 label="Filter by Category"

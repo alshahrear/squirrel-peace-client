@@ -195,7 +195,7 @@ const OpeningInvestment = () => {
 
     const uniqueAccountTypes = [...new Set(investments.map(item => item.accountType).filter(Boolean))];
 
-    const filteredInvestments = investments.filter((item) => {
+    const filteredInvestments = [...investments].reverse().filter((item) => {
         const typeMatch = searchType === '' || item.accountType?.toLowerCase() === searchType.toLowerCase();
 
         const nameQuery = searchName.toLowerCase();
@@ -302,7 +302,7 @@ const OpeningInvestment = () => {
     const grandTotal = filteredInvestments.reduce((sum, item) => sum + getRemainingAmount(item), 0);
 
     return (
-       <div ref={topSectionRef} className="p-4 md:p-6 relative">
+        <div ref={topSectionRef} className="p-4 md:p-6 relative">
 
             {toast.show && (
                 <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
@@ -734,7 +734,7 @@ const OpeningInvestment = () => {
             {/* History Modal (নতুন যোগ করা হলো) */}
             {showHistoryModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm transition-all duration-300 ease-out animate-in fade-in">
-                    <div className="relative w-full max-w-4xl bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-gray-100 transform transition-all duration-300 ease-out animate-in zoom-in-95 slide-in-from-bottom-4 max-h-[90vh] overflow-y-auto">
+                    <div className="relative w-full max-w-6xl bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-gray-100 transform transition-all duration-300 ease-out animate-in zoom-in-95 slide-in-from-bottom-4 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-gray-100">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-200 text-base">

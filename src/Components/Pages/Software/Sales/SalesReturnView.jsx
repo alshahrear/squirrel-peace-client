@@ -182,7 +182,12 @@ const SalesReturnView = () => {
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <span className="inline-block text-[11px] font-bold tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mb-2 uppercase">Bill To</span>
-                                        <p className="font-bold text-slate-800 text-lg">{selectedOrder.customer}</p>
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                            <p className="font-bold text-slate-800 text-lg">{selectedOrder.customer}</p>
+                                            <p className="text-xs text-slate-500">
+                                                Collected By: <span className="font-semibold text-slate-700">{returnEntry?.collectedBy || 'N/A'}</span>
+                                            </p>
+                                        </div>
                                         <p className="text-xs text-slate-500 mt-1">{selectedOrder.phone}</p>
                                         <p className="text-xs text-slate-500">{selectedOrder.shippingAddress || selectedOrder.address || 'N/A'}</p>
                                     </div>

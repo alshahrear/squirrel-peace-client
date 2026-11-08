@@ -269,7 +269,7 @@ const Customers = () => {
     };
 
     // Advanced Multi-field & Date Range Filtering Logic
-    const filteredCustomers = customers.filter((customer) => {
+        const filteredCustomers = [...customers].reverse().filter((customer) => {
         if (filters.startDate || filters.endDate) {
             if (!customer.createdAt) return false;
 

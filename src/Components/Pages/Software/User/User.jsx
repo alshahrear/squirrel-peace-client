@@ -149,7 +149,7 @@ const User = () => {
     };
 
     // Filtered Users based on Search
-    const filteredUsers = users.filter((user) => {
+       const filteredUsers = [...users].reverse().filter((user) => {
         if (filters.name && !user.name?.toLowerCase().includes(filters.name.toLowerCase())) return false;
         if (filters.email && !user.email?.toLowerCase().includes(filters.email.toLowerCase())) return false;
         if (filters.phone && !user.phone?.toLowerCase().includes(filters.phone.toLowerCase())) return false;

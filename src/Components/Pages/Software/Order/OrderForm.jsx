@@ -317,10 +317,10 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                 ...prev,
                 customerId: initialData.customerId || '',
                 customer: initialData.customer || '',
-                customerContact: initialData.customerContact || '',
-                customerAddress: initialData.customerAddress || '',
+                customerContact: initialData.customerContact || initialData.phone || '',
+                customerAddress: initialData.customerAddress || initialData.address || '',
                 route: initialData.route || '',
-                date: initialData.date || prev.date,
+                date: initialData.orderDate || initialData.date || prev.date,
                 shippingAddress: initialData.shippingAddress || '',
                 srId: initialData.srId || '',
                 sr: initialData.sr || '',
@@ -708,7 +708,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                         {/* Date */}
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Date <span className="text-rose-500">*</span>
+                                Order Date <span className="text-rose-500">*</span>
                             </label>
                             <div className="relative w-full cursor-pointer" onClick={openDatePicker}>
                                 <input

@@ -22,7 +22,6 @@ const IncomeForm = ({
     const emptyForm = {
         incomeType: 'Inside',
         incomeCategory: '',
-        name: '',
         date: getFormattedToday(),
         accountType: '',
         bankName: '',
@@ -39,7 +38,6 @@ const IncomeForm = ({
             ? {
                 incomeType: editingIncome.incomeType || 'Inside',
                 incomeCategory: editingIncome.incomeCategory || '',
-                name: editingIncome.name || '',
                 date: editingIncome.date || getFormattedToday(),
                 accountType: editingIncome.accountType || '',
                 bankName: editingIncome.bankName || '',
@@ -52,28 +50,9 @@ const IncomeForm = ({
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
-    const [incomeHeads, setIncomeHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
 
     const dateInputRef = useRef(null);
-
-    // Active Income ক্যাটাগরির Account Heads fetch করা
-    useEffect(() => {
-        const fetchIncomeHeads = async () => {
-            try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
-                const data = await res.json();
-                const filtered = data.filter(
-                    (head) => head.category === 'Income' && head.isActive === true
-                );
-                setIncomeHeads(filtered);
-            } catch (error) {
-                console.error('Error fetching income heads:', error);
-            }
-        };
-
-        fetchIncomeHeads();
-    }, []);
 
     // Investment API থেকে ব্যাংক বা অ্যাকাউন্ট ডেটা ফেচ করা
     useEffect(() => {
@@ -201,7 +180,6 @@ const IncomeForm = ({
         const finalData = {
             incomeType: formData.incomeType || 'Inside',
             incomeCategory: formData.incomeCategory,
-            name: formData.name,
             date: formData.date,
             accountType: formData.accountType,
             amount: Number(formData.amount),
@@ -324,34 +302,13 @@ const IncomeForm = ({
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Income Category <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <input
+                            type="text"
                             name="incomeCategory"
                             value={formData.incomeCategory}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
-                        >
-                            <option value="" disabled>Select income category</option>
-                            {incomeHeads.map((head) => (
-                                <option key={head._id} value={head.name}>
-                                    {head.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Name Field */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            required
-                            placeholder="Enter name"
+                            placeholder="Enter income category"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>

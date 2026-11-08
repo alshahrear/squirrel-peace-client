@@ -525,6 +525,7 @@ const SalesBulkReturn = () => {
                                         </th>
                                         <th className="py-3 px-2.5">Date</th>
                                         <th className="py-3 px-2.5">Customer Name</th>
+                                        <th className="py-3 px-2.5">Collected By</th>
                                         <th className="py-3 px-2.5">Invoice No</th>
                                         <th className="py-3 px-2.5">Return Quantity</th>
                                         <th className="py-3 px-2.5">Return Free Quantity</th>
@@ -547,6 +548,9 @@ const SalesBulkReturn = () => {
                                                     {getPhoneByName(item.customer) && (
                                                         <div className="text-[10px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
                                                     )}
+                                                </td>
+                                                <td className="px-2.5 font-semibold text-gray-700 whitespace-nowrap">
+                                                    {item.collectedBy || 'N/A'}
                                                 </td>
                                                 <td className="px-2.5 text-gray-600 font-medium whitespace-nowrap">
                                                     <div>{item.invoiceNo}</div>

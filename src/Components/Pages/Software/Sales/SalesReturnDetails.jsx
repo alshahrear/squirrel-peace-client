@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { getSaleItemNetPricePerPcs } from '../../Software/Inventory/Stock/StockPurchase';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -28,6 +28,49 @@ const SalesReturnDetails = () => {
     const [returnPricesPcs, setReturnPricesPcs] = useState([]); // PCS er return price, editable
     const [returnPricesSub, setReturnPricesSub] = useState([]); // Sub Unit er return price, editable
     const [returnNote, setReturnNote] = useState('');
+
+    // Return Date (default: আজকের তারিখ, চাইলে পরিবর্তন করা যাবে)
+    const getFormattedToday = () =>
+        new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const [returnDate, setReturnDate] = useState(getFormattedToday());
+    const returnDateInputRef = useRef(null);
+
+    // Collected By (optional, Delivery Man)
+    const [deliveryMen, setDeliveryMen] = useState([]);
+    const [collectedBy, setCollectedBy] = useState({ id: '', name: '' });
+    const [collectedSearch, setCollectedSearch] = useState('');
+    const [isCollectedOpen, setIsCollectedOpen] = useState(false);
+    const collectedRef = useRef(null);
+
+    useEffect(() => {
+        fetch('https://squirrel-peace-server.onrender.com/user')
+            .then((res) => res.json())
+            .then((data) => setDeliveryMen(Array.isArray(data) ? data : []))
+            .catch((error) => console.error('Error fetching users:', error));
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (collectedRef.current && !collectedRef.current.contains(event.target)) {
+                setIsCollectedOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleReturnDateChange = (e) => {
+        const rawDate = e.target.value;
+        if (rawDate) {
+            const [year, month, day] = rawDate.split('-');
+            const formatted = new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+            });
+            setReturnDate(formatted);
+        }
+    };
 
     // ---------------- Payment (optional, default collapsed) ----------------
     const [investments, setInvestments] = useState([]);
@@ -68,6 +111,12 @@ const SalesReturnDetails = () => {
                         ? (data.returnHistory || []).find((ret) => ret.returnId === editReturnId)
                         : null;
                     setReturnNote(editingEntry?.returnNote || '');
+                    setReturnDate(editingEntry?.returnDate || getFormattedToday());
+                    setCollectedBy({
+                        id: editingEntry?.collectedById || '',
+                        name: editingEntry?.collectedBy || '',
+                    });
+                    setCollectedSearch(editingEntry?.collectedBy || '');
 
                     // Edit mode e age payment thakle prefill + open
                     const savedPay = editingEntry?.payment;
@@ -844,13 +893,6 @@ const SalesReturnDetails = () => {
         try {
             const { _id, ...rest } = selectedOrder;
 
-            const today = new Date();
-            const returnDate = today.toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-            });
-
             const returnedItems = selectedOrder.items
                 .map((item, index) => {
                     const totalRtQty = getTotalRtQty(index, item);
@@ -906,6 +948,9 @@ const SalesReturnDetails = () => {
                     } = ret;
                     return {
                         ...cleanRet,
+                        returnDate,
+                        collectedById: collectedBy.id || '',
+                        collectedBy: collectedBy.name || '',
                         returnNote: returnNote.trim(),
                         items: returnedItems,
                         freeItems: freeReturnedItems,
@@ -921,6 +966,8 @@ const SalesReturnDetails = () => {
                     returnNote: returnNote.trim(),
                     returnId,
                     returnDate,
+                    collectedById: collectedBy.id || '',
+                    collectedBy: collectedBy.name || '',
                     items: returnedItems,
                     freeItems: freeReturnedItems,
                     totalReturnPcs,
@@ -1081,6 +1128,100 @@ const SalesReturnDetails = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Return Date + Collected By */}
+                    <div className="px-6 sm:px-8 pt-6 sm:pt-8 flex flex-wrap gap-6">
+                        <div className="w-full max-w-xs">
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Return Date <span className="text-rose-500">*</span>
+                            </label>
+                            <div
+                                className="relative w-full max-w-xs cursor-pointer"
+                                onClick={() => returnDateInputRef.current?.showPicker?.() || returnDateInputRef.current?.click()}
+                            >
+                                <input
+                                    ref={returnDateInputRef}
+                                    type="date"
+                                    onChange={handleReturnDateChange}
+                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                                />
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={returnDate}
+                                    placeholder="Select date"
+                                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none shadow-sm cursor-pointer pointer-events-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Collected By */}
+                        <div className="w-full max-w-xs relative" ref={collectedRef}>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Collected By <span className="text-slate-400 font-normal">(Optional)</span>
+                            </label>
+                            <div
+                                onClick={() => setIsCollectedOpen(true)}
+                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm shadow-sm cursor-pointer flex items-center justify-between focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-100"
+                            >
+                                <input
+                                    type="text"
+                                    placeholder="Search or select delivery man..."
+                                    value={collectedSearch}
+                                    onChange={(e) => {
+                                        setCollectedSearch(e.target.value);
+                                        setCollectedBy({ id: '', name: '' });
+                                        setIsCollectedOpen(true);
+                                    }}
+                                    className="bg-transparent outline-none w-full text-sm text-slate-700"
+                                />
+                                {collectedSearch && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCollectedSearch('');
+                                            setCollectedBy({ id: '', name: '' });
+                                            setIsCollectedOpen(false);
+                                        }}
+                                        className="text-slate-400 hover:text-rose-500 pl-1 cursor-pointer"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+
+                            {isCollectedOpen && (
+                                <div className="absolute z-50 left-0 right-0 mt-1 bg-white rounded-2xl shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
+                                    {(() => {
+                                        const list = deliveryMen.filter(
+                                            (u) =>
+                                                u.role === 'Delivery Man' &&
+                                                u.isActive === true &&
+                                                (u.name || '').toLowerCase().includes(collectedSearch.toLowerCase())
+                                        );
+                                        if (list.length === 0) {
+                                            return <div className="px-4 py-3 text-sm text-slate-400 text-center">No active delivery man found</div>;
+                                        }
+                                        return list.map((u) => (
+                                            <div
+                                                key={u._id}
+                                                onClick={() => {
+                                                    setCollectedBy({ id: u._id, name: u.name });
+                                                    setCollectedSearch(u.name);
+                                                    setIsCollectedOpen(false);
+                                                }}
+                                                className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-slate-50 last:border-none"
+                                            >
+                                                <p className="text-sm font-semibold text-slate-800">{u.name}</p>
+                                                {u.phone && <p className="text-xs text-slate-500 mt-0.5">📞 {u.phone}</p>}
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                            )}
                         </div>
                     </div>
 

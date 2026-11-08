@@ -39,7 +39,6 @@ const RouteExpense = () => {
         deliveredBy: '',
         routeName: '',
         category: '',
-        name: '',
     });
 
     // Refs for triggering date pickers
@@ -141,7 +140,6 @@ const RouteExpense = () => {
             deliveredBy: '',
             routeName: '',
             category: '',
-            name: '',
         });
         setCurrentPage(1);
     };
@@ -192,7 +190,7 @@ const RouteExpense = () => {
     };
 
     // Advanced Multi-field & Date Range Filtering Logic
-    const filteredRouteExpenses = routeExpenses.filter((routeExpense) => {
+    const filteredRouteExpenses = [...routeExpenses].reverse().filter((routeExpense) => {
         // Date Range Filter (date format: "02 Sept 2026")
         if (filters.startDate || filters.endDate) {
             if (!routeExpense.date) return false;
@@ -223,11 +221,6 @@ const RouteExpense = () => {
 
         // Category Filter (text search)
         if (filters.category && !routeExpense.routeExpenseCategory?.toLowerCase().includes(filters.category.toLowerCase())) {
-            return false;
-        }
-
-        // Name Filter (text search)
-        if (filters.name && !routeExpense.name?.toLowerCase().includes(filters.name.toLowerCase())) {
             return false;
         }
 
@@ -464,7 +457,7 @@ const RouteExpense = () => {
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                         {/* Start Date */}
                         <div>
                             <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
@@ -563,19 +556,6 @@ const RouteExpense = () => {
                                 className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-200 outline-none bg-gray-50/50"
                             />
                         </div>
-
-                        {/* Name Search */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Name</label>
-                            <input
-                                type="text"
-                                name="name"
-                                placeholder="Search name..."
-                                value={filters.name}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-200 outline-none bg-gray-50/50"
-                            />
-                        </div>
                     </div>
                 </div>
 
@@ -609,17 +589,17 @@ const RouteExpense = () => {
                         <div className="text-center py-20 text-gray-400 font-medium">No route expense records found!</div>
                     ) : (
                         <div className="overflow-x-auto overflow-y-visible rounded-2xl border border-gray-100 shadow-sm p-1">
-                            <table className="w-full text-left border-collapse min-w-[1500px]">
+                            <table className="w-full text-left border-collapse min-w-[1600px]">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-sm uppercase tracking-wider">
                                         <th className="py-4 px-4">#</th>
                                         <th className="py-4 px-4">Date</th>
                                         <th className="py-4 px-4">Invoice</th>
                                         <th className="py-4 px-4">Route Expense Type</th>
+                                        <th className="py-4 px-4">Daily Statement Collection</th>
                                         <th className="py-4 px-4">Delivered By</th>
                                         <th className="py-4 px-4">Route Name</th>
                                         <th className="py-4 px-4">Category</th>
-                                        <th className="py-4 px-4">Name</th>
                                         <th className="py-4 px-4">Account Type</th>
                                         <th className="py-4 px-4">Account Details</th>
                                         <th className="py-4 px-4">Amount</th>
@@ -643,13 +623,24 @@ const RouteExpense = () => {
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4">
+                                                {routeExpense.dailyStatementCollection ? (
+                                                    <span className={`px-3 py-1 rounded-full font-semibold text-xs whitespace-nowrap ${routeExpense.dailyStatementCollection === 'Yes'
+                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                        : 'bg-rose-100 text-rose-700'
+                                                        }`}>
+                                                        {routeExpense.dailyStatementCollection}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400">N/A</span>
+                                                )}
+                                            </td>
+                                            <td className="py-4 px-4">
                                                 <span className="px-3 py-1 bg-sky-100 text-sky-700 rounded-full font-semibold text-xs whitespace-nowrap">
                                                     {routeExpense.deliveredBy || 'N/A'}
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4 text-gray-600 whitespace-nowrap">{routeExpense.routeName || 'N/A'}</td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{routeExpense.routeExpenseCategory || 'N/A'}</td>
-                                            <td className="py-4 px-4 text-gray-600">{routeExpense.name || 'N/A'}</td>
                                             <td className="py-4 px-4">
                                                 {routeExpense.accountType === 'Mobile Banking' ? (
                                                     <div className="flex flex-col gap-1.5">

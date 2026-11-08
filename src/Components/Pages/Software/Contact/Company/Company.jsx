@@ -220,7 +220,7 @@ const Company = () => {
     };
 
     // Advanced Multi-field & Date Range Filtering Logic
-    const filteredCompanies = companies.filter((company) => {
+        const filteredCompanies = [...companies].reverse().filter((company) => {
         // Date Range Filter (YYYY-MM-DD backend to formatted check)
         if (filters.startDate || filters.endDate) {
             if (!company.createdAt) return false;

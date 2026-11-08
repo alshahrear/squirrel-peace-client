@@ -120,6 +120,21 @@ const PurchaseAddInner = () => {
     const [paymentNote, setPaymentNote] = useState('');
     const [isReceiving, setIsReceiving] = useState(false);
     const submitLock = useRef(false);
+
+    // Receive Date (default: ajker date, edit korle ager receive date)
+    const formatDisplayDate = (d) =>
+        d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const [receiveDateValue, setReceiveDateValue] = useState(
+        editingPurchase?.receiveDate || formatDisplayDate(new Date())
+    );
+    const receiveDateInputRef = useRef(null);
+    const handleReceiveDateChange = (e) => {
+        const raw = e.target.value; // yyyy-mm-dd
+        if (raw) {
+            const [y, m, d] = raw.split('-');
+            setReceiveDateValue(formatDisplayDate(new Date(y, m - 1, d)));
+        }
+    };
     const paymentSectionRef = useRef(null);
 
     // Receive mode e page open hole Payment section e auto scroll
@@ -1759,7 +1774,7 @@ const PurchaseAddInner = () => {
             receivedPaymentData = {
                 paidAmount: roundTo2(paymentAmount),
                 receiveStatus: 'Received',
-                receiveDate: editingPurchase.receiveDate,
+                receiveDate: receiveDateValue,
                 paymentMethod: paymentAccountType,
                 paymentAccount: accInfo,
                 paymentNote: paymentNote,
@@ -2100,7 +2115,7 @@ const PurchaseAddInner = () => {
             freeItems: freeItemsPayload,
 
             paidAmount: roundTo2(paymentAmount),
-            receiveDate: receiveDate,
+            receiveDate: receiveDateValue,
             ...(prevApplied
                 ? { previousBalanceAmount: prevBalance.amount, previousBalanceType: prevBalance.type }
                 : {}),
@@ -3827,7 +3842,32 @@ const PurchaseAddInner = () => {
 
                                     <div className={paymentSkipped ? 'opacity-50 pointer-events-none' : ''}>
                                         <fieldset disabled={paymentSkipped} className="contents">
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className={`grid grid-cols-1 gap-6 ${isReceiveMode || isReceivedEdit ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+                                                {(isReceiveMode || isReceivedEdit) && (
+                                                    <div>
+                                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                            Receive Date <span className="text-rose-500">*</span>
+                                                        </label>
+                                                        <div
+                                                            className="relative w-full cursor-pointer"
+                                                            onClick={() => receiveDateInputRef.current?.showPicker?.() || receiveDateInputRef.current?.click()}
+                                                        >
+                                                            <input
+                                                                ref={receiveDateInputRef}
+                                                                type="date"
+                                                                onChange={handleReceiveDateChange}
+                                                                className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                readOnly
+                                                                value={receiveDateValue}
+                                                                placeholder="Select receive date"
+                                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm text-slate-700 shadow-sm outline-none cursor-pointer pointer-events-none"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 {/* Payment Amount */}
                                                 <div>

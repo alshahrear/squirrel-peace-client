@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaFileInvoice, FaBoxes, FaChartBar, FaListOl, FaBookOpen, FaUndoAlt, FaUserTag, FaTruck, FaMoneyBillWave, FaUserTie } from 'react-icons/fa';
+import { FaFileInvoice, FaBoxes, FaChartBar, FaListOl, FaBookOpen, FaUndoAlt, FaUserTag, FaTruck, FaMoneyBillWave, FaUserTie, FaCalendarDay } from 'react-icons/fa';
 import WholesalesRepo from './WholesalesRepo';
 import SaleProductWiseRepo from './SaleProductWiseRepo';
 import SaleDateWiseTopChart from './SaleDateWiseTopChart';
@@ -10,10 +10,12 @@ import SaleCustomerDueRepo from './SaleCustomerDueRepo';
 import SaleSrDsrDueRepo from './SaleSrDsrDueRepo';
 import SaleCustomerReturnRepo from './SaleCustomerReturnRepo';
 import SaleCustomerWiseInvoiceRepo from './SaleCustomerWiseInvoiceRepo';
+import SaleTodaysOrder from './SaleTodaysOrder';
 
 
 const TABS = [
     { key: 'wholesales', label: 'Wholesales Report', icon: FaFileInvoice },
+    { key: 'todaysale', label: 'Todays Sale', icon: FaCalendarDay },
     { key: 'customerinvoice', label: 'Customer Invoice Summary', icon: FaUserTag },
     { key: 'productwise', label: 'Product Wise Sales', icon: FaBoxes },
     { key: 'datewisetop', label: 'Date Wise Top Chart', icon: FaChartBar },
@@ -70,6 +72,7 @@ const SalesReportAll = () => {
 
             {/* Tab Content */}
             {activeTab === 'wholesales' && <WholesalesRepo />}
+            {activeTab === 'todaysale' && <SaleTodaysOrder />}
             {activeTab === 'customerinvoice' && <SaleCustomerWiseInvoiceRepo />}
             {activeTab === 'productwise' && <SaleProductWiseRepo />}
             {activeTab === 'datewisetop' && <SaleDateWiseTopChart />}

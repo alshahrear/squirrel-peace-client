@@ -131,6 +131,24 @@ const OrderAdd = () => {
     // Order সফল হওয়ার পর OrderForm রিসেট করার জন্য key
     const [formResetKey, setFormResetKey] = useState(0);
     const submitLock = useRef(false);
+
+    // Delivered Date (default: ajker date, edit korle ager delivered date)
+    const formatDisplayDate = (d) =>
+        d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+       const [deliveryDateValue, setDeliveryDateValue] = useState(
+        editingOrder?.deliveryDate || formatDisplayDate(new Date())
+    );
+    // user nijer hate delivered date change korle true hobe (tokhon ar order date follow korbe na)
+    const [deliveryDateTouched, setDeliveryDateTouched] = useState(!!editingOrder?.deliveryDate);
+    const deliveryDateInputRef = useRef(null);
+    const handleDeliveryDateChange = (e) => {
+        const raw = e.target.value; // yyyy-mm-dd
+        if (raw) {
+            const [y, m, d] = raw.split('-');
+            setDeliveryDateValue(formatDisplayDate(new Date(y, m - 1, d)));
+            setDeliveryDateTouched(true);
+        }
+    };
     const deliveryLock = useRef(false);
     const paymentSectionRef = useRef(null);
 
@@ -1609,6 +1627,7 @@ const OrderAdd = () => {
             if (!(await checkPayBalance())) return;
 
             deliveredPaymentData = {
+                deliveryDate: deliveryDateValue,
                 paidAmount: roundTo2(paymentAmount),
                 paymentMethod: paymentAccountType,
                 paymentAccount: accInfo,
@@ -2006,7 +2025,7 @@ const OrderAdd = () => {
             ],
 
             paidAmount: roundTo2(paymentAmount),
-            deliveryDate: deliveryDate,
+            deliveryDate: deliveryDateValue,
             status: 'Delivered',
             paymentMethod: paymentAccountType,
             paymentAccount: accountInfo,
@@ -3909,7 +3928,31 @@ DAMAGE PRODUCT
                                     </label>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                            Delivered Date <span className="text-rose-500">*</span>
+                                        </label>
+                                        <div
+                                            className="relative w-full cursor-pointer"
+                                            onClick={() => deliveryDateInputRef.current?.showPicker?.() || deliveryDateInputRef.current?.click()}
+                                        >
+                                            <input
+                                                ref={deliveryDateInputRef}
+                                                type="date"
+                                                onChange={handleDeliveryDateChange}
+                                                className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                                            />
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={deliveryDateValue}
+                                                placeholder="Select delivered date"
+                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm text-slate-700 shadow-sm outline-none cursor-pointer pointer-events-none"
+                                            />
+                                        </div>
+                                    </div>
 
                                     <div>
                                         <div className="flex items-end mb-2">

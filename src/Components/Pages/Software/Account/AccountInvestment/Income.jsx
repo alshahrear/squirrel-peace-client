@@ -113,10 +113,9 @@ const Income = () => {
     };
 
     // Filtered Incomes based on Search
-    const filteredIncomes = incomes.filter((income) => {
+    const filteredIncomes = [...incomes].reverse().filter((income) => {
         const search = searchTerm.toLowerCase();
         const categoryMatch = income.incomeCategory?.toLowerCase().includes(search);
-        const nameMatch = income.name?.toLowerCase().includes(search);
         const accountMatch = income.accountType?.toLowerCase().includes(search);
         const noteMatch = income.note?.toLowerCase().includes(search);
         const invoiceMatch = income.invoiceNumber?.toLowerCase().includes(search);
@@ -125,7 +124,7 @@ const Income = () => {
         const accNameMatch = income.accountName?.toLowerCase().includes(search);
         const branchMatch = income.accountBranch?.toLowerCase().includes(search);
         const typeMatch = income.incomeType?.toLowerCase().includes(search);
-        return typeMatch || categoryMatch || nameMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
+        return typeMatch || categoryMatch || accountMatch || noteMatch || invoiceMatch || bankMatch || accNoMatch || accNameMatch || branchMatch;
     });
 
     // Pagination Calculations
@@ -377,7 +376,7 @@ const Income = () => {
                             </span>
                             <input
                                 type="text"
-                                placeholder="Search by category, name, account, invoice..."
+                                placeholder="Search by category, account, invoice..."
                                 value={searchTerm}
                                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                 className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
@@ -400,7 +399,6 @@ const Income = () => {
                                         <th className="py-4 px-4">Invoice</th>
                                         <th className="py-4 px-4">Income Type</th>
                                         <th className="py-4 px-4">Income Category</th>
-                                        <th className="py-4 px-4">Name</th>
                                         <th className="py-4 px-4">Account Type</th>
                                         <th className="py-4 px-4">Account Details</th>
                                         <th className="py-4 px-4">Amount</th>
@@ -424,7 +422,6 @@ const Income = () => {
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4 font-bold text-gray-800">{income.incomeCategory || 'N/A'}</td>
-                                            <td className="py-4 px-4 text-gray-600">{income.name || 'N/A'}</td>
                                             <td className="py-4 px-4">
                                                 {income.accountType === 'Mobile Banking' ? (
                                                     <div className="flex flex-col gap-1.5">

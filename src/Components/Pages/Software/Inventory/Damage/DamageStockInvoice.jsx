@@ -678,6 +678,7 @@ const DamageStockInvoice = () => {
                                         </th>
                                         <th className="py-3 px-2.5">Date</th>
                                         <th className="py-3 px-2.5">Customer</th>
+                                        <th className="py-3 px-2.5">Collected By</th>
                                         <th className="py-3 px-2.5">Invoice</th>
                                         <th className="py-3 px-2.5">Delivery Address</th>
                                         <th className="py-3 px-2.5">SR</th>
@@ -715,6 +716,9 @@ const DamageStockInvoice = () => {
                                                 {getPhoneByName(item.customer) && (
                                                     <div className="text-[10px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
                                                 )}
+                                            </td>
+                                            <td className="py-3 px-2.5 font-semibold text-gray-700 whitespace-nowrap">
+                                                {item.isStandaloneDamage ? (item.collectedBy || 'N/A') : 'N/A'}
                                             </td>
                                             <td className="py-3 px-2.5 text-gray-600 font-medium whitespace-nowrap">
                                                 <div>{item.invoiceNo || item.orderNo}</div>

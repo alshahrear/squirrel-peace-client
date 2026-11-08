@@ -460,7 +460,7 @@ const ProductAll = () => {
     };
 
     // Advanced Multi-field & Date Range Filtering Logic
-    const filteredProducts = products.filter((product) => {
+       const filteredProducts = [...products].reverse().filter((product) => {
         // Date Range Filter
         if (filters.startDate || filters.endDate) {
             if (!product.createdAt) return false;

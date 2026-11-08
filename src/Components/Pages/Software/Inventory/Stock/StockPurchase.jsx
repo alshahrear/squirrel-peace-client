@@ -402,7 +402,7 @@ const calcProfit = (b, sales, unitCost) => {
             costPcs += cq;
             const k = String(s._id);
             if (!map.has(k)) {
-                map.set(k, { key: k, saleId: s._id, orderNo: s.orderNo, customer: s.customer, date: s.deliveryDate || s.orderDate, pcs: 0, revenue: 0, cost: 0, costPcs: 0, sellPcs: 0 });
+                map.set(k, { key: k, saleId: s._id, orderNo: s.orderNo, customer: s.customer, sr: s.sr || '', deliveredBy: s.deliveredBy || '', directSales: s.directSales === true, date: s.deliveryDate || s.orderDate, pcs: 0, revenue: 0, cost: 0, costPcs: 0, sellPcs: 0 });
             }
             const g = map.get(k);
             g.pcs += net;
@@ -412,6 +412,19 @@ const calcProfit = (b, sales, unitCost) => {
             g.costPcs += cq;
         })
     );
+    const sellP = Number(b.sellPrice) || 0;
+    const lines = Array.from(map.values())
+        .map((g) => {
+            const diff = r2(g.revenue - sellP * g.sellPcs);
+            return {
+                ...g,
+                revenue: r2(g.revenue),
+                cost: r2(g.cost),
+                over: diff > 0 ? diff : 0,
+                under: diff < 0 ? r2(-diff) : 0,
+            };
+        })
+        .reverse();
     return {
         revenue: r2(revenue),
         cost: r2(cost),
@@ -419,7 +432,9 @@ const calcProfit = (b, sales, unitCost) => {
         pcs,
         costPcs,
         sellPcs,
-        lines: Array.from(map.values()).map((g) => ({ ...g, revenue: r2(g.revenue), cost: r2(g.cost) })).reverse(),
+        over: r2(lines.reduce((s, l) => s + l.over, 0)),
+        under: r2(lines.reduce((s, l) => s + l.under, 0)),
+        lines,
     };
 };
 
@@ -526,6 +541,9 @@ const StockPurchase = () => {
                         saleId: s._id,
                         orderNo: s.orderNo,
                         customer: s.customer,
+                        sr: s.sr || '',
+                        deliveredBy: s.deliveredBy || '',
+                        directSales: s.directSales === true,
                         orderDate: s.orderDate,
                         deliveryDate: s.deliveryDate,
                         returnDate: [
@@ -1575,6 +1593,9 @@ const StockPurchase = () => {
                                         saleId: r.saleId,
                                         orderNo: r.orderNo,
                                         customer: r.customer,
+                                        sr: r.sr,
+                                        deliveredBy: r.deliveredBy,
+                                        directSales: r.directSales,
                                         orderDate: r.orderDate,
                                         deliveryDate: r.deliveryDate,
                                         sold: emptyK(),
@@ -2054,6 +2075,8 @@ const StockPurchase = () => {
                                                         <tr className="bg-orange-50 text-orange-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Order No / Date</th>
                                                             <th className={th}>Customer</th>
+                                                            <th className={th}>SR</th>
+                                                            <th className={th}>Delivery Man</th>
                                                             <th className={th}>Product</th>
                                                             <th className={th}>Sold</th>
                                                             <th className={th}>Returned</th>
@@ -2064,7 +2087,7 @@ const StockPurchase = () => {
                                                     <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
                                                         {salesRows.length === 0 ? (
                                                             <tr>
-                                                                <td colSpan={7} className="py-8 text-center text-gray-400 font-medium">
+                                                                <td colSpan={9} className="py-8 text-center text-gray-400 font-medium">
                                                                     Ei batch theke ekhono kono sales hoyni
                                                                 </td>
                                                             </tr>
@@ -2083,6 +2106,16 @@ const StockPurchase = () => {
                                                                         <div className="text-[11px] text-gray-500">Delivered: {r.deliveryDate || 'N/A'}</div>
                                                                     </td>
                                                                     <td className="py-2.5 px-3 font-semibold text-gray-800 whitespace-nowrap">{r.customer}</td>
+                                                                    <td className="py-2.5 px-3 font-semibold text-gray-700 whitespace-nowrap">
+                                                                        {r.directSales ? (
+                                                                            <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-bold">Direct Sales</span>
+                                                                        ) : (r.sr || 'N/A')}
+                                                                    </td>
+                                                                    <td className="py-2.5 px-3 font-semibold text-gray-700 whitespace-nowrap">
+                                                                        {r.directSales ? (
+                                                                            <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-bold">Direct Sales</span>
+                                                                        ) : (r.deliveredBy || 'N/A')}
+                                                                    </td>
                                                                     <td className="py-2.5 px-3 font-semibold text-gray-800 whitespace-nowrap">
                                                                         {salesRow.productName}
                                                                     </td>
@@ -2115,7 +2148,7 @@ const StockPurchase = () => {
                                                     {salesRows.length > 0 && (
                                                         <tfoot>
                                                             <tr className="bg-orange-50/60 font-extrabold text-[13px]">
-                                                                <td className="py-3 px-3 text-gray-700" colSpan={3}>Total</td>
+                                                                <td className="py-3 px-3 text-gray-700" colSpan={5}>Total</td>
                                                                 <td className="py-3 px-3 text-right whitespace-nowrap">
                                                                     <KindStack align="right" valueClass="text-orange-600" parts={toParts(soldTotals)} />
                                                                 </td>
@@ -2330,16 +2363,20 @@ const StockPurchase = () => {
                                                         <tr className="bg-lime-50 text-lime-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Order No / Date</th>
                                                             <th className={th}>Customer</th>
+                                                            <th className={th}>SR</th>
+                                                            <th className={th}>Delivery Man</th>
                                                             <th className={`${th} text-right`}>Net Sold</th>
                                                             <th className={`${th} text-right`}>Cost Amount</th>
                                                             <th className={`${th} text-right`}>Sell Amount</th>
+                                                            <th className={`${th} text-right`}>Over Rate</th>
+                                                            <th className={`${th} text-right`}>Under Rate</th>
                                                             <th className={`${th} text-right`}>Profit</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
                                                         {pInfo.lines.length === 0 ? (
                                                             <tr>
-                                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
+                                                                <td colSpan={10} className="py-8 text-center text-gray-400 font-medium">
                                                                     Ei batch theke ekhono kono bikri hoyni
                                                                 </td>
                                                             </tr>
@@ -2359,6 +2396,16 @@ const StockPurchase = () => {
                                                                             <div className="text-[11px] text-gray-500 mt-0.5">{l.date || 'N/A'}</div>
                                                                         </td>
                                                                         <td className="py-2.5 px-3 font-semibold text-gray-800 whitespace-nowrap">{l.customer}</td>
+                                                                        <td className="py-2.5 px-3 font-semibold text-gray-700 whitespace-nowrap">
+                                                                            {l.directSales ? (
+                                                                                <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-bold">Direct Sales</span>
+                                                                            ) : (l.sr || 'N/A')}
+                                                                        </td>
+                                                                        <td className="py-2.5 px-3 font-semibold text-gray-700 whitespace-nowrap">
+                                                                            {l.directSales ? (
+                                                                                <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-bold">Direct Sales</span>
+                                                                            ) : (l.deliveredBy || 'N/A')}
+                                                                        </td>
                                                                         <td className="py-2.5 px-3 text-right font-bold text-orange-600 whitespace-nowrap">{fmt(l.pcs)} pcs</td>
                                                                         <td className="py-2.5 px-3 text-right font-bold text-violet-600 whitespace-nowrap">
                                                                             ৳{fmt(l.cost)} <span className="text-[11px] text-gray-500">(৳{fmt(l.costPcs > 0 ? l.cost / l.costPcs : 0)}/pcs)</span>
@@ -2366,6 +2413,8 @@ const StockPurchase = () => {
                                                                         <td className="py-2.5 px-3 text-right font-bold text-indigo-600 whitespace-nowrap">
                                                                             ৳{fmt(l.revenue)} <span className="text-[11px] text-gray-500">(৳{fmt(l.sellPcs > 0 ? l.revenue / l.sellPcs : 0)}/pcs)</span>
                                                                         </td>
+                                                                        <td className={`py-2.5 px-3 text-right font-bold whitespace-nowrap ${l.over > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>৳{fmt(l.over)}</td>
+                                                                        <td className={`py-2.5 px-3 text-right font-bold whitespace-nowrap ${l.under > 0 ? 'text-red-600' : 'text-gray-400'}`}>৳{fmt(l.under)}</td>
                                                                         <td className={`py-2.5 px-3 text-right font-extrabold whitespace-nowrap ${p >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{fmt(p)}</td>
                                                                     </tr>
                                                                 );
@@ -2375,7 +2424,7 @@ const StockPurchase = () => {
                                                     {pInfo.lines.length > 0 && (
                                                         <tfoot>
                                                             <tr className="bg-lime-50/60 font-extrabold text-[13px]">
-                                                                <td className="py-3 px-3 text-gray-700" colSpan={2}>Total</td>
+                                                                <td className="py-3 px-3 text-gray-700" colSpan={4}>Total</td>
                                                                 <td className="py-3 px-3 text-right text-orange-600 whitespace-nowrap">{fmt(pInfo.pcs)} pcs</td>
                                                                 <td className="py-3 px-3 text-right text-violet-600 whitespace-nowrap">
                                                                     ৳{fmt(pInfo.cost)} <span className="text-[11px] text-gray-500">(৳{fmt(pInfo.costPcs > 0 ? pInfo.cost / pInfo.costPcs : 0)}/pcs)</span>
@@ -2383,6 +2432,8 @@ const StockPurchase = () => {
                                                                 <td className="py-3 px-3 text-right text-indigo-600 whitespace-nowrap">
                                                                     ৳{fmt(pInfo.revenue)} <span className="text-[11px] text-gray-500">(৳{fmt(pInfo.sellPcs > 0 ? pInfo.revenue / pInfo.sellPcs : 0)}/pcs)</span>
                                                                 </td>
+                                                                <td className={`py-3 px-3 text-right whitespace-nowrap ${pInfo.over > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>৳{fmt(pInfo.over)}</td>
+                                                                <td className={`py-3 px-3 text-right whitespace-nowrap ${pInfo.under > 0 ? 'text-red-600' : 'text-gray-400'}`}>৳{fmt(pInfo.under)}</td>
                                                                 <td className={`py-3 px-3 text-right whitespace-nowrap ${pInfo.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>৳{fmt(pInfo.profit)}</td>
                                                             </tr>
                                                         </tfoot>

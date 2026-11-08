@@ -22,7 +22,6 @@ const ExpenseForm = ({
     const emptyForm = {
         expenseType: 'Inside',
         expenseCategory: '',
-        name: '',
         date: getFormattedToday(),
         accountType: '',
         bankName: '',
@@ -39,7 +38,6 @@ const ExpenseForm = ({
             ? {
                 expenseType: editingExpense.expenseType || 'Inside',
                 expenseCategory: editingExpense.expenseCategory || '',
-                name: editingExpense.name || '',
                 date: editingExpense.date || getFormattedToday(),
                 accountType: editingExpense.accountType || '',
                 bankName: editingExpense.bankName || '',
@@ -52,7 +50,6 @@ const ExpenseForm = ({
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
-    const [expenseHeads, setExpenseHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
     const [allIncomes, setAllIncomes] = useState([]);
@@ -62,24 +59,6 @@ const ExpenseForm = ({
     const [allPurchases, setAllPurchases] = useState([]);
 
     const dateInputRef = useRef(null);
-
-    // Active Expense ক্যাটাগরির Account Heads fetch করা
-    useEffect(() => {
-        const fetchExpenseHeads = async () => {
-            try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
-                const data = await res.json();
-                const filtered = data.filter(
-                    (head) => head.category === 'Expense' && head.isActive === true
-                );
-                setExpenseHeads(filtered);
-            } catch (error) {
-                console.error('Error fetching expense heads:', error);
-            }
-        };
-
-        fetchExpenseHeads();
-    }, []);
 
     // Investment + Balance সংক্রান্ত সব ডেটা ফেচ করা (Account Balance check করার জন্য)
     useEffect(() => {
@@ -352,7 +331,6 @@ const ExpenseForm = ({
         const finalData = {
             expenseType: formData.expenseType || 'Inside',
             expenseCategory: formData.expenseCategory,
-            name: formData.name,
             date: formData.date,
             accountType: formData.accountType,
             amount: Number(formData.amount),
@@ -475,34 +453,13 @@ const ExpenseForm = ({
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Expense Category <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <input
+                            type="text"
                             name="expenseCategory"
                             value={formData.expenseCategory}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
-                        >
-                            <option value="" disabled>Select expense category</option>
-                            {expenseHeads.map((head) => (
-                                <option key={head._id} value={head.name}>
-                                    {head.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Name Field */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            required
-                            placeholder="Enter name"
+                            placeholder="Enter expense category"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>

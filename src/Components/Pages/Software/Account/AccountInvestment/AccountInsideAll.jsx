@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { FaMoneyBillWave, FaWallet, FaReceipt, FaRoute, FaExchangeAlt, FaSitemap } from 'react-icons/fa';
+import { FaMoneyBillWave, FaWallet, FaReceipt, FaRoute, FaExchangeAlt } from 'react-icons/fa';
 
 const TABS = [
     { key: 'openinginvestment', path: '/opening-investment', label: 'Opening Investment', icon: FaWallet },
@@ -8,7 +8,6 @@ const TABS = [
     { key: 'expense', path: '/expense', label: 'Expense', icon: FaReceipt },
     { key: 'routeexpense', path: '/route-expense', label: 'Route Expense', icon: FaRoute },
     { key: 'transfer', path: '/transfer', label: 'Transfer', icon: FaExchangeAlt },
-    { key: 'accountheads', path: '/account-heads', label: 'Account Heads', icon: FaSitemap },
 ];
 
 const AccountInsideAll = () => {

@@ -306,8 +306,11 @@ const SalesBulkReturnForm = () => {
         company: editingReturn?.company || '',
         category: editingReturn?.category || '',
         date: editingReturn?.returnDate || getFormattedToday(),
+        collectedById: editingReturn?.collectedById || '',
+        collectedBy: editingReturn?.collectedBy || '',
     });
 
+    const [deliveryMen, setDeliveryMen] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [companies, setCompanies] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -318,6 +321,7 @@ const SalesBulkReturnForm = () => {
         customer: editingReturn?.customer || '',
         company: editingReturn?.company || '',
         category: editingReturn?.category || '',
+        collectedBy: editingReturn?.collectedBy || '',
         product: '',
     });
     const updateSearch = (key, value) => setSearch((p) => ({ ...p, [key]: value }));
@@ -364,6 +368,7 @@ const SalesBulkReturnForm = () => {
         load('product', setProducts);
         load('stock-purchase', setStockBatches);
         load('investment', setInvestments);
+        load('user', setDeliveryMen);
     }, []);
 
     // ---------- Edit prefill ----------
@@ -393,6 +398,21 @@ const SalesBulkReturnForm = () => {
         updateSearch('customer', '');
         updateForm({ customerId: '', customer: '', customerContact: '', customerAddress: '' });
         setItems([]);
+    };
+
+    // ---------- Collected By (Delivery Man, optional) ----------
+    const filteredDeliveryMen = deliveryMen
+        .filter((u) => u.role === 'Delivery Man' && u.isActive === true)
+        .filter((u) => matchesSearch(search.collectedBy, [u.name, u.phone]));
+
+    const handleSelectCollectedBy = (u) => {
+        updateForm({ collectedById: u._id, collectedBy: u.name });
+        updateSearch('collectedBy', u.name);
+    };
+
+    const handleClearCollectedBy = () => {
+        updateSearch('collectedBy', '');
+        updateForm({ collectedById: '', collectedBy: '' });
     };
 
     // ---------- Company (optional) ----------
@@ -778,6 +798,8 @@ const SalesBulkReturnForm = () => {
             company: formData.company,
             category: formData.category,
             returnDate: formData.date,
+            collectedById: formData.collectedById || '',
+            collectedBy: formData.collectedBy || '',
             items: itemsPayload,
             returnAmount,
             note,
@@ -834,7 +856,7 @@ const SalesBulkReturnForm = () => {
 
                     <div className="space-y-6">
                         {/* Row 1 */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                             <SearchSelect
                                 label="Customer"
                                 required
@@ -892,6 +914,28 @@ const SalesBulkReturnForm = () => {
                                     <input type="text" readOnly value={formData.date} placeholder="Select date" className={`${inputCls} cursor-pointer pointer-events-none`} />
                                 </div>
                             </div>
+
+                            <SearchSelect
+                                label="Collected By"
+                                hint="(Optional)"
+                                placeholder="Search or select delivery man..."
+                                searchValue={search.collectedBy}
+                                onSearchChange={(text) => {
+                                    updateSearch('collectedBy', text);
+                                    updateForm({ collectedById: '', collectedBy: '' });
+                                }}
+                                onClear={handleClearCollectedBy}
+                                onSelect={handleSelectCollectedBy}
+                                items={filteredDeliveryMen}
+                                getKey={(u) => u._id}
+                                emptyText="No active delivery man found"
+                                renderItem={(u) => (
+                                    <>
+                                        <p className="text-sm font-semibold text-slate-800">{u.name}</p>
+                                        {u.phone && <p className="text-xs text-slate-500 mt-0.5">📞 {u.phone}</p>}
+                                    </>
+                                )}
+                            />
 
                             <SearchSelect
                                 label="Filter by Category"

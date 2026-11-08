@@ -21,10 +21,10 @@ const RouteExpenseForm = ({
 
     const emptyForm = {
         routeExpenseType: 'Inside',
+        dailyStatementCollection: '',
         deliveredBy: '',
         routeName: '',
         routeExpenseCategory: '',
-        name: '',
         date: getFormattedToday(),
         accountType: '',
         bankName: '',
@@ -40,10 +40,10 @@ const RouteExpenseForm = ({
         editingRouteExpense
             ? {
                 routeExpenseType: editingRouteExpense.routeExpenseType || 'Inside',
+                dailyStatementCollection: editingRouteExpense.dailyStatementCollection || '',
                 deliveredBy: editingRouteExpense.deliveredBy || '',
                 routeName: editingRouteExpense.routeName || '',
                 routeExpenseCategory: editingRouteExpense.routeExpenseCategory || '',
-                name: editingRouteExpense.name || '',
                 date: editingRouteExpense.date || getFormattedToday(),
                 accountType: editingRouteExpense.accountType || '',
                 bankName: editingRouteExpense.bankName || '',
@@ -56,7 +56,6 @@ const RouteExpenseForm = ({
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
-    const [routeExpenseHeads, setRouteExpenseHeads] = useState([]);
     const [investments, setInvestments] = useState([]);
     const [deliveryMen, setDeliveryMen] = useState([]);
     const [routes, setRoutes] = useState([]);
@@ -67,24 +66,6 @@ const RouteExpenseForm = ({
     const [allTransfers, setAllTransfers] = useState([]);
 
     const dateInputRef = useRef(null);
-
-    // Active Route Expense ক্যাটাগরির Account Heads fetch করা
-    useEffect(() => {
-        const fetchRouteExpenseHeads = async () => {
-            try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
-                const data = await res.json();
-                const filtered = data.filter(
-                    (head) => head.category === 'Expense' && head.isActive === true
-                );
-                setRouteExpenseHeads(filtered);
-            } catch (error) {
-                console.error('Error fetching route expense heads:', error);
-            }
-        };
-
-        fetchRouteExpenseHeads();
-    }, []);
 
     // Investment + Balance সংক্রান্ত সব ডেটা ফেচ করা (Account Balance check করার জন্য)
     useEffect(() => {
@@ -376,10 +357,10 @@ const RouteExpenseForm = ({
         // অ্যাকাউন্ট টাইপ অনুযায়ী অপ্রয়োজনীয় ফিল্ডগুলো বাদ দিয়ে ফাইনাল ডাটা অবজেক্ট তৈরি
         const finalData = {
             routeExpenseType: formData.routeExpenseType || 'Inside',
+            dailyStatementCollection: formData.dailyStatementCollection || '',
             deliveredBy: formData.deliveredBy,
             routeName: formData.routeName,
             routeExpenseCategory: formData.routeExpenseCategory,
-            name: formData.name,
             date: formData.date,
             accountType: formData.accountType,
             amount: Number(formData.amount),
@@ -497,6 +478,23 @@ const RouteExpenseForm = ({
                         </select>
                     </div>
 
+                    {/* Daily Statement Collection Field */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Daily Statement Collection
+                        </label>
+                        <select
+                            name="dailyStatementCollection"
+                            value={formData.dailyStatementCollection || ''}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
+                        >
+                            <option value="">Select option</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+
                     {/* Delivered By Field */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -544,34 +542,13 @@ const RouteExpenseForm = ({
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Route Expense Category <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <input
+                            type="text"
                             name="routeExpenseCategory"
                             value={formData.routeExpenseCategory}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
-                        >
-                            <option value="" disabled>Select route expense category</option>
-                            {routeExpenseHeads.map((head) => (
-                                <option key={head._id} value={head.name}>
-                                    {head.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Name Field */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            required
-                            placeholder="Enter name"
+                            placeholder="Enter route expense category"
                             className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                         />
                     </div>

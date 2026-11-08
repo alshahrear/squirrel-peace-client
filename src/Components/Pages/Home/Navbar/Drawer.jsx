@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   FaTimes,
   FaChevronDown,
@@ -111,6 +111,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
   const baseDelay = 60;
   const [animatedItems, setAnimatedItems] = useState([]);
   const drawerPanelRef = useRef(null);
+  const location = useLocation();
 
   // বাইরে কোথাও ক্লিক করলে ড্রয়ার বন্ধ হয়ে যাবে (মেনু টগল বাটন ছাড়া)
   useEffect(() => {
@@ -198,6 +199,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/sales-return", label: "Sales Return" },
         { to: "/sales-bulk-return", label: "Bulk Return" },
         { to: "/sales-due-payment", label: "Sales Due Payment" },
+        { to: "/sales-sr-target", label: "Sales SR Target" },
       ],
     },
     {
@@ -270,7 +272,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/sales-report", label: "Sales Reports" },
         { to: "/purchase-report", label: "Purchase Reports" },
         { to: "/stock-report", label: "Stock Reports" },
-        { to: "/stock-report", label: "Account Reports" },
+        { to: "/account-report", label: "Account Reports" },
       ],
     },
     {
@@ -295,6 +297,20 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
 
   useEffect(() => {
     if (drawerOpen) {
+      // বর্তমান route যে ড্রপডাউনের ভেতরে আছে, ড্রয়ার খুললে সেটা অটো খোলা থাকবে
+      const activeItem = menuItems.find(
+        (item) =>
+          item.type === "dropdown" &&
+          item.children.some(
+            (child) =>
+              location.pathname === child.to ||
+              location.pathname.startsWith(child.to + "/")
+          )
+      );
+      if (activeItem) {
+        setOpenDropdowns({ [activeItem.key]: true });
+      }
+
       const timeouts = [];
       for (let i = 0; i < menuItems.length; i++) {
         const timeout = setTimeout(() => {

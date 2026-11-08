@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { getPurchaseItemCostPerPcs } from '../../Software/Inventory/Stock/StockPurchase';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -25,6 +25,25 @@ const PurchaseReturnDetails = () => {
     const [returnPrices, setReturnPrices] = useState([]); // [buyPrice per item, editable for calc only]
     const [freeReturnInputs, setFreeReturnInputs] = useState([]); // Others Free Product return: [{ rtUnitQty, rtPcsQty }, ...]
     const [returnNote, setReturnNote] = useState('');
+
+    // Return Date (default: আজকের তারিখ, চাইলে পরিবর্তন করা যাবে)
+    const getFormattedToday = () =>
+        new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const [returnDate, setReturnDate] = useState(getFormattedToday());
+    const returnDateInputRef = useRef(null);
+
+    const handleReturnDateChange = (e) => {
+        const rawDate = e.target.value;
+        if (rawDate) {
+            const [year, month, day] = rawDate.split('-');
+            const formatted = new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+            });
+            setReturnDate(formatted);
+        }
+    };
 
     // ---------------- Payment (optional, default collapsed) ----------------
     const [investments, setInvestments] = useState([]);
@@ -70,6 +89,7 @@ const PurchaseReturnDetails = () => {
                         ? (data.returnHistory || []).find((ret) => ret.returnId === editReturnId)
                         : null;
                     setReturnNote(editingEntry?.returnNote || '');
+                    setReturnDate(editingEntry?.returnDate || getFormattedToday());
 
                     // Edit mode e age payment thakle prefill + open
                     const savedPay = editingEntry?.payment;
@@ -771,13 +791,6 @@ const PurchaseReturnDetails = () => {
         try {
             const { _id, ...rest } = selectedInvoice;
 
-            const today = new Date();
-            const returnDate = today.toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-            });
-
             const returnedItems = selectedInvoice.items
                 .map((item, index) => {
                     const totalRtQty = getTotalRtQty(index, item);
@@ -820,6 +833,7 @@ const PurchaseReturnDetails = () => {
                     if (ret.returnId !== editReturnId) return ret;
                     return {
                         ...ret,
+                        returnDate,
                         returnNote: returnNote.trim(),
                         items: returnedItems,
                         freeItems: freeReturnedItems,
@@ -992,6 +1006,31 @@ const PurchaseReturnDetails = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Return Date */}
+                    <div className="px-6 sm:px-8 pt-6 sm:pt-8">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Return Date <span className="text-rose-500">*</span>
+                        </label>
+                        <div
+                            className="relative w-full max-w-xs cursor-pointer"
+                            onClick={() => returnDateInputRef.current?.showPicker?.() || returnDateInputRef.current?.click()}
+                        >
+                            <input
+                                ref={returnDateInputRef}
+                                type="date"
+                                onChange={handleReturnDateChange}
+                                className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                            />
+                            <input
+                                type="text"
+                                readOnly
+                                value={returnDate}
+                                placeholder="Select date"
+                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none shadow-sm cursor-pointer pointer-events-none"
+                            />
                         </div>
                     </div>
 

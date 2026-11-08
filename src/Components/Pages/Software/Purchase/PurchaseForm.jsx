@@ -412,7 +412,7 @@ const PurchaseForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, in
                         {/* Date Selection */}
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Date <span className="text-rose-500">*</span>
+                                Purchase Date <span className="text-rose-500">*</span>
                             </label>
                             <div
                                 className="relative w-full cursor-pointer"
