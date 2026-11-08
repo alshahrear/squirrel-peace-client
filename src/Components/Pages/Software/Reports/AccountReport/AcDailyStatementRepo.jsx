@@ -586,27 +586,28 @@ const AcDailyStatementRepo = () => {
                                     <th rowSpan={2} className={`${thBase} align-middle`}>Collected By</th>
                                     <th rowSpan={2} className={`${thBase} align-middle`}>Route</th>
                                     <th rowSpan={2} className={`${thBase} align-middle text-right`}>Net Sales</th>
+                                    <th colSpan={6} className={`${thBase} text-center border-b border-white/20`}>Collection</th>
                                     <th colSpan={4} className={`${thBase} text-center border-b border-white/20`}>Sales Return</th>
-                                    <th colSpan={5} className={`${thBase} text-center border-b border-white/20`}>Collection</th>
                                     <th rowSpan={2} className={`${thBase} align-middle text-right`}>Route Expense</th>
                                     <th rowSpan={2} className={`${thBase} align-middle text-right`}>Final Collection</th>
                                 </tr>
                                 <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 whitespace-nowrap">
-                                    <th className={`${thBase} text-right`}>Invoice Return</th>
-                                    <th className={`${thBase} text-right`}>Bulk Return</th>
-                                    <th className={`${thBase} text-right`}>Damage Return</th>
-                                    <th className={`${thBase} text-right`}>Total Return</th>
                                     <th className={`${thBase} text-right`}>Invoice Get Collection</th>
+                                    <th className={`${thBase} text-right`}>Invoice Due Collection</th>
                                     <th className={`${thBase} text-right`}>Invoice Pay Collection</th>
                                     <th className={`${thBase} text-right`}>Sales Get Collection</th>
                                     <th className={`${thBase} text-right`}>Sales Pay Collection</th>
-                                    <th className={`${thBase} text-right`} style={{ borderRightWidth: '1px' }}>Net Collection</th>
+                                    <th className={`${thBase} text-right`}>Net Collection</th>
+                                    <th className={`${thBase} text-right`}>Invoice Return</th>
+                                    <th className={`${thBase} text-right`}>Bulk Return</th>
+                                    <th className={`${thBase} text-right`}>Damage Return</th>
+                                    <th className={`${thBase} text-right`} style={{ borderRightWidth: '1px' }}>Total Return</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                                 {rows.length === 0 ? (
                                     <tr>
-                                        <td colSpan={14} className="text-center py-10 text-gray-400 font-medium">
+                                        <td colSpan={15} className="text-center py-10 text-gray-400 font-medium">
                                             No delivered sales found!
                                         </td>
                                     </tr>
@@ -623,15 +624,16 @@ const AcDailyStatementRepo = () => {
                                             </td>
                                             <td className="px-4 py-3.5 whitespace-nowrap text-gray-600 font-medium">{r.route}</td>
                                             <td className="px-3 py-3.5 text-right"><AmtBox value={r.sales} tone="indigo" /></td>
-                                            <td className="px-3 py-3.5 text-right"><AmtBox value={r.invoiceReturn} tone="rose" /></td>
-                                            <td className="px-3 py-3.5 text-right"><AmtBox value={r.bulkReturn} tone="rose" /></td>
-                                            <td className="px-3 py-3.5 text-right"><AmtBox value={r.damageReturn} tone="rose" /></td>
-                                            <td className="px-3 py-3.5 text-right"><AmtBox value={r.totalReturn} tone="rose" /></td>
                                             <td className="px-3 py-3.5 text-right"><AmtBox value={r.invoiceColl} tone="emerald" /></td>
+                                            <td className="px-3 py-3.5 text-right"><AmtBox value={Math.round((r.sales - r.invoiceColl) * 100) / 100} tone="amber" /></td>
                                             <td className="px-3 py-3.5 text-right"><AmtBox value={r.invoicePayColl} tone="rose" /></td>
                                             <td className="px-3 py-3.5 text-right"><AmtBox value={r.salesGetColl} tone="emerald" /></td>
                                             <td className="px-3 py-3.5 text-right"><AmtBox value={r.salesPayColl} tone="rose" /></td>
                                             <td className="px-3 py-3.5 text-right"><AmtBox value={r.collTotal} tone="emerald" /></td>
+                                            <td className="px-3 py-3.5 text-right"><AmtBox value={r.invoiceReturn} tone="rose" /></td>
+                                            <td className="px-3 py-3.5 text-right"><AmtBox value={r.bulkReturn} tone="rose" /></td>
+                                            <td className="px-3 py-3.5 text-right"><AmtBox value={r.damageReturn} tone="rose" /></td>
+                                            <td className="px-3 py-3.5 text-right"><AmtBox value={r.totalReturn} tone="rose" /></td>
                                             <td className="px-3 py-3.5 text-right"><AmtBox value={r.routeExpense} tone="amber" /></td>
                                             <td className="px-3 py-3.5 text-right"><AmtBox value={r.netCollection} tone="indigo" /></td>
                                         </tr>
@@ -644,15 +646,16 @@ const AcDailyStatementRepo = () => {
                                         <span className="block text-right">Totals</span>
                                     </td>
                                     <td className="px-3 py-3.5 text-right"><AmtBox value={totals.sales} tone="indigo" strong /></td>
-                                    <td className="px-3 py-3.5 text-right"><AmtBox value={totals.invoiceReturn} tone="rose" strong /></td>
-                                    <td className="px-3 py-3.5 text-right"><AmtBox value={totals.bulkReturn} tone="rose" strong /></td>
-                                    <td className="px-3 py-3.5 text-right"><AmtBox value={totals.damageReturn} tone="rose" strong /></td>
-                                    <td className="px-3 py-3.5 text-right"><AmtBox value={totals.totalReturn} tone="rose" strong /></td>
                                     <td className="px-3 py-3.5 text-right"><AmtBox value={totals.invoiceColl} tone="emerald" strong /></td>
+                                    <td className="px-3 py-3.5 text-right"><AmtBox value={Math.round((totals.sales - totals.invoiceColl) * 100) / 100} tone="amber" strong /></td>
                                     <td className="px-3 py-3.5 text-right"><AmtBox value={totals.invoicePayColl} tone="rose" strong /></td>
                                     <td className="px-3 py-3.5 text-right"><AmtBox value={totals.salesGetColl} tone="emerald" strong /></td>
                                     <td className="px-3 py-3.5 text-right"><AmtBox value={totals.salesPayColl} tone="rose" strong /></td>
                                     <td className="px-3 py-3.5 text-right"><AmtBox value={totals.collTotal} tone="emerald" strong /></td>
+                                    <td className="px-3 py-3.5 text-right"><AmtBox value={totals.invoiceReturn} tone="rose" strong /></td>
+                                    <td className="px-3 py-3.5 text-right"><AmtBox value={totals.bulkReturn} tone="rose" strong /></td>
+                                    <td className="px-3 py-3.5 text-right"><AmtBox value={totals.damageReturn} tone="rose" strong /></td>
+                                    <td className="px-3 py-3.5 text-right"><AmtBox value={totals.totalReturn} tone="rose" strong /></td>
                                     <td className="px-3 py-3.5 text-right"><AmtBox value={totals.routeExpense} tone="amber" strong /></td>
                                     <td className="px-3 py-3.5 text-right"><AmtBox value={totals.netCollection} tone="indigo" strong /></td>
                                 </tr>

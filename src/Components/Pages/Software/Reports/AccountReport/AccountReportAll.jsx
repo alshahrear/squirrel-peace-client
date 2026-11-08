@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaBook, FaMoneyBillWave, FaMobileAlt, FaUniversity, FaHandHoldingUsd, FaFileInvoiceDollar, FaRoute, FaExchangeAlt, FaTrophy, FaChartLine, FaCoins, FaBalanceScale, FaClipboardList } from 'react-icons/fa';
+import { FaBook, FaMoneyBillWave, FaMobileAlt, FaUniversity, FaHandHoldingUsd, FaFileInvoiceDollar, FaRoute, FaExchangeAlt, FaTrophy, FaChartLine, FaCoins, FaBalanceScale, FaClipboardList, FaFileAlt } from 'react-icons/fa';
 import AcDayBookRepo from './AcDayBookRepo';
 import AcCashBookRepo from './AcCashBookRepo';
 import AcMobileBankingRepo from './AcMobileBankingRepo';
@@ -13,6 +13,7 @@ import AcTopSellProductRepo from './AcTopSellProductRepo';
 import AcSalesWiseProfitRepo from './AcSalesWiseProfitRepo';
 import AcOverUnderRateRepo from './AcOverUnderRateRepo';
 import AcDailyStatementRepo from './AcDailyStatementRepo';
+import AcIncomeStatementRepo from './AcIncomeStatementRepo';
 
 const TABS = [
     { key: 'daybook', label: 'Day Book', icon: FaBook },
@@ -28,6 +29,7 @@ const TABS = [
     { key: 'saleswiseprofit', label: 'Sales Wise Profit', icon: FaCoins },
     { key: 'overunderrate', label: 'Over Rate & Under Rate', icon: FaBalanceScale },
     { key: 'dailystatement', label: 'Daily Statement', icon: FaClipboardList },
+    { key: 'incomestatement', label: 'Income Statement', icon: FaFileAlt },
 ];
 
 const AccountReportAll = () => {
@@ -87,6 +89,7 @@ const AccountReportAll = () => {
             {activeTab === 'saleswiseprofit' && <AcSalesWiseProfitRepo />}
             {activeTab === 'overunderrate' && <AcOverUnderRateRepo />}
             {activeTab === 'dailystatement' && <AcDailyStatementRepo />}
+            {activeTab === 'incomestatement' && <AcIncomeStatementRepo />}
         </div>
     );
 };
