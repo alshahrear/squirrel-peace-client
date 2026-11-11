@@ -75,7 +75,7 @@ const OpeningInvestment = () => {
     // Fetch Investments
     const fetchInvestments = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/investment');
+            const response = await fetch('http://localhost:5000/investment');
             const data = await response.json();
             setInvestments(data);
         } catch (error) {
@@ -90,7 +90,7 @@ const OpeningInvestment = () => {
     const [adjustments, setAdjustments] = useState([]);
     const fetchAdjustments = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/adjustment');
+            const response = await fetch('http://localhost:5000/adjustment');
             const data = await response.json();
             setAdjustments(data);
         } catch (error) {
@@ -175,7 +175,7 @@ const OpeningInvestment = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/investment/${id}`, {
+                    const response = await fetch(`http://localhost:5000/investment/${id}`, {
                         method: 'DELETE',
                     });
 

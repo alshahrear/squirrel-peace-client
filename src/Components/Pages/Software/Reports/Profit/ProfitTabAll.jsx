@@ -79,7 +79,7 @@ const ProfitTabAll = () => {
     const [netData, setNetData] = useState({ sales: [], batches: [], purchases: [], incomes: [], expenses: [], routeExpenses: [], damages: [] });
 
     const fetchNet = useCallback(async () => {
-        const get = (u) => fetch(`https://squirrel-peace-server.onrender.com/${u}`).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
+        const get = (u) => fetch(`http://localhost:5000/${u}`).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
         const [sales, batches, purchases, incomes, expenses, routeExpenses, damages] = await Promise.all([
             get('sales'), get('stock-purchase'), get('purchase'), get('income'), get('expense'), get('routeExpense'), get('damage-return'),
         ]);

@@ -98,7 +98,7 @@ const Company = () => {
     // Fetch companies data
     const fetchCompanies = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/company');
+            const res = await fetch('http://localhost:5000/company');
             const data = await res.json();
             setCompanies(data);
         } catch (error) {
@@ -185,7 +185,7 @@ const Company = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/company/${id}`, {
+                    const response = await fetch(`http://localhost:5000/company/${id}`, {
                         method: 'DELETE',
                     });
 

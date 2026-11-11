@@ -24,7 +24,7 @@ const SalesReturnView = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`)
+        fetch(`http://localhost:5000/sales/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 const foundReturn = (data?.returnHistory || []).find(

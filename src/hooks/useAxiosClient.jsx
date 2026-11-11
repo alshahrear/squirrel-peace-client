@@ -1,41 +1,50 @@
 import axios from "axios";
-import { patchAxios } from "../Components/Layout/DataRefresh";
+import { API_BASE } from "../config/api";
+import { useEffect } from "react";
+import { patchAxios } from "./DataRefresh";
 import { useNavigate } from "react-router-dom";
-import { useClientAuth } from "../Components/Provider/ClientAuthContext"; 
+import { useClientAuth } from "./ClientAuthContext";
 
 const axiosClient = axios.create({
-    baseURL: 'https://squirrel-peace-server.onrender.com'
+    baseURL: API_BASE
 });
 patchAxios(axiosClient);
+
+axiosClient.interceptors.request.use((config) => {
+    const token = localStorage.getItem('clientToken');
+    if (token) config.headers.authorization = `Bearer ${token}`;
+    return config;
+});
+
+let onUnauthorized = null;
+let handling = false;
+
+// শুধু 401 (token/session শেষ) হলে logout; 403 (permission নেই) হলে logout হবে না
+axiosClient.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        if (error.response?.status === 401 && onUnauthorized && !handling) {
+            handling = true;
+            try {
+                await onUnauthorized();
+            } finally {
+                setTimeout(() => { handling = false; }, 1500);
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 const useAxiosClient = () => {
     const navigate = useNavigate();
     const { clientLogout } = useClientAuth();
 
-    // request interceptor to add client token for every secure call
-    axiosClient.interceptors.request.use(function (config) {
-        const token = localStorage.getItem('clientToken'); // ক্লায়েন্টের টোকেন নেওয়া
-        if (token) {
-            config.headers.authorization = `Bearer ${token}`;
-        }
-        return config;
-    }, function (error) {
-        return Promise.reject(error);
-    });
-
-    // intercepts 401 and 403 status for clients
-    axiosClient.interceptors.response.use(function (response) {
-        return response;
-    }, async (error) => {
-        const status = error.response?.status;
-        
-        // টোকেন মেয়াদোত্তীর্ণ বা অবৈধ হলে ক্লায়েন্টকে লগআউট করে লগইন পেজে পাঠিয়ে দেওয়া
-        if (status === 401 || status === 403) {
+    useEffect(() => {
+        onUnauthorized = async () => {
             await clientLogout();
-            navigate('/login'); // আপনার ক্লায়েন্টের লগইন রাউটের পাথ দেবেন
-        }
-        return Promise.reject(error);
-    });
+            navigate('/login-client');
+        };
+    }, [clientLogout, navigate]);
 
     return axiosClient;
 };

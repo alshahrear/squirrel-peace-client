@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight, FaTrophy } from 'react-icons/fa';
 
 const POLL_INTERVAL = 5000;
-const API = 'https://squirrel-peace-server.onrender.com';
+const API = 'http://localhost:5000';
 
 const num = (v) => Number(v) || 0;
 const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;

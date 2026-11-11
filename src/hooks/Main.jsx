@@ -1,9 +1,9 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import Navbar from "../Pages/Home/Navbar/Navbar";
-import Footer from "./Footer/Footer";
+import Navbar from "../Components/Pages/Home/Navbar/Navbar";
+import Footer from "../hooks/Footer";
 import ScrollToTop from "./ScrollToTop";
-import ScrollToTopButton from "../ScrollToTopButton";
+import ScrollToTopButton from "./ScrollToTopButton";
 import { Toaster } from "react-hot-toast";
 
 const Main = () => {

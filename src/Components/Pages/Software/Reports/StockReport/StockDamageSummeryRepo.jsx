@@ -205,11 +205,11 @@ const StockDamageSummeryRepo = () => {
                     return Array.isArray(data) ? data : [];
                 };
                 const [sales, dmg, pur, dr, comp] = await Promise.all([
-                    get('https://squirrel-peace-server.onrender.com/sales'),
-                    get('https://squirrel-peace-server.onrender.com/sales-damage'),
-                    get('https://squirrel-peace-server.onrender.com/purchase'),
-                    get('https://squirrel-peace-server.onrender.com/damage-return'),
-                    get('https://squirrel-peace-server.onrender.com/company'),
+                    get('http://localhost:5000/sales'),
+                    get('http://localhost:5000/sales-damage'),
+                    get('http://localhost:5000/purchase'),
+                    get('http://localhost:5000/damage-return'),
+                    get('http://localhost:5000/company'),
                 ]);
                 setOrders([
                     ...sales,

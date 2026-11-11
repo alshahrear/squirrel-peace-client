@@ -136,8 +136,8 @@ const SalesSrTargetForm = ({
         if (!isEditing) payload.createdAt = formatDateTime(new Date());
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/sales-sr-target/${editingId}`
-            : 'https://squirrel-peace-server.onrender.com/sales-sr-target';
+            ? `http://localhost:5000/sales-sr-target/${editingId}`
+            : 'http://localhost:5000/sales-sr-target';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {

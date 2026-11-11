@@ -152,7 +152,7 @@ const SalesDuePayment = () => {
     // ---------------- Fetch ----------------
     const fetchPayments = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/sales-due-payment');
+            const res = await fetch('http://localhost:5000/sales-due-payment');
             const data = await res.json();
             setPayments(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -169,12 +169,12 @@ const SalesDuePayment = () => {
                 .then((data) => setter(Array.isArray(data) ? data : []))
                 .catch((error) => console.error(`Error fetching ${label}:`, error));
 
-        load('https://squirrel-peace-server.onrender.com/customer', setCustomers, 'customers');
-        load('https://squirrel-peace-server.onrender.com/sales', setSales, 'sales');
-        load('https://squirrel-peace-server.onrender.com/sales-bulk-return', setBulkReturns, 'bulk returns');
-        load('https://squirrel-peace-server.onrender.com/sales-damage', setDamageReturns, 'damage returns');
-        load('https://squirrel-peace-server.onrender.com/investment', setInvestments, 'investments');
-        load('https://squirrel-peace-server.onrender.com/user', setUsers, 'users');
+        load('http://localhost:5000/customer', setCustomers, 'customers');
+        load('http://localhost:5000/sales', setSales, 'sales');
+        load('http://localhost:5000/sales-bulk-return', setBulkReturns, 'bulk returns');
+        load('http://localhost:5000/sales-damage', setDamageReturns, 'damage returns');
+        load('http://localhost:5000/investment', setInvestments, 'investments');
+        load('http://localhost:5000/user', setUsers, 'users');
     }, []);
 
     useEffect(() => {
@@ -326,7 +326,7 @@ const SalesDuePayment = () => {
         submitLock.current = true;
         setIsSubmitting(true);
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/sales-due-payment', {
+            const res = await fetch('http://localhost:5000/sales-due-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -365,7 +365,7 @@ const SalesDuePayment = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/sales-due-payment/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`http://localhost:5000/sales-due-payment/${id}`, { method: 'DELETE' });
                     const data = await res.json();
                     if (data.deletedCount > 0) {
                         showToast('Payment deleted successfully!', 'success');

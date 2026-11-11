@@ -131,7 +131,7 @@ const DamageReturnInvoice = () => {
     const location = useLocation();
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((d) => setCompanies(Array.isArray(d) ? d : []))
             .catch(() => setCompanies([]));
@@ -215,8 +215,8 @@ const DamageReturnInvoice = () => {
     useEffect(() => {
         setLoading(true);
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((res) => res.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((res) => res.json()).catch(() => []),
         ])
             .then(([d, purchases]) => {
                 const list = Array.isArray(d) ? d : [];
@@ -400,7 +400,7 @@ const DamageReturnInvoice = () => {
                 try {
                     const damageAdj = Number(item.damageAdjustmentAmount) || 0;
                     const newPayable = Math.round(((Number(item.payableAmount) || 0) + damageAdj) * 100) / 100;
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item._id}`, {
+                    const res = await fetch(`http://localhost:5000/purchase/${item._id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -433,7 +433,7 @@ const DamageReturnInvoice = () => {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
             try {
-                const delRes = await fetch(`https://squirrel-peace-server.onrender.com/damage-return/${item._id}`, { method: 'DELETE' });
+                const delRes = await fetch(`http://localhost:5000/damage-return/${item._id}`, { method: 'DELETE' });
                 if (!delRes.ok) throw new Error('Failed');
                 setReturns((prev) => prev.filter((o) => o._id !== item._id));
                 setSelectedIds((prev) => prev.filter((x) => x !== item._id));
@@ -459,8 +459,8 @@ const DamageReturnInvoice = () => {
             if (!result.isConfirmed) return;
             try {
                 const approveUrl = item.isFromPurchase
-                    ? `https://squirrel-peace-server.onrender.com/purchase/${item._id}`
-                    : `https://squirrel-peace-server.onrender.com/damage-return/${item._id}`;
+                    ? `http://localhost:5000/purchase/${item._id}`
+                    : `http://localhost:5000/damage-return/${item._id}`;
                 const approveBody = item.isFromPurchase
                     ? { damageStatus: 'Approved', damageApprovedAt: new Date().toISOString() }
                     : { status: 'Approved', approvedAt: new Date().toISOString() };

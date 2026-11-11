@@ -330,10 +330,10 @@ const SalesTopSheet = () => {
         const load = async () => {
             try {
                 const [sRes, pRes, uRes, coRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/sales'),
-                    fetch('https://squirrel-peace-server.onrender.com/product'),
-                    fetch('https://squirrel-peace-server.onrender.com/user'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
+                    fetch('http://localhost:5000/sales'),
+                    fetch('http://localhost:5000/product'),
+                    fetch('http://localhost:5000/user'),
+                    fetch('http://localhost:5000/company'),
                 ]);
                 const sData = await sRes.json();
                 const pData = await pRes.json();

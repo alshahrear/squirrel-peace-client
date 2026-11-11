@@ -65,13 +65,13 @@ const ExpenseForm = ({
         const fetchInvestments = async () => {
             try {
                 const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, purchaseRes, transferRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/investment'),
-                    fetch('https://squirrel-peace-server.onrender.com/adjustment'),
-                    fetch('https://squirrel-peace-server.onrender.com/income'),
-                    fetch('https://squirrel-peace-server.onrender.com/expense'),
-                    fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/transfer'),
+                    fetch('http://localhost:5000/investment'),
+                    fetch('http://localhost:5000/adjustment'),
+                    fetch('http://localhost:5000/income'),
+                    fetch('http://localhost:5000/expense'),
+                    fetch('http://localhost:5000/routeExpense'),
+                    fetch('http://localhost:5000/purchase'),
+                    fetch('http://localhost:5000/transfer'),
                 ]);
                 const data = await invRes.json();
                 const adjData = await adjRes.json();
@@ -355,8 +355,8 @@ const ExpenseForm = ({
         }
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/expense/${editingExpense._id}`
-            : 'https://squirrel-peace-server.onrender.com/expense';
+            ? `http://localhost:5000/expense/${editingExpense._id}`
+            : 'http://localhost:5000/expense';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {

@@ -60,7 +60,7 @@ const AccountHeads = () => {
 
     const fetchAccountHeads = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/account-heads');
+            const response = await fetch('http://localhost:5000/account-heads');
             const data = await response.json();
             setAccountHeads(data);
         } catch (error) {
@@ -123,7 +123,7 @@ const AccountHeads = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/account-heads/${id}`, {
+                    const response = await fetch(`http://localhost:5000/account-heads/${id}`, {
                         method: 'DELETE',
                     });
 

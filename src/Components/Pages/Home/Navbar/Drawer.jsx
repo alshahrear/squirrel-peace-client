@@ -17,6 +17,7 @@ import {
   FaCog,
 } from "react-icons/fa";
 import fav from "../../../../assets/squirrelpeacelogo.png";
+import { canAccessPath } from "../../../../hooks/permissionConfig";
 
 // প্রতিটা মেনু ক্যাটাগরির জন্য আলাদা প্যাস্টেল কালার থিম (Tailwind JIT-এর জন্য class গুলো পূর্ণ লেখা আছে)
 const colorMap = {
@@ -281,6 +282,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
       label: "Users",
       children: [
         { to: "/user", label: "All User" },
+        { to: "/user-assign", label: "User Assign" },
         { to: "/user-role", label: "All Role" },
       ],
     },
@@ -293,7 +295,16 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/payment-billing", label: "Payment & Billing" },
       ],
     },
-  ].filter(Boolean); // কোনো ভ্যালু ফলসি হলে ফিল্টার করে বাদ দিবে
+    ].filter(Boolean)
+    .map((item) => {
+      if (!clientUser?.isStaff || item.type !== "dropdown") return item;
+      return { ...item, children: item.children.filter((c) => canAccessPath(clientUser.permissions, c.to)) };
+    })
+    .filter((item) => {
+      if (!clientUser?.isStaff) return true;
+      if (item.type === "link") return canAccessPath(clientUser.permissions, item.to);
+      return item.key !== "users" && item.children.length > 0;
+    }); // কোনো ভ্যালু ফলসি হলে ফিল্টার করে বাদ দিবে
 
   useEffect(() => {
     if (drawerOpen) {

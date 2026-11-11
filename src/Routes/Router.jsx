@@ -2,19 +2,22 @@ import {
   createBrowserRouter,
   Navigate
 } from "react-router-dom";
-import Main from "../Components/Layout/Main";
-import Home from "../Components/Pages/Home/Home";
-import ErrorPage from "../Components/Pages/ErrorPage/ErrorPage";
-import Login from "../Components/Pages/Login/Login";
-import Register from "../Components/Pages/Register/Register";
-import Users from "../Components/Pages/Users/Users";
-import AdminPages from "../Components/Pages/Admin/AdminPages";
-import AdminRoute from "../Components/Layout/Privet/AdminRoute";
-import Software from "../Components/Pages/Software/Software";
+import Main from "../hooks/Main";
+import TenantHome from "../hooks/TenantHome";
+import MainOnly from "../hooks/MainOnly";
+import ErrorPage from "../hooks/ErrorPage";
+import Login from "../hooks/Login";
+import Register from "../hooks/Register";
+import Users from "../hooks/Users";
+import AdminPages from "../hooks/AdminPages";
+import AdminRoute from "../hooks/AdminRoute";
+import Software from "../hooks/Software";
 import Client from "../Components/Pages/Software/Client/Client";
+import ClientDetails from "../Components/Pages/Software/Client/ClientDetails";
 import LoginClient from "../Components/Pages/Software/Client/LoginClient";
 import Dashboard from "../Components/Pages/Software/Dashboard/Dashboard";
-import ClientRoute from "../Components/Layout/Privet/ClientRoute";
+import ClientProfile from "../Components/Pages/Software/Client/ClientProfile";
+import ClientRoute from "../hooks/ClientRoute";
 import Route from "../Components/Pages/Software/Contact/Route";
 import Company from "../Components/Pages/Software/Contact/Company/Company";
 import Customers from "../Components/Pages/Software/Contact/Customer/Customers";
@@ -65,7 +68,7 @@ import StockAdjustmentForm from "../Components/Pages/Software/Inventory/Stock/St
 import StockAdjustmentDetails from "../Components/Pages/Software/Inventory/Stock/StockAdjustmentDetails";
 import PurchaseReportAll from "../Components/Pages/Software/Reports/PurchaseReport/PurchaseReportAll";
 import SaleCustomerSumDetails from "../Components/Pages/Software/Reports/SalesReport/SaleCustomerSumDetails";
-import DataRefresh from "../Components/Layout/DataRefresh";
+import DataRefresh from "../hooks/DataRefresh";
 import ProfitTabAll from "../Components/Pages/Software/Reports/Profit/ProfitTabAll";
 import CompanyAccountAc from "../Components/Pages/Software/Contact/Company/CompanyAccountAc";
 import PurchaseDuePayment from "../Components/Pages/Software/Purchase/PurchaseDuePayment";
@@ -83,8 +86,9 @@ import AccountPurchaseAll from "../Components/Pages/Software/Account/AccountPurc
 import AccountSalesAll from "../Components/Pages/Software/Account/AccountSales/AccountSalesAll";
 import SalesSrTarget from "../Components/Pages/Software/Sales/SalesSrTarget";
 import AccountReportAll from "../Components/Pages/Software/Reports/AccountReport/AccountReportAll";
-
-
+import Burger from "../hooks/Burger";
+import BurgerSos from "../hooks/BurgerSos";
+import UserAssign from "../Components/Pages/Software/User/UserAssign";
 
 export const router = createBrowserRouter([
   {
@@ -97,19 +101,27 @@ export const router = createBrowserRouter([
         children: [
           {
             path: "/",
-            element: <Home></Home>
+            element: <TenantHome></TenantHome>
           },
           {
-            path: "/adminPages",
+            path: "/admin-pages",
             element: <AdminRoute><AdminPages></AdminPages></AdminRoute>
           },
           {
+            path: "/burger",
+            element: <MainOnly><Burger></Burger></MainOnly>
+          },
+          {
+            path: "/burger-sos",
+            element: <MainOnly><BurgerSos></BurgerSos></MainOnly>
+          },
+          {
             path: "/login",
-            element: <Login></Login>
+            element: <MainOnly><Login></Login></MainOnly>
           },
           {
             path: "/register",
-            element: <Register></Register>
+            element: <MainOnly><Register></Register></MainOnly>
           },
           {
             path: "/users",
@@ -350,12 +362,20 @@ export const router = createBrowserRouter([
             element: <ClientRoute><UserRole></UserRole></ClientRoute>
           },
           {
+            path: "/user-assign",
+            element: <ClientRoute><UserAssign></UserAssign></ClientRoute>
+          },
+          {
             path: "/user",
             element: <ClientRoute><User></User></ClientRoute>
           },
           {
             path: "/client",
-            element: <Client></Client>
+            element: <AdminRoute><Client></Client></AdminRoute>
+          },
+          {
+            path: "/client-details/:id",
+            element: <AdminRoute><ClientDetails></ClientDetails></AdminRoute>
           },
           {
             path: "/login-client",
@@ -364,6 +384,10 @@ export const router = createBrowserRouter([
           {
             path: "/dashboard",
             element: <ClientRoute><Dashboard></Dashboard></ClientRoute>
+          },
+          {
+            path: "/client-profile",
+            element: <ClientRoute><ClientProfile></ClientProfile></ClientRoute>
           },
           {
             element: <ClientRoute><AccountInsideAll></AccountInsideAll></ClientRoute>,
@@ -394,7 +418,7 @@ export const router = createBrowserRouter([
             path: "/account-purchase",
             element: <ClientRoute><AccountPurchaseAll></AccountPurchaseAll></ClientRoute>
           },
-           {
+          {
             path: "/account-sales",
             element: <ClientRoute><AccountSalesAll></AccountSalesAll></ClientRoute>
           },

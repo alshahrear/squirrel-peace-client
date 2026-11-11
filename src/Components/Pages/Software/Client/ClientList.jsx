@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { FaEye, FaEyeSlash, FaEdit, FaTrash, FaUsers } from 'react-icons/fa';
+import { FaEye, FaEdit, FaTrash, FaUsers } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import useAxiosSecure from '../../../../hooks/useAxiosSecure';
 
 const ClientList = ({ onEdit, refreshTrigger }) => {
+    const axiosSecure = useAxiosSecure();
+    const navigate = useNavigate();
     const [clients, setClients] = useState([]);
+
+    // Action Dropdown state
+    const [openDropdownId, setOpenDropdownId] = useState(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
     const [loading, setLoading] = useState(true);
-    const [showPasswords, setShowPasswords] = useState({});
 
     // টোস্ট নোটিফিকেশন কনফিগারেশন
     const Toast = Swal.mixin({
@@ -23,11 +30,8 @@ const ClientList = ({ onEdit, refreshTrigger }) => {
     // ব্যাকএন্ড থেকে ক্লায়েন্ট ডাটা ফেচ করা
     const fetchClients = async () => {
         try {
-            const response = await fetch(`https://squirrel-peace-server.onrender.com/client?t=${Date.now()}`, {
-                cache: 'no-store'
-            });
-            const data = await response.json();
-            setClients(data);
+            const res = await axiosSecure.get(`/client?t=${Date.now()}`);
+            setClients(res.data);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching clients:', error);
@@ -56,74 +60,104 @@ const ClientList = ({ onEdit, refreshTrigger }) => {
         };
     }, [refreshTrigger]);
 
-    // পাসওয়ার্ড টগল করার ফাংশন
-    const togglePasswordVisibility = (id) => {
-        setShowPasswords((prev) => ({
-            ...prev,
-            [id]: !prev[id]
-        }));
-    };
+    // Dropdown er baire click korle close hobe
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!event.target.closest('.action-dropdown-container')) {
+                setOpenDropdownId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Scroll korle dropdown auto close hoye jabe
+    useEffect(() => {
+        if (openDropdownId === null) return;
+
+        const handleScroll = () => {
+            setOpenDropdownId(null);
+        };
+
+        window.addEventListener('scroll', handleScroll, true);
+        return () => window.removeEventListener('scroll', handleScroll, true);
+    }, [openDropdownId]);
 
     // সুইট অ্যালার্ট দিয়ে ফোর্সড লগআউট কনফার্মেশন হ্যান্ডলার
-const handleForceLogout = async (client) => {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: `Do you want to log out ${client.name || client.email}?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, log out!'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            try {
-                const res = await fetch(`https://squirrel-peace-server.onrender.com/client/login-status/${client._id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ login: 'no' })
-                });
-
-                if (res.ok) {
-                    // এখানে বড় পপআপের বদলে Toast ব্যবহার করা হয়েছে
-                    Toast.fire({
-                        icon: 'success',
-                        title: 'Client has been logged out successfully.'
-                    });
-                    fetchClients();
-                } else {
-                    Toast.fire({
-                        icon: 'error',
-                        title: 'Failed to log out client.'
-                    });
-                }
-            } catch (error) {
-                console.error('Error logging out client:', error);
-                Toast.fire({
-                    icon: 'error',
-                    title: 'Something went wrong.'
-                });
-            }
-        }
-    });
-};
-
-    // ডিলিট হ্যান্ডলার
-    const handleDelete = (id) => {
+    const handleForceLogout = async (client) => {
         Swal.fire({
             title: 'Are you sure?',
-            text: "You want to delete this client!",
+            text: `Do you want to log out ${client.name || client.email}?`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!'
+            confirmButtonText: 'Yes, log out!'
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/client/${id}`, {
-                        method: 'DELETE',
+                    await axiosSecure.patch(`/client/login-status/${client._id}`, { login: 'no' });
+                    const res = { ok: true };
+
+                    if (res.ok) {
+                        // এখানে বড় পপআপের বদলে Toast ব্যবহার করা হয়েছে
+                        Toast.fire({
+                            icon: 'success',
+                            title: 'Client has been logged out successfully.'
+                        });
+                        fetchClients();
+                    } else {
+                        Toast.fire({
+                            icon: 'error',
+                            title: 'Failed to log out client.'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error logging out client:', error);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'Something went wrong.'
                     });
-                    const data = await response.json();
+                }
+            }
+        });
+    };
+
+    // ডিলিট হ্যান্ডলার
+    const handleDelete = (id) => {
+        setOpenDropdownId(null);
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "Enter admin password to delete this client!",
+            icon: 'warning',
+            input: 'password',
+            inputPlaceholder: 'Admin password',
+            inputAttributes: { autocomplete: 'off' },
+            showCancelButton: true,
+            showLoaderOnConfirm: true,
+            allowOutsideClick: () => !Swal.isLoading(),
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            preConfirm: async (password) => {
+                if (!password) {
+                    Swal.showValidationMessage('Please enter the password');
+                    return false;
+                }
+                try {
+                    const r = await axiosSecure.post('/users/verify-admin-password', { password });
+                    return r.data.actionToken;
+                } catch (err) {
+                    Swal.showValidationMessage(err?.response?.data?.message || 'Incorrect password');
+                    return false;
+                }
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed && result.value) {
+                try {
+                    await axiosSecure.delete(`/client/${id}`, { headers: { 'x-action-token': result.value } });
+                    const response = { ok: true };
+                    const data = {};
 
                     if (response.ok) {
                         Toast.fire({
@@ -183,7 +217,6 @@ const handleForceLogout = async (client) => {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Phone</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Email</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Password</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Address</th>
                                 <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                                 <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Login</th>
@@ -205,20 +238,6 @@ const handleForceLogout = async (client) => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {client.email}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        <div className="flex items-center space-x-2 bg-gray-50 px-3 py-1 rounded-lg border border-gray-200 w-fit">
-                                            <span className="font-mono">
-                                                {showPasswords[client._id] ? client.password : '••••••••'}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => togglePasswordVisibility(client._id)}
-                                                className="text-gray-400 hover:text-indigo-600 focus:outline-none transition-colors"
-                                            >
-                                                {showPasswords[client._id] ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-                                            </button>
-                                        </div>
-                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 truncate max-w-xs">
                                         {client.address}
                                     </td>
@@ -236,8 +255,8 @@ const handleForceLogout = async (client) => {
                                         <span
                                             onClick={() => client.login === 'yes' && handleForceLogout(client)}
                                             className={`cursor-pointer px-3 py-1 inline-flex items-center rounded-full text-xs font-semibold ${client.login === 'yes'
-                                                    ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700 transition-all'
-                                                    : 'bg-gray-100 text-gray-500'
+                                                ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700 transition-all'
+                                                : 'bg-gray-100 text-gray-500'
                                                 }`}
                                             title={client.login === 'yes' ? "Click to force logout" : "Offline"}
                                         >
@@ -246,22 +265,65 @@ const handleForceLogout = async (client) => {
                                     </td>
 
 
-                                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                                        <div className="flex items-center justify-center space-x-2">
+                                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium relative">
+                                        <div className="relative inline-block action-dropdown-container">
                                             <button
-                                                onClick={() => onEdit(client)}
-                                                className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white focus:outline-none transition-all shadow-xs"
-                                                title="Edit Client"
+                                                onClick={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setDropdownPos({ top: rect.top - 8, left: rect.right });
+                                                    setOpenDropdownId(
+                                                        openDropdownId === client._id ? null : client._id
+                                                    );
+                                                }}
+                                                className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
                                             >
-                                                <FaEdit size={15} />
+                                                <span>Select</span>
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    strokeWidth={2}
+                                                    stroke="currentColor"
+                                                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === client._id ? 'rotate-180' : ''}`}
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                                </svg>
                                             </button>
-                                            <button
-                                                onClick={() => handleDelete(client._id)}
-                                                className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white focus:outline-none transition-all shadow-xs"
-                                                title="Delete Client"
-                                            >
-                                                <FaTrash size={15} />
-                                            </button>
+
+                                            {openDropdownId === client._id && (
+                                                <div
+                                                    style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
+                                                    className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left"
+                                                >
+                                                    <button
+                                                        onClick={() => {
+                                                            setOpenDropdownId(null);
+                                                            navigate(`/client-details/${client._id}`);
+                                                        }}
+                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                    >
+                                                        <FaEye size={12} className="text-emerald-500" />
+                                                        View Details
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setOpenDropdownId(null);
+                                                            onEdit(client);
+                                                        }}
+                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                    >
+                                                        <FaEdit size={12} className="text-indigo-500" />
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(client._id)}
+                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
+                                                    >
+                                                        <FaTrash size={12} className="text-rose-500" />
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

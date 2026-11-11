@@ -78,7 +78,7 @@ const PurchaseReturnDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`)
+        fetch(`http://localhost:5000/purchase/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -179,32 +179,32 @@ const PurchaseReturnDetails = () => {
     // --------------------------------------------------
     // stock-purchase batch gulo anbe
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/stock-purchase')
+        fetch('http://localhost:5000/stock-purchase')
             .then((res) => res.json())
             .then((data) => setStockBatches(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching stock:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/sales')
+        fetch('http://localhost:5000/sales')
             .then((res) => res.json())
             .then((data) => setSalesList(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching sales:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return')
+        fetch('http://localhost:5000/purchase-bulk-return')
             .then((res) => res.json())
             .then((data) => setBulkReturnList(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching bulk returns:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return')
+        fetch('http://localhost:5000/sales-bulk-return')
             .then((res) => res.json())
             .then((data) => setSalesBulkList(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching sales bulk returns:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/sales-damage')
+        fetch('http://localhost:5000/sales-damage')
             .then((res) => res.json())
             .then((data) => setDamageList(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching damages:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/stock-adjustment')
+        fetch('http://localhost:5000/stock-adjustment')
             .then((res) => res.json())
             .then((data) => setAdjustmentList(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching adjustments:', error));
@@ -212,7 +212,7 @@ const PurchaseReturnDetails = () => {
 
     // Investment accounts (Payment section er jonno)
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/investment')
+        fetch('http://localhost:5000/investment')
             .then((res) => res.json())
             .then((data) => setInvestments(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching investments:', error));
@@ -868,7 +868,7 @@ const PurchaseReturnDetails = () => {
                 ),
             };
 
-            const response = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${id}`, {
+            const response = await fetch(`http://localhost:5000/purchase/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedData),

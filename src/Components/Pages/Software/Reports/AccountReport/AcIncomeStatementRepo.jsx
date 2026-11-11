@@ -115,7 +115,7 @@ const AcIncomeStatementRepo = () => {
     const fetchAll = useCallback(async () => {
         setLoading(true);
         const get = (u) =>
-            fetch(`https://squirrel-peace-server.onrender.com/${u}`)
+            fetch(`http://localhost:5000/${u}`)
                 .then((r) => r.json())
                 .then((d) => (Array.isArray(d) ? d : []))
                 .catch(() => []);

@@ -43,11 +43,11 @@ const PurchaseBulkReturn = () => {
 
     const fetchBatches = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/stock-purchase');
+            const res = await fetch('http://localhost:5000/stock-purchase');
             const data = await res.json();
             setStockBatches(Array.isArray(data) ? data : []);
 
-            const pRes = await fetch('https://squirrel-peace-server.onrender.com/purchase');
+            const pRes = await fetch('http://localhost:5000/purchase');
             const pData = await pRes.json();
             setPurchases(Array.isArray(pData) ? pData : []);
         } catch (error) {
@@ -80,7 +80,7 @@ const PurchaseBulkReturn = () => {
 
     const fetchReturns = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return');
+            const res = await fetch('http://localhost:5000/purchase-bulk-return');
             const data = await res.json();
             setReturns([...data].reverse());
         } catch (error) {
@@ -93,7 +93,7 @@ const PurchaseBulkReturn = () => {
 
     const fetchCompanies = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/company');
+            const res = await fetch('http://localhost:5000/company');
             const data = await res.json();
             setCompanies(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -184,7 +184,7 @@ const PurchaseBulkReturn = () => {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
             try {
-                const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase-bulk-return/${item._id}/approve`, {
+                const res = await fetch(`http://localhost:5000/purchase-bulk-return/${item._id}/approve`, {
                     method: 'PATCH',
                 });
                 if (!res.ok) throw new Error('Failed');
@@ -203,7 +203,7 @@ const PurchaseBulkReturn = () => {
         setOpenDropdownId(null);
         if (item.fromPurchase) {
             try {
-                const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item.purchaseId}`);
+                const res = await fetch(`http://localhost:5000/purchase/${item.purchaseId}`);
                 const purchase = await res.json();
                 if (!purchase || !purchase._id) {
                     showToast('Purchase not found!', 'error');
@@ -234,11 +234,11 @@ const PurchaseBulkReturn = () => {
             });
             if (!confirm.isConfirmed) return;
             try {
-                const pRes = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${target.purchaseId}`);
+                const pRes = await fetch(`http://localhost:5000/purchase/${target.purchaseId}`);
                 const purchase = await pRes.json();
                 if (purchase && purchase._id) {
                     const retAdj = Number(purchase.returnAdjustmentAmount) || 0;
-                    const upRes = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${target.purchaseId}`, {
+                    const upRes = await fetch(`http://localhost:5000/purchase/${target.purchaseId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -249,7 +249,7 @@ const PurchaseBulkReturn = () => {
                     });
                     if (!upRes.ok) throw new Error('Purchase update failed');
                 }
-                const delRes = await fetch(`https://squirrel-peace-server.onrender.com/purchase-bulk-return/${id}`, { method: 'DELETE' });
+                const delRes = await fetch(`http://localhost:5000/purchase-bulk-return/${id}`, { method: 'DELETE' });
                 if (!delRes.ok) throw new Error('Delete failed');
                 showToast('Bulk return deleted successfully!', 'success');
                 setReturns((prev) => prev.filter((i) => i._id !== id));
@@ -271,7 +271,7 @@ const PurchaseBulkReturn = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/purchase-bulk-return/${id}`, { method: 'DELETE' });
+                    const response = await fetch(`http://localhost:5000/purchase-bulk-return/${id}`, { method: 'DELETE' });
                     if (response.ok) {
                         showToast('Bulk return deleted successfully!', 'success');
                         setReturns((prev) => prev.filter((i) => i._id !== id));

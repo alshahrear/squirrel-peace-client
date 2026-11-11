@@ -65,7 +65,7 @@ const ProductDetails = () => {
     useEffect(() => {
         const fetchProduct = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/product', { cache: 'no-store' });
+                const res = await fetch('http://localhost:5000/product', { cache: 'no-store' });
                 const data = await res.json();
                 const found = (Array.isArray(data) ? data : []).find((p) => String(p._id) === String(id));
                 if (found) {

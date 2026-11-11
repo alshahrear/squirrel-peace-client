@@ -30,7 +30,7 @@ const PurchaseDamageReturnAcMon = () => {
     const itemsPerPage = 30;
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
@@ -48,7 +48,7 @@ const PurchaseDamageReturnAcMon = () => {
 
     const fetchData = useCallback(async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/damage-return');
+            const res = await fetch('http://localhost:5000/damage-return');
             const data = await res.json();
             setRows(Array.isArray(data) ? data : []);
         } catch (error) {

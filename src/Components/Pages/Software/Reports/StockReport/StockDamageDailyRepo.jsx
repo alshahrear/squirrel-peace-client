@@ -229,10 +229,10 @@ const StockDamageDailyRepo = () => {
                     return Array.isArray(data) ? data : [];
                 };
                 const [sales, dmg, cust, comp] = await Promise.all([
-                    get('https://squirrel-peace-server.onrender.com/sales'),
-                    get('https://squirrel-peace-server.onrender.com/sales-damage'),
-                    get('https://squirrel-peace-server.onrender.com/customer'),
-                    get('https://squirrel-peace-server.onrender.com/company'),
+                    get('http://localhost:5000/sales'),
+                    get('http://localhost:5000/sales-damage'),
+                    get('http://localhost:5000/customer'),
+                    get('http://localhost:5000/company'),
                 ]);
                 setCustomers(cust);
                 setCompanies(comp);

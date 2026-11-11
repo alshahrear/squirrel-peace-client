@@ -65,7 +65,7 @@ const RouteExpense = () => {
     // Fetch Route Expenses
     const fetchRouteExpenses = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/routeExpense');
+            const response = await fetch('http://localhost:5000/routeExpense');
             const data = await response.json();
             setRouteExpenses(data);
         } catch (error) {
@@ -79,7 +79,7 @@ const RouteExpense = () => {
     // Fetch Delivery Men (for filter dropdown)
     const fetchDeliveryMen = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/user');
+            const res = await fetch('http://localhost:5000/user');
             const data = await res.json();
             const filtered = data.filter(
                 (user) => user.role === 'Delivery Man' && user.isActive === true
@@ -93,7 +93,7 @@ const RouteExpense = () => {
     // Fetch Routes (for filter dropdown)
     const fetchRoutes = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/route');
+            const res = await fetch('http://localhost:5000/route');
             const data = await res.json();
             const filtered = data.filter((route) => route.isActive === true);
             setRoutes(filtered);
@@ -171,7 +171,7 @@ const RouteExpense = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/routeExpense/${id}`, {
+                    const response = await fetch(`http://localhost:5000/routeExpense/${id}`, {
                         method: 'DELETE',
                     });
 

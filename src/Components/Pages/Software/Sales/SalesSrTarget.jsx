@@ -144,7 +144,7 @@ const SalesSrTarget = () => {
     // ---------------- Fetch ----------------
     const fetchTargets = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/sales-sr-target');
+            const res = await fetch('http://localhost:5000/sales-sr-target');
             const data = await res.json();
             setTargets(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -157,11 +157,11 @@ const SalesSrTarget = () => {
 
     useEffect(() => {
         fetchTargets();
-        fetch('https://squirrel-peace-server.onrender.com/sales')
+        fetch('http://localhost:5000/sales')
             .then((res) => res.json())
             .then((data) => setSales(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching sales:', error));
-        fetch('https://squirrel-peace-server.onrender.com/user')
+        fetch('http://localhost:5000/user')
             .then((res) => res.json())
             .then((data) => setUsers(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching users:', error));
@@ -201,7 +201,7 @@ const SalesSrTarget = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/sales-sr-target/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`http://localhost:5000/sales-sr-target/${id}`, { method: 'DELETE' });
                     if (res.ok) {
                         showToast('Target deleted successfully!', 'success');
                         setTargets((prev) => prev.filter((t) => t._id !== id));

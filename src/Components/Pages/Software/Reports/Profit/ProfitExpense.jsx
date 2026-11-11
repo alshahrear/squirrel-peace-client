@@ -47,7 +47,7 @@ const ProfitExpense = () => {
     const fetchExpenses = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('https://squirrel-peace-server.onrender.com/expense');
+            const res = await fetch('http://localhost:5000/expense');
             const data = await res.json();
             setExpenses(Array.isArray(data) ? data : []);
         } catch (error) {

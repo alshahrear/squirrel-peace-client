@@ -43,7 +43,7 @@ const SalesCustomerDueAcMon = () => {
     const itemsPerPage = 30;
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/customer')
+        fetch('http://localhost:5000/customer')
             .then((res) => res.json())
             .then((data) => setCustomers(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching customers:', error));
@@ -61,7 +61,7 @@ const SalesCustomerDueAcMon = () => {
 
     const fetchData = useCallback(async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/sales-due-payment');
+            const res = await fetch('http://localhost:5000/sales-due-payment');
             const data = await res.json();
             setRows(Array.isArray(data) ? data : []);
         } catch (error) {

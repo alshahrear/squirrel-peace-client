@@ -30,7 +30,7 @@ const PurchaseBulkReturnAcMon = () => {
     const itemsPerPage = 30;
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
@@ -51,9 +51,9 @@ const PurchaseBulkReturnAcMon = () => {
             const safe = (url) =>
                 fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
             const [b, s, p] = await Promise.all([
-                safe('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-                safe('https://squirrel-peace-server.onrender.com/stock-purchase'),
-                safe('https://squirrel-peace-server.onrender.com/purchase'),
+                safe('http://localhost:5000/purchase-bulk-return'),
+                safe('http://localhost:5000/stock-purchase'),
+                safe('http://localhost:5000/purchase'),
             ]);
             setBulks(b);
             setStockBatches(s);

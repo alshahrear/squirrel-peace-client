@@ -1,19 +1,41 @@
 // unchanged imports and setup
 import { useQuery } from '@tanstack/react-query';
 import { LuMessageCircleX } from "react-icons/lu";
-import useAuth from "../../Layout/useAuth";
-import useAxiosSecure from "../../../hooks/useAxiosSecure";
-import { FaUsers } from 'react-icons/fa6';
+import useAuth from "./useAuth";
+import useAxiosSecure from "./useAxiosSecure";
 import Swal from 'sweetalert2';
 import { createRoot } from 'react-dom/client';
-import React from 'react';
-import Loader from "../../../Components/Loader";
+import React, { useState } from 'react';
+import { FaEye, FaEyeSlash } from 'react-icons/fa6';
+import Loader from "./Loader";
 import { Helmet } from 'react-helmet';
+
+const PasswordField = ({ onChange }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={show ? "text" : "password"}
+        placeholder="Enter your password"
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="off"
+        name="admin-password"
+        className="w-full px-4 py-2 pr-12 mt-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+        required
+      />
+      <span
+        className="absolute right-4 top-1/2 -translate-y-1/2 mt-1 text-xl cursor-pointer text-gray-500 hover:text-[#2acb35] transition"
+        onClick={() => setShow(!show)}
+      >
+        {show ? <FaEyeSlash /> : <FaEye />}
+      </span>
+    </div>
+  );
+};
 
 const Users = () => {
   const { user } = useAuth();
   const axiosSecure = useAxiosSecure();
-  const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
   const { data: users = [], isLoading, error, refetch } = useQuery({
     queryKey: ['users'],
@@ -29,17 +51,7 @@ const Users = () => {
 
     const root = createRoot(wrapper);
     root.render(
-      <div>
-        <input
-          type="password"
-          placeholder="Enter your password"
-          onChange={(e) => password = e.target.value}
-          autoComplete="off"
-          name="admin-password"
-          className="w-full px-4 py-2 mt-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
-          required
-        />
-      </div>
+      <PasswordField onChange={(v) => { password = v; }} />
     );
 
     Swal.fire({
@@ -47,101 +59,119 @@ const Users = () => {
       html: wrapper,
       showCancelButton: true,
       focusConfirm: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
       confirmButtonText: '<span class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">OK</span>',
       cancelButtonText: '<span class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Cancel</span>',
-      preConfirm: () => password
+      preConfirm: async () => {
+        if (!password) {
+          Swal.showValidationMessage('Please enter the password');
+          return false;
+        }
+        try {
+          const res = await axiosSecure.post('/users/verify-admin-password', { password });
+          return res.data.actionToken;
+        } catch (err) {
+          Swal.showValidationMessage(err?.response?.data?.message || 'Incorrect password');
+          return false;
+        }
+      },
+      didClose: () => setTimeout(() => root.unmount(), 0)
     }).then(callback);
   };
 
- const handleMakeAdmin = (user) => {
-    renderPasswordInput(async (result) => {
-      if (result.isConfirmed && result.value === ADMIN_PASSWORD) {
-        const confirm = await Swal.fire({
-          title: `Are you sure?`,
-          text: `You are about to make ${user.name} an admin.`,
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonColor: '#3085d6',
-          cancelButtonColor: '#d33',
-          confirmButtonText: 'Yes, make admin'
-        });
+  const authHeader = (token) => ({ headers: { 'x-action-token': token } });
 
-        if (confirm.isConfirmed) {
-          axiosSecure.patch(`/users/admin/${user._id}`).then(res => {
-            if (res.data.modifiedCount > 0) {
-              refetch();
-              Swal.fire({
-                position: "top-end",
-                icon: "success",
-                title: `${user.name} is now an Admin!`,
-                showConfirmButton: false,
-                timer: 1500
-              });
-            }
+  const handleMakeAdmin = (targetUser) => {
+    renderPasswordInput(async (result) => {
+      if (!result.isConfirmed || !result.value) return;
+      const actionToken = result.value;
+
+      const confirm = await Swal.fire({
+        title: 'Are you sure?',
+        text: `You are about to make ${targetUser.name} an admin.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, make admin'
+      });
+      if (!confirm.isConfirmed) return;
+
+      try {
+        const res = await axiosSecure.patch(`/users/admin/${targetUser._id}`, {}, authHeader(actionToken));
+        if (res.data.modifiedCount > 0) {
+          refetch();
+          Swal.fire({
+            position: 'top-end',
+            icon: 'success',
+            title: `${targetUser.name} is now an Admin!`,
+            showConfirmButton: false,
+            timer: 1500
           });
         }
-      } else if (result.isConfirmed) {
-        Swal.fire('Incorrect Password', 'You entered the wrong password.', 'error');
+      } catch {
+        Swal.fire('Error!', 'Verification expired or failed. Please try again.', 'error');
       }
     });
   };
-  
 
 
 
-  const handleRemoveAdmin = (user) => {
+
+  const handleRemoveAdmin = (targetUser) => {
     renderPasswordInput(async (result) => {
-      if (result.isConfirmed && result.value === ADMIN_PASSWORD) {
-        const confirm = await Swal.fire({
-          title: `Are you sure?`,
-          text: `You are about to remove admin role from ${user.name}.`,
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonColor: '#3085d6',
-          cancelButtonColor: '#d33',
-          confirmButtonText: 'Yes, remove admin'
-        });
+      if (!result.isConfirmed || !result.value) return;
+      const actionToken = result.value;
 
-        if (confirm.isConfirmed) {
-          axiosSecure.patch(`/users/remove-admin/${user._id}`).then(res => {
-            if (res.data.modifiedCount > 0) {
-              refetch();
-              Swal.fire({
-                position: "top-end",
-                icon: "success",
-                title: `${user.name} is no longer an Admin!`,
-                showConfirmButton: false,
-                timer: 1500
-              });
-            }
+      const confirm = await Swal.fire({
+        title: 'Are you sure?',
+        text: `You are about to remove admin role from ${targetUser.name}.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, remove admin'
+      });
+      if (!confirm.isConfirmed) return;
+
+      try {
+        const res = await axiosSecure.patch(`/users/remove-admin/${targetUser._id}`, {}, authHeader(actionToken));
+        if (res.data.modifiedCount > 0) {
+          refetch();
+          Swal.fire({
+            position: 'top-end',
+            icon: 'success',
+            title: `${targetUser.name} is no longer an Admin!`,
+            showConfirmButton: false,
+            timer: 1500
           });
         }
-      } else if (result.isConfirmed) {
-        Swal.fire('Incorrect Password', 'You entered the wrong password.', 'error');
+      } catch {
+        Swal.fire('Error!', 'Verification expired or failed. Please try again.', 'error');
       }
     });
   };
 
   const handleDeleteUser = (id, name, email, role) => {
-    const proceedDelete = () => {
-      axiosSecure.delete(`/users/${id}`)
-        .then(() => {
-          Swal.fire({
-            position: "top-end",
-            icon: "success",
-            title: `${name} has been deleted.`,
-            showConfirmButton: false,
-            timer: 1500
-          });
-          refetch();
-        })
-        .catch(() => {
-          Swal.fire('Error!', 'Something went wrong.', 'error');
+    const proceedDelete = async (actionToken) => {
+      try {
+        await axiosSecure.delete(`/users/${id}`, actionToken ? authHeader(actionToken) : undefined);
+        Swal.fire({
+          position: 'top-end',
+          icon: 'success',
+          title: `${name} has been deleted.`,
+          showConfirmButton: false,
+          timer: 1500
         });
+        refetch();
+      } catch {
+        Swal.fire('Error!', 'Verification expired or something went wrong.', 'error');
+      }
     };
 
-    const confirmDelete = () => {
-      Swal.fire({
+    const confirmDelete = async (actionToken) => {
+      const result = await Swal.fire({
         title: 'Are you sure?',
         text: `Do you want to delete ${name}?`,
         icon: 'warning',
@@ -149,21 +179,14 @@ const Users = () => {
         confirmButtonColor: '#e53935',
         cancelButtonColor: '#9e9e9e',
         confirmButtonText: 'Yes, delete it!'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          proceedDelete();
-        }
       });
+      if (result.isConfirmed) proceedDelete(actionToken);
     };
 
-    // ✅ If user is an admin, always ask password before delete
+    // admin hole age password, tarpor Are you sure
     if (role === 'admin') {
       renderPasswordInput((result) => {
-        if (result.isConfirmed && result.value === ADMIN_PASSWORD) {
-          confirmDelete();
-        } else if (result.isConfirmed) {
-          Swal.fire('Incorrect Password', 'You entered the wrong password.', 'error');
-        }
+        if (result.isConfirmed && result.value) confirmDelete(result.value);
       });
     } else {
       confirmDelete();
@@ -183,7 +206,7 @@ const Users = () => {
         <h1 className="text-2xl sm:text-3xl font-bold">
           Welcome <i className="text-[#2acb35]">{user?.displayName || "Admin"}</i> To The Users Administration Panel
         </h1>
-        
+
       </div>
 
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-5 gap-2">
@@ -200,7 +223,6 @@ const Users = () => {
               <th className="py-3 px-2 sm:px-4">Name</th>
               <th className="py-3 px-2 sm:px-4">Email</th>
               <th className="py-3 px-2 sm:px-4">Role</th>
-              <th className="py-3 px-2 sm:px-4">Shift</th>
               <th className="py-3 px-2 sm:px-4 text-center">Action</th>
             </tr>
           </thead>
@@ -216,7 +238,7 @@ const Users = () => {
                 <td className="py-3 px-2 sm:px-4 text-gray-700 break-words" data-label="Email">
                   {user.email}
                 </td>
-              <td className="py-3 px-2 sm:px-4" data-label="Role">
+                <td className="py-3 px-2 sm:px-4" data-label="Role">
                   {user.role === 'admin' ? (
                     <button
                       onClick={() => handleRemoveAdmin(user)}
@@ -232,14 +254,6 @@ const Users = () => {
                       Make Admin
                     </button>
                   )}
-                </td>
-                <td className="py-3 px-2 sm:px-4" data-label="Shift">
-                  <button
-                    onClick={() => console.log('Shift action for', user.name)}
-                    className="btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs sm:text-sm font-semibold"
-                  >
-                    Shift
-                  </button>
                 </td>
                 <td className="py-3 px-2 sm:px-4 text-center" data-label="Action">
                   <button

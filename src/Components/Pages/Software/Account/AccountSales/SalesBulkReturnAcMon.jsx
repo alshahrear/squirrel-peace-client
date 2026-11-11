@@ -25,7 +25,7 @@ const SalesBulkReturnAcMon = () => {
     const itemsPerPage = 30;
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/customer')
+        fetch('http://localhost:5000/customer')
             .then((res) => res.json())
             .then((data) => setCustomers(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching customers:', error));
@@ -43,7 +43,7 @@ const SalesBulkReturnAcMon = () => {
 
     const fetchData = useCallback(async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return');
+            const res = await fetch('http://localhost:5000/sales-bulk-return');
             const data = await res.json();
             setBulks(Array.isArray(data) ? data : []);
         } catch (error) {

@@ -1,18 +1,18 @@
 import { NavLink } from "react-router-dom";
-import useAuth from "../../Layout/useAuth";
-import useAxiosPublic from "../../../hooks/useAxiosPublic";
+import useAuth from "./useAuth";
+import useAxiosSecure from "./useAxiosSecure";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
 
 const Software = () => {
     const { user } = useAuth();
-    const axiosPublic = useAxiosPublic();
+    const axiosSecure = useAxiosSecure();
 
-    
+
     const { data: users = [] } = useQuery({
         queryKey: ["users"],
         queryFn: async () => {
-            const res = await axiosPublic.get("/users");
+            const res = await axiosSecure.get("/users");
             return res.data;
         },
         refetchInterval: 5000,
@@ -28,7 +28,7 @@ const Software = () => {
                 <h1 className="text-3xl font-bold">
                     Welcome <span className="text-[#2acb35]"></span> to the Software Administration Panel
                 </h1>
-                
+
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 text-center justify-center gap-y-10 gap-x-4">
@@ -36,7 +36,7 @@ const Software = () => {
                     <div className="indicator mt-5">
                         <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
                             <span className="relative z-10 group-hover:text-[#404040] hover:scale-105">
-                               Dashboard
+                                Dashboard
                             </span>
                             <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
                         </button>
@@ -56,7 +56,7 @@ const Software = () => {
                     <div className="indicator mt-5">
                         <button className="relative overflow-hidden px-5 py-2 text-white font-semibold bg-[#2acb35] border-2 border-[#2acb35] rounded-md transition-colors duration-300 group">
                             <span className="relative z-10 group-hover:text-[#404040] hover:scale-105">
-                               Login Client
+                                Login Client
                             </span>
                             <span className="absolute left-0 top-0 h-full w-0 bg-white transition-all duration-500 ease-out group-hover:w-full z-0"></span>
                         </button>

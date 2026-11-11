@@ -118,10 +118,10 @@ const ProfitSalesWise = () => {
         try {
             setLoading(true);
             const [sRes, bRes, pRes, cRes] = await Promise.all([
-                fetch('https://squirrel-peace-server.onrender.com/sales'),
-                fetch('https://squirrel-peace-server.onrender.com/stock-purchase'),
-                fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                fetch('https://squirrel-peace-server.onrender.com/customer'),
+                fetch('http://localhost:5000/sales'),
+                fetch('http://localhost:5000/stock-purchase'),
+                fetch('http://localhost:5000/purchase'),
+                fetch('http://localhost:5000/customer'),
             ]);
             const [sData, bData, pData, cData] = await Promise.all([sRes.json(), bRes.json(), pRes.json(), cRes.json()]);
             setSales(Array.isArray(sData) ? sData : []);
@@ -140,7 +140,7 @@ const ProfitSalesWise = () => {
     }, [fetchAll]);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/user')
+        fetch('http://localhost:5000/user')
             .then((res) => res.json())
             .then((data) => setUsers(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching users:', error));

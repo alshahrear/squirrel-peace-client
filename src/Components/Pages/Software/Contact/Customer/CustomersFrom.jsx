@@ -119,8 +119,8 @@ const CustomersFrom = ({
             : { ...formData, createdAt: formatDateTime(new Date()) };
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/customer/${editingCustomer._id}`
-            : 'https://squirrel-peace-server.onrender.com/customer';
+            ? `http://localhost:5000/customer/${editingCustomer._id}`
+            : 'http://localhost:5000/customer';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {

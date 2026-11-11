@@ -153,9 +153,9 @@ const SaleSrDsrDueRepo = () => {
         const load = async () => {
             try {
                 const [pRes, cRes, uRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/sales-due-payment'),
-                    fetch('https://squirrel-peace-server.onrender.com/customer'),
-                    fetch('https://squirrel-peace-server.onrender.com/user'),
+                    fetch('http://localhost:5000/sales-due-payment'),
+                    fetch('http://localhost:5000/customer'),
+                    fetch('http://localhost:5000/user'),
                 ]);
                 const pData = await pRes.json();
                 const cData = await cRes.json();

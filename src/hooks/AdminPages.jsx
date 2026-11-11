@@ -1,32 +1,21 @@
 import { NavLink } from "react-router-dom";
-import useAuth from "../../Layout/useAuth";
-import useAxiosPublic from "../../../hooks/useAxiosPublic";
+import useAuth from "./useAuth";
+import useAxiosSecure from "./useAxiosSecure";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
 
 const AdminPages = () => {
     const { user } = useAuth();
-    const axiosPublic = useAxiosPublic();
+      const axiosSecure = useAxiosSecure();
 
-    
-    const { data: contacts = [] } = useQuery({
-        queryKey: ["contacts"],
-        queryFn: async () => {
-            const res = await axiosPublic.get("/contact");
-            return res.data;
-        },
-        refetchInterval: 5000,
-    });
-    
     const { data: users = [] } = useQuery({
         queryKey: ["users"],
         queryFn: async () => {
-            const res = await axiosPublic.get("/users");
+            const res = await axiosSecure.get("/users");
             return res.data;
         },
         refetchInterval: 5000,
     });
-
 
     return (
         <div className="py-10 max-w-screen-xl mx-auto px-4">

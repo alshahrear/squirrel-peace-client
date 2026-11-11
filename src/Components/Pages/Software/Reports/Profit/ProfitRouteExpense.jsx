@@ -49,7 +49,7 @@ const ProfitRouteExpense = () => {
     const fetchRouteExpenses = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('https://squirrel-peace-server.onrender.com/routeExpense');
+            const res = await fetch('http://localhost:5000/routeExpense');
             const data = await res.json();
             setRouteExpenses(Array.isArray(data) ? data : []);
         } catch (error) {

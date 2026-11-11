@@ -36,7 +36,7 @@ const OrderAdd = () => {
     // Direct Sales toggle (শুধু নতুন order এ, default ON)
     const [directSalesToggle, setDirectSalesToggle] = useState(false);
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/feature/orderDirectSales')
+        fetch('http://localhost:5000/feature/orderDirectSales')
             .then((res) => res.json())
             .then((data) => setDirectSalesToggle(data?.enabled === true))
             .catch(() => setDirectSalesToggle(false));
@@ -45,7 +45,7 @@ const OrderAdd = () => {
     // Toggle ON/OFF করলে database এ save হবে (যতক্ষণ না আবার বদলানো হয়)
     const handleDirectSalesChange = (checked) => {
         setDirectSalesToggle(checked);
-        fetch('https://squirrel-peace-server.onrender.com/feature/orderDirectSales', {
+        fetch('http://localhost:5000/feature/orderDirectSales', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled: checked }),
@@ -82,7 +82,7 @@ const OrderAdd = () => {
 
     useEffect(() => {
         if (isDeliveredEdit) return;
-        fetch('https://squirrel-peace-server.onrender.com/feature/orderPaymentMethod')
+        fetch('http://localhost:5000/feature/orderPaymentMethod')
             .then((res) => res.json())
             .then((data) => {
                 if (data?.enabled === true && data?.value?.paymentAccountType && data?.value?.selectedAccountKey) {
@@ -96,7 +96,7 @@ const OrderAdd = () => {
     }, []);
 
     const persistPaymentMethod = (checked, method, key) => {
-        fetch('https://squirrel-peace-server.onrender.com/feature/orderPaymentMethod', {
+        fetch('http://localhost:5000/feature/orderPaymentMethod', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -333,7 +333,7 @@ const OrderAdd = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment) {
-            fetch('https://squirrel-peace-server.onrender.com/investment')
+            fetch('http://localhost:5000/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
@@ -345,17 +345,17 @@ const OrderAdd = () => {
     // Others Free Product ডেটা fetch করা (Company, Category, Product)
     // --------------------------------------------------
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setFreeCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/category')
+        fetch('http://localhost:5000/category')
             .then((res) => res.json())
             .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching categories:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -1374,7 +1374,7 @@ const OrderAdd = () => {
     // Credit Limit check: customer er Get (baki) amount creditLimit er beshi hole order hobe na
     const checkCreditLimit = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/customer');
+            const res = await fetch('http://localhost:5000/customer');
             const list = await res.json();
             const cust = (Array.isArray(list) ? list : []).find(
                 (c) => String(c._id) === String(orderFormData.customerId)
@@ -1428,7 +1428,7 @@ const OrderAdd = () => {
         };
 
         try {
-            const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`, {
+            const res = await fetch(`http://localhost:5000/sales/${editingOrder._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -1462,7 +1462,7 @@ const OrderAdd = () => {
         };
 
         try {
-            const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`, {
+            const res = await fetch(`http://localhost:5000/sales/${editingOrder._id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -1754,8 +1754,8 @@ const OrderAdd = () => {
         const sendOrder = async (confirmed = false) => {
             const res = await fetch(
                 isEditMode
-                    ? `https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`
-                    : 'https://squirrel-peace-server.onrender.com/sales',
+                    ? `http://localhost:5000/sales/${editingOrder._id}`
+                    : 'http://localhost:5000/sales',
                 {
                     method: isEditMode ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2056,8 +2056,8 @@ const OrderAdd = () => {
             const extra = confirmed ? { stockBorrowConfirmed: true } : {};
             const res = await fetch(
                 !editingOrder
-                    ? 'https://squirrel-peace-server.onrender.com/sales'
-                    : `https://squirrel-peace-server.onrender.com/sales/${editingOrder._id}`,
+                    ? 'http://localhost:5000/sales'
+                    : `http://localhost:5000/sales/${editingOrder._id}`,
                 {
                     method: !editingOrder ? 'POST' : 'PUT',
                     headers: { 'Content-Type': 'application/json' },

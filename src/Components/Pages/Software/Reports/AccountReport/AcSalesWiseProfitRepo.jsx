@@ -158,10 +158,10 @@ const AcSalesWiseProfitRepo = () => {
         const load = async () => {
             try {
                 const [sRes, bRes, pRes, coRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/sales'),
-                    fetch('https://squirrel-peace-server.onrender.com/stock-purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
+                    fetch('http://localhost:5000/sales'),
+                    fetch('http://localhost:5000/stock-purchase'),
+                    fetch('http://localhost:5000/purchase'),
+                    fetch('http://localhost:5000/company'),
                 ]);
                 const s = await sRes.json().catch(() => []);
                 const b = await bRes.json().catch(() => []);

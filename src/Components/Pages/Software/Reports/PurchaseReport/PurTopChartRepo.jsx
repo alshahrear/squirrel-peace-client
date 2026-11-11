@@ -90,9 +90,9 @@ const PurTopChartRepo = () => {
         const load = async () => {
             try {
                 const [pRes, cRes, prRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
-                    fetch('https://squirrel-peace-server.onrender.com/product'),
+                    fetch('http://localhost:5000/purchase'),
+                    fetch('http://localhost:5000/company'),
+                    fetch('http://localhost:5000/product'),
                 ]);
                 const pData = await pRes.json();
                 const cData = await cRes.json();

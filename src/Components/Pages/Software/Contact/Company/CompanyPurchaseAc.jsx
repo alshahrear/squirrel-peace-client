@@ -173,10 +173,10 @@ const CompanyPurchaseAc = () => {
         const loadData = async () => {
             try {
                 const [pRes, bRes, dRes, cRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/damage-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
+                    fetch('http://localhost:5000/purchase'),
+                    fetch('http://localhost:5000/purchase-bulk-return'),
+                    fetch('http://localhost:5000/damage-return'),
+                    fetch('http://localhost:5000/company'),
                 ]);
                 const pData = await pRes.json();
                 const bData = await bRes.json();

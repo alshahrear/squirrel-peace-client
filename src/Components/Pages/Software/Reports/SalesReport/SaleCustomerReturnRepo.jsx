@@ -114,10 +114,10 @@ const SaleCustomerReturnRepo = () => {
         const load = async () => {
             try {
                 const [sRes, bRes, dRes, cRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/sales'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales-damage'),
-                    fetch('https://squirrel-peace-server.onrender.com/customer'),
+                    fetch('http://localhost:5000/sales'),
+                    fetch('http://localhost:5000/sales-bulk-return'),
+                    fetch('http://localhost:5000/sales-damage'),
+                    fetch('http://localhost:5000/customer'),
                 ]);
                 const sData = await sRes.json();
                 const bData = await bRes.json().catch(() => []);

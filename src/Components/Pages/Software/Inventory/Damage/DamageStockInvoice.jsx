@@ -209,11 +209,11 @@ const DamageStockInvoice = () => {
     useEffect(() => {
         setLoading(true);
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/sales').then((res) => res.json()),
-            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((res) => res.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((res) => res.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((res) => res.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/customer').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/sales').then((res) => res.json()),
+            fetch('http://localhost:5000/sales-damage').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/customer').then((res) => res.json()).catch(() => []),
         ])
             .then(([sales, dmg, purchases, dmgReturns, custs]) => {
                 setCustomerList(Array.isArray(custs) ? custs : []);
@@ -430,7 +430,7 @@ const DamageStockInvoice = () => {
             }).then(async (result) => {
                 if (!result.isConfirmed) return;
                 try {
-                    const delRes = await fetch(`https://squirrel-peace-server.onrender.com/sales-damage/${item._id}`, { method: 'DELETE' });
+                    const delRes = await fetch(`http://localhost:5000/sales-damage/${item._id}`, { method: 'DELETE' });
                     if (!delRes.ok) throw new Error('Failed');
                     setOrders((prev) => prev.filter((o) => o._id !== item._id));
                     setSelectedIds((prev) => prev.filter((x) => x !== item._id));
@@ -463,7 +463,7 @@ const DamageStockInvoice = () => {
 
                 // শুধু Damage থাকলে পুরো order delete হবে
                 if (onlyDamage) {
-                    const delRes = await fetch(`https://squirrel-peace-server.onrender.com/sales/${item._id}`, { method: 'DELETE' });
+                    const delRes = await fetch(`http://localhost:5000/sales/${item._id}`, { method: 'DELETE' });
                     if (!delRes.ok) throw new Error('Failed');
                     setOrders((prev) => prev.filter((o) => o._id !== item._id));
                     showToast('Order deleted successfully!');
@@ -472,7 +472,7 @@ const DamageStockInvoice = () => {
 
                 const damageAdj = Number(item.damageAdjustmentAmount) || 0;
                 const newPayable = Math.round(((Number(item.payableAmount) || 0) + damageAdj) * 100) / 100;
-                const res = await fetch(`https://squirrel-peace-server.onrender.com/sales/${item._id}`, {
+                const res = await fetch(`http://localhost:5000/sales/${item._id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

@@ -152,7 +152,7 @@ const PurchaseAddInner = () => {
 
     useEffect(() => {
         if (isReceivedEdit || hasPriorPayment) return;
-        fetch('https://squirrel-peace-server.onrender.com/feature/purchasePaymentMethod')
+        fetch('http://localhost:5000/feature/purchasePaymentMethod')
             .then((res) => res.json())
             .then((data) => {
                 if (data?.enabled === true && data?.value?.paymentAccountType && data?.value?.selectedAccountKey) {
@@ -166,7 +166,7 @@ const PurchaseAddInner = () => {
     }, []);
 
     const persistPaymentMethod = (checked, method, key) => {
-        fetch('https://squirrel-peace-server.onrender.com/feature/purchasePaymentMethod', {
+        fetch('http://localhost:5000/feature/purchasePaymentMethod', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -242,10 +242,10 @@ const PurchaseAddInner = () => {
     const [damageStockList, setDamageStockList] = useState(null);
     useEffect(() => {
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/sales').then((r) => r.json()),
-            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/sales').then((r) => r.json()),
+            fetch('http://localhost:5000/sales-damage').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((r) => r.json()).catch(() => []),
         ])
             .then(([sales, dmg, purchases, damageReturns]) => {
                 const num = (v) => Number(v) || 0;
@@ -364,7 +364,7 @@ const PurchaseAddInner = () => {
     // Bulk Return stock (main / free)
     const [stockMap, setStockMap] = useState(null);
     useEffect(() => {
-        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${location.state?.bulkId ? `?excludeId=${location.state.bulkId}` : ''}`)
+        fetch(`http://localhost:5000/bulk-return-stock${location.state?.bulkId ? `?excludeId=${location.state.bulkId}` : ''}`)
             .then((res) => res.json())
             .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
             .catch((error) => console.error('Error fetching bulk return stock:', error));
@@ -595,7 +595,7 @@ const PurchaseAddInner = () => {
     // --------------------------------------------------
     useEffect(() => {
         if (showPayment) {
-            fetch('https://squirrel-peace-server.onrender.com/investment')
+            fetch('http://localhost:5000/investment')
                 .then((res) => res.json())
                 .then((data) => setInvestments(Array.isArray(data) ? data : []))
                 .catch((error) => console.error('Error fetching investments:', error));
@@ -627,12 +627,12 @@ const PurchaseAddInner = () => {
     // Others Free Product — Category / Product fetch
     // --------------------------------------------------
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/category')
+        fetch('http://localhost:5000/category')
             .then((res) => res.json())
             .then((data) => setFreeCategories(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching categories:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((data) => setFreeProducts(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -1624,7 +1624,7 @@ const PurchaseAddInner = () => {
                 (useAdj ? returnTotalValue : 0)
             );
             try {
-                const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
+                const res = await fetch(`http://localhost:5000/purchase/${editId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1925,8 +1925,8 @@ const PurchaseAddInner = () => {
                 ];
             }
             const url = isEditMode
-                ? `https://squirrel-peace-server.onrender.com/purchase/${editId}`
-                : 'https://squirrel-peace-server.onrender.com/purchase';
+                ? `http://localhost:5000/purchase/${editId}`
+                : 'http://localhost:5000/purchase';
             const method = isEditMode ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
@@ -2145,7 +2145,7 @@ const PurchaseAddInner = () => {
                 ];
             }
             setIsReceiving(true);
-            const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${editId}`, {
+            const res = await fetch(`http://localhost:5000/purchase/${editId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(receiveData),

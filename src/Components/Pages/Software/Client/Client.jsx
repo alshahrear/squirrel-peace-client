@@ -2,11 +2,14 @@ import React, { useState, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaEye, FaEyeSlash, FaUserPlus, FaTimes } from 'react-icons/fa';
 import ClientList from './ClientList';
+import useAxiosSecure from '../../../../hooks/useAxiosSecure';
 
 const Client = () => {
+    const axiosSecure = useAxiosSecure();
     // ফরমের ডেটা ম্যানেজ করার জন্য স্টেট
     const [formData, setFormData] = useState({
         name: '',
+        slug: '',
         phone: '',
         email: '',
         password: '',
@@ -16,6 +19,7 @@ const Client = () => {
 
     // এডিট করার সময় সিলেক্টেড ক্লায়েন্টের আইডি রাখার জন্য স্টেট
     const [editingId, setEditingId] = useState(null);
+    const [slugLocked, setSlugLocked] = useState(false);
 
     // টেবিল রিফ্রেশ করার ট্রিগার স্টেট
     const [refreshTrigger, setRefreshTrigger] = useState(false);
@@ -57,24 +61,26 @@ const Client = () => {
     // শুধু সংখ্যা ইনপুট ও পেস্ট নিশ্চিত করার জন্য (এখানে বাগটি ঠিক করা হয়েছে)
     const handlePhoneChange = (e) => {
         const value = e.target.value;
-        const numericValue = value.replace(/\D/g, ''); 
+        const numericValue = value.replace(/\D/g, '');
 
         setFormData(prev => ({
             ...prev,
             phone: numericValue
         }));
-        
+
         setFieldErrors(prev => ({ ...prev, phone: '' }));
     };
 
     // তালিকা থেকে Edit বাটনে ক্লিক করলে এই ফাংশন কল হবে
     const handleEditClick = (client) => {
         setEditingId(client._id);
+        setSlugLocked(!!client.slug);
         setFormData({
             name: client.name || '',
+            slug: client.slug || '',
             phone: client.phone || '',
             email: client.email || '',
-            password: client.password || '',
+            password: '',
             address: client.address || '',
             isActive: client.isActive || false
         });
@@ -90,6 +96,7 @@ const Client = () => {
     const resetForm = () => {
         setFormData({
             name: '',
+            slug: '',
             phone: '',
             email: '',
             password: '',
@@ -97,6 +104,7 @@ const Client = () => {
             isActive: false
         });
         setEditingId(null);
+        setSlugLocked(false);
         setFieldErrors({ phone: '', email: '' });
         setIsFormOpen(false); // ফর্ম বন্ধ হয়ে যাবে
     };
@@ -107,47 +115,30 @@ const Client = () => {
         setFieldErrors({ phone: '', email: '' });
 
         try {
-            const url = editingId 
-                ? `https://squirrel-peace-server.onrender.com/client/${editingId}` 
-                : 'https://squirrel-peace-server.onrender.com/client';
-            
-            const method = editingId ? 'PUT' : 'POST';
+            if (editingId) {
+                await axiosSecure.put(`/client/${editingId}`, formData);
+            } else {
+                await axiosSecure.post('/client', formData);
+            }
 
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
+            Toast.fire({
+                icon: 'success',
+                title: editingId ? 'Client updated successfully!' : 'Client added successfully!'
             });
 
-            const data = await response.json();
-
-            if (response.ok) {
-                Toast.fire({
-                    icon: 'success',
-                    title: editingId ? 'Client updated successfully!' : 'Client added successfully!'
-                });
-
-                resetForm();
-                setRefreshTrigger(prev => !prev); 
-            } else {
-                if (data.error) {
-                    setFieldErrors(prev => ({
-                        ...prev,
-                        [data.field]: data.message
-                    }));
-                }
-                Toast.fire({
-                    icon: 'error',
-                    title: data.message || 'Something went wrong!'
-                });
-            }
+            resetForm();
+            setRefreshTrigger(prev => !prev);
         } catch (error) {
-            console.error('Error:', error);
+            const data = error.response?.data;
+            if (data?.error && data.field) {
+                setFieldErrors(prev => ({
+                    ...prev,
+                    [data.field]: data.message
+                }));
+            }
             Toast.fire({
                 icon: 'error',
-                title: 'Could not connect to the server.'
+                title: data?.message || 'Something went wrong!'
             });
         }
     };
@@ -218,6 +209,35 @@ const Client = () => {
                                 />
                             </div>
 
+                            {/* Subdomain */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">Subdomain</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="text"
+                                        name="slug"
+                                        value={formData.slug}
+                                        onChange={(e) => {
+                                            const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                                            setFormData(prev => ({ ...prev, slug: v }));
+                                            setFieldErrors(prev => ({ ...prev, slug: '' }));
+                                        }}
+                                        required
+                                        disabled={slugLocked}
+                                        maxLength={30}
+                                        className={`w-full px-4 py-2.5 bg-gray-50 border ${fieldErrors.slug ? 'border-rose-500 bg-rose-50' : 'border-gray-300'} rounded-l-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all disabled:opacity-60`}
+                                        placeholder="client1"
+                                    />
+                                    <span className="px-3 py-2.5 bg-gray-100 border border-l-0 border-gray-300 rounded-r-xl text-xs text-gray-500 whitespace-nowrap">.bashaybazar.com</span>
+                                </div>
+                                {fieldErrors.slug && (
+                                    <p className="mt-1 text-xs text-rose-600 font-semibold">{fieldErrors.slug}</p>
+                                )}
+                                {slugLocked && (
+                                    <p className="mt-1 text-xs text-gray-500">Subdomain cannot be changed.</p>
+                                )}
+                            </div>
+
                             {/* Phone */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-1">Phone Number</label>
@@ -264,9 +284,13 @@ const Client = () => {
                                         name="password"
                                         value={formData.password}
                                         onChange={handleChange}
-                                        required
+                                        required={!editingId}
+                                        maxLength={128}
+                                        pattern="(?=.*[A-Za-z])(?=.*\d).{8,128}"
+                                        title="8-128 characters, must include letters and numbers"
+                                        autoComplete="new-password"
                                         className="w-full px-4 py-2.5 pr-12 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                                        placeholder="Enter password"
+                                        placeholder={editingId ? 'Leave blank to keep current password' : 'Min 8 chars, letters & numbers'}
                                     />
                                     <button
                                         type="button"
@@ -321,11 +345,10 @@ const Client = () => {
                             </button>
                             <button
                                 type="submit"
-                                className={`px-8 py-2.5 rounded-xl shadow-lg text-sm font-bold text-white transition-all transform hover:-translate-y-0.5 ${
-                                    editingId
-                                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
-                                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700'
-                                }`}
+                                className={`px-8 py-2.5 rounded-xl shadow-lg text-sm font-bold text-white transition-all transform hover:-translate-y-0.5 ${editingId
+                                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
+                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700'
+                                    }`}
                             >
                                 {editingId ? 'Update Client Information' : 'Submit Client'}
                             </button>

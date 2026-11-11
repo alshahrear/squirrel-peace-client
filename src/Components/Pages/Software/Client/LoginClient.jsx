@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { FaEye, FaEyeSlash, FaLock, FaEnvelope } from 'react-icons/fa';
+import { getTenantSlug } from '../../../../hooks/getTenantSlug';
 
 const LoginClient = () => {
     const [email, setEmail] = useState(''); // ইমেইল ইনপুট নেওয়ার জন্য
@@ -38,12 +39,16 @@ const LoginClient = () => {
 
         try {
             // সরাসরি ব্যাকএন্ডের লগইন এপিআই-তে রিকোয়েস্ট পাঠানো
-            const loginRes = await fetch('https://squirrel-peace-server.onrender.com/client/login', {
+            if (!getTenantSlug()) {
+                Toast.fire({ icon: 'error', title: 'Please open your own company link to login.' });
+                return;
+            }
+            const loginRes = await fetch('http://localhost:5000/client/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ email, password, slug: getTenantSlug() })
             });
-            
+
             const loginData = await loginRes.json();
 
             // ব্যাকএন্ড থেকে কোনো এরর আসলে (যেমন: Wrong password, Not found, Inactive)
@@ -62,14 +67,7 @@ const LoginClient = () => {
                 title: 'Login successful!'
             });
 
-          // টোকেন এবং ক্লায়েন্টের তথ্য localStorage-এ সেভ করার আগে ব্যাকএন্ডে স্ট্যাটাস 'yes' করে নেওয়া বা পাঠানো নিশ্চিত করা
-            const clientId = loginData.client._id || loginData.client.id;
-            await fetch(`https://squirrel-peace-server.onrender.com/client/login-status/${clientId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ login: 'yes' })
-            });
-
+            // টোকেন এবং ক্লায়েন্টের তথ্য localStorage-এ সেভ করার আগে ব্যাকএন্ডে স্ট্যাটাস 'yes' করে নেওয়া বা পাঠানো নিশ্চিত করা
             localStorage.setItem('clientToken', loginData.token);
             const updatedClientLogin = { ...loginData.client, login: 'yes' };
             localStorage.setItem('clientUser', JSON.stringify(updatedClientLogin));
@@ -96,7 +94,7 @@ const LoginClient = () => {
     return (
         <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#090d16] p-4">
             <div className="max-w-md w-full mx-auto p-8 bg-[#1e293b]/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-indigo-500/20 transition-all duration-300">
-                
+
                 {/* Header Section */}
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/30 mb-4 text-2xl font-bold">
@@ -154,9 +152,8 @@ const LoginClient = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`w-full py-3.5 px-4 rounded-xl text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform active:scale-[0.98] ${
-                            loading ? 'opacity-70 cursor-not-allowed' : ''
-                        }`}
+                        className={`w-full py-3.5 px-4 rounded-xl text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform active:scale-[0.98] ${loading ? 'opacity-70 cursor-not-allowed' : ''
+                            }`}
                     >
                         {loading ? (
                             <span className="flex items-center justify-center">

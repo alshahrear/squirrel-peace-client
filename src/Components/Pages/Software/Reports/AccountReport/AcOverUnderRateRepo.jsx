@@ -268,13 +268,13 @@ const AcOverUnderRateRepo = () => {
         try {
             setLoading(true);
             const [sRes, bRes, pRes, cRes, uRes, prRes, coRes] = await Promise.all([
-                fetch('https://squirrel-peace-server.onrender.com/sales'),
-                fetch('https://squirrel-peace-server.onrender.com/stock-purchase'),
-                fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                fetch('https://squirrel-peace-server.onrender.com/customer'),
-                fetch('https://squirrel-peace-server.onrender.com/user'),
-                fetch('https://squirrel-peace-server.onrender.com/product'),
-                fetch('https://squirrel-peace-server.onrender.com/company'),
+                fetch('http://localhost:5000/sales'),
+                fetch('http://localhost:5000/stock-purchase'),
+                fetch('http://localhost:5000/purchase'),
+                fetch('http://localhost:5000/customer'),
+                fetch('http://localhost:5000/user'),
+                fetch('http://localhost:5000/product'),
+                fetch('http://localhost:5000/company'),
             ]);
             const [sData, bData, pData, cData, uData, prData, coData] = await Promise.all([
                 sRes.json(),

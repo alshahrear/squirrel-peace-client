@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { FaTimes } from 'react-icons/fa';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 
+const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,128}$/;
+
 // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
 const formatDateTime = (date = new Date()) => {
     const day = String(date.getDate()).padStart(2, '0');
@@ -48,7 +50,7 @@ const UserForm = ({
 
     // Fetch Roles
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/userRole')
+        fetch('http://localhost:5000/userRole')
             .then((res) => res.json())
             .then((data) => {
                 setRoles(data);
@@ -100,6 +102,11 @@ const UserForm = ({
             }
         }
 
+        if ((!isEditing || password.trim()) && !PASSWORD_RULE.test(password)) {
+            showToast('Password must be 8-128 characters and include letters and numbers', 'error');
+            return;
+        }
+
         setLoading(true);
 
         const finalData = isEditing
@@ -112,8 +119,8 @@ const UserForm = ({
         }
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/user/${editingUser._id}`
-            : 'https://squirrel-peace-server.onrender.com/user';
+            ? `http://localhost:5000/user/${editingUser._id}`
+            : 'http://localhost:5000/user';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
@@ -144,8 +151,9 @@ const UserForm = ({
                     scrollToTable();
                 }
             } else {
+                const errData = await response.json().catch(() => ({}));
                 showToast(
-                    isEditing ? 'Failed to update user!' : 'Something went wrong, please try again.',
+                    errData.message || (isEditing ? 'Failed to update user!' : 'Something went wrong, please try again.'),
                     'error'
                 );
             }
@@ -275,7 +283,9 @@ const UserForm = ({
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required={!editingUser}
-                                placeholder="••••••••"
+                                placeholder={editingUser ? 'Leave blank to keep current password' : 'Min 8 chars, letters & numbers'}
+                                maxLength={128}
+                                autoComplete="new-password"
                                 className="w-full px-4 py-3.5 pr-12 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
                             />
                             <button

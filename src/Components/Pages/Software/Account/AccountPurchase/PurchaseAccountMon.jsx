@@ -27,7 +27,7 @@ const PurchaseAccountMon = () => {
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
@@ -46,7 +46,7 @@ const PurchaseAccountMon = () => {
 
     const fetchData = useCallback(async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/purchase');
+            const res = await fetch('http://localhost:5000/purchase');
             const data = await res.json();
             setPurchases(Array.isArray(data) ? data : []);
         } catch (error) {

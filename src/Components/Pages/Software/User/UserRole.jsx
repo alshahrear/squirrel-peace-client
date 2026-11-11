@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import useAxiosClient from '../../../../hooks/useAxiosClient';
 import Swal from 'sweetalert2';
 import toast, { Toaster } from 'react-hot-toast';
 import { FaPlus, FaSave, FaTimes, FaSearch, FaShieldAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const UserRole = () => {
+    const axiosClient = useAxiosClient();
     const [roles, setRoles] = useState([]);
     const [roleInput, setRoleInput] = useState('');
     const [editingId, setEditingId] = useState(null);
@@ -16,7 +17,7 @@ const UserRole = () => {
     const itemsPerPage = 30;
     const fetchRoles = async () => {
         try {
-            const response = await axios.get('https://squirrel-peace-server.onrender.com/userRole');
+            const response = await axiosClient.get('/userRole');
             setRoles([...response.data].reverse());
         } catch (error) {
             toast.error('Failed to load roles');
@@ -56,15 +57,15 @@ const UserRole = () => {
         setLoading(true);
         try {
             if (editingId) {
-                const response = await axios.put(`https://squirrel-peace-server.onrender.com/userRole/${editingId}`, {
+                const response = await axiosClient.put(`/userRole/${editingId}`, {
                     role: roleInput,
                 });
-               if (response.status === 200) {
+                if (response.status === 200) {
                     toast.success('Role updated successfully!');
                 }
                 setEditingId(null);
             } else {
-                const response = await axios.post('https://squirrel-peace-server.onrender.com/userRole', {
+                const response = await axiosClient.post('/userRole', {
                     role: roleInput,
                 });
                 if (response.data.insertedId) {
@@ -74,7 +75,7 @@ const UserRole = () => {
             setRoleInput('');
             fetchRoles();
         } catch (error) {
-            toast.error('Something went wrong!');
+            toast.error(error?.response?.data?.message || 'Something went wrong!');
         } finally {
             setLoading(false);
         }
@@ -106,13 +107,13 @@ const UserRole = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await axios.delete(`https://squirrel-peace-server.onrender.com/userRole/${id}`);
+                    const res = await axiosClient.delete(`/userRole/${id}`);
                     if (res.data.deletedCount > 0) {
                         toast.success('Role deleted!');
                         fetchRoles();
                     }
                 } catch (error) {
-                    toast.error('Failed to delete!');
+                    toast.error(error?.response?.data?.message || 'Failed to delete!');
                 }
             }
         });

@@ -5,8 +5,8 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import { router } from './Routes/Router.jsx';
-import AuthProvider from './Components/Provider/AuthProvider.jsx';
-import { ClientAuthProvider } from './Components/Provider/ClientAuthContext.jsx'; 
+import AuthProvider from './hooks/AuthProvider.jsx';
+import { ClientAuthProvider } from './hooks/ClientAuthContext.jsx'; 
 import { HelmetProvider } from 'react-helmet-async';
 
 import {

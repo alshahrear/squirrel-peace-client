@@ -90,8 +90,8 @@ const PurVsRecSumRepo = () => {
         const load = async () => {
             try {
                 const [pRes, cRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
+                    fetch('http://localhost:5000/purchase'),
+                    fetch('http://localhost:5000/company'),
                 ]);
                 const pData = await pRes.json();
                 const cData = await cRes.json();

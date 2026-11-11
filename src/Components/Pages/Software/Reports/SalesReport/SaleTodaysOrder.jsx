@@ -203,9 +203,9 @@ const SaleTodaysOrder = () => {
         const load = async () => {
             try {
                 const [oRes, cRes, uRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/sales'),
-                    fetch('https://squirrel-peace-server.onrender.com/customer'),
-                    fetch('https://squirrel-peace-server.onrender.com/user'),
+                    fetch('http://localhost:5000/sales'),
+                    fetch('http://localhost:5000/customer'),
+                    fetch('http://localhost:5000/user'),
                 ]);
                 const oData = await oRes.json();
                 const cData = await cRes.json().catch(() => []);

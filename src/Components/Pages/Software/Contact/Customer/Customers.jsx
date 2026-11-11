@@ -101,7 +101,7 @@ const Customers = () => {
     // Fetch customers data
     const fetchCustomers = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/customer');
+            const res = await fetch('http://localhost:5000/customer');
             const data = await res.json();
             setCustomers(data);
         } catch (error) {
@@ -115,7 +115,7 @@ const Customers = () => {
     // Fetch routes data from API
     const fetchRoutes = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/route');
+            const res = await fetch('http://localhost:5000/route');
             const data = await res.json();
             setRoutes(data);
         } catch (error) {
@@ -233,7 +233,7 @@ const Customers = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`https://squirrel-peace-server.onrender.com/customer/${id}`, {
+                    const response = await fetch(`http://localhost:5000/customer/${id}`, {
                         method: 'DELETE',
                     });
 

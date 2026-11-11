@@ -52,8 +52,8 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
 
         try {
             const url = editingAdjustment
-                ? `https://squirrel-peace-server.onrender.com/adjustment/${editingAdjustment._id}`
-                : 'https://squirrel-peace-server.onrender.com/adjustment';
+                ? `http://localhost:5000/adjustment/${editingAdjustment._id}`
+                : 'http://localhost:5000/adjustment';
             const method = editingAdjustment ? 'PUT' : 'POST';
 
             const response = await fetch(url, {

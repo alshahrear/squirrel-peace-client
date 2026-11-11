@@ -48,7 +48,7 @@ const ProfitIncome = () => {
     const fetchIncomes = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('https://squirrel-peace-server.onrender.com/income');
+            const res = await fetch('http://localhost:5000/income');
             const data = await res.json();
             setIncomes(Array.isArray(data) ? data : []);
         } catch (error) {

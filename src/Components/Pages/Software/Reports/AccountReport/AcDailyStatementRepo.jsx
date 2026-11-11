@@ -100,12 +100,12 @@ const AcDailyStatementRepo = () => {
         const load = async () => {
             try {
                 const [uRes, sRes, dRes, bRes, dmRes, reRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/user'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales-due-payment'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales-damage'),
-                    fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
+                    fetch('http://localhost:5000/user'),
+                    fetch('http://localhost:5000/sales'),
+                    fetch('http://localhost:5000/sales-due-payment'),
+                    fetch('http://localhost:5000/sales-bulk-return'),
+                    fetch('http://localhost:5000/sales-damage'),
+                    fetch('http://localhost:5000/routeExpense'),
                 ]);
                 const uData = await uRes.json().catch(() => []);
                 const sData = await sRes.json().catch(() => []);

@@ -167,7 +167,7 @@ const PurchaseDuePayment = () => {
     // ---------------- Fetch ----------------
     const fetchPayments = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/purchase-due-payment');
+            const res = await fetch('http://localhost:5000/purchase-due-payment');
             const data = await res.json();
             setPayments(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -178,27 +178,27 @@ const PurchaseDuePayment = () => {
     useEffect(() => {
         fetchPayments();
 
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/purchase')
+        fetch('http://localhost:5000/purchase')
             .then((res) => res.json())
             .then((data) => setPurchases(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching purchases:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return')
+        fetch('http://localhost:5000/purchase-bulk-return')
             .then((res) => res.json())
             .then((data) => setBulkReturns(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching bulk returns:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/damage-return')
+        fetch('http://localhost:5000/damage-return')
             .then((res) => res.json())
             .then((data) => setDamageReturns(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching damage returns:', error));
 
-        fetch('https://squirrel-peace-server.onrender.com/investment')
+        fetch('http://localhost:5000/investment')
             .then((res) => res.json())
             .then((data) => setInvestments(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching investments:', error));
@@ -314,7 +314,7 @@ const PurchaseDuePayment = () => {
         submitLock.current = true;
         setIsSubmitting(true);
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/purchase-due-payment', {
+            const res = await fetch('http://localhost:5000/purchase-due-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -353,7 +353,7 @@ const PurchaseDuePayment = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`https://squirrel-peace-server.onrender.com/purchase-due-payment/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`http://localhost:5000/purchase-due-payment/${id}`, { method: 'DELETE' });
                     const data = await res.json();
                     if (data.deletedCount > 0) {
                         showToast('Payment deleted successfully!', 'success');

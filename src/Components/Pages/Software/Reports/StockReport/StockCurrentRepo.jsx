@@ -96,11 +96,11 @@ const StockCurrentRepo = () => {
     const companyDropdownRef = useRef(null);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((data) => setProductOptions(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -179,13 +179,13 @@ const StockCurrentRepo = () => {
                     return Array.isArray(data) ? data : [];
                 };
                 const [b, p, s, br, sbr, d, a] = await Promise.all([
-                    get('https://squirrel-peace-server.onrender.com/stock-purchase'),
-                    get('https://squirrel-peace-server.onrender.com/purchase'),
-                    get('https://squirrel-peace-server.onrender.com/sales'),
-                    get('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-                    get('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-                    get('https://squirrel-peace-server.onrender.com/sales-damage'),
-                    get('https://squirrel-peace-server.onrender.com/stock-adjustment'),
+                    get('http://localhost:5000/stock-purchase'),
+                    get('http://localhost:5000/purchase'),
+                    get('http://localhost:5000/sales'),
+                    get('http://localhost:5000/purchase-bulk-return'),
+                    get('http://localhost:5000/sales-bulk-return'),
+                    get('http://localhost:5000/sales-damage'),
+                    get('http://localhost:5000/stock-adjustment'),
                 ]);
                 setBatches(b);
                 setPurchases(p);

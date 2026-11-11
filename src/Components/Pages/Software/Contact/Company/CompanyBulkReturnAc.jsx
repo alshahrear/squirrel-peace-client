@@ -35,9 +35,9 @@ const CompanyBulkReturnAc = () => {
         const loadData = async () => {
             try {
                 const [bRes, cRes, pRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
+                    fetch('http://localhost:5000/purchase-bulk-return'),
+                    fetch('http://localhost:5000/company'),
+                    fetch('http://localhost:5000/purchase'),
                 ]);
                 const bData = await bRes.json();
                 const cData = await cRes.json();

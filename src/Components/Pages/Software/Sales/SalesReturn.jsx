@@ -54,7 +54,7 @@ const SalesReturn = () => {
     // Fetch Customers data for filter dropdown
     const fetchCustomers = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/customer');
+            const res = await fetch('http://localhost:5000/customer');
             const data = await res.json();
             setCustomers(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -65,7 +65,7 @@ const SalesReturn = () => {
     // Fetch Sales -> proti order er returnHistory theke each entry ke alada row banaia flatten kora
     const fetchReturns = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/sales');
+            const response = await fetch('http://localhost:5000/sales');
             const data = await response.json();
 
             const flattenedReturns = [];
@@ -340,14 +340,14 @@ const SalesReturn = () => {
             if (!result.isConfirmed) return;
 
             try {
-                const orderRes = await fetch(`https://squirrel-peace-server.onrender.com/sales/${item.orderId}`);
+                const orderRes = await fetch(`http://localhost:5000/sales/${item.orderId}`);
                 const order = await orderRes.json();
 
                 const updatedHistory = (order.returnHistory || []).filter(
                     (ret) => ret.returnId !== item.returnId
                 );
 
-                const response = await fetch(`https://squirrel-peace-server.onrender.com/sales/${item.orderId}`, {
+                const response = await fetch(`http://localhost:5000/sales/${item.orderId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ returnHistory: updatedHistory }),

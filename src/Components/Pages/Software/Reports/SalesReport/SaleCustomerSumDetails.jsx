@@ -204,7 +204,7 @@ const SaleCustomerSumDetails = () => {
         setLoading(true);
         Promise.all(
             ids.map((id) =>
-                fetch(`https://squirrel-peace-server.onrender.come-server.onrender.com/sales/${id}`)
+                fetch(`http://localhost:5000/sales/${id}`)
                     .then((r) => r.json())
                     .catch(() => null)
             )

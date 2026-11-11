@@ -25,7 +25,7 @@ const DamageReturnDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/damage-return/${id}`)
+        fetch(`http://localhost:5000/damage-return/${id}`)
             .then((res) => res.json())
             .then((d) => {
                 if (d && d._id) setData(d);

@@ -368,7 +368,7 @@ const DamageStockAdd = () => {
     const [accAvailable, setAccAvailable] = useState(null);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/investment')
+        fetch('http://localhost:5000/investment')
             .then((res) => res.json())
             .then((data) => setInvestments(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching investments:', error));
@@ -438,7 +438,7 @@ const DamageStockAdd = () => {
     // ---------- Fetch ----------
     useEffect(() => {
         const load = (endpoint, setter, filterFn) =>
-            fetch(`https://squirrel-peace-server.onrender.com/${endpoint}`)
+            fetch(`http://localhost:5000/${endpoint}`)
                 .then((r) => r.json())
                 .then((d) => setter(Array.isArray(d) ? (filterFn ? d.filter(filterFn) : d) : []))
                 .catch((e) => console.error(e));
@@ -449,9 +449,9 @@ const DamageStockAdd = () => {
         load('user', setDeliveryMen);
         // Cost StockPurchase.jsx er central function (getBatchCostPerPcs) theke ashbe
         Promise.all([
-            fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${editId ? `?excludeDamageId=${editId}` : ''}`).then((r) => r.json()),
-            fetch('https://squirrel-peace-server.onrender.com/stock-purchase').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
+            fetch(`http://localhost:5000/bulk-return-stock${editId ? `?excludeDamageId=${editId}` : ''}`).then((r) => r.json()),
+            fetch('http://localhost:5000/stock-purchase').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((r) => r.json()).catch(() => []),
         ])
             .then(([d, batchList, purchaseList]) => {
                 const stock = d && typeof d === 'object' ? d : {};
@@ -651,11 +651,11 @@ const DamageStockAdd = () => {
                 fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
 
             const [sales, bulks, damages, custList, duePays] = await Promise.all([
-                safe('https://squirrel-peace-server.onrender.com/sales'),
-                safe('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-                safe('https://squirrel-peace-server.onrender.com/sales-damage'),
-                safe('https://squirrel-peace-server.onrender.com/customer'),
-                safe('https://squirrel-peace-server.onrender.com/sales-due-payment'),
+                safe('http://localhost:5000/sales'),
+                safe('http://localhost:5000/sales-bulk-return'),
+                safe('http://localhost:5000/sales-damage'),
+                safe('http://localhost:5000/customer'),
+                safe('http://localhost:5000/sales-due-payment'),
             ]);
 
             const info =
@@ -890,8 +890,8 @@ const DamageStockAdd = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `https://squirrel-peace-server.onrender.com/sales-damage/${editId}`
-                : 'https://squirrel-peace-server.onrender.com/sales-damage';
+                ? `http://localhost:5000/sales-damage/${editId}`
+                : 'http://localhost:5000/sales-damage';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },

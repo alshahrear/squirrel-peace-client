@@ -22,7 +22,7 @@ const DamageStockDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/sales-damage/${id}`)
+        fetch(`http://localhost:5000/sales-damage/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {

@@ -112,11 +112,11 @@ const DamageStockSingleInvoice = () => {
 
     useEffect(() => {
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/sales').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((r) => r.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/product').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/sales').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/sales-damage').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((r) => r.json()).catch(() => []),
+            fetch('http://localhost:5000/product').then((r) => r.json()).catch(() => []),
         ])
             .then(([s, d, p, r, pr]) => {
                 setProductList(Array.isArray(pr) ? pr : []);

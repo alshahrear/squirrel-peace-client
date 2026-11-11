@@ -4,7 +4,7 @@ import { FiCreditCard, FiHash, FiMapPin, FiArrowDownLeft, FiArrowUpRight } from 
 import { buildBatchCostMap, getBulkReturnEffect, getDamageReturnEffect } from '../../../Software/Account/AccountBalance';
 
 const POLL_INTERVAL = 5000;
-const API = 'https://squirrel-peace-server.onrender.com';
+const API = 'http://localhost:5000';
 
 const n = (v) => Number(v) || 0;
 const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;

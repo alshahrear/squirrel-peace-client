@@ -54,7 +54,7 @@ const PurchaseReturn = () => {
     // Fetch Companies data for filter dropdown
     const fetchCompanies = async () => {
         try {
-            const res = await fetch('https://squirrel-peace-server.onrender.com/company');
+            const res = await fetch('http://localhost:5000/company');
             const data = await res.json();
             setCompanies(data);
         } catch (error) {
@@ -65,7 +65,7 @@ const PurchaseReturn = () => {
     // Fetch Purchases -> proti order er returnHistory theke each entry ke alada row banaia flatten kora
     const fetchReturns = async () => {
         try {
-            const response = await fetch('https://squirrel-peace-server.onrender.com/purchase');
+            const response = await fetch('http://localhost:5000/purchase');
             const data = await response.json();
 
             const flattenedReturns = [];
@@ -328,12 +328,12 @@ const PurchaseReturn = () => {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
             try {
-                const orderRes = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item.orderId}`);
+                const orderRes = await fetch(`http://localhost:5000/purchase/${item.orderId}`);
                 const order = await orderRes.json();
                 const updatedHistory = (order.returnHistory || []).map((ret) =>
                     ret.returnId === item.returnId ? { ...ret, status: 'Approved' } : ret
                 );
-                const response = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item.orderId}`, {
+                const response = await fetch(`http://localhost:5000/purchase/${item.orderId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ returnHistory: updatedHistory }),
@@ -370,14 +370,14 @@ const PurchaseReturn = () => {
             if (!result.isConfirmed) return;
 
             try {
-                const orderRes = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item.orderId}`);
+                const orderRes = await fetch(`http://localhost:5000/purchase/${item.orderId}`);
                 const order = await orderRes.json();
 
                 const updatedHistory = (order.returnHistory || []).filter(
                     (ret) => ret.returnId !== item.returnId
                 );
 
-                const response = await fetch(`https://squirrel-peace-server.onrender.com/purchase/${item.orderId}`, {
+                const response = await fetch(`http://localhost:5000/purchase/${item.orderId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ returnHistory: updatedHistory }),

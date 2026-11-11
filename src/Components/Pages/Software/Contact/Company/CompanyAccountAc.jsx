@@ -193,11 +193,11 @@ const safeList = (url) =>
 // Fresh data fetch kore balance dey (refresh lagbe na)
 export const fetchCompanyBalance = async (company, excludePurchaseId = null) => {
     const [purchases, bulkReturns, damageReturns, companies, duePayments] = await Promise.all([
-        safeList('https://squirrel-peace-server.onrender.com/purchase'),
-        safeList('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-        safeList('https://squirrel-peace-server.onrender.com/damage-return'),
-        safeList('https://squirrel-peace-server.onrender.com/company'),
-        safeList('https://squirrel-peace-server.onrender.com/purchase-due-payment'),
+        safeList('http://localhost:5000/purchase'),
+        safeList('http://localhost:5000/purchase-bulk-return'),
+        safeList('http://localhost:5000/damage-return'),
+        safeList('http://localhost:5000/company'),
+        safeList('http://localhost:5000/purchase-due-payment'),
     ]);
     return calcCompanyBalance(
         { purchases, bulkReturns, damageReturns, companies, duePayments },
@@ -321,11 +321,11 @@ const CompanyAccountAc = () => {
         const loadData = async () => {
             try {
                 const [dpRes, pRes, bRes, dRes, cRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/purchase-due-payment'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/damage-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
+                    fetch('http://localhost:5000/purchase-due-payment'),
+                    fetch('http://localhost:5000/purchase'),
+                    fetch('http://localhost:5000/purchase-bulk-return'),
+                    fetch('http://localhost:5000/damage-return'),
+                    fetch('http://localhost:5000/company'),
                 ]);
                 const dpData = await dpRes.json();
                 const pData = await pRes.json();

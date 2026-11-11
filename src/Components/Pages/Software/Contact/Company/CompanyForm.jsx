@@ -110,8 +110,8 @@ const CompanyForm = ({
             : { ...formData, createdAt: formatDateTime(new Date()) };
 
         const url = isEditing
-            ? `https://squirrel-peace-server.onrender.com/company/${editingCompany._id}`
-            : 'https://squirrel-peace-server.onrender.com/company';
+            ? `http://localhost:5000/company/${editingCompany._id}`
+            : 'http://localhost:5000/company';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {

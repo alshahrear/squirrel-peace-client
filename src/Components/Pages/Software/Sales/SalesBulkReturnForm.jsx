@@ -358,7 +358,7 @@ const SalesBulkReturnForm = () => {
     // ---------- Fetch ----------
     useEffect(() => {
         const load = (endpoint, setter, filterFn) =>
-            fetch(`https://squirrel-peace-server.onrender.com/${endpoint}`)
+            fetch(`http://localhost:5000/${endpoint}`)
                 .then((r) => r.json())
                 .then((d) => setter(Array.isArray(d) ? (filterFn ? d.filter(filterFn) : d) : []))
                 .catch((e) => console.error(e));
@@ -581,11 +581,11 @@ const SalesBulkReturnForm = () => {
                 fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
 
             const [sales, bulks, damages, custList, duePays] = await Promise.all([
-                safe('https://squirrel-peace-server.onrender.com/sales'),
-                safe('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-                safe('https://squirrel-peace-server.onrender.com/sales-damage'),
-                safe('https://squirrel-peace-server.onrender.com/customer'),
-                safe('https://squirrel-peace-server.onrender.com/sales-due-payment'),
+                safe('http://localhost:5000/sales'),
+                safe('http://localhost:5000/sales-bulk-return'),
+                safe('http://localhost:5000/sales-damage'),
+                safe('http://localhost:5000/customer'),
+                safe('http://localhost:5000/sales-due-payment'),
             ]);
 
             const info =
@@ -809,8 +809,8 @@ const SalesBulkReturnForm = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `https://squirrel-peace-server.onrender.com/sales-bulk-return/${editId}`
-                : 'https://squirrel-peace-server.onrender.com/sales-bulk-return';
+                ? `http://localhost:5000/sales-bulk-return/${editId}`
+                : 'http://localhost:5000/sales-bulk-return';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },

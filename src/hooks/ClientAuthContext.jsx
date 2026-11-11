@@ -8,7 +8,44 @@ export const ClientAuthProvider = ({ children }) => {
   const [isChecking, setIsChecking] = useState(true); // নতুন যোগ করা হলো
 
   // পেজ লোড বা রিফ্রেশ হলে লোকালস্টোরেজ থেকে ডেটা লোড করা
-  const fetchClientUser = () => {
+  const fetchClientUser = async () => {
+    const token = localStorage.getItem("clientToken");
+    if (!token) {
+      localStorage.removeItem("clientUser");
+      setClientUser(null);
+      setIsChecking(false);
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:5000/client/me`, {
+        cache: "no-store",
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem("clientUser");
+          localStorage.removeItem("clientToken");
+        }
+        setClientUser(null);
+      } else {
+        const current = await response.json();
+        if (current && current._id && current.isActive === true && current.login === "yes") {
+          localStorage.setItem("clientUser", JSON.stringify(current));
+          setClientUser(current);
+        } else {
+          localStorage.removeItem("clientUser");
+          localStorage.removeItem("clientToken");
+          setClientUser(null);
+        }
+      }
+    } catch (error) {
+      setClientUser(null);
+    }
+    setIsChecking(false);
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const fetchClientUserOld = () => {
     const storedUser = localStorage.getItem("clientUser");
     if (storedUser) {
       try {
@@ -37,11 +74,22 @@ export const ClientAuthProvider = ({ children }) => {
         try {
           const user = JSON.parse(storedUser);
           if (user && user._id) {
-            const response = await fetch(`https://squirrel-peace-server.onrender.com/client?t=${Date.now()}`, {
-              cache: 'no-store'
+            const token = localStorage.getItem("clientToken");
+            const response = await fetch(`http://localhost:5000/client/me`, {
+              cache: 'no-store',
+              headers: { authorization: `Bearer ${token}` }
             });
-            const clients = await response.json();
-            const currentClient = clients.find(c => c._id === user._id);
+
+            if (response.status === 401 || response.status === 403) {
+              localStorage.removeItem("clientUser");
+              localStorage.removeItem("clientToken");
+              setClientUser(null);
+              window.dispatchEvent(new Event("clientUserUpdated"));
+              return;
+            }
+            if (!response.ok) return;
+
+            const currentClient = await response.json();
 
             if (!currentClient || currentClient.isActive !== true) {
               localStorage.removeItem("clientUser");
@@ -49,7 +97,7 @@ export const ClientAuthProvider = ({ children }) => {
               window.dispatchEvent(new Event("clientUserUpdated"));
             } else {
               // লেটেস্ট ডাটা সিঙ্ক করে স্টেট ও লোকালস্টোরেজ আপডেট করা যাতে রিফ্রেশ ছাড়াই সাথে সাথে দেখায়
-             // ব্যাকএন্ড থেকে যদি স্ট্যাটাস 'no' করে দেওয়া হয় (ফোর্সড লগআউট), তবে ক্লায়েন্টকে লগআউট করিয়ে দেওয়া
+              // ব্যাকএন্ড থেকে যদি স্ট্যাটাস 'no' করে দেওয়া হয় (ফোর্সড লগআউট), তবে ক্লায়েন্টকে লগআউট করিয়ে দেওয়া
               if (currentClient.login === 'no') {
                 localStorage.removeItem("clientUser");
                 localStorage.removeItem("clientToken");
@@ -69,7 +117,7 @@ export const ClientAuthProvider = ({ children }) => {
       }
     };
 
-    const interval = setInterval(checkLoginStatus, 1000);
+    const interval = setInterval(checkLoginStatus, 10000);
 
     return () => {
       window.removeEventListener("clientUserUpdated", fetchClientUser);
@@ -82,10 +130,9 @@ export const ClientAuthProvider = ({ children }) => {
   const clientLogout = async () => {
     if (clientUser && clientUser._id) {
       try {
-        await fetch(`https://squirrel-peace-server.onrender.com/client/login-status/${clientUser._id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ login: 'no' })
+        await fetch(`http://localhost:5000/client/logout`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${localStorage.getItem("clientToken")}` }
         });
       } catch (error) {
         console.error("Failed to update logout status on backend", error);

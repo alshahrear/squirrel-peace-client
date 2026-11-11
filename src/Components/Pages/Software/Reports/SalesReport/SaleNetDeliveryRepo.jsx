@@ -325,8 +325,8 @@ const SaleNetDeliveryRepo = () => {
         const load = async () => {
             try {
                 const [res, coRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/sales'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
+                    fetch('http://localhost:5000/sales'),
+                    fetch('http://localhost:5000/company'),
                 ]);
                 const data = await res.json();
                 const coData = await coRes.json().catch(() => []);

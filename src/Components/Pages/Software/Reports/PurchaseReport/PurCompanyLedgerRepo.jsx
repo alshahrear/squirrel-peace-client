@@ -144,11 +144,11 @@ const PurCompanyLedgerRepo = () => {
         const load = async () => {
             try {
                 const [pRes, cRes, bRes, dRes, dpRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/damage-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase-due-payment'),
+                    fetch('http://localhost:5000/purchase'),
+                    fetch('http://localhost:5000/company'),
+                    fetch('http://localhost:5000/purchase-bulk-return'),
+                    fetch('http://localhost:5000/damage-return'),
+                    fetch('http://localhost:5000/purchase-due-payment'),
                 ]);
                 const pData = await pRes.json();
                 const cData = await cRes.json();

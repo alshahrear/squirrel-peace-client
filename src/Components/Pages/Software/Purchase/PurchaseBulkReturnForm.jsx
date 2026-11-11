@@ -68,7 +68,7 @@ const PurchaseBulkReturnForm = () => {
     const [paymentNote, setPaymentNote] = useState(savedPay?.note || '');
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/investment')
+        fetch('http://localhost:5000/investment')
             .then((res) => res.json())
             .then((data) => setInvestments(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching investments:', error));
@@ -86,19 +86,19 @@ const PurchaseBulkReturnForm = () => {
 
     // ---------- Fetch ----------
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((r) => r.json())
             .then((d) => setCompanies(Array.isArray(d) ? d : []))
             .catch((e) => console.error(e));
-        fetch('https://squirrel-peace-server.onrender.com/category')
+        fetch('http://localhost:5000/category')
             .then((r) => r.json())
             .then((d) => setCategories(Array.isArray(d) ? d.filter((c) => c.isActive === true) : []))
             .catch((e) => console.error(e));
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((r) => r.json())
             .then((d) => setProducts(Array.isArray(d) ? d : []))
             .catch((e) => console.error(e));
-        fetch(`https://squirrel-peace-server.onrender.com/bulk-return-stock${isEditMode ? `?excludeId=${editId}` : ''}`)
+        fetch(`http://localhost:5000/bulk-return-stock${isEditMode ? `?excludeId=${editId}` : ''}`)
             .then((r) => r.json())
             .then((d) => setStockMap(d && typeof d === 'object' ? d : {}))
             .catch((e) => console.error(e));
@@ -457,8 +457,8 @@ const PurchaseBulkReturnForm = () => {
         try {
             setIsSaving(true);
             const url = isEditMode
-                ? `https://squirrel-peace-server.onrender.com/purchase-bulk-return/${editId}`
-                : 'https://squirrel-peace-server.onrender.com/purchase-bulk-return';
+                ? `http://localhost:5000/purchase-bulk-return/${editId}`
+                : 'http://localhost:5000/purchase-bulk-return';
             const res = await fetch(url, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },

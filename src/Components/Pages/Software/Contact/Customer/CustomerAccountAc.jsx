@@ -194,11 +194,11 @@ const safeList = (url) =>
 // Fresh data fetch kore balance dey (refresh lagbe na)
 export const fetchCustomerBalance = async (customer, excludeSaleId = null) => {
     const [sales, bulkReturns, damageReturns, customers, duePayments] = await Promise.all([
-        safeList('https://squirrel-peace-server.onrender.com/sales'),
-        safeList('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-        safeList('https://squirrel-peace-server.onrender.com/sales-damage'),
-        safeList('https://squirrel-peace-server.onrender.com/customer'),
-        safeList('https://squirrel-peace-server.onrender.com/sales-due-payment'),
+        safeList('http://localhost:5000/sales'),
+        safeList('http://localhost:5000/sales-bulk-return'),
+        safeList('http://localhost:5000/sales-damage'),
+        safeList('http://localhost:5000/customer'),
+        safeList('http://localhost:5000/sales-due-payment'),
     ]);
     return calcCustomerBalance(
         { sales, bulkReturns, damageReturns, customers, duePayments },
@@ -320,11 +320,11 @@ const CustomerAccountAc = () => {
         const loadData = async () => {
             try {
                 const [dpRes, sRes, bRes, dRes, cRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/sales-due-payment'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/sales-damage'),
-                    fetch('https://squirrel-peace-server.onrender.com/customer'),
+                    fetch('http://localhost:5000/sales-due-payment'),
+                    fetch('http://localhost:5000/sales'),
+                    fetch('http://localhost:5000/sales-bulk-return'),
+                    fetch('http://localhost:5000/sales-damage'),
+                    fetch('http://localhost:5000/customer'),
                 ]);
                 const dpData = await dpRes.json();
                 const sData = await sRes.json();

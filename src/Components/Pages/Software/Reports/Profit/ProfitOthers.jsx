@@ -38,8 +38,8 @@ const ProfitOthers = () => {
         try {
             setLoading(true);
             const [dRes, pRes] = await Promise.all([
-                fetch('https://squirrel-peace-server.onrender.com/damage-return'),
-                fetch('https://squirrel-peace-server.onrender.com/purchase'),
+                fetch('http://localhost:5000/damage-return'),
+                fetch('http://localhost:5000/purchase'),
             ]);
             const [d, p] = await Promise.all([dRes.json().catch(() => []), pRes.json().catch(() => [])]);
             const list = (Array.isArray(d) ? d : [])

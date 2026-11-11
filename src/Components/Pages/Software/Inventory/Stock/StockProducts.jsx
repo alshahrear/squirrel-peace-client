@@ -98,11 +98,11 @@ const StockProducts = () => {
     const companyDropdownRef = useRef(null);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((data) => setCompanies(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching companies:', error));
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((data) => setProductOptions(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching products:', error));
@@ -178,31 +178,31 @@ const StockProducts = () => {
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                const res = await fetch('https://squirrel-peace-server.onrender.com/stock-purchase');
+                const res = await fetch('http://localhost:5000/stock-purchase');
                 const data = await res.json();
                 setBatches(Array.isArray(data) ? data : []);
 
-                const purchaseRes = await fetch('https://squirrel-peace-server.onrender.com/purchase');
+                const purchaseRes = await fetch('http://localhost:5000/purchase');
                 const purchaseData = await purchaseRes.json();
                 setPurchases(Array.isArray(purchaseData) ? purchaseData : []);
 
-                const salesRes = await fetch('https://squirrel-peace-server.onrender.com/sales');
+                const salesRes = await fetch('http://localhost:5000/sales');
                 const salesData = await salesRes.json();
                 setSales(Array.isArray(salesData) ? salesData : []);
 
-                const bulkRes = await fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return');
+                const bulkRes = await fetch('http://localhost:5000/purchase-bulk-return');
                 const bulkData = await bulkRes.json();
                 setBulkReturns(Array.isArray(bulkData) ? bulkData : []);
 
-                const sbRes = await fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return');
+                const sbRes = await fetch('http://localhost:5000/sales-bulk-return');
                 const sbData = await sbRes.json();
                 setSalesBulkReturns(Array.isArray(sbData) ? sbData : []);
 
-                const dmgRes = await fetch('https://squirrel-peace-server.onrender.com/sales-damage');
+                const dmgRes = await fetch('http://localhost:5000/sales-damage');
                 const dmgData = await dmgRes.json();
                 setDamages(Array.isArray(dmgData) ? dmgData : []);
 
-                const adjRes = await fetch('https://squirrel-peace-server.onrender.com/stock-adjustment');
+                const adjRes = await fetch('http://localhost:5000/stock-adjustment');
                 const adjData = await adjRes.json();
                 setAdjustments(Array.isArray(adjData) ? adjData : []);
             } catch (error) {

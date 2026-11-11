@@ -1,7 +1,7 @@
-import Loader from '../../../Loader';
+import Loader from '../../../../hooks/Loader';
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useClientAuth } from '../../../Provider/ClientAuthContext';
+import { useClientAuth } from '../../../../hooks/ClientAuthContext';
 
 const Dashboard = () => {
     // কনটেক্সট থেকে clientUser ডেটা বের করে আনা হলো

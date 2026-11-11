@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE, LOCAL_API } from '../config/api';
 
-const API = 'https://squirrel-peace-server.onrender.com';
+const API = API_BASE;
 let knownVersion = null;
 let pendingWrites = 0;
 
@@ -12,10 +13,25 @@ if (typeof window !== 'undefined' && !window.__fetchPatched) {
     const originalFetch = window.fetch.bind(window);
 
     window.fetch = (input, init = {}) => {
-        const url = typeof input === 'string' ? input : input?.url || input?.href || String(input || '');
+        let url = typeof input === 'string' ? input : input?.url || input?.href || String(input || '');
+        // localhost:5000 -> VITE_API_BASE_URL (production-এ Render URL)
+        if (API !== LOCAL_API && url.startsWith(LOCAL_API)) {
+            url = API + url.slice(LOCAL_API.length);
+            input = (typeof input === 'string' || !input?.url) ? url : new Request(url, input);
+        }
         if (!url.startsWith(API)) return originalFetch(input, init);
 
         const method = (init.method || (typeof input !== 'string' && input?.method) || 'GET').toUpperCase();
+
+        // client / admin token auto jog hobe (login, feature, data-version bade)
+        const rel = url.slice(API.length);
+        const skipAuth = rel.startsWith('/client/login') || rel.startsWith('/gate') || rel.startsWith('/jwt');
+        const hdrs = new Headers(init.headers || (typeof input !== 'string' ? input?.headers : undefined) || {});
+        if (!skipAuth && !hdrs.has('authorization')) {
+            const t = localStorage.getItem('clientToken') || localStorage.getItem('access-token');
+            if (t) hdrs.set('authorization', `Bearer ${t}`);
+        }
+        init = { ...init, headers: hdrs };
 
         // GET: kokhono browser cache theke dekhabe na
         if (method === 'GET') return originalFetch(input, { ...init, cache: 'no-store' });
@@ -27,7 +43,7 @@ if (typeof window !== 'undefined' && !window.__fetchPatched) {
             .then(async (res) => {
                 if (res.ok) {
                     try {
-                        const r = await originalFetch(`${API}/data-version`, { cache: 'no-store' });
+                        const r = await originalFetch(`${API}/data-version`, { cache: 'no-store', headers: hdrs });
                         if (r.ok) {
                             const d = await r.json();
                             knownVersion = String(d.version);
@@ -47,6 +63,10 @@ export const patchAxios = (instance) => {
     instance.__dataPatched = true;
 
     instance.interceptors.request.use((config) => {
+        if (API !== LOCAL_API) {
+            if (typeof config.url === 'string' && config.url.startsWith(LOCAL_API)) config.url = API + config.url.slice(LOCAL_API.length);
+            if (typeof config.baseURL === 'string' && config.baseURL.startsWith(LOCAL_API)) config.baseURL = API + config.baseURL.slice(LOCAL_API.length);
+        }
         const method = (config.method || 'get').toUpperCase();
         if (method !== 'GET') {
             pendingWrites++;
@@ -79,7 +99,7 @@ export const patchAxios = (instance) => {
 
 patchAxios(axios);
 
-const FORM_PATH = /(add|form|create)/i;
+const FORM_PATH = /(add|form|create|assign)/i;
 const DataRefresh = () => {
     const [tick, setTick] = useState(0);
     const location = useLocation();

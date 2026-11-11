@@ -224,9 +224,9 @@ const StockDamReturnRepo = () => {
                     return Array.isArray(data) ? data : [];
                 };
                 const [dr, pur, comp] = await Promise.all([
-                    get('https://squirrel-peace-server.onrender.com/damage-return'),
-                    get('https://squirrel-peace-server.onrender.com/purchase'),
-                    get('https://squirrel-peace-server.onrender.com/company'),
+                    get('http://localhost:5000/damage-return'),
+                    get('http://localhost:5000/purchase'),
+                    get('http://localhost:5000/company'),
                 ]);
                 setCompanies(comp);
                 const all = [

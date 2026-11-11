@@ -35,9 +35,9 @@ const CompanyDamageReturnAc = () => {
         const loadData = async () => {
             try {
                 const [dRes, pRes, cRes] = await Promise.all([
-                    fetch('https://squirrel-peace-server.onrender.com/damage-return'),
-                    fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                    fetch('https://squirrel-peace-server.onrender.com/company'),
+                    fetch('http://localhost:5000/damage-return'),
+                    fetch('http://localhost:5000/purchase'),
+                    fetch('http://localhost:5000/company'),
                 ]);
                 const dData = await dRes.json();
                 const pData = await pRes.json();

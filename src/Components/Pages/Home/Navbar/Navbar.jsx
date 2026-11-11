@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { FaBars, FaSignOutAlt, FaEnvelope } from "react-icons/fa";
+import { FaBars, FaSignOutAlt, FaEnvelope, FaUserCircle } from "react-icons/fa";
 import { RiAdminFill } from "react-icons/ri";
-import useAuth from "../../../Layout/useAuth";
+import useAuth from "../../../../hooks/useAuth";
 import useAdmin from "../../../../hooks/useAdmin";
 import { isDraftEnabled, setDraftEnabled } from "../../../../hooks/useDraftState";
-import { useClientAuth } from "../../../Provider/ClientAuthContext";
+import { useClientAuth } from "../../../../hooks/ClientAuthContext";
 import log from "../../../../assets/squirrel-peace-logo.png";
 import fav from "../../../../assets/squirrelpeacelogo.png";
 import Drawer from "./Drawer"; // ড্রয়ার কম্পোনেন্ট ইম্পোর্ট করা হলো
+import { canAccessPath } from "../../../../hooks/permissionConfig";
 
 // Draft Save Toggle (ডিফল্ট OFF)
 const DraftToggle = ({ compact = false }) => {
@@ -63,6 +64,7 @@ const ProfileAvatar = ({ name, role, size = "w-10 h-10", text = "text-sm" }) => 
 // Profile dropdown card (Name, Email, Role, Log Out)
 const ProfileCard = ({ clientUser, handleLogout }) => {
   const style = ROLE_STYLES[clientUser.role] || DEFAULT_ROLE_STYLE;
+  const navigate = useNavigate();
   return (
     <div
       tabIndex={0}
@@ -82,7 +84,16 @@ const ProfileCard = ({ clientUser, handleLogout }) => {
           </span>
         )}
       </div>
-      <div className="p-4">
+      <div className="p-4 space-y-2">
+        <button
+          onClick={() => {
+            if (document.activeElement) document.activeElement.blur();
+            navigate("/client-profile");
+          }}
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 text-white font-semibold text-sm py-2 rounded-xl shadow-sm transition"
+        >
+          <FaUserCircle /> Profile
+        </button>
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 hover:opacity-90 text-white font-semibold text-sm py-2 rounded-xl shadow-sm transition"
@@ -103,7 +114,7 @@ const Navbar = () => {
 
   useEffect(() => {
     const loadFeatures = () => {
-      fetch("https://squirrel-peace-server.onrender.com/feature")
+            fetch(`http://localhost:5000/feature`)
         .then((res) => res.json())
         .then((data) => {
           const on = data?.saveDraft === true;
@@ -144,6 +155,7 @@ const Navbar = () => {
 
   // সেন্ট্রাল কনটেক্সট থেকে ক্লায়েন্ট ডেটা ও লগআউট ফাংশন নেওয়া
   const { clientUser, clientLogout } = useClientAuth();
+  const canCreateOrder = !clientUser?.isStaff || canAccessPath(clientUser?.permissions, "/create-order");
 
   const handleLogout = () => {
     clientLogout();
@@ -186,7 +198,7 @@ const Navbar = () => {
               {clientUser && location.pathname !== '/login-client' && (
                 <NavLink
                   to="/create-order"
-                  className="bg-[#2acb35] hover:bg-green-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1"
+                  className={`bg-[#2acb35] hover:bg-green-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1 ${canCreateOrder ? "" : "hidden"}`}
                 >
                   <span>Create Order</span>
                 </NavLink>
@@ -195,7 +207,7 @@ const Navbar = () => {
               {/* মোবাইল ভিউতে অ্যাডমিন আইকন */}
               {user && isAdmin && (
                 <NavLink
-                  to="/adminPages"
+                  to="/admin-pages"
                   title="Admin Dashboard"
                   className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-full transition"
                 >
@@ -266,7 +278,7 @@ const Navbar = () => {
             {clientUser && location.pathname !== '/login-client' && (
               <NavLink
                 to="/create-order"
-                className="bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-3.5 py-2 rounded-lg shadow-sm transition duration-200 text-sm flex items-center gap-1"
+                className={`bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-3.5 py-2 rounded-lg shadow-sm transition duration-200 text-sm flex items-center gap-1 ${canCreateOrder ? "" : "hidden"}`}
               >
                 <span>Create Order</span>
               </NavLink>
@@ -275,7 +287,7 @@ const Navbar = () => {
             {/* পিসি ভিউতে অ্যাডমিন আইকন */}
             {user && isAdmin && (
               <NavLink
-                to="/adminPages"
+                to="/admin-pages"
                 title="Admin Dashboard"
                 className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-lg transition flex items-center gap-1 font-medium"
               >

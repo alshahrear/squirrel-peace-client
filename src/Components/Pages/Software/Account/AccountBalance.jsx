@@ -68,7 +68,7 @@ const TABS = [
 ];
 
 // ---------- Shared account balance (PurchaseAdd o eta use kore) ----------
-const ACC_BAL_API = 'https://squirrel-peace-server.onrender.com';
+const ACC_BAL_API = 'http://localhost:5000';
 const accBalSafe = (url) =>
     fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
 
@@ -342,16 +342,16 @@ const AccountBalance = () => {
     const fetchAllData = useCallback(async () => {
         try {
             const [invRes, adjRes, incomeRes, expenseRes, routeExpenseRes, purchaseRes, transferRes, bulkRes, stockRes, dmgRes] = await Promise.all([
-                fetch('https://squirrel-peace-server.onrender.com/investment'),
-                fetch('https://squirrel-peace-server.onrender.com/adjustment'),
-                fetch('https://squirrel-peace-server.onrender.com/income'),
-                fetch('https://squirrel-peace-server.onrender.com/expense'),
-                fetch('https://squirrel-peace-server.onrender.com/routeExpense'),
-                fetch('https://squirrel-peace-server.onrender.com/purchase'),
-                fetch('https://squirrel-peace-server.onrender.com/transfer'),
-                fetch('https://squirrel-peace-server.onrender.com/purchase-bulk-return'),
-                fetch('https://squirrel-peace-server.onrender.com/stock-purchase'),
-                fetch('https://squirrel-peace-server.onrender.com/damage-return')
+                fetch('http://localhost:5000/investment'),
+                fetch('http://localhost:5000/adjustment'),
+                fetch('http://localhost:5000/income'),
+                fetch('http://localhost:5000/expense'),
+                fetch('http://localhost:5000/routeExpense'),
+                fetch('http://localhost:5000/purchase'),
+                fetch('http://localhost:5000/transfer'),
+                fetch('http://localhost:5000/purchase-bulk-return'),
+                fetch('http://localhost:5000/stock-purchase'),
+                fetch('http://localhost:5000/damage-return')
             ]);
             const invData = await invRes.json();
             const adjData = await adjRes.json();
@@ -477,7 +477,7 @@ const AccountBalance = () => {
             setDmgPays(safeDmgPays);
             setDmgAdjPays(safeDmgAdj);
 
-            const dueRaw = await fetch('https://squirrel-peace-server.onrender.com/purchase-due-payment')
+            const dueRaw = await fetch('http://localhost:5000/purchase-due-payment')
                 .then((r) => r.json())
                 .catch(() => []);
             const safeDuePays = (Array.isArray(dueRaw) ? dueRaw : [])
@@ -498,7 +498,7 @@ const AccountBalance = () => {
                 });
             setDuePays(safeDuePays);
 
-            const salesRaw = await fetch('https://squirrel-peace-server.onrender.com/sales')
+            const salesRaw = await fetch('http://localhost:5000/sales')
                 .then((r) => r.json())
                 .catch(() => []);
             const safeSalesPays = (Array.isArray(salesRaw) ? salesRaw : [])
@@ -541,7 +541,7 @@ const AccountBalance = () => {
             });
             setSalesReturnPays(safeSalesReturnPays);
 
-            const salesBulkRaw = await fetch('https://squirrel-peace-server.onrender.com/sales-bulk-return')
+            const salesBulkRaw = await fetch('http://localhost:5000/sales-bulk-return')
                 .then((r) => r.json())
                 .catch(() => []);
             const safeSalesBulkPays = [];
@@ -563,7 +563,7 @@ const AccountBalance = () => {
             });
             setSalesBulkPays(safeSalesBulkPays);
 
-            const salesDmgRaw = await fetch('https://squirrel-peace-server.onrender.com/sales-damage')
+            const salesDmgRaw = await fetch('http://localhost:5000/sales-damage')
                 .then((r) => r.json())
                 .catch(() => []);
             const safeSalesDmgPays = [];
@@ -586,7 +586,7 @@ const AccountBalance = () => {
             });
             setSalesDmgPays(safeSalesDmgPays);
 
-            const salesDueRaw = await fetch('https://squirrel-peace-server.onrender.com/sales-due-payment')
+            const salesDueRaw = await fetch('http://localhost:5000/sales-due-payment')
                 .then((r) => r.json())
                 .catch(() => []);
             const safeSalesDuePays = (Array.isArray(salesDueRaw) ? salesDueRaw : [])

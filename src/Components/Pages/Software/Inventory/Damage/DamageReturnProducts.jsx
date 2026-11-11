@@ -61,11 +61,11 @@ const DamageReturnProducts = () => {
     const companyDropdownRef = useRef(null);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((d) => setCompanies(Array.isArray(d) ? d : []))
             .catch(() => setCompanies([]));
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((d) => setProductList(Array.isArray(d) ? d : []))
             .catch(() => setProductList([]));
@@ -86,8 +86,8 @@ const DamageReturnProducts = () => {
 
     useEffect(() => {
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/damage-return').then((res) => res.json()).catch(() => []),
-            fetch('https://squirrel-peace-server.onrender.com/purchase').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/damage-return').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/purchase').then((res) => res.json()).catch(() => []),
         ])
             .then(([d, purchases]) => {
                 const fromPurchase = (Array.isArray(purchases) ? purchases : [])

@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
-import Footer from "../../Layout/Footer/Footer";
-import Navbar from "../Home/Navbar/Navbar";
+import Footer from "./Footer";
+import Navbar from "../Components/Pages/Home/Navbar/Navbar";
 
 const ErrorPage = () => {
     return (

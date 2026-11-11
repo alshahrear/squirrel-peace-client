@@ -67,19 +67,19 @@ const DamageStockProducts = () => {
 
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/purchase')
+        fetch('http://localhost:5000/purchase')
             .then((res) => res.json())
             .then((d) => setPurchases(Array.isArray(d) ? d : []))
             .catch(() => setPurchases([]));
-        fetch('https://squirrel-peace-server.onrender.com/damage-return')
+        fetch('http://localhost:5000/damage-return')
             .then((res) => res.json())
             .then((d) => setDamageReturns(Array.isArray(d) ? d : []))
             .catch(() => setDamageReturns([]));
-        fetch('https://squirrel-peace-server.onrender.com/product')
+        fetch('http://localhost:5000/product')
             .then((res) => res.json())
             .then((d) => setProductList(Array.isArray(d) ? d : []))
             .catch(() => setProductList([]));
-        fetch('https://squirrel-peace-server.onrender.com/company')
+        fetch('http://localhost:5000/company')
             .then((res) => res.json())
             .then((d) => setCompanies(Array.isArray(d) ? d : []))
             .catch(() => setCompanies([]));
@@ -175,8 +175,8 @@ const DamageStockProducts = () => {
 
     useEffect(() => {
         Promise.all([
-            fetch('https://squirrel-peace-server.onrender.com/sales').then((res) => res.json()),
-            fetch('https://squirrel-peace-server.onrender.com/sales-damage').then((res) => res.json()).catch(() => []),
+            fetch('http://localhost:5000/sales').then((res) => res.json()),
+            fetch('http://localhost:5000/sales-damage').then((res) => res.json()).catch(() => []),
         ])
             .then(([sales, dmg]) =>
                 setOrders([

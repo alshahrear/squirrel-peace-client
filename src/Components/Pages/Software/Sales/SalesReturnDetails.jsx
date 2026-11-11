@@ -43,7 +43,7 @@ const SalesReturnDetails = () => {
     const collectedRef = useRef(null);
 
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/user')
+        fetch('http://localhost:5000/user')
             .then((res) => res.json())
             .then((data) => setDeliveryMen(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching users:', error));
@@ -100,7 +100,7 @@ const SalesReturnDetails = () => {
     useEffect(() => {
         setLoading(true);
         setNotFound(false);
-        fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`)
+        fetch(`http://localhost:5000/sales/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 if (data && data._id) {
@@ -612,7 +612,7 @@ const SalesReturnDetails = () => {
 
     // Investment accounts (Payment section er jonno)
     useEffect(() => {
-        fetch('https://squirrel-peace-server.onrender.com/investment')
+        fetch('http://localhost:5000/investment')
             .then((res) => res.json())
             .then((data) => setInvestments(Array.isArray(data) ? data : []))
             .catch((error) => console.error('Error fetching investments:', error));
@@ -704,11 +704,11 @@ const SalesReturnDetails = () => {
                 fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
 
             const [sales, bulks, damages, customers, duePays] = await Promise.all([
-                safe('https://squirrel-peace-server.onrender.com/sales'),
-                safe('https://squirrel-peace-server.onrender.com/sales-bulk-return'),
-                safe('https://squirrel-peace-server.onrender.com/sales-damage'),
-                safe('https://squirrel-peace-server.onrender.com/customer'),
-                safe('https://squirrel-peace-server.onrender.com/sales-due-payment'),
+                safe('http://localhost:5000/sales'),
+                safe('http://localhost:5000/sales-bulk-return'),
+                safe('http://localhost:5000/sales-damage'),
+                safe('http://localhost:5000/customer'),
+                safe('http://localhost:5000/sales-due-payment'),
             ]);
 
             const info =
@@ -990,7 +990,7 @@ const SalesReturnDetails = () => {
                 ),
             };
 
-            const response = await fetch(`https://squirrel-peace-server.onrender.com/sales/${id}`, {
+            const response = await fetch(`http://localhost:5000/sales/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedData),
