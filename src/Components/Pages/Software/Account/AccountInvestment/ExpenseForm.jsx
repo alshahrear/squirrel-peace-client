@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 
 const ExpenseForm = ({
     fetchExpenses,
@@ -50,6 +51,7 @@ const ExpenseForm = ({
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
+    const { canAdd, canEdit } = useCan('account_expense');
     const [investments, setInvestments] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
     const [allIncomes, setAllIncomes] = useState([]);
@@ -313,6 +315,11 @@ const ExpenseForm = ({
     };
 
     const handleSubmit = async (e) => {
+        if (!((editingExpense && editingExpense._id) ? canEdit : canAdd)) {
+            e.preventDefault();
+            showToast('আপনার Add / Edit করার অনুমতি নেই!', 'error');
+            return;
+        }
         e.preventDefault();
 
         // সিলেক্ট করা account এ পর্যাপ্ত ব্যালেন্স আছে কিনা চেক করা হচ্ছে

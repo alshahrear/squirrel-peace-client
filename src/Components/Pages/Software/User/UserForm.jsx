@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaTimes } from 'react-icons/fa';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
+import useCan from '../../../../hooks/useCan';
 
 const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,128}$/;
 
@@ -32,6 +33,7 @@ const UserForm = ({
     scrollToTable,
 }) => {
     const navigate = useNavigate();
+    const { canAdd, canEdit } = useCan('user_list');
     const isEditing = Boolean(editingUser && editingUser._id);
     const draftKey = editingUser ? `userForm:${editingUser._id}` : 'userForm:new';
     const [formData, setFormData] = useDraftState(draftKey, () => ({
@@ -80,6 +82,11 @@ const UserForm = ({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (editingUser && editingUser._id ? !canEdit : !canAdd) {
+            showToast(editingUser && editingUser._id ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', 'error');
+            return;
+        }
 
         const emailInput = formData.email.trim().toLowerCase();
         const phoneInput = formData.phone.trim();

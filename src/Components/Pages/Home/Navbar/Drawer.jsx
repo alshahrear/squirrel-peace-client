@@ -190,80 +190,91 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
   // ড্রয়ারের আইটেমগুলোর অ্যানিমেশন লিস্ট
   const menuItems = [
     { type: "link", key: "home", to: clientUser ? "/dashboard" : "/", label: clientUser ? "Dashboard" : "Home" },
-    clientUser &&
-    {
-      type: "dropdown",
+    clientUser && {
+      type: "link",
       key: "sale",
       label: "Sale",
-      children: [
-        { to: "/wholesale", label: "Wholesale" },
-        { to: "/sales-return", label: "Sales Return" },
-        { to: "/sales-bulk-return", label: "Bulk Return" },
-        { to: "/sales-due-payment", label: "Sales Due Payment" },
-        { to: "/sales-sr-target", label: "Sales SR Target" },
-      ],
+      to:
+        (clientUser?.isStaff
+          ? ["/create-order", "/wholesale", "/sales-return", "/sales-bulk-return", "/sales-due-payment", "/sales-sr-target"].find((p) =>
+            canAccessPath(clientUser.permissions, p)
+          )
+          : null) || "/create-order",
     },
     {
-      type: "dropdown",
+      type: "link",
       key: "purchase",
       label: "Purchase",
-      children: [
-        { to: "/add-purchase", label: "Add Purchase" },
-        { to: "/purchase", label: "All Purchase" },
-        { to: "/purchase-return", label: "Purchase Return" },
-        { to: "/purchase-bulk-return", label: "Bulk Return" },
-        { to: "/purchase-due-payment", label: "Purchase Due Payment" },
-      ],
+      to:
+        (clientUser?.isStaff
+          ? ["/add-purchase", "/purchase", "/purchase-return", "/purchase-bulk-return", "/purchase-due-payment"].find((p) =>
+            canAccessPath(clientUser.permissions, p)
+          )
+          : null) || "/add-purchase",
     },
     clientUser && {
-      type: "dropdown",
+      type: "link",
       key: "products",
       label: "Products",
-      children: [
-        { to: "/product", label: "All Products" },
-        { to: "/category", label: "Category" },
-        { to: "/units", label: "Units" },
-      ],
+      to:
+        (clientUser?.isStaff
+          ? ["/product", "/category", "/units"].find((p) =>
+            canAccessPath(clientUser.permissions, p)
+          )
+          : null) || "/product",
     },
     {
-      type: "dropdown",
+      type: "link",
       key: "contact",
       label: "Contact",
-      children: [
-        { to: "/customers", label: "Customers" },
-        { to: "/company", label: "Company" },
-        { to: "/company-account", label: "Company Account" },
-        { to: "/customer-account", label: "Customer Account" },
-        { to: "/routes", label: "Route" },
-      ],
+      to:
+        (clientUser?.isStaff
+          ? ["/company", "/company-account", "/customers", "/customer-account", "/routes"].find((p) =>
+            canAccessPath(clientUser.permissions, p)
+          )
+          : null) || "/company",
     },
     {
       type: "dropdown",
       key: "inventory",
       label: "Inventory",
       children: [
-        { to: "/stock-all", label: "Stock" },
-        { to: "/damage-products", label: "Damage" },
+        {
+          to:
+            (clientUser?.isStaff
+              ? ["/stock-purchase", "/stock-products", "/stock-adjustment", "/stock-alert"].find((p) =>
+                canAccessPath(clientUser.permissions, p)
+              )
+              : null) || "/stock-all",
+          label: "Stock",
+        },
+        {
+          to:
+            (clientUser?.isStaff
+              ? ["/damage-stock-invoice", "/damage-stock-single-invoice", "/damage-stock-products", "/damage-return-invoice", "/damage-return-products"].find((p) =>
+                canAccessPath(clientUser.permissions, p)
+              )
+              : null) || "/damage-products",
+          label: "Damage",
+        },
       ],
     },
-    {
-      type: "dropdown",
+    clientUser && {
+      type: "link",
       key: "account",
       label: "Account",
-      children: [
-        { to: "/account-balance", label: "Account Balance" },
-        { to: "/account-all", label: "Account All" },
-        { to: "/account-sales", label: "Account Sales" },
-        { to: "/account-purchase", label: "Account Purchase" },
-      ],
+      to:
+        (clientUser?.isStaff
+          ? ["/account-balance", "/opening-investment", "/income", "/expense", "/route-expense", "/transfer", "/account-purchase", "/account-sales"].find((p) =>
+            canAccessPath(clientUser.permissions, p)
+          )
+          : null) || "/account-balance",
     },
-    {
-      type: "dropdown",
+    clientUser && {
+      type: "link",
       key: "profit",
       label: "Profit",
-      children: [
-        { to: "/profit-all", label: "Profit" },
-      ],
+      to: "/profit-all",
     },
     {
       type: "dropdown",
@@ -276,15 +287,16 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/account-report", label: "Account Reports" },
       ],
     },
-    {
-      type: "dropdown",
+    clientUser && {
+      type: "link",
       key: "users",
       label: "Users",
-      children: [
-        { to: "/user", label: "All User" },
-        { to: "/user-assign", label: "User Assign" },
-        { to: "/user-role", label: "All Role" },
-      ],
+      to:
+        (clientUser?.isStaff
+          ? ["/user", "/user-assign", "/user-role"].find((p) =>
+            canAccessPath(clientUser.permissions, p)
+          )
+          : null) || "/user",
     },
     {
       type: "dropdown",
@@ -295,7 +307,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, scrolled, clientUser }) => {
         { to: "/payment-billing", label: "Payment & Billing" },
       ],
     },
-    ].filter(Boolean)
+  ].filter(Boolean)
     .map((item) => {
       if (!clientUser?.isStaff || item.type !== "dropdown") return item;
       return { ...item, children: item.children.filter((c) => canAccessPath(clientUser.permissions, c.to)) };

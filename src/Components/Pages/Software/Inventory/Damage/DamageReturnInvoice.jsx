@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaTimes } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import useCan from '../../../../../hooks/useCan';
 
 const CompanySelect = ({ label, placeholder, value, companies, onSelect, onType, onClear }) => {
     const [open, setOpen] = useState(false);
@@ -124,6 +125,7 @@ const FilterSelect = ({ label, placeholder, value, options, onChange }) => {
 };
 
 const DamageReturnInvoice = () => {
+    const { canEdit, canDelete } = useCan('damage_return_invoice');
     const [returns, setReturns] = useState([]);
     const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -375,6 +377,7 @@ const DamageReturnInvoice = () => {
     };
 
     const handleEdit = (item) => {
+        if (!canEdit) { setOpenDropdownId(null); return showToast('আপনার Edit করার অনুমতি নেই!', 'error'); }
         setOpenDropdownId(null);
         if (item.isFromPurchase) {
             const { isFromPurchase: _a, returnDate: _b, items: _c, ...original } = item;
@@ -385,6 +388,7 @@ const DamageReturnInvoice = () => {
     };
 
     const handleDelete = (item) => {
+        if (!canDelete) { setOpenDropdownId(null); return showToast('আপনার Delete করার অনুমতি নেই!', 'error'); }
         setOpenDropdownId(null);
         if (item.isFromPurchase) {
             Swal.fire({
@@ -446,6 +450,7 @@ const DamageReturnInvoice = () => {
     };
 
     const handleApprove = (item) => {
+        if (!canEdit) { setOpenDropdownId(null); return showToast('আপনার Edit করার অনুমতি নেই!', 'error'); }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Approve this damage return?',

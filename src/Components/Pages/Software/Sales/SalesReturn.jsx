@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import useCan from '../../../../hooks/useCan';
 
 const SalesReturn = () => {
     const [returns, setReturns] = useState([]);
+    const can = useCan('sales_return');
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
@@ -322,11 +324,13 @@ const SalesReturn = () => {
     // Edit Return Handler -> return form a existing value prefill kore edit kora jabe
     const handleEditReturn = (item) => {
         setOpenDropdownId(null);
+        if (!can.canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         navigate(`/sales-return-details/${item.orderId}?returnId=${item.returnId}`);
     };
 
     // Delete Return Handler -> shudhu ei nirdishto return entry ta returnHistory theke muche jabe, order thakbe
     const handleDeleteReturn = async (item) => {
+        if (!can.canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -551,7 +555,7 @@ const SalesReturn = () => {
                         <p className="text-gray-500 text-sm mt-1">Manage and track all sales return records</p>
                     </div>
                     <button
-                        onClick={() => navigate('/wholesale')}
+                        onClick={() => (can.canAdd ? navigate('/wholesale') : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
                         className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
                     >
                         New Return

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
+import useCan from '../../../../../hooks/useCan';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
@@ -439,6 +440,7 @@ const calcProfit = (b, sales, unitCost) => {
 };
 
 const StockPurchase = () => {
+    const { canEdit } = useCan('stock_purchase');
     const location = useLocation();
     const focusEvent = location.state?.focusEvent || null;
     const [batches, setBatches] = useState([]);
@@ -476,6 +478,7 @@ const StockPurchase = () => {
         setTimeout(() => setToast(null), 2500);
     };
     const startEdit = (b) => {
+        if (!canEdit) return showToast('error', 'আপনার Edit করার অনুমতি নেই!');
         setEditingId(b._id);
         setEditPrice(String(b.sellPrice ?? 0));
     };

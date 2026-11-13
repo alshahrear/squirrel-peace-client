@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 import Swal from 'sweetalert2';
 import IncomeForm from './IncomeForm';
 import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight, FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const Income = () => {
     const [incomes, setIncomes] = useState([]);
+    const { canAdd, canEdit, canDelete } = useCan('account_income');
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
@@ -82,6 +84,7 @@ const Income = () => {
 
     // Delete Income Handler with SweetAlert2
     const handleDelete = async (id) => {
+        if (!canDelete) { showToast('আপনার Delete করার অনুমতি নেই!', 'error'); return; }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -304,6 +307,7 @@ const Income = () => {
 
                     <button
                         onClick={() => {
+                            if (!showForm && !canAdd) { showToast('আপনার Add করার অনুমতি নেই!', 'error'); return; }
                             setEditingIncome(null);
                             setShowForm(!showForm);
                         }}
@@ -488,6 +492,7 @@ const Income = () => {
                                                             <button
                                                                 onClick={() => {
                                                                     setOpenDropdownId(null);
+                                                                    if (!canEdit) { showToast('আপনার Edit করার অনুমতি নেই!', 'error'); return; }
                                                                     setEditingIncome(income);
                                                                     setShowForm(true);
                                                                     setTimeout(() => {

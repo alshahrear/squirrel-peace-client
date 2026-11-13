@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import useCan from '../../../../hooks/useCan';
+
 
 const Purchase = () => {
     const [purchases, setPurchases] = useState([]);
@@ -10,6 +12,10 @@ const Purchase = () => {
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const navigate = useNavigate();
     const location = useLocation();
+    const pAll = useCan('purchase_all');
+    const pAdd = useCan('purchase_add');
+    const pRet = useCan('purchase_return');
+    const denyMsg = (what) => showToast(`আপনার ${what} করার অনুমতি নেই!`, 'error');
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -257,12 +263,14 @@ const Purchase = () => {
 
     // Edit Purchase Handler -> navigate to /add-purchase with data
     const handleEdit = (item) => {
+        if (!pAll.canEdit) { setOpenDropdownId(null); return denyMsg('Edit'); }
         setOpenDropdownId(null);
         navigate('/add-purchase', { state: { purchase: item } });
     };
 
     // Purchase Edit (original order edit) -> save er por shorashori Receive page e jabe
     const handleEditOrder = (item) => {
+        if (!pAll.canEdit) { setOpenDropdownId(null); setEditMenuId(null); return denyMsg('Edit'); }
         setOpenDropdownId(null);
         setEditMenuId(null);
         navigate('/add-purchase', { state: { purchase: item, mode: 'orderEdit' } });
@@ -270,6 +278,7 @@ const Purchase = () => {
 
     // Receive Edit (received qty edit)
     const handleEditReceived = (item) => {
+        if (!pAll.canEdit) { setOpenDropdownId(null); setEditMenuId(null); return denyMsg('Edit'); }
         setOpenDropdownId(null);
         setEditMenuId(null);
         navigate('/add-purchase', { state: { purchase: item } });
@@ -282,18 +291,21 @@ const Purchase = () => {
     };
 
     const handleReturn = (id) => {
+        if (!pRet.canAdd) { setOpenDropdownId(null); return denyMsg('Return'); }
         setOpenDropdownId(null);
         navigate(`/purchase-return-details/${id}`);
     };
 
     // Receive Handler -> Edit mode এর মতোই /add-purchase এ যাবে, কিন্তু Receive mode এ (Payment section সহ)
     const handleReceive = (item) => {
+        if (!pAll.canEdit) { setOpenDropdownId(null); return denyMsg('Edit'); }
         setOpenDropdownId(null);
         navigate('/add-purchase', { state: { purchase: item, mode: 'receive' } });
     };
 
     // Delete Purchase Handler with SweetAlert2
     const handleDelete = async (id) => {
+        if (!pAll.canDelete) { setOpenDropdownId(null); return denyMsg('Delete'); }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -523,7 +535,7 @@ const Purchase = () => {
                     </div>
 
                     <button
-                        onClick={() => navigate('/add-purchase')}
+                        onClick={() => (pAdd.canAdd ? navigate('/add-purchase') : denyMsg('Add'))}
                         className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
                     >
                         <svg

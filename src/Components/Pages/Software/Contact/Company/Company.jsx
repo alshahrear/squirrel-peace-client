@@ -5,6 +5,7 @@ import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock
 import CompanyForm from './CompanyForm';
 import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 
 // "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
 const formatCreatedDate = (value) => {
@@ -20,6 +21,7 @@ const formatCreatedDate = (value) => {
 const Company = () => {
     const navigate = useNavigate();
     const [companies, setCompanies] = useState([]);
+    const { canAdd, canEdit, canDelete } = useCan("company");
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useDraftState('companyEditingId', null);
     const editingCompany = companies.find((c) => c._id === editingId) || null;
@@ -173,6 +175,10 @@ const Company = () => {
 
     // Handle Delete with SweetAlert
     const handleDelete = (id) => {
+        if (!canDelete) {
+            setOpenDropdownId(null);
+            return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
+        }
         setOpenDropdownId(null);
         Swal.fire({
             title: "Are you sure?",
@@ -205,6 +211,10 @@ const Company = () => {
 
     // Handle Edit (Open form with selected company)
     const handleEdit = (company) => {
+        if (!canEdit) {
+            setOpenDropdownId(null);
+            return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+        }
         setOpenDropdownId(null);
         setEditingCompany(company);
         setIsFormOpen(true);
@@ -220,7 +230,7 @@ const Company = () => {
     };
 
     // Advanced Multi-field & Date Range Filtering Logic
-        const filteredCompanies = [...companies].reverse().filter((company) => {
+    const filteredCompanies = [...companies].reverse().filter((company) => {
         // Date Range Filter (YYYY-MM-DD backend to formatted check)
         if (filters.startDate || filters.endDate) {
             if (!company.createdAt) return false;
@@ -305,6 +315,7 @@ const Company = () => {
                     {/* Toggle Button for Form */}
                     <button
                         onClick={() => {
+                            if (!isFormOpen && !canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
                             setEditingCompany(null);
                             setIsFormOpen(!isFormOpen);
                         }}

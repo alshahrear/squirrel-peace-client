@@ -5,6 +5,16 @@ import ProfitIncome from './ProfitIncome';
 import ProfitExpense from './ProfitExpense';
 import ProfitRouteExpense from './ProfitRouteExpense';
 import ProfitOthers from './ProfitOthers';
+import { useClientAuth } from '../../../../../hooks/ClientAuthContext';
+import { hasAction } from '../../../../../hooks/permissionConfig';
+
+const TAB_MODULE = {
+    profitsaleswise: 'profit_sales_wise',
+    profitincome: 'profit_income',
+    profitexpense: 'profit_expense',
+    profitrouteexpense: 'profit_route_expense',
+    profitothers: 'profit_others',
+};
 
 // ===== Net Profit helpers =====
 const num = (v) => Number(v) || 0;
@@ -60,6 +70,10 @@ const TABS = [
 ];
 
 const ProfitTabAll = () => {
+    const { clientUser } = useClientAuth();
+    const canView = (tabKey) => !clientUser?.isStaff || hasAction(clientUser?.permissions, TAB_MODULE[tabKey], 'get');
+    const visibleTabs = TABS.filter((t) => canView(t.key));
+    const canSeeSummary = canView('profitsaleswise');
     const [activeTab, setActiveTab] = useState(() => {
         try {
             return sessionStorage.getItem('profitTab') || 'profitsaleswise';
@@ -75,6 +89,8 @@ const ProfitTabAll = () => {
             // ignore
         }
     }, [activeTab]);
+
+    const currentTab = visibleTabs.some((t) => t.key === activeTab) ? activeTab : (visibleTabs[0]?.key || '');
 
     const [netData, setNetData] = useState({ sales: [], batches: [], purchases: [], incomes: [], expenses: [], routeExpenses: [], damages: [] });
 
@@ -162,7 +178,7 @@ const ProfitTabAll = () => {
             <div className="max-w-[1700px] mx-auto px-4 md:px-6 pt-4 md:pt-6 flex flex-wrap items-center justify-between gap-4">
                 {/* Total Profit (Sales Wise) */}
                 <div
-                    className={`relative overflow-hidden rounded-2xl shadow-xl px-6 py-3 min-w-[200px] text-white flex items-center justify-start bg-gradient-to-r ${isSalesPositive ? 'from-indigo-500 via-blue-500 to-sky-600' : 'from-rose-500 via-red-500 to-orange-600'
+                    className={`relative overflow-hidden rounded-2xl shadow-xl px-6 py-3 min-w-[200px] text-white ${canSeeSummary ? 'flex' : 'hidden'} items-center justify-start bg-gradient-to-r ${isSalesPositive ? 'from-indigo-500 via-blue-500 to-sky-600' : 'from-rose-500 via-red-500 to-orange-600'
                         }`}
                 >
                     <div className="absolute -right-6 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
@@ -178,9 +194,9 @@ const ProfitTabAll = () => {
                 </div>
 
                 <div className="inline-flex gap-1 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white p-1">
-                    {TABS.map((tab) => {
+                    {visibleTabs.map((tab) => {
                         const Icon = tab.icon;
-                        const isActive = activeTab === tab.key;
+                        const isActive = currentTab === tab.key;
                         return (
                             <button
                                 key={tab.key}
@@ -200,7 +216,7 @@ const ProfitTabAll = () => {
 
                 {/* Net Profit */}
                 <div
-                    className={`relative overflow-hidden rounded-2xl shadow-xl px-6 py-3 min-w-[200px] text-white flex items-center justify-end bg-gradient-to-r ${isPositive ? 'from-emerald-500 via-teal-500 to-cyan-600' : 'from-rose-500 via-red-500 to-orange-600'
+                    className={`relative overflow-hidden rounded-2xl shadow-xl px-6 py-3 min-w-[200px] text-white ${canSeeSummary ? 'flex' : 'hidden'} items-center justify-end bg-gradient-to-r ${isPositive ? 'from-emerald-500 via-teal-500 to-cyan-600' : 'from-rose-500 via-red-500 to-orange-600'
                         }`}
                 >
                     <div className="absolute -left-6 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
@@ -216,11 +232,11 @@ const ProfitTabAll = () => {
 
                 </div>
             </div>
-            {activeTab === 'profitsaleswise' && <ProfitSalesWise />}
-            {activeTab === 'profitincome' && <ProfitIncome />}
-            {activeTab === 'profitexpense' && <ProfitExpense />}
-            {activeTab === 'profitrouteexpense' && <ProfitRouteExpense />}
-            {activeTab === 'profitothers' && <ProfitOthers />}
+            {currentTab === 'profitsaleswise' && <ProfitSalesWise />}
+            {currentTab === 'profitincome' && <ProfitIncome />}
+            {currentTab === 'profitexpense' && <ProfitExpense />}
+            {currentTab === 'profitrouteexpense' && <ProfitRouteExpense />}
+            {currentTab === 'profitothers' && <ProfitOthers />}
         </div>
     );
 };

@@ -8,6 +8,8 @@ import {
     FaMapMarkerAlt,
     FaToggleOn,
     FaSignInAlt,
+    FaWhatsapp,
+    FaUsers,
 } from 'react-icons/fa';
 import useAxiosSecure from '../../../../hooks/useAxiosSecure';
 
@@ -178,6 +180,14 @@ const ClientDetails = () => {
                         >
                             {client.isActive ? 'Active' : 'Non-Active'}
                         </span>
+                    </InfoCard>
+
+                    <InfoCard icon={<FaWhatsapp size={15} />} label="WhatsApp" iconBg="bg-green-50 text-green-600">
+                        {client.whatsapp || <NA />}
+                    </InfoCard>
+
+                    <InfoCard icon={<FaUsers size={15} />} label="User Limit" iconBg="bg-orange-50 text-orange-600">
+                        {client.userLimit ?? 10} (incl. dealer)
                     </InfoCard>
 
                     <InfoCard icon={<FaSignInAlt size={15} />} label="Login Status" iconBg="bg-indigo-50 text-indigo-600">

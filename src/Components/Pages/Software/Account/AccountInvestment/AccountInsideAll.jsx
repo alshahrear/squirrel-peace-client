@@ -1,6 +1,8 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FaMoneyBillWave, FaWallet, FaReceipt, FaRoute, FaExchangeAlt } from 'react-icons/fa';
+import { useClientAuth } from '../../../../../hooks/ClientAuthContext';
+import { canAccessPath } from '../../../../../hooks/permissionConfig';
 
 const TABS = [
     { key: 'openinginvestment', path: '/opening-investment', label: 'Opening Investment', icon: FaWallet },
@@ -12,14 +14,18 @@ const TABS = [
 
 const AccountInsideAll = () => {
     const location = useLocation();
-    const navigate = useNavigate();
+        const navigate = useNavigate();
+    const { clientUser } = useClientAuth();
+    const tabs = TABS.filter(
+        (t) => !clientUser?.isStaff || canAccessPath(clientUser.permissions, t.path)
+    );
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
             {/* Tab Bar */}
             <div className="max-w-[1700px] mx-auto px-4 md:px-6 pt-4 md:pt-6">
                 <div className="inline-flex gap-1 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white p-1">
-                    {TABS.map((tab) => {
+                    {tabs.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = location.pathname === tab.path;
                         return (

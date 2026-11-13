@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBatchCostPerPcs } from '../../../Software/Inventory/Stock/StockPurchase';
 import { fetchAccountBalance } from '../../../Software/Account/AccountBalance';
+import useCan from '../../../../../hooks/useCan';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -309,6 +310,7 @@ const getCostBreakdown = (stock, qty) => {
 };
 
 const DamageStockAdd = () => {
+    const { canAdd, canEdit } = useCan('damage_stock_invoice');
     const navigate = useNavigate();
     const location = useLocation();
     const editingDamage = location.state?.damage || null;
@@ -482,7 +484,7 @@ const DamageStockAdd = () => {
 
     // ---------- Customer ----------
     const filteredCustomers = customers
-        .filter((c) => c.customerType === 'Wholesale Customer')
+                .filter(() => true)
         .filter((c) => matchesSearch(search.customer, [c.businessName, c.contactNumber, c.address, c.route]));
 
     // Customer change/select/clear hole full page reset (items, note, company, category, product search)
@@ -777,6 +779,9 @@ const DamageStockAdd = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (isSaving) return;
+        if (isEditMode ? !canEdit : !canAdd) {
+            return showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', true);
+        }
 
 
         if (!formData.date) return showToast('Date is required!', true);
@@ -962,7 +967,7 @@ const DamageStockAdd = () => {
                                 onSelect={handleSelectCustomer}
                                 items={filteredCustomers}
                                 getKey={(c) => c._id}
-                                emptyText="No wholesale customer found"
+                                emptyText="No customer found"
                                 renderItem={(c) => (
                                     <>
                                         <p className="text-sm font-semibold text-slate-800">{c.businessName}</p>

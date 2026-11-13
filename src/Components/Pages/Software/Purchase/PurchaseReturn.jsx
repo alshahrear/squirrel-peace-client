@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import useCan from '../../../../hooks/useCan';
 
 const PurchaseReturn = () => {
     const [returns, setReturns] = useState([]);
@@ -9,6 +10,8 @@ const PurchaseReturn = () => {
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const navigate = useNavigate();
+    const { canAdd, canEdit, canDelete } = useCan('purchase_return');
+    const denyMsg = (what) => showToast(`আপনার ${what} করার অনুমতি নেই!`, 'error');
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -316,6 +319,7 @@ const PurchaseReturn = () => {
 
     // Edit Return Handler -> return form a existing value prefill kore edit kora jabe
     const handleApprove = (item) => {
+        if (!canEdit) { setOpenDropdownId(null); return denyMsg('Edit'); }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Approve this purchase return?',
@@ -351,12 +355,14 @@ const PurchaseReturn = () => {
     };
 
     const handleEditReturn = (item) => {
+        if (!canEdit) { setOpenDropdownId(null); return denyMsg('Edit'); }
         setOpenDropdownId(null);
         navigate(`/purchase-return-details/${item.orderId}?returnId=${item.returnId}`);
     };
 
     // Delete Return Handler -> shudhu ei nirdishto return entry ta returnHistory theke muche jabe, order thakbe
     const handleDeleteReturn = async (item) => {
+        if (!canDelete) { setOpenDropdownId(null); return denyMsg('Delete'); }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -582,7 +588,7 @@ const PurchaseReturn = () => {
                         <p className="text-gray-500 text-sm mt-1">Manage and track all purchase return records</p>
                     </div>
                     <button
-                        onClick={() => navigate('/purchase')}
+                        onClick={() => (canAdd ? navigate('/purchase') : denyMsg('Add'))}
                         className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
                     >
                         New Return

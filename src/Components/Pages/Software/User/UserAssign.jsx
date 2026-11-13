@@ -3,7 +3,9 @@ import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import { FaUserShield, FaSearch, FaSave, FaCheckDouble, FaEraser, FaUsers } from "react-icons/fa";
 import useAxiosClient from "../../../../hooks/useAxiosClient";
-import { ACTIONS, PERMISSION_GROUPS, ALL_MODULES } from "../../../../hooks/permissionConfig";
+import { ACTIONS, PERMISSION_GROUPS, ALL_MODULES, hasAction } from "../../../../hooks/permissionConfig";
+import { useClientAuth } from "../../../../hooks/ClientAuthContext";
+import useCan from "../../../../hooks/useCan";
 
 const ACTION_KEYS = ACTIONS.map((a) => a.key);
 
@@ -44,6 +46,24 @@ const UserAssign = () => {
     const reqRef = useRef(0);
 
     const dirty = selected ? snap(perms) !== original : false;
+
+    // staff নিজের যা নেই তা দিতে পারবে না (UX; backend আটকাবেই)
+    const { clientUser } = useClientAuth();
+    const { canEdit } = useCan("user_assign");
+    const isStaff = clientUser?.isStaff === true;
+    const isSelf = (u) =>
+        isStaff &&
+        !!u &&
+        (String(u._id) === String(clientUser?._id) ||
+            (u.email || "").toLowerCase() === (clientUser?.email || "").toLowerCase());
+    const locked = !canEdit || isSelf(selected);
+    const myCan = (key, action) => !isStaff || hasAction(clientUser?.permissions, key, action);
+    const allowedActs = (key) => ACTION_KEYS.filter((a) => myCan(key, a));
+    const modAny = (key) => allowedActs(key).length > 0;
+    const allFull = (mods) => {
+        const u = mods.filter((m) => modAny(m.key));
+        return u.length > 0 && u.every((m) => isFull(m.key));
+    };
 
     useEffect(() => {
         (async () => {
@@ -124,11 +144,20 @@ const UserAssign = () => {
             return next;
         });
 
-    const isFull = (key) => (perms[key] || []).length === ACTION_KEYS.length;
+    const isFull = (key) => {
+        const al = allowedActs(key);
+        return al.length > 0 && al.every((a) => (perms[key] || []).includes(a));
+    };
 
-    const toggleFull = (key) => setModule(key, isFull(key) ? [] : ACTION_KEYS);
+    const toggleFull = (key) => {
+        if (locked) return;
+        const al = allowedActs(key);
+        if (!al.length) return;
+        setModule(key, isFull(key) ? [] : al);
+    };
 
     const toggleAction = (key, action) => {
+        if (locked || !myCan(key, action)) return;
         const cur = new Set(perms[key] || []);
         if (cur.has(action)) {
             if (action === "get") cur.clear(); // View বন্ধ করলে বাকি সব বন্ধ
@@ -141,25 +170,32 @@ const UserAssign = () => {
     };
 
     const toggleGroup = (mods) => {
-        const all = mods.every((m) => isFull(m.key));
+        if (locked) return;
+        const usable = mods.filter((m) => modAny(m.key));
+        const all = usable.length > 0 && usable.every((m) => isFull(m.key));
         setPerms((prev) => {
             const next = { ...prev };
             mods.forEach((m) => {
                 if (all) delete next[m.key];
-                else next[m.key] = [...ACTION_KEYS];
+                else if (modAny(m.key)) next[m.key] = allowedActs(m.key);
             });
             return next;
         });
     };
 
     const setAll = (on) => {
+        if (locked) return;
         const next = {};
-        if (on) ALL_MODULES.forEach((m) => (next[m.key] = [...ACTION_KEYS]));
+        if (on) ALL_MODULES.forEach((m) => { if (modAny(m.key)) next[m.key] = allowedActs(m.key); });
         setPerms(next);
     };
 
     const handleSave = async () => {
         if (!selected || saving) return;
+        if (locked) {
+            toast.error(isSelf(selected) ? "নিজের permission বদলানো যাবে না!" : "আপনার Edit করার অনুমতি নেই!");
+            return;
+        }
         setSaving(true);
         try {
             const res = await axiosClient.put(`/user-permission/${selected._id}`, { permissions: perms });
@@ -184,6 +220,18 @@ const UserAssign = () => {
             : g.modules;
         return { ...g, mods };
     }).filter((g) => g.mods.length > 0);
+
+    // sub-group (যেমন Inventory > Stock / Damage): যেসব module দেখা যাচ্ছে তাদের ভাগ করে
+    const getSubs = (g) => {
+        if (!g.subGroups) return null;
+        const subs = g.subGroups
+            .map((sg) => ({
+                ...sg,
+                mods: g.modules.slice(sg.from, sg.to).filter((m) => g.mods.includes(m)),
+            }))
+            .filter((sg) => sg.mods.length > 0);
+        return subs.length ? subs : null;
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4 md:p-8">
@@ -329,7 +377,7 @@ const UserAssign = () => {
                                 ) : (
                                     <div className="space-y-4">
                                         {visibleGroups.map((g) => {
-                                            const groupFull = g.mods.every((m) => isFull(m.key));
+                                            const groupFull = allFull(g.mods);
                                             const groupSome = g.mods.some((m) => (perms[m.key] || []).length > 0);
                                             return (
                                                 <div key={g.key} className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
@@ -339,6 +387,7 @@ const UserAssign = () => {
                                                                 checked={groupFull}
                                                                 indeterminate={groupSome}
                                                                 onChange={() => toggleGroup(g.mods)}
+                                                                disabled={locked || !g.mods.some((m) => modAny(m.key))}
                                                                 title="Select whole group"
                                                             />
                                                             {g.label}
@@ -351,31 +400,57 @@ const UserAssign = () => {
                                                     </div>
 
                                                     <div className="divide-y divide-gray-100">
-                                                        {g.mods.map((m) => {
-                                                            const cur = perms[m.key] || [];
+                                                        {(getSubs(g) || [{ key: "_all", label: null, mods: g.mods }]).map((sg) => {
+                                                            const sgFull = allFull(sg.mods);
+                                                            const sgSome = sg.mods.some((m) => (perms[m.key] || []).length > 0);
                                                             return (
-                                                                <div
-                                                                    key={m.key}
-                                                                    className={`grid grid-cols-[1fr_repeat(4,52px)] sm:grid-cols-[1fr_repeat(4,64px)] items-center gap-1 px-4 py-2.5 transition ${cur.length ? "bg-indigo-50/40" : "bg-white"}`}
-                                                                >
-                                                                    <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer min-w-0">
-                                                                        <TriCheck
-                                                                            checked={isFull(m.key)}
-                                                                            indeterminate={cur.length > 0}
-                                                                            onChange={() => toggleFull(m.key)}
-                                                                            title="Full access to this page"
-                                                                        />
-                                                                        <span className="truncate" title={m.label}>{m.label}</span>
-                                                                    </label>
-                                                                    {ACTIONS.map((a) => (
-                                                                        <div key={a.key} className="flex justify-center">
-                                                                            <TriCheck
-                                                                                checked={cur.includes(a.key)}
-                                                                                onChange={() => toggleAction(m.key, a.key)}
-                                                                                title={a.label}
-                                                                            />
+                                                                <div key={sg.key}>
+                                                                    {sg.label && (
+                                                                        <div className="px-4 py-2 bg-indigo-50 border-t border-indigo-100">
+                                                                            <label className="flex items-center gap-2.5 text-[13px] font-extrabold text-indigo-700 cursor-pointer">
+                                                                                <TriCheck
+                                                                                    checked={sgFull}
+                                                                                    indeterminate={sgSome}
+                                                                                    onChange={() => toggleGroup(sg.mods)}
+                                                                                    disabled={locked || !sg.mods.some((m) => modAny(m.key))}
+                                                                                    title={`Select whole ${sg.label}`}
+                                                                                />
+                                                                                {sg.label}
+                                                                            </label>
                                                                         </div>
-                                                                    ))}
+                                                                    )}
+                                                                    <div className="divide-y divide-gray-100">
+                                                                        {sg.mods.map((m) => {
+                                                                            const cur = perms[m.key] || [];
+                                                                            return (
+                                                                                <div
+                                                                                    key={m.key}
+                                                                                    className={`grid grid-cols-[1fr_repeat(4,52px)] sm:grid-cols-[1fr_repeat(4,64px)] items-center gap-1 py-2.5 transition ${sg.label ? "pl-9 pr-4" : "px-4"} ${cur.length ? "bg-indigo-50/40" : "bg-white"}`}
+                                                                                >
+                                                                                    <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer min-w-0">
+                                                                                        <TriCheck
+                                                                                            checked={isFull(m.key)}
+                                                                                            indeterminate={cur.length > 0}
+                                                                                            onChange={() => toggleFull(m.key)}
+                                                                                            disabled={locked || !modAny(m.key)}
+                                                                                            title="Full access to this page"
+                                                                                        />
+                                                                                        <span className="truncate" title={m.label}>{m.label}</span>
+                                                                                    </label>
+                                                                                    {ACTIONS.map((a) => (
+                                                                                        <div key={a.key} className="flex justify-center">
+                                                                                            <TriCheck
+                                                                                                checked={cur.includes(a.key)}
+                                                                                                onChange={() => toggleAction(m.key, a.key)}
+                                                                                                disabled={locked || !myCan(m.key, a.key)}
+                                                                                                title={a.label}
+                                                                                            />
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
                                                                 </div>
                                                             );
                                                         })}

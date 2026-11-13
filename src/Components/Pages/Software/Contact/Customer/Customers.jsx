@@ -4,6 +4,7 @@ import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock
 import CustomerForm from './CustomersFrom';
 import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 
 // "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
 const formatCreatedDate = (value) => {
@@ -19,6 +20,7 @@ const formatCreatedDate = (value) => {
 const Customers = () => {
     const navigate = useNavigate();
     const [customers, setCustomers] = useState([]);
+    const { canAdd, canEdit, canDelete } = useCan("customers");
     const [loading, setLoading] = useState(true);
     const [routes, setRoutes] = useState([]); // Routes state
     const [editingId, setEditingId] = useDraftState('customerEditingId', null);
@@ -221,6 +223,10 @@ const Customers = () => {
 
     // Handle Delete with SweetAlert
     const handleDelete = (id) => {
+        if (!canDelete) {
+            setOpenDropdownId(null);
+            return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
+        }
         setOpenDropdownId(null);
         Swal.fire({
             title: "Are you sure?",
@@ -253,6 +259,10 @@ const Customers = () => {
 
     // Handle Edit (Open form with selected customer)
     const handleEdit = (customer) => {
+        if (!canEdit) {
+            setOpenDropdownId(null);
+            return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+        }
         setOpenDropdownId(null);
         setEditingCustomer(customer);
         setIsFormOpen(true);
@@ -269,7 +279,7 @@ const Customers = () => {
     };
 
     // Advanced Multi-field & Date Range Filtering Logic
-        const filteredCustomers = [...customers].reverse().filter((customer) => {
+    const filteredCustomers = [...customers].reverse().filter((customer) => {
         if (filters.startDate || filters.endDate) {
             if (!customer.createdAt) return false;
 
@@ -347,6 +357,7 @@ const Customers = () => {
 
                     <button
                         onClick={() => {
+                            if (!isFormOpen && !canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
                             setEditingCustomer(null);
                             setIsFormOpen(!isFormOpen);
                         }}

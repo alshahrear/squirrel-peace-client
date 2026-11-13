@@ -8,6 +8,8 @@ const Client = () => {
     const axiosSecure = useAxiosSecure();
     // ফরমের ডেটা ম্যানেজ করার জন্য স্টেট
     const [formData, setFormData] = useState({
+        whatsapp: '',
+        userLimit: 10,
         name: '',
         slug: '',
         phone: '',
@@ -82,7 +84,9 @@ const Client = () => {
             email: client.email || '',
             password: '',
             address: client.address || '',
-            isActive: client.isActive || false
+            isActive: client.isActive || false,
+            whatsapp: client.whatsapp || '',
+            userLimit: client.userLimit ?? 10
         });
         setIsFormOpen(true); // এডিট ক্লিক করলে ফর্ম ওপেন হয়ে যাবে
 
@@ -104,6 +108,7 @@ const Client = () => {
             isActive: false
         });
         setEditingId(null);
+        setFormData(prev => ({ ...prev, whatsapp: '', userLimit: 10 }));
         setSlugLocked(false);
         setFieldErrors({ phone: '', email: '' });
         setIsFormOpen(false); // ফর্ম বন্ধ হয়ে যাবে
@@ -313,6 +318,34 @@ const Client = () => {
                                     required
                                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
                                     placeholder="Enter address"
+                                />
+                            </div>
+
+                            {/* WhatsApp (optional) */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">WhatsApp Number <span className="text-gray-400 font-normal">(optional)</span></label>
+                                <input
+                                    type="text"
+                                    name="whatsapp"
+                                    value={formData.whatsapp}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, whatsapp: e.target.value.replace(/\D/g, '') }))}
+                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                                    placeholder="Enter WhatsApp number"
+                                />
+                            </div>
+
+                            {/* User Limit */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">User Limit <span className="text-gray-400 font-normal">(including dealer)</span></label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    name="userLimit"
+                                    value={formData.userLimit}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, userLimit: e.target.value.replace(/\D/g, '') }))}
+                                    required
+                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                                    placeholder="10"
                                 />
                             </div>
 

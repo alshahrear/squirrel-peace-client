@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaBox, FaBuilding, FaBarcode, FaTags, FaExclamationTriangle, FaDollarSign, FaBalanceScale, FaGift, FaStickyNote, FaTimes, FaEdit, FaSave, FaChevronDown, FaPlus } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import useCan from '../../../../hooks/useCan';
 
 const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProducts, setIsFormOpen, showToast, products = [] }) => {
     const navigate = useNavigate();
+    const { canAdd, canEdit } = useCan("product");
     const [companies, setCompanies] = useState([]);
     const [categories, setCategories] = useState([]);
     const [units, setUnits] = useState([]);
@@ -120,6 +122,15 @@ const ProductForm = ({ formData, setFormData, editingId, setEditingId, fetchProd
     const handleSubmit = async (e) => {
         e.preventDefault();
         const isEditing = Boolean(editingId);
+
+        if (isEditing && !canEdit) {
+            if (showToast) showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+            return;
+        }
+        if (!isEditing && !canAdd) {
+            if (showToast) showToast('আপনার Add করার অনুমতি নেই!', 'error');
+            return;
+        }
 
         const nameInput = formData.productName.trim().toLowerCase();
         const companyInput = formData.company.trim().toLowerCase();

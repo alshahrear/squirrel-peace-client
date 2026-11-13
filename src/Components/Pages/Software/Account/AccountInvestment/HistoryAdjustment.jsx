@@ -13,6 +13,7 @@ import {
 import useAuth from '../../../../../hooks/useAuth';
 import useAdmin from '../../../../../hooks/useAdmin';
 import AdjustmentForm from './Adjustment';
+import useCan from '../../../../../hooks/useCan';
 
 const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
     const [historyData, setHistoryData] = useState([]);
@@ -35,6 +36,7 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
     const itemsPerPage = 10;
 
     const { user } = useAuth();
+    const { canEdit, canDelete } = useCan('account_investment');
     const [isAdmin] = useAdmin();
 
     const startDateInputRef = useRef(null);
@@ -167,6 +169,7 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
 
     // ডিলিট করার হ্যান্ডলার
     const handleDelete = async (id) => {
+        if (!canDelete) { showToast('আপনার Delete করার অনুমতি নেই!', 'error'); return; }
         const result = await Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
@@ -381,6 +384,7 @@ const HistoryAdjustment = ({ selectedInvestment, refreshInvestments }) => {
                                                 </button>
                                                 <button
                                                     onClick={() => {
+                                                        if (!canEdit) { showToast('আপনার Edit করার অনুমতি নেই!', 'error'); return; }
                                                         setEditingAdjustment(item);
                                                         setShowEditModal(true);
                                                     }}

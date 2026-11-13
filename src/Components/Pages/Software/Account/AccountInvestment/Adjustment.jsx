@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiCalendar, FiCheck } from 'react-icons/fi';
+import useCan from '../../../../../hooks/useCan';
 
 const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustment, availableAmount = 0 }) => {
     const [adjustmentData, setAdjustmentData] = useState({
@@ -9,6 +10,7 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
         note: '',
     });
     const [adjustmentLoading, setAdjustmentLoading] = useState(false);
+    const { canAdd, canEdit } = useCan('account_investment');
     const [localToast, setLocalToast] = useState({ show: false, message: '' });
     const adjDateInputRef = useRef(null);
 
@@ -32,6 +34,11 @@ const AdjustmentForm = ({ onClose, showToast, selectedInvestment, editingAdjustm
     }, [editingAdjustment]);
 
     const handleAdjustmentSubmit = async (e) => {
+        if (!(editingAdjustment ? canEdit : canAdd)) {
+            e.preventDefault();
+            showToast('আপনার Add / Edit করার অনুমতি নেই!', 'error');
+            return;
+        }
         e.preventDefault();
 
         if (adjustmentData.mode === 'Withdraw' && Number(adjustmentData.amount) > baseAvailableAmount) {

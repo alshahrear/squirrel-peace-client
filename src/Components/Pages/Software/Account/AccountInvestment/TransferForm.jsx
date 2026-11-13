@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 
 const TransferForm = ({
     showToast,
@@ -45,7 +46,8 @@ const TransferForm = ({
             }
     );
 
-    const [loading, setLoading] = useState(false);
+        const [loading, setLoading] = useState(false);
+    const { canAdd, canEdit } = useCan('account_transfer');
     const [accounts, setAccounts] = useState([]);
     const [allInvestments, setAllInvestments] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
@@ -162,7 +164,12 @@ const TransferForm = ({
         });
     };
 
-    const handleSubmit = async (e) => {
+        const handleSubmit = async (e) => {
+        if (!((editingTransfer && editingTransfer._id) ? canEdit : canAdd)) {
+            e.preventDefault();
+            showToast('আপনার Add / Edit করার অনুমতি নেই!', 'error');
+            return;
+        }
         e.preventDefault();
 
         // Selected "From" account এ পর্যাপ্ত ব্যালেন্স আছে কিনা চেক করা হচ্ছে

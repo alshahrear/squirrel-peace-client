@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import useCan from '../../../../hooks/useCan';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -22,6 +23,7 @@ const PurchaseBulkReturnForm = () => {
     const location = useLocation();
     const editingReturn = location.state?.bulkReturn || null;
     const isEditMode = !!editingReturn;
+    const { canAdd: canAddBulk, canEdit: canEditBulk } = useCan('purchase_bulk_return');
     const editId = editingReturn?._id || null;
 
     const [formData, setFormData] = useState({
@@ -370,6 +372,9 @@ const PurchaseBulkReturnForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (isSaving) return;
+        if (isEditMode ? !canEditBulk : !canAddBulk) {
+            return showToast('আপনার Add / Edit / Delete করার অনুমতি নেই!', true);
+        }
 
         if (!formData.company) return showToast('Company is required!', true);
         if (!formData.date) return showToast('Date is required!', true);

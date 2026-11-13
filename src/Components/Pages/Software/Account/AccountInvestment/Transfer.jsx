@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import TransferForm from './TransferForm';
 import useDraftState from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 import { FiPieChart, FiX, FiArrowRight, FiChevronLeft, FiChevronRight, FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const Transfer = () => {
-    const [transfers, setTransfers] = useState([]);
+        const [transfers, setTransfers] = useState([]);
+    const { canAdd, canEdit, canDelete } = useCan('account_transfer');
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
@@ -102,7 +104,8 @@ const Transfer = () => {
     };
 
     // Delete Transfer Handler with SweetAlert2
-    const handleDelete = async (id) => {
+        const handleDelete = async (id) => {
+        if (!canDelete) { showToast('আপনার Delete করার অনুমতি নেই!', 'error'); return; }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -579,6 +582,7 @@ const Transfer = () => {
 
                     <button
                         onClick={() => {
+                            if (!showForm && !canAdd) { showToast('আপনার Add করার অনুমতি নেই!', 'error'); return; }
                             setEditingTransfer(null);
                             setShowForm(!showForm);
                             if (!showForm) {
@@ -808,6 +812,7 @@ const Transfer = () => {
                                                             <button
                                                                 onClick={() => {
                                                                     setOpenDropdownId(null);
+                                                                    if (!canEdit) { showToast('আপনার Edit করার অনুমতি নেই!', 'error'); return; }
                                                                     setEditingTransfer(item);
                                                                     setShowForm(true);
                                                                     setTimeout(() => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaTimes } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import useCan from '../../../../../hooks/useCan';
 
 const FilterSelect = ({ label, placeholder, value, options, onChange }) => {
     const [open, setOpen] = useState(false);
@@ -124,6 +125,7 @@ const CustomerFilterSelect = ({ value, customers, onSelect, onType, onClear }) =
 };
 
 const DamageStockInvoice = () => {
+    const { canEdit, canDelete } = useCan('damage_stock_invoice');
     const [orders, setOrders] = useState([]);
     const [customerList, setCustomerList] = useState([]);
     const [purchaseList, setPurchaseList] = useState([]);
@@ -406,6 +408,7 @@ const DamageStockInvoice = () => {
 
     // Edit -> OrderAdd এ যাবে, শুধু Damage section edit করা যাবে
     const handleEdit = (item) => {
+        if (!canEdit) { setOpenDropdownId(null); return showToast('আপনার Edit করার অনুমতি নেই!', 'error'); }
         setOpenDropdownId(null);
         if (item.isStandaloneDamage) {
             const { isStandaloneDamage: _a, status: _b, orderDate: _c, damageItems: _d, ...original } = item;
@@ -417,6 +420,7 @@ const DamageStockInvoice = () => {
 
     // Delete -> order থেকে শুধু damage products মুছবে
     const handleDelete = (item) => {
+        if (!canDelete) { setOpenDropdownId(null); return showToast('আপনার Delete করার অনুমতি নেই!', 'error'); }
         setOpenDropdownId(null);
         if (item.isStandaloneDamage) {
             Swal.fire({

@@ -3,6 +3,7 @@ import { FiPlus, FiAlertCircle, FiEdit3, FiTrash2, FiSearch, FiArrowLeft, FiChev
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import useAxiosClient from "../../../../hooks/useAxiosClient";
+import useCan from "../../../../hooks/useCan";
 
 // "23/10/2026 08:03:51 pm" -> "23 Oct 2026"
 const formatCreatedDate = (value) => {
@@ -33,6 +34,7 @@ const Category = () => {
 
     const navigate = useNavigate();
     const axiosClient = useAxiosClient();
+    const { canAdd, canEdit, canDelete } = useCan("category");
 
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
@@ -66,6 +68,8 @@ const Category = () => {
 
     const handleSubmit = async () => {
         try {
+            if (editingId && !canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+            if (!editingId && !canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
             if (!formData.name.trim()) return showToast('Please enter category name', 'error');
 
             const nameInput = formData.name.trim().toLowerCase();
@@ -96,7 +100,9 @@ const Category = () => {
             setEditingId(null);
         } catch (error) {
             showToast(
-                editingId ? 'Failed to update category!' : 'Something went wrong, please try again.',
+                error?.response?.status === 403
+                    ? (editingId ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!')
+                    : editingId ? 'Failed to update category!' : 'Something went wrong, please try again.',
                 'error'
             );
         } finally {
@@ -110,6 +116,10 @@ const Category = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!canDelete) {
+            setActiveDropdownId(null);
+            return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
+        }
         setActiveDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -127,7 +137,12 @@ const Category = () => {
                     if (editingId === id) handleCancelEdit();
                     showToast('Category deleted successfully!', 'success');
                 } catch (error) {
-                    showToast('Failed to delete category!', 'error');
+                    showToast(
+                        error?.response?.status === 403
+                            ? 'আপনার Delete করার অনুমতি নেই!'
+                            : 'Failed to delete category!',
+                        'error'
+                    );
                 }
             }
         });
@@ -294,7 +309,7 @@ const Category = () => {
                                             </div>
                                         </div>
 
-                                        <div className="relative inline-block action-dropdown-container">
+                                        {<div className="relative inline-block action-dropdown-container">
                                             <button
                                                 onClick={() => setActiveDropdownId(activeDropdownId === item._id ? null : item._id)}
                                                 className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -305,9 +320,10 @@ const Category = () => {
 
                                             {activeDropdownId === item._id && (
                                                 <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-2' : 'top-full mt-2'} w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150`}>
-                                                    <button
+                                                    {<button
                                                         onClick={() => {
                                                             setActiveDropdownId(null);
+                                                            if (!canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
                                                             setEditingId(item._id);
                                                             setFormData({ name: item.name, isActive: item.isActive });
                                                             formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -316,17 +332,17 @@ const Category = () => {
                                                     >
                                                         <FiEdit3 className="w-3.5 h-3.5 text-indigo-500" />
                                                         Edit
-                                                    </button>
-                                                    <button
+                                                    </button>}
+                                                    {<button
                                                         onClick={() => handleDelete(item._id)}
                                                         className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
                                                     >
                                                         <FiTrash2 className="w-3.5 h-3.5 text-rose-500" />
                                                         Delete
-                                                    </button>
+                                                    </button>}
                                                 </div>
                                             )}
-                                        </div>
+                                        </div>}
                                     </div>
                                 );
                             })}

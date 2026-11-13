@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import useAxiosClient from '../../../../hooks/useAxiosClient';
+import useCan from '../../../../hooks/useCan';
 import Swal from 'sweetalert2';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { FaPlus, FaSave, FaTimes, FaSearch, FaShieldAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const UserRole = () => {
     const axiosClient = useAxiosClient();
+    const { canAdd, canEdit, canDelete } = useCan('user_role');
     const [roles, setRoles] = useState([]);
     const [roleInput, setRoleInput] = useState('');
     const [editingId, setEditingId] = useState(null);
@@ -40,12 +42,20 @@ const UserRole = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (editingId ? !canEdit : !canAdd) {
+            toast.error(editingId ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!');
+            return;
+        }
         if (!roleInput.trim()) {
             toast.error('Role name is required!');
             return;
         }
 
         const trimmedRole = roleInput.trim().toLowerCase();
+        if (trimmedRole.replace(/[\s_-]+/g, '') === 'superadmin') {
+            toast.error('"Super Admin" নামে role বানানো যাবে না!');
+            return;
+        }
         const isDuplicate = roles.some(
             (r) => r.role.trim().toLowerCase() === trimmedRole && r._id !== editingId
         );
@@ -82,6 +92,11 @@ const UserRole = () => {
     };
 
     const handleEdit = (item) => {
+        if (!canEdit) {
+            setActiveDropdownId(null);
+            toast.error('আপনার Edit করার অনুমতি নেই!');
+            return;
+        }
         setActiveDropdownId(null);
         setRoleInput(item.role);
         setEditingId(item._id);
@@ -94,6 +109,11 @@ const UserRole = () => {
     };
 
     const handleDelete = (id) => {
+        if (!canDelete) {
+            setActiveDropdownId(null);
+            toast.error('আপনার Delete করার অনুমতি নেই!');
+            return;
+        }
         setActiveDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -136,7 +156,7 @@ const UserRole = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
-            <Toaster toastOptions={{ duration: 2500 }} position="top-right" />
+            {/* Toast দেখায় Main.jsx এর Toaster */}
 
             <div className="max-w-5xl mx-auto space-y-8">
 

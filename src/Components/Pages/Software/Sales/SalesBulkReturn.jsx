@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import useCan from '../../../../hooks/useCan';
 
 const SalesBulkReturn = () => {
     const [returns, setReturns] = useState([]);
+    const can = useCan('sales_bulk_return');
     const [customers, setCustomers] = useState([]);
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -64,7 +66,7 @@ const SalesBulkReturn = () => {
         try {
             const res = await fetch('http://localhost:5000/customer');
             const data = await res.json();
-            setCustomers(Array.isArray(data) ? data.filter((c) => c.customerType === 'Wholesale Customer') : []);
+            setCustomers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error(error);
         }
@@ -147,6 +149,7 @@ const SalesBulkReturn = () => {
     };
 
     const handleEdit = async (item) => {
+        if (!can.canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         setOpenDropdownId(null);
         if (item.fromSales) {
             try {
@@ -167,6 +170,7 @@ const SalesBulkReturn = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!can.canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
         setOpenDropdownId(null);
         const target = returns.find((r) => r._id === id);
         if (target?.fromSales) {
@@ -372,7 +376,7 @@ const SalesBulkReturn = () => {
                         <p className="text-gray-500 text-sm mt-1">Manage and track all sales bulk returns</p>
                     </div>
                     <button
-                        onClick={() => navigate('/sales-bulk-return-form')}
+                        onClick={() => (can.canAdd ? navigate('/sales-bulk-return-form') : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
                         className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">

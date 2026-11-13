@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 import { FaPlus } from 'react-icons/fa';
 import { FaUser, FaPhone, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave, FaStore, FaRoute, FaCreditCard, FaChevronDown } from 'react-icons/fa';
 
@@ -66,6 +67,7 @@ const CustomersFrom = ({
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
+    const { canAdd, canEdit } = useCan("customers");
 
     const isEditing = Boolean(editingCustomer && editingCustomer._id);
     const editingId = isEditing ? editingCustomer._id : null;
@@ -90,6 +92,9 @@ const CustomersFrom = ({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (isEditing && !canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+        if (!isEditing && !canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
 
         const contactInput = formData.contactNumber.trim();
         const businessNoInput = formData.businessNumber.trim().toLowerCase();

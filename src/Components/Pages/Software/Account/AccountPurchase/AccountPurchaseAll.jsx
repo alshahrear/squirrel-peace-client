@@ -5,6 +5,8 @@ import PurchaseReturnAcMon from './PurchaseReturnAcMon';
 import PurchaseBulkReturnAcMon from './PurchaseBulkReturnAcMon';
 import PurchaseDamageReturnAcMon from './PurchaseDamageReturnAcMon';
 import PurchaseCompanyDueAcMon from './PurchaseCompanyDueAcMon';
+import { useClientAuth } from '../../../../../hooks/ClientAuthContext';
+import { hasAction } from '../../../../../hooks/permissionConfig';
 
 const TABS = [
     { key: 'purchaseaccountmon', label: 'Purchase Account', icon: FaMoneyCheckAlt },
@@ -14,14 +16,28 @@ const TABS = [
     { key: 'purchasecompanydueacmon', label: 'Due Payment', icon: FaMoneyCheckAlt },
 ];
 
+const TAB_MODULE = {
+    purchaseaccountmon: 'account_purchase',
+    purchasereturnacmon: 'account_purchase_return',
+    purchasebulkreturnacmon: 'account_purchase_bulk_return',
+    purchasedamagereturnacmon: 'account_purchase_damage_return',
+    purchasecompanydueacmon: 'account_purchase_due',
+};
+
 const AccountPurchaseAll = () => {
-    const [activeTab, setActiveTab] = useState(() => {
+    const { clientUser } = useClientAuth();
+    const visibleTabs = TABS.filter(
+        (t) => !clientUser?.isStaff || hasAction(clientUser.permissions, TAB_MODULE[t.key], 'get')
+    );
+    const [savedTab, setActiveTab] = useState(() => {
         try {
             return sessionStorage.getItem('accountPurchaseTab') || 'purchaseaccountmon';
         } catch (e) {
             return 'purchaseaccountmon';
         }
     });
+
+    const activeTab = visibleTabs.some((t) => t.key === savedTab) ? savedTab : visibleTabs[0]?.key;
 
     useEffect(() => {
         try {
@@ -36,7 +52,7 @@ const AccountPurchaseAll = () => {
             {/* Tab Bar */}
             <div className="max-w-[1700px] mx-auto px-4 md:px-6 pt-4 md:pt-6">
                 <div className="inline-flex gap-1 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white p-1">
-                    {TABS.map((tab) => {
+                    {visibleTabs.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.key;
                         return (

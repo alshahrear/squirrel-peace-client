@@ -5,6 +5,7 @@ import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 import Swal from 'sweetalert2';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 import { fetchCustomerBalance } from '../../Software/Contact/Customer/CustomerAccountAc';
+import useCan from '../../../../hooks/useCan';
 
 const clearOrderDrafts = () => {
     ['items', 'overallAmount', 'overallType', 'adjText', 'adjAmount', 'adjType', 'note', 'form', 'search', 'routeLocked', 'freeItems', 'freeFilter', 'freeSearch', 'damageItems', 'damageFilter', 'damageSearch', 'returnItems', 'returnFilter', 'returnSearch', 'directSales']
@@ -65,6 +66,25 @@ const OrderAdd = () => {
     const getOrderItem = (name) => (orderSource?.items || []).find((o) => o.productName === name);
     const getOrderFreeItem = (name) => (orderSource?.freeItems || []).find((o) => o.productName === name);
     const showPayment = isDeliveryMode || directSales || isDeliveredEdit;
+
+    // Permission (R7 #10): button সবসময় দেখাবে, অনুমতি না থাকলে click এ Bangla toast
+    const wsCan = useCan('wholesale');
+    const coCan = useCan('create_order');
+    const dmCan = useCan('damage');
+    const sbCan = useCan('sales_bulk_return');
+    const checkPerm = () => {
+        let ok;
+        let act = 'Edit';
+        if (isDamageOnly) ok = dmCan.canEdit;
+        else if (isReturnOnly) ok = sbCan.canEdit;
+        else if (isEditMode) ok = wsCan.canEdit;
+        else {
+            ok = coCan.canAdd;
+            act = 'Add';
+        }
+        if (!ok) showToast(`আপনার ${act} করার অনুমতি নেই!`, true);
+        return ok;
+    };
 
     // সিলেক্ট করা প্রোডাক্টগুলো রাখার স্টেট
     const [orderItems, setOrderItems] = useDraftState('orderNew:items', []);
@@ -135,7 +155,7 @@ const OrderAdd = () => {
     // Delivered Date (default: ajker date, edit korle ager delivered date)
     const formatDisplayDate = (d) =>
         d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-       const [deliveryDateValue, setDeliveryDateValue] = useState(
+    const [deliveryDateValue, setDeliveryDateValue] = useState(
         editingOrder?.deliveryDate || formatDisplayDate(new Date())
     );
     // user nijer hate delivered date change korle true hobe (tokhon ar order date follow korbe na)
@@ -1514,6 +1534,7 @@ const OrderAdd = () => {
     };
 
     const handleSubmitInner = async (e) => {
+        if (!checkPerm()) return;
         if (isDamageOnly) {
             handleDamageOnlySubmit();
             return;
@@ -1822,6 +1843,7 @@ const OrderAdd = () => {
     // Delivery Submit
     // --------------------------------------------------
     const handleDeliverySubmit = async () => {
+        if (!checkPerm()) return;
         if (deliveryLock.current) return;
         deliveryLock.current = true;
         try {

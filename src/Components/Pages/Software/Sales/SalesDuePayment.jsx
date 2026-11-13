@@ -4,6 +4,7 @@ import { FaTrash, FaStickyNote, FaTimes, FaEye, FaClock, FaFilter, FaRedo, FaChe
 import SalesDuePaymentForm from './SalesDuePaymentForm';
 import { calcCustomerBalance } from '../../Software/Contact/Customer/CustomerAccountAc'; // path ta nijer folder onujayi thik koro
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
+import useCan from '../../../../hooks/useCan';
 const getTodayISO = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -103,6 +104,7 @@ const getDueType = (p) =>
 
 const SalesDuePayment = () => {
     const [payments, setPayments] = useState([]);
+    const can = useCan('sales_due_payment');
     const [customers, setCustomers] = useState([]);
     const [investments, setInvestments] = useState([]);
     const [sales, setSales] = useState([]);
@@ -230,6 +232,10 @@ const SalesDuePayment = () => {
     // ---------------- Submit ----------------
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!can.canAdd) {
+            showToast('আপনার Add করার অনুমতি নেই!', 'error');
+            return;
+        }
         if (submitLock.current || !canPay) return;
 
         const selectedAccountInfo = uniqueAccounts.find((inv) => getAccountKey(inv) === formData.accountKey);
@@ -256,6 +262,14 @@ const SalesDuePayment = () => {
 
         const dueType = formData.type === 'Pay' ? 'Pay' : 'Get';
 
+        // lock age set, jate slow balance check cholar somoy bar bar click e duplicate row na hoy
+        submitLock.current = true;
+        setIsSubmitting(true);
+        const releaseLock = () => {
+            setIsSubmitting(false);
+            submitLock.current = false;
+        };
+
         // Pay hole (customer ke dile) oi account e porjapto balance ache kina check
         if (dueType === 'Pay') {
             const payAmt = Math.round((Number(formData.amount) || 0) * 100) / 100;
@@ -265,6 +279,7 @@ const SalesDuePayment = () => {
             } catch (err) {
                 console.error('Balance check failed:', err);
                 showToast('Account balance check korte problem hoyeche, abar try korun!', 'error');
+                releaseLock();
                 return;
             }
             available = Math.round(available * 100) / 100;
@@ -273,6 +288,7 @@ const SalesDuePayment = () => {
                     `Ei account e etoh balance nai! Available: ৳${Math.max(available, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                     'error'
                 );
+                releaseLock();
                 return;
             }
         }
@@ -299,6 +315,7 @@ const SalesDuePayment = () => {
                         `Credit limit cross hoye jabe! Limit: ৳${limit}, Total Get hobe: ৳${getAfter}. Pay amount kom din.`,
                         'error'
                     );
+                    releaseLock();
                     return;
                 }
             }
@@ -323,8 +340,6 @@ const SalesDuePayment = () => {
             createdAt: formatDateTime(new Date()),
         };
 
-        submitLock.current = true;
-        setIsSubmitting(true);
         try {
             const res = await fetch('http://localhost:5000/sales-due-payment', {
                 method: 'POST',
@@ -353,6 +368,7 @@ const SalesDuePayment = () => {
 
     // ---------------- Delete ----------------
     const handleDelete = (id) => {
+        if (!can.canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -468,7 +484,10 @@ const SalesDuePayment = () => {
                     </div>
 
                     <button
-                        onClick={() => setIsFormOpen(!isFormOpen)}
+                        onClick={() => {
+                            if (!isFormOpen && !can.canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
+                            setIsFormOpen(!isFormOpen);
+                        }}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 cursor-pointer ${isFormOpen
                             ? 'bg-red-500 hover:bg-red-600 shadow-red-200'
                             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'

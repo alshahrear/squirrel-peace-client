@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaChevronLeft, FaChevronRight, FaFilter, FaRedo } from 'react-icons/fa';
 import SalesSrTargetForm, { displayMonthYear } from './SalesSrTargetForm';
+import useCan from '../../../../hooks/useCan';
 
 // "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
 const formatCreatedDate = (value) => {
@@ -88,6 +89,7 @@ const displayFormattedDate = (value) => {
 
 const SalesSrTarget = () => {
     const [targets, setTargets] = useState([]);
+    const can = useCan('sales_sr_target');
     const [sales, setSales] = useState([]);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -189,6 +191,7 @@ const SalesSrTarget = () => {
 
     // ---------------- Delete ----------------
     const handleDelete = (id) => {
+        if (!can.canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -218,6 +221,7 @@ const SalesSrTarget = () => {
 
     // ---------------- Edit ----------------
     const handleEdit = (target) => {
+        if (!can.canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         setOpenDropdownId(null);
         setEditingTarget(target);
         setIsFormOpen(true);
@@ -302,6 +306,7 @@ const SalesSrTarget = () => {
                     <button
                         onClick={() => {
                             setEditingTarget(null);
+                            if (!isFormOpen && !can.canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
                             setIsFormOpen(!isFormOpen);
                         }}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 cursor-pointer ${isFormOpen

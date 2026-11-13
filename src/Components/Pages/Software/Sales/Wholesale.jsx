@@ -2,9 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import useCan from '../../../../hooks/useCan';
 
 const Wholesale = () => {
     const [orders, setOrders] = useState([]);
+    const wsCan = useCan('wholesale');
+    const srCan = useCan('sales_return');
+    const coCan = useCan('create_order');
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
@@ -285,16 +289,19 @@ const Wholesale = () => {
 
     const handleEdit = (item) => {
         setOpenDropdownId(null);
+        if (!wsCan.canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         navigate('/create-order', { state: { order: item } });
     };
 
     const handleDelivery = (item) => {
         setOpenDropdownId(null);
+        if (!wsCan.canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         navigate('/create-order', { state: { order: item, mode: 'delivery' } });
     };
 
     const handleReturn = (id) => {
         setOpenDropdownId(null);
+        if (!srCan.canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
         navigate(`/sales-return-details/${id}`);
     };
 
@@ -304,6 +311,7 @@ const Wholesale = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!wsCan.canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -527,7 +535,7 @@ const Wholesale = () => {
                     </div>
 
                     <button
-                        onClick={() => navigate('/create-order')}
+                        onClick={() => (coCan.canAdd ? navigate('/create-order') : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
                         className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">

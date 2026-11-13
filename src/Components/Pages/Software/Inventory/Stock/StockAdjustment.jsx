@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import useCan from '../../../../../hooks/useCan';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
@@ -34,6 +35,7 @@ const sumRow = (row) => {
 };
 
 const StockAdjustment = () => {
+    const { canAdd, canEdit, canDelete } = useCan('stock_adjustment');
     const navigate = useNavigate();
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -127,6 +129,7 @@ const StockAdjustment = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!canDelete) { setOpenDropdownId(null); return showToast('আপনার Delete করার অনুমতি নেই!', 'error'); }
         setOpenDropdownId(null);
         const result = await Swal.fire({
             title: 'Are you sure?',
@@ -211,7 +214,7 @@ const StockAdjustment = () => {
                             <div className="text-lg font-extrabold text-rose-700">{fmt(grand.out)} pcs</div>
                         </div>
                         <button
-                            onClick={() => navigate('/stock-adjustment-form')}
+                            onClick={() => (canAdd ? navigate('/stock-adjustment-form') : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
                             className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
                         >
                             + New Adjustment
@@ -340,7 +343,7 @@ const StockAdjustment = () => {
                                                         {openDropdownId === r._id && (
                                                             <div className="absolute right-0 bottom-full mb-2 w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left">
                                                                 <button onClick={() => navigate(`/stock-adjustment-view/${r._id}`)} className="w-full px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 text-left cursor-pointer">View</button>
-                                                                <button onClick={() => navigate(`/stock-adjustment-form?edit=${r._id}`, { state: { adjustment: r } })} className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 text-left cursor-pointer">Edit</button>
+                                                                <button onClick={() => (canEdit ? navigate(`/stock-adjustment-form?edit=${r._id}`, { state: { adjustment: r } }) : showToast('আপনার Edit করার অনুমতি নেই!', 'error'))} className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 text-left cursor-pointer">Edit</button>
                                                                 <button onClick={() => handleDelete(r._id)} className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 text-left cursor-pointer">Delete</button>
                                                             </div>
                                                         )}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 
 const RouteExpenseForm = ({
     fetchRouteExpenses,
@@ -55,7 +56,8 @@ const RouteExpenseForm = ({
             }
             : emptyForm
     );
-    const [loading, setLoading] = useState(false);
+        const [loading, setLoading] = useState(false);
+    const { canAdd, canEdit } = useCan('account_route_expense');
     const [investments, setInvestments] = useState([]);
     const [deliveryMen, setDeliveryMen] = useState([]);
     const [routes, setRoutes] = useState([]);
@@ -339,7 +341,12 @@ const RouteExpenseForm = ({
         }
     };
 
-    const handleSubmit = async (e) => {
+        const handleSubmit = async (e) => {
+        if (!((editingRouteExpense && editingRouteExpense._id) ? canEdit : canAdd)) {
+            e.preventDefault();
+            showToast('আপনার Add / Edit করার অনুমতি নেই!', 'error');
+            return;
+        }
         e.preventDefault();
 
         // সিলেক্ট করা account এ পর্যাপ্ত ব্যালেন্স আছে কিনা চেক করা হচ্ছে

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import useCan from '../../../../../hooks/useCan';
 
 const getFormattedToday = () =>
     new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -32,6 +33,7 @@ const StockSwitch = ({ value, onChange }) => (
 );
 
 const StockAdjustmentForm = () => {
+    const { canAdd, canEdit } = useCan('stock_adjustment');
     const navigate = useNavigate();
     const location = useLocation();
     const editParamId = new URLSearchParams(location.search).get('edit');
@@ -352,6 +354,9 @@ const StockAdjustmentForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (isSaving) return;
+        if (isEditMode ? !canEdit : !canAdd) {
+            return showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', true);
+        }
         if (isEditMode && !editingAdj) return showToast('Adjustment load hocche, ektu wait korun!', true);
 
         if (!formData.company) return showToast('Company is required!', true);
@@ -420,7 +425,7 @@ const StockAdjustmentForm = () => {
             }
             await res.json();
             showToast(isEditMode ? 'Adjustment updated successfully!' : 'Adjustment added successfully!');
-            setTimeout(() => navigate('/stock-all', { replace: true, state: { tab: 'adjustment' } }), 1000);
+            setTimeout(() => navigate('/stock-adjustment', { replace: true }), 1000);
         } catch (error) {
             console.error(error);
             setIsSaving(false);

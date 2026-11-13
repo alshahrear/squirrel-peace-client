@@ -4,6 +4,7 @@ import { FaTrash, FaStickyNote, FaTimes, FaEye, FaClock, FaFilter, FaRedo, FaChe
 import PurchaseDuePaymentForm from './PurchaseDuePaymentForm';
 import { calcCompanyBalance } from '../../Software/Contact/Company/CompanyAccountAc';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
+import useCan from '../../../../hooks/useCan';
 
 
 // Local timezone er today (YYYY-MM-DD)
@@ -105,6 +106,7 @@ const getDueType = (p) =>
     p?.type === 'Get' || p?.status === 'Get' || p?.paymentAccount?.dueType === 'Get' ? 'Get' : 'Pay';
 
 const PurchaseDuePayment = () => {
+    const { canAdd, canDelete } = useCan('purchase_due_payment');
     const [payments, setPayments] = useState([]);
     const [companies, setCompanies] = useState([]);
     const [investments, setInvestments] = useState([]);
@@ -251,6 +253,10 @@ const PurchaseDuePayment = () => {
     // ---------------- Pay ----------------
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!canAdd) {
+            showToast('আপনার Add করার অনুমতি নেই!', 'error');
+            return;
+        }
         if (submitLock.current || !canPay) return;
 
         const selectedAccountInfo = uniqueAccounts.find((inv) => getAccountKey(inv) === formData.accountKey);
@@ -258,6 +264,9 @@ const PurchaseDuePayment = () => {
             showToast('Please select an account!', 'error');
             return;
         }
+
+        submitLock.current = true;
+        setIsSubmitting(true);
 
         let paymentAccount = {};
         if (formData.paymentMethod === 'Bank') {
@@ -284,10 +293,14 @@ const PurchaseDuePayment = () => {
             } catch (err) {
                 console.error('Balance check failed:', err);
                 showToast('Account balance check korte problem hoyeche, abar try korun!', 'error');
+                submitLock.current = false;
+                setIsSubmitting(false);
                 return;
             }
             available = Math.round(available * 100) / 100;
             if (available <= 0 || payAmt > available) {
+                submitLock.current = false;
+                setIsSubmitting(false);
                 showToast(
                     `Ei account e etoh balance nai! Available: ৳${Math.max(available, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                     'error'
@@ -341,6 +354,11 @@ const PurchaseDuePayment = () => {
 
     // ---------------- Delete ----------------
     const handleDelete = (id) => {
+        if (!canDelete) {
+            setOpenDropdownId(null);
+            showToast('আপনার Delete করার অনুমতি নেই!', 'error');
+            return;
+        }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -427,7 +445,7 @@ const PurchaseDuePayment = () => {
                     </div>
 
                     <button
-                        onClick={() => setIsFormOpen(!isFormOpen)}
+                        onClick={() => (isFormOpen || canAdd ? setIsFormOpen(!isFormOpen) : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 cursor-pointer ${isFormOpen
                             ? 'bg-red-500 hover:bg-red-600 shadow-red-200'
                             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'

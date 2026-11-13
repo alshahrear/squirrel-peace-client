@@ -3,6 +3,7 @@ import Swal from 'sweetalert2';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { getBatchCostPerPcs } from '../../Software/Inventory/Stock/StockPurchase';
+import useCan from '../../../../hooks/useCan';
 
 const PurchaseBulkReturn = () => {
     const [returns, setReturns] = useState([]);
@@ -11,6 +12,8 @@ const PurchaseBulkReturn = () => {
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const navigate = useNavigate();
     const location = useLocation();
+    const { canAdd, canEdit, canDelete } = useCan('purchase_bulk_return');
+    const denyMsg = (what) => showToast(`আপনার ${what} করার অনুমতি নেই!`, 'error');
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
@@ -172,6 +175,7 @@ const PurchaseBulkReturn = () => {
     };
 
     const handleApprove = (item) => {
+        if (!canEdit) { setOpenDropdownId(null); return denyMsg('Edit'); }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Approve this bulk return?',
@@ -200,6 +204,7 @@ const PurchaseBulkReturn = () => {
     };
 
     const handleEdit = async (item) => {
+        if (!canEdit) { setOpenDropdownId(null); return denyMsg('Edit'); }
         setOpenDropdownId(null);
         if (item.fromPurchase) {
             try {
@@ -220,6 +225,7 @@ const PurchaseBulkReturn = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!canDelete) { setOpenDropdownId(null); return denyMsg('Delete'); }
         setOpenDropdownId(null);
         const target = returns.find((r) => r._id === id);
         if (target?.fromPurchase) {
@@ -477,7 +483,7 @@ const PurchaseBulkReturn = () => {
                         <p className="text-gray-500 text-sm mt-1">Manage and track all purchase bulk returns</p>
                     </div>
                     <button
-                        onClick={() => navigate('/purchase-bulk-return-form')}
+                        onClick={() => (canAdd ? navigate('/purchase-bulk-return-form') : denyMsg('Add'))}
                         className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">

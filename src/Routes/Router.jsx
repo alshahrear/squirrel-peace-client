@@ -30,6 +30,7 @@ import PurchaseDetails from "../Components/Pages/Software/Purchase/PurchaseDetai
 import PurchaseReturn from "../Components/Pages/Software/Purchase/PurchaseReturn";
 import PurchaseReturnDetails from "../Components/Pages/Software/Purchase/PurchaseReturnDetails";
 import PurchaseReturnView from "../Components/Pages/Software/Purchase/PurchaseReturnView";
+import Product from "../Components/Pages/Software/Product/Product";
 import ProductAll from "../Components/Pages/Software/Product/ProductAll";
 import Category from "../Components/Pages/Software/Product/Category";
 import Units from "../Components/Pages/Software/Product/Units";
@@ -89,6 +90,11 @@ import AccountReportAll from "../Components/Pages/Software/Reports/AccountReport
 import Burger from "../hooks/Burger";
 import BurgerSos from "../hooks/BurgerSos";
 import UserAssign from "../Components/Pages/Software/User/UserAssign";
+import UserAll from "../Components/Pages/Software/User/UserAll";
+import ContactAll from "../Components/Pages/Software/Contact/ContactAll";
+import PurchaseAll from "../Components/Pages/Software/Purchase/PurchaseAll";
+import SalesAll from "../Components/Pages/Software/Sales/SalesAll";
+import AccountAll from "../Components/Pages/Software/Account/AccountAll";
 
 export const router = createBrowserRouter([
   {
@@ -129,11 +135,11 @@ export const router = createBrowserRouter([
           },
           {
             path: "/purchase",
-            element: <ClientRoute><Purchase></Purchase></ClientRoute>
+            element: <ClientRoute><PurchaseAll><Purchase></Purchase></PurchaseAll></ClientRoute>
           },
           {
             path: "/add-purchase",
-            element: <ClientRoute><PurchaseAdd></PurchaseAdd></ClientRoute>
+            element: <ClientRoute><PurchaseAll><PurchaseAdd></PurchaseAdd></PurchaseAll></ClientRoute>
           },
           {
             path: "/purchase-details/:id",
@@ -141,7 +147,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "/purchase-return",
-            element: <ClientRoute><PurchaseReturn></PurchaseReturn></ClientRoute>
+            element: <ClientRoute><PurchaseAll><PurchaseReturn></PurchaseReturn></PurchaseAll></ClientRoute>
           },
           {
             path: "/purchase-return-details/:id",
@@ -153,7 +159,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "/purchase-due-payment",
-            element: <ClientRoute><PurchaseDuePayment></PurchaseDuePayment></ClientRoute>
+            element: <ClientRoute><PurchaseAll><PurchaseDuePayment></PurchaseDuePayment></PurchaseAll></ClientRoute>
           },
           {
             path: "/purchase-bulk-return-view/:id",
@@ -161,7 +167,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "/purchase-bulk-return",
-            element: <ClientRoute><PurchaseBulkReturn></PurchaseBulkReturn></ClientRoute>
+            element: <ClientRoute><PurchaseAll><PurchaseBulkReturn></PurchaseBulkReturn></PurchaseAll></ClientRoute>
           },
           {
             path: "/purchase-bulk-return-form",
@@ -169,15 +175,15 @@ export const router = createBrowserRouter([
           },
           {
             path: "/create-order",
-            element: <ClientRoute><OrderAdd></OrderAdd></ClientRoute>
+            element: <ClientRoute><SalesAll><OrderAdd></OrderAdd></SalesAll></ClientRoute>
           },
           {
             path: "/wholesale",
-            element: <ClientRoute><Wholesale></Wholesale></ClientRoute>
+            element: <ClientRoute><SalesAll><Wholesale></Wholesale></SalesAll></ClientRoute>
           },
           {
             path: "/sales-due-payment",
-            element: <ClientRoute><SalesDuePayment></SalesDuePayment></ClientRoute>
+            element: <ClientRoute><SalesAll><SalesDuePayment></SalesDuePayment></SalesAll></ClientRoute>
           },
           {
             path: "/sales-details/:id",
@@ -185,7 +191,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "/sales-return",
-            element: <ClientRoute><SalesReturn></SalesReturn></ClientRoute>
+            element: <ClientRoute><SalesAll><SalesReturn></SalesReturn></SalesAll></ClientRoute>
           },
           {
             path: "/sales-return-details/:id",
@@ -197,7 +203,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "/sales-bulk-return",
-            element: <ClientRoute><SalesBulkReturn></SalesBulkReturn></ClientRoute>
+            element: <ClientRoute><SalesAll><SalesBulkReturn></SalesBulkReturn></SalesAll></ClientRoute>
           },
           {
             path: "/sales-bulk-return-form",
@@ -209,23 +215,23 @@ export const router = createBrowserRouter([
           },
           {
             path: "/sales-sr-target",
-            element: <ClientRoute><SalesSrTarget></SalesSrTarget></ClientRoute>
+            element: <ClientRoute><SalesAll><SalesSrTarget></SalesSrTarget></SalesAll></ClientRoute>
           },
           {
             path: "/units",
-            element: <ClientRoute><Units></Units></ClientRoute>
+            element: <ClientRoute><ProductAll><Units></Units></ProductAll></ClientRoute>
           },
           {
             path: "/category",
-            element: <ClientRoute><Category></Category></ClientRoute>
+            element: <ClientRoute><ProductAll><Category></Category></ProductAll></ClientRoute>
           },
           {
             path: "/company",
-            element: <ClientRoute><Company></Company></ClientRoute>
+            element: <ClientRoute><ContactAll><Company></Company></ContactAll></ClientRoute>
           },
           {
             path: "/company-account",
-            element: <ClientRoute><CompanyAccountAc></CompanyAccountAc></ClientRoute>
+            element: <ClientRoute><ContactAll><CompanyAccountAc></CompanyAccountAc></ContactAll></ClientRoute>
           },
           {
             path: "/company-details/:id",
@@ -233,11 +239,11 @@ export const router = createBrowserRouter([
           },
           {
             path: "/customers",
-            element: <ClientRoute><Customers></Customers></ClientRoute>
+            element: <ClientRoute><ContactAll><Customers></Customers></ContactAll></ClientRoute>
           },
           {
             path: "/customer-account",
-            element: <ClientRoute><CustomerAccountAc></CustomerAccountAc></ClientRoute>
+            element: <ClientRoute><ContactAll><CustomerAccountAc></CustomerAccountAc></ContactAll></ClientRoute>
           },
           {
             path: "/customer-details/:id",
@@ -245,7 +251,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "/product",
-            element: <ClientRoute><ProductAll></ProductAll></ClientRoute>
+            element: <ClientRoute><ProductAll><Product></Product></ProductAll></ClientRoute>
           },
           {
             path: "/product-details/:id",
@@ -359,15 +365,15 @@ export const router = createBrowserRouter([
           },
           {
             path: "/user-role",
-            element: <ClientRoute><UserRole></UserRole></ClientRoute>
+            element: <ClientRoute><UserAll><UserRole></UserRole></UserAll></ClientRoute>
           },
           {
             path: "/user-assign",
-            element: <ClientRoute><UserAssign></UserAssign></ClientRoute>
+            element: <ClientRoute><UserAll><UserAssign></UserAssign></UserAll></ClientRoute>
           },
           {
             path: "/user",
-            element: <ClientRoute><User></User></ClientRoute>
+            element: <ClientRoute><UserAll><User></User></UserAll></ClientRoute>
           },
           {
             path: "/client",
@@ -390,7 +396,7 @@ export const router = createBrowserRouter([
             element: <ClientRoute><ClientProfile></ClientProfile></ClientRoute>
           },
           {
-            element: <ClientRoute><AccountInsideAll></AccountInsideAll></ClientRoute>,
+            element: <ClientRoute><AccountAll><AccountInsideAll></AccountInsideAll></AccountAll></ClientRoute>,
             children: [
               {
                 path: "/opening-investment",
@@ -416,15 +422,15 @@ export const router = createBrowserRouter([
           },
           {
             path: "/account-purchase",
-            element: <ClientRoute><AccountPurchaseAll></AccountPurchaseAll></ClientRoute>
+            element: <ClientRoute><AccountAll><AccountPurchaseAll></AccountPurchaseAll></AccountAll></ClientRoute>
           },
           {
             path: "/account-sales",
-            element: <ClientRoute><AccountSalesAll></AccountSalesAll></ClientRoute>
+            element: <ClientRoute><AccountAll><AccountSalesAll></AccountSalesAll></AccountAll></ClientRoute>
           },
           {
             path: "/account-balance",
-            element: <ClientRoute><AccountBalance></AccountBalance></ClientRoute>
+            element: <ClientRoute><AccountAll><AccountBalance></AccountBalance></AccountAll></ClientRoute>
           },
           {
             path: "/account-all",
@@ -432,7 +438,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "/routes",
-            element: <ClientRoute><Route></Route></ClientRoute>
+            element: <ClientRoute><ContactAll><Route></Route></ContactAll></ClientRoute>
           },
           {
             path: "/features",

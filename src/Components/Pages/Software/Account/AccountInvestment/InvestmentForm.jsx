@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 
 const InvestmentForm = ({
     fetchInvestments,
@@ -48,7 +49,8 @@ const InvestmentForm = ({
             }
             : emptyForm
     );
-    const [loading, setLoading] = useState(false);
+        const [loading, setLoading] = useState(false);
+    const { canAdd, canEdit } = useCan('account_investment');
 
     const dateInputRef = useRef(null);
 
@@ -98,7 +100,12 @@ const InvestmentForm = ({
         }
     };
 
-    const handleSubmit = async (e) => {
+        const handleSubmit = async (e) => {
+        if (!((editingInvestment && editingInvestment._id) ? canEdit : canAdd)) {
+            e.preventDefault();
+            showToast('আপনার Add / Edit করার অনুমতি নেই!', 'error');
+            return;
+        }
         e.preventDefault();
         setLoading(true);
 

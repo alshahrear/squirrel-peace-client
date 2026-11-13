@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import InvestmentForm from './InvestmentForm';
 import useDraftState from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 import AdjustmentForm from './Adjustment';
 import HistoryAdjustment from './HistoryAdjustment'; // HistoryAdjustment কম্পোনেন্ট ইম্পোর্ট করা হলো
 import {
@@ -23,6 +24,7 @@ import { IoWalletOutline } from 'react-icons/io5';
 
 const OpeningInvestment = () => {
     const [investments, setInvestments] = useState([]);
+    const { canAdd, canEdit, canDelete } = useCan('account_investment');
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
@@ -129,6 +131,7 @@ const OpeningInvestment = () => {
     };
 
     const handleToggleForm = () => {
+        if (!showForm && !canAdd) { showToast('আপনার Add করার অনুমতি নেই!', 'error'); return; }
         if (showForm) {
             setEditingInvestment(null);
             setShowForm(false);
@@ -163,6 +166,7 @@ const OpeningInvestment = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!canDelete) { showToast('আপনার Delete করার অনুমতি নেই!', 'error'); return; }
         setActiveDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -575,6 +579,7 @@ const OpeningInvestment = () => {
                                                             <button
                                                                 onClick={() => {
                                                                     setActiveDropdownId(null);
+                                                                    if (!canAdd) { showToast('আপনার Add করার অনুমতি নেই!', 'error'); return; }
                                                                     setSelectedInvestmentForAdjustment(item);
                                                                     setShowAdjustmentModal(true);
                                                                 }}
@@ -599,6 +604,7 @@ const OpeningInvestment = () => {
                                                                 <button
                                                                     onClick={() => {
                                                                         setActiveDropdownId(null);
+                                                                        if (!canEdit) { showToast('আপনার Edit করার অনুমতি নেই!', 'error'); return; }
                                                                         setEditingInvestment(item);
                                                                         setShowForm(true);
                                                                         if (topSectionRef.current) {

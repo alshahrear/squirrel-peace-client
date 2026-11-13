@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getSaleItemNetPricePerPcs } from '../../Software/Inventory/Stock/StockPurchase';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
+import useCan from '../../../../hooks/useCan';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Phone,
@@ -19,6 +20,7 @@ const SalesReturnDetails = () => {
     const [searchParams] = useSearchParams();
     const editReturnId = searchParams.get('returnId');
     const isEditMode = !!editReturnId;
+    const can = useCan('sales_return');
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [notFound, setNotFound] = useState(false);
@@ -827,6 +829,10 @@ const SalesReturnDetails = () => {
     };
 
     const handleConfirmReturn = async () => {
+        if (isEditMode ? !can.canEdit : !can.canAdd) {
+            showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', 'error');
+            return;
+        }
         if (totalReturnPcs <= 0 && totalReturnFreeQty <= 0 && totalReturnFreeItemsQty <= 0) {
             showToast('Return korar jonno kompokkhe 1 ta product a quantity din!', 'error');
             return;

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import UserForm from './UserForm';
 import useDraftState from '../../../../hooks/useDraftState';
+import { useClientAuth } from '../../../../hooks/ClientAuthContext';
+import useCan from '../../../../hooks/useCan';
 import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaTimes } from 'react-icons/fa';
 import { FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
@@ -18,7 +20,17 @@ const formatCreatedDate = (value) => {
 
 const User = () => {
     const [users, setUsers] = useState([]);
+    const { clientUser } = useClientAuth();
+    const { canAdd, canEdit, canDelete } = useCan('user_list');
+    // staff এর নিজের row (id বা email মিললে)
+    const isOwnRow = (u) =>
+        clientUser?.isStaff === true &&
+        (String(u._id) === String(clientUser._id) ||
+            (u.email || '').toLowerCase() === (clientUser.email || '').toLowerCase());
+    const [showLimitModal, setShowLimitModal] = useState(true);
+    const [selectedIds, setSelectedIds] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [userLimit, setUserLimit] = useState(10);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
     // Pagination State
@@ -67,6 +79,51 @@ const User = () => {
     });
 
     const roleOptions = [...new Set(users.map((u) => u.role).filter(Boolean))];
+    const usedSlots = users.length + 1; // dealer নিজে ১ জন
+    const limitReached = usedSlots >= userLimit;
+    const overBy = Math.max(usedSlots - userLimit, 0); // আরও কতজন delete করতে হবে
+    const selectMode = overBy > 0 && !showLimitModal;
+    const CONTACT_URL = ''; // TODO: Software Authority এর contact link এখানে বসান
+
+    const handleContact = () => {
+        if (CONTACT_URL) window.open(CONTACT_URL, '_blank');
+        else showToast('Contact details শীঘ্রই যোগ হবে।', 'success');
+    };
+
+    const toggleSelect = (id) => {
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        if (!canDelete) {
+            showToast('আপনার Delete করার অনুমতি নেই!', 'error');
+            return;
+        }
+        const r = await Swal.fire({
+            title: `${selectedIds.length} জন user delete করবেন?`,
+            text: 'এটা আর ফেরানো যাবে না।',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f43f5e',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'হ্যাঁ, delete করুন',
+            cancelButtonText: 'না',
+        });
+        if (!r.isConfirmed) return;
+        const deleted = [];
+        for (const id of selectedIds) {
+            try {
+                const resp = await fetch(`http://localhost:5000/user/${id}`, { method: 'DELETE' });
+                if (resp.ok) deleted.push(id);
+            } catch (e) { }
+        }
+        setUsers((prev) => prev.filter((u) => !deleted.includes(u._id)));
+        setSelectedIds([]);
+        if (deleted.length === selectedIds.length) showToast(`${deleted.length} জন user delete হয়েছে!`, 'success');
+        else showToast('কিছু user delete হয়নি!', 'error');
+        window.dispatchEvent(new Event('clientUserUpdated'));
+    };
     const [showForm, setShowForm] = useDraftState('userFormOpen', false);
     const [editingUserId, setEditingUserId] = useDraftState('userEditingId', null);
     const editingUser = users.find((u) => u._id === editingUserId) || null;
@@ -85,6 +142,11 @@ const User = () => {
             const response = await fetch('http://localhost:5000/user');
             const data = await response.json();
             setUsers(data);
+            try {
+                const meRes = await fetch('http://localhost:5000/client/me');
+                const me = await meRes.json();
+                if (Number.isInteger(me?.userLimit)) setUserLimit(me.userLimit);
+            } catch (e) { }
         } catch (error) {
             console.error('Error fetching users:', error);
             showToast('Failed to load users!', 'error');
@@ -117,6 +179,17 @@ const User = () => {
 
     // Delete User Handler with SweetAlert2
     const handleDelete = async (id) => {
+        if (!canDelete) {
+            setActiveDropdownId(null);
+            showToast('আপনার Delete করার অনুমতি নেই!', 'error');
+            return;
+        }
+        const target = users.find((u) => u._id === id);
+        if (target && isOwnRow(target)) {
+            setActiveDropdownId(null);
+            showToast('নিজেকে Delete করা যাবে না!', 'error');
+            return;
+        }
         setActiveDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -135,10 +208,12 @@ const User = () => {
 
                     if (response.ok) {
                         showToast('User deleted successfully!', 'success');
+                        window.dispatchEvent(new Event('clientUserUpdated'));
                         // রিফ্রেশ ছাড়াই স্টেট থেকে ফিল্টার করে ডিলিট করা ইউজার বাদ দেওয়া
                         setUsers(prevUsers => prevUsers.filter(user => user._id !== id));
                     } else {
-                        showToast('Failed to delete user!', 'error');
+                        const errData = await response.json().catch(() => ({}));
+                        showToast(errData.message || 'Failed to delete user!', 'error');
                     }
                 } catch (error) {
                     console.error('Error deleting user:', error);
@@ -149,7 +224,7 @@ const User = () => {
     };
 
     // Filtered Users based on Search
-       const filteredUsers = [...users].reverse().filter((user) => {
+    const filteredUsers = [...users].reverse().filter((user) => {
         if (filters.name && !user.name?.toLowerCase().includes(filters.name.toLowerCase())) return false;
         if (filters.email && !user.email?.toLowerCase().includes(filters.email.toLowerCase())) return false;
         if (filters.phone && !user.phone?.toLowerCase().includes(filters.phone.toLowerCase())) return false;
@@ -175,6 +250,36 @@ const User = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
 
+            {/* User limit over modal */}
+            {overBy > 0 && showLimitModal && !loading && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-7 space-y-4">
+                        <h3 className="text-xl font-extrabold text-rose-600">⚠️ User limit পূর্ণ</h3>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                            আপনার user limit <b>{userLimit} জন</b> (আপনি সহ)। কিন্তু এখন <b>{usedSlots} জন</b> আছে। তাই আরও <b>{overBy} জন</b> user delete করতে হবে।
+                        </p>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                            যতক্ষণ না করছেন, software এর অন্য কোনো কাজ করা যাবে না।
+                        </p>
+                        <p className="text-sm font-bold text-gray-800">আপনি কি {overBy} জন user delete করতে চান?</p>
+                        <div className="flex flex-col gap-2 pt-2">
+                            <button
+                                onClick={() => setShowLimitModal(false)}
+                                className="px-5 py-3 bg-gradient-to-r from-rose-500 to-red-600 text-white font-bold rounded-2xl cursor-pointer"
+                            >
+                                হ্যাঁ, user delete করব
+                            </button>
+                            <button
+                                onClick={handleContact}
+                                className="px-5 py-3 bg-indigo-50 text-indigo-700 font-bold rounded-2xl cursor-pointer"
+                            >
+                                Limit বাড়াতে Software Authority-কে contact করব
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Top Right Toast Notification */}
             {toast.show && (
                 <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
@@ -191,11 +296,22 @@ const User = () => {
                             User Management
                         </h2>
                         <p className="text-gray-500 text-sm mt-1">Manage all registered users and permissions in the system</p>
+                        <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ${limitReached ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            Users: {usedSlots} / {userLimit} (including you){usedSlots > userLimit ? ' - over limit, delete some users' : ''}
+                        </span>
                     </div>
 
                     <button
                         onClick={() => {
                             setEditingUser(null);
+                            if (!showForm && !canAdd) {
+                                showToast('আপনার Add করার অনুমতি নেই!', 'error');
+                                return;
+                            }
+                            if (!showForm && limitReached) {
+                                showToast(`User limit reached (${userLimit} including you). Delete a user first.`, 'error');
+                                return;
+                            }
                             setShowForm(!showForm);
                         }}
                         className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
@@ -402,16 +518,40 @@ const User = () => {
                         </div>
                     </div>
 
+                    {overBy > 0 && !showLimitModal && (
+                        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                            <p className="text-sm text-rose-700 font-semibold">
+                                আরও {overBy} জন user delete করতে হবে। নিচের তালিকা থেকে tick দিয়ে বাছুন। (Selected: {selectedIds.length})
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleBulkDelete}
+                                    disabled={selectedIds.length === 0}
+                                    className="px-4 py-2 bg-rose-600 text-white text-xs font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                    Selected delete করুন
+                                </button>
+                                <button
+                                    onClick={handleContact}
+                                    className="px-4 py-2 bg-white border border-indigo-200 text-indigo-700 text-xs font-bold rounded-xl cursor-pointer"
+                                >
+                                    Software Authority-কে contact
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Table Container */}
                     {loading ? (
                         <div className="text-center py-20 text-gray-500 font-medium">Loading users...</div>
-                    ) : filteredUsers.length === 0 ? (
+                    ) : false ? (
                         <div className="text-center py-20 text-gray-400 font-medium">No users found!</div>
                     ) : (
                         <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm p-1">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
+                                        {selectMode && <th className="py-4 px-5"></th>}
                                         <th className="py-4 px-5">#</th>
                                         <th className="py-4 px-5">Name</th>
                                         <th className="py-4 px-5">Email</th>
@@ -424,8 +564,23 @@ const User = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+                                    {currentUsers.length === 0 && (
+                                        <tr>
+                                            <td colSpan={selectMode ? 10 : 9} className="py-10 text-center text-gray-400 font-medium">No users found!</td>
+                                        </tr>
+                                    )}
                                     {currentUsers.map((user, index) => (
                                         <tr key={user._id || index} className="hover:bg-indigo-50/40 transition duration-150">
+                                            {selectMode && (
+                                                <td className="py-4 px-5">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.includes(user._id)}
+                                                        onChange={() => toggleSelect(user._id)}
+                                                        className="w-4 h-4 cursor-pointer accent-rose-600"
+                                                    />
+                                                </td>
+                                            )}
                                             <td className="py-4 px-5 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
                                             <td className="py-4 px-5 font-bold text-gray-800">{user.name}</td>
                                             <td className="py-4 px-5 text-gray-600">{user.email}</td>
@@ -457,6 +612,14 @@ const User = () => {
                                                             <button
                                                                 onClick={() => {
                                                                     setActiveDropdownId(null);
+                                                                    if (!canEdit) {
+                                                                        showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+                                                                        return;
+                                                                    }
+                                                                    if (isOwnRow(user)) {
+                                                                        showToast('নিজেকে Edit করা যাবে না!', 'error');
+                                                                        return;
+                                                                    }
                                                                     setEditingUser(user);
                                                                     setShowForm(true);
                                                                     setTimeout(() => {
@@ -481,6 +644,38 @@ const User = () => {
                                             </td>
                                         </tr>
                                     ))}
+                                    {clientUser && !clientUser.isStaff && (
+                                        <tr className="bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border-t-2 border-amber-300">
+                                            {selectMode && <td className="py-4 px-5"></td>}
+                                            <td className="py-4 px-5 font-bold text-amber-500">★</td>
+                                            <td className="py-4 px-5 font-extrabold text-amber-900">👑 {clientUser.name}</td>
+                                            <td className="py-4 px-5 text-amber-900/80">{clientUser.email}</td>
+                                            <td className="py-4 px-5 text-amber-900/80">{clientUser.phone || 'N/A'}</td>
+                                            <td className="py-4 px-5">
+                                                <span className="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full font-bold text-xs shadow">
+                                                    Super Admin
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-5 text-amber-900/80">{clientUser.address || 'N/A'}</td>
+                                            <td className="py-4 px-5">
+                                                <span className={`px-3 py-1 rounded-full font-semibold text-xs ${clientUser.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                    {clientUser.isActive ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-5 text-xs text-amber-900/70">
+                                                {clientUser.createdAt ? new Date(clientUser.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                                            </td>
+                                            <td className="py-4 px-5 text-center">
+                                                <button
+                                                    disabled
+                                                    className="px-4 py-2 bg-gray-100 text-gray-400 rounded-xl font-semibold text-xs flex items-center gap-1.5 mx-auto cursor-not-allowed opacity-60"
+                                                >
+                                                    <span>Select</span>
+                                                    <FiChevronDown className="w-3.5 h-3.5" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>

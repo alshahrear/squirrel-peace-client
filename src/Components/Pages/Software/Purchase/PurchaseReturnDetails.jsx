@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getPurchaseItemCostPerPcs } from '../../Software/Inventory/Stock/StockPurchase';
+import useCan from '../../../../hooks/useCan';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Phone,
@@ -18,6 +19,7 @@ const PurchaseReturnDetails = () => {
     const [searchParams] = useSearchParams();
     const editReturnId = searchParams.get('returnId');
     const isEditMode = !!editReturnId;
+    const { canAdd: canAddReturn, canEdit: canEditReturn } = useCan('purchase_return');
     const [loading, setLoading] = useState(true);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [notFound, setNotFound] = useState(false);
@@ -721,6 +723,10 @@ const PurchaseReturnDetails = () => {
     }, [totalReturnAmount, paymentAmountTouched]);
 
     const handleConfirmReturn = async () => {
+        if (isEditMode ? !canEditReturn : !canAddReturn) {
+            showToast('আপনার Add / Edit / Delete করার অনুমতি নেই!', 'error');
+            return;
+        }
         const overStockItem = selectedInvoice.items.find((item, index) => {
             const split = getStockSplit(item, false);
             return (

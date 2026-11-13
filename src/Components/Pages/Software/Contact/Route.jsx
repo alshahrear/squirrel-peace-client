@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import useAxiosClient from "../../../../hooks/useAxiosClient";
+import useCan from "../../../../hooks/useCan";
 
 // "23/10/2026 08:03:51 pm" -> "23 Oct 2026"
 const formatCreatedDate = (value) => {
@@ -34,6 +35,7 @@ const Route = () => {
 
   const navigate = useNavigate();
   const axiosClient = useAxiosClient();
+  const { canAdd, canEdit, canDelete } = useCan("routes");
 
   const fetchRoutes = async () => {
     try {
@@ -60,6 +62,8 @@ const Route = () => {
 
   const handleSubmit = async () => {
     try {
+      if (editingId && !canEdit) return toast.error("আপনার Edit করার অনুমতি নেই!");
+      if (!editingId && !canAdd) return toast.error("আপনার Add করার অনুমতি নেই!");
       if (!formData.name.trim()) return toast.error("Please enter route name");
 
       const isDuplicateName = routes.some(
@@ -109,6 +113,10 @@ const Route = () => {
   };
 
   const handleDelete = async (id) => {
+    if (!canDelete) {
+      setActiveDropdownId(null);
+      return toast.error("আপনার Delete করার অনুমতি নেই!");
+    }
     setActiveDropdownId(null);
     Swal.fire({
       title: "Are you sure?",
@@ -297,6 +305,7 @@ const Route = () => {
                             <button
                               onClick={() => {
                                 setActiveDropdownId(null);
+                                if (!canEdit) return toast.error("আপনার Edit করার অনুমতি নেই!");
                                 setEditingId(item._id);
                                 setFormData({ name: item.name, isActive: item.isActive });
                                 formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });

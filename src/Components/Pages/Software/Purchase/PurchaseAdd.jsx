@@ -4,6 +4,7 @@ import PurchaseForm from "./PurchaseForm";
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 import { fetchCompanyBalance } from '../../Software/Contact/Company/CompanyAccountAc';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
+import useCan from '../../../../hooks/useCan';
 
 // Account e koto taka ache -> AccountBalance file theke (refresh lagbe na)
 const getAccountAvailable = (paymentAccount, excludePurchaseId = null) =>
@@ -97,6 +98,15 @@ const PurchaseAddInner = () => {
     const showPayment = !isOrderEdit;
     const [isEditMode] = useState(!!editingPurchase);
     const [editId] = useState(editingPurchase?._id || null);
+
+    // Button permission (R7 #7, #8): new = purchase_add post, edit/receive = purchase_all put
+    const { canAdd: canAddPurchase } = useCan('purchase_add');
+    const { canEdit: canEditPurchase } = useCan('purchase_all');
+    const noPurchasePermission = editingPurchase ? !canEditPurchase : !canAddPurchase;
+    const denyPurchaseToast = () => {
+        setToast({ show: true, message: 'আপনার Add / Edit / Delete করার অনুমতি নেই!', isError: true });
+        setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+    };
 
     // Draft key: নতুন Purchase আর Edit/Receive এর draft আলাদা থাকবে
     const draftPrefix = editingPurchase ? `purchaseEdit:${editingPurchase._id}` : 'purchaseNew';
@@ -1607,6 +1617,11 @@ const PurchaseAddInner = () => {
     };
 
     const handleSubmitInner = async (e) => {
+        if (noPurchasePermission) {
+            e.preventDefault();
+            denyPurchaseToast();
+            return;
+        }
         if (isReturnOnly) {
             e.preventDefault();
             const badRet = returnItems.some(
@@ -1991,6 +2006,10 @@ const PurchaseAddInner = () => {
     };
 
     const handleReceiveSubmitInner = async () => {
+        if (!canEditPurchase) {
+            denyPurchaseToast();
+            return;
+        }
         if (isReceiving) return;
         // ---------------- Validation ----------------
         if (paymentAmount === '' || paymentAmount === null) {

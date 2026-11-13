@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import ExpenseForm from './ExpenseForm';
 import useDraftState from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight, FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const Expense = () => {
     const [expenses, setExpenses] = useState([]);
+    const { canAdd, canEdit, canDelete } = useCan('account_expense');
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
@@ -82,6 +84,7 @@ const Expense = () => {
 
     // Delete Expense Handler with SweetAlert2
     const handleDelete = async (id) => {
+        if (!canDelete) { showToast('আপনার Delete করার অনুমতি নেই!', 'error'); return; }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -304,6 +307,7 @@ const Expense = () => {
 
                     <button
                         onClick={() => {
+                            if (!showForm && !canAdd) { showToast('আপনার Add করার অনুমতি নেই!', 'error'); return; }
                             setEditingExpense(null);
                             setShowForm(!showForm);
                         }}
@@ -486,6 +490,7 @@ const Expense = () => {
                                                             <button
                                                                 onClick={() => {
                                                                     setOpenDropdownId(null);
+                                                                    if (!canEdit) { showToast('আপনার Edit করার অনুমতি নেই!', 'error'); return; }
                                                                     setEditingExpense(expense);
                                                                     setShowForm(true);
                                                                     setTimeout(() => {

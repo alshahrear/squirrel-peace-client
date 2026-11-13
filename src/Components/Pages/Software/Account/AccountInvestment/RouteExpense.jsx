@@ -3,10 +3,12 @@ import Swal from 'sweetalert2';
 import { FaFilter, FaRedo } from 'react-icons/fa';
 import RouteExpenseForm from './RouteExpenseForm';
 import useDraftState from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 import { FiEye, FiPieChart, FiX, FiChevronLeft, FiChevronRight, FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
 
 const RouteExpense = () => {
-    const [routeExpenses, setRouteExpenses] = useState([]);
+        const [routeExpenses, setRouteExpenses] = useState([]);
+    const { canAdd, canEdit, canDelete } = useCan('account_route_expense');
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
@@ -158,7 +160,8 @@ const RouteExpense = () => {
     };
 
     // Delete Route Expense Handler with SweetAlert2
-    const handleDelete = async (id) => {
+        const handleDelete = async (id) => {
+        if (!canDelete) { showToast('আপনার Delete করার অনুমতি নেই!', 'error'); return; }
         setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
@@ -401,6 +404,7 @@ const RouteExpense = () => {
 
                     <button
                         onClick={() => {
+                            if (!showForm && !canAdd) { showToast('আপনার Add করার অনুমতি নেই!', 'error'); return; }
                             setEditingRouteExpense(null);
                             setShowForm(!showForm);
                         }}
@@ -712,6 +716,7 @@ const RouteExpense = () => {
                                                             <button
                                                                 onClick={() => {
                                                                     setOpenDropdownId(null);
+                                                                    if (!canEdit) { showToast('আপনার Edit করার অনুমতি নেই!', 'error'); return; }
                                                                     setEditingRouteExpense(routeExpense);
                                                                     setShowForm(true);
                                                                     setTimeout(() => {

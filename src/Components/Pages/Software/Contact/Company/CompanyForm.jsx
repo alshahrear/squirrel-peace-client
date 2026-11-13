@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
+import useCan from '../../../../../hooks/useCan';
 import { FaBuilding, FaPhone, FaUser, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave } from 'react-icons/fa';
 
 // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
@@ -57,6 +58,7 @@ const CompanyForm = ({
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
+    const { canAdd, canEdit } = useCan("company");
 
     const isEditing = Boolean(editingCompany && editingCompany._id);
     const editingId = isEditing ? editingCompany._id : null;
@@ -81,6 +83,9 @@ const CompanyForm = ({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (isEditing && !canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+        if (!isEditing && !canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
 
         const contactInput = formData.contactNumber.trim();
         const businessNoInput = formData.businessNumber.trim().toLowerCase();

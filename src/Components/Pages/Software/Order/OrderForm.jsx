@@ -394,7 +394,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
 
     // শুধু Wholesale Customer
     const filteredCustomers = customers
-        .filter((c) => c.customerType === 'Wholesale Customer')
+        .filter(() => true)
         // Route সিলেক্ট থাকলে শুধু ওই route এর customer দেখাবে
         .filter((c) => directSales || !formData.route || c.route === formData.route)
         .filter((c) =>
@@ -402,7 +402,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
         );
 
     // Wholesale customer দের unique route list
-    const wholesaleCustomers = customers.filter(({ customerType }) => customerType === 'Wholesale Customer');
+    const wholesaleCustomers = customers;
     const routeList = [...new Set(wholesaleCustomers.map((c) => c.route).filter(Boolean))]
         .filter((r) => matchesSearch(search.route, [r]));
 
@@ -652,7 +652,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                             onSelect={handleSelectCustomer}
                             items={filteredCustomers}
                             getKey={(c) => c._id}
-                            emptyText="No wholesale customer found"
+                            emptyText="No customer found"
                             renderItem={(c) => (
                                 <>
                                     <div className="flex items-center justify-between gap-2">

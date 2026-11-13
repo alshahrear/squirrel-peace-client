@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
+import useCan from '../../../../hooks/useCan';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -297,6 +298,7 @@ const SalesBulkReturnForm = () => {
     const editingReturn = location.state?.bulkReturn || null;
     const isEditMode = !!editingReturn;
     const editId = editingReturn?._id || null;
+    const can = useCan('sales_bulk_return');
 
     const [formData, setFormData] = useState({
         customerId: editingReturn?.customerId || '',
@@ -381,7 +383,7 @@ const SalesBulkReturnForm = () => {
 
     // ---------- Customer ----------
     const filteredCustomers = customers
-        .filter((c) => c.customerType === 'Wholesale Customer')
+        .filter(() => true)
         .filter((c) => matchesSearch(search.customer, [c.businessName, c.contactNumber, c.address, c.route]));
 
     const handleSelectCustomer = (c) => {
@@ -707,6 +709,9 @@ const SalesBulkReturnForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (isSaving) return;
+        if (isEditMode ? !can.canEdit : !can.canAdd) {
+            return showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', true);
+        }
 
         if (!formData.customerId) return showToast('Customer is required!', true);
         if (!formData.date) return showToast('Date is required!', true);
@@ -872,7 +877,7 @@ const SalesBulkReturnForm = () => {
                                 onSelect={handleSelectCustomer}
                                 items={filteredCustomers}
                                 getKey={(c) => c._id}
-                                emptyText="No wholesale customer found"
+                                emptyText="No customer found"
                                 disabled={isEditMode}
                                 renderItem={(c) => (
                                     <>

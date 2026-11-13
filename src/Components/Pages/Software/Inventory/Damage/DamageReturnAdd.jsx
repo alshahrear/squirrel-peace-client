@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import useCan from '../../../../../hooks/useCan';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -150,6 +151,7 @@ const restoreItem = (item, index) => ({
 const getRowTotal = (i) => (Number(i.buyPrice) || 0) * (Number(i.totalQty) || 0);
 
 const DamageReturnAdd = () => {
+const { canAdd, canEdit } = useCan('damage_return_invoice');
     const navigate = useNavigate();
     const location = useLocation();
     const editing = location.state?.damageReturn || null;
@@ -555,6 +557,9 @@ const DamageReturnAdd = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (isSaving) return;
+        if (isEditMode ? !canEdit : !canAdd) {
+            return showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', true);
+        }
 
         if (!formData.company) return showToast('Company is required!', true);
         if (!formData.date) return showToast('Date is required!', true);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useCan from '../../../../hooks/useCan';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -49,6 +50,7 @@ const STOCK_GROUP = {
 };
 
 const Feature = () => {
+    const { canEdit } = useCan('features');
     const [features, setFeatures] = useState({});
     const [loading, setLoading] = useState(true);
     const [savingKey, setSavingKey] = useState(null);
@@ -75,6 +77,10 @@ const Feature = () => {
 
     // Toggle feature
     const handleToggle = async (key) => {
+                if (!canEdit) {
+            showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+            return;
+        }
         const newValue = !features[key];
         setSavingKey(key);
 
