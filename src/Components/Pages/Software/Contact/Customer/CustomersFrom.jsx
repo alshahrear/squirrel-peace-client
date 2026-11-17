@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 import useCan from '../../../../../hooks/useCan';
-import { FaPlus } from 'react-icons/fa';
-import { FaUser, FaPhone, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave, FaStore, FaRoute, FaCreditCard, FaChevronDown } from 'react-icons/fa';
+import { FaPlus, FaUser, FaPhone, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave, FaRoute, FaCreditCard } from 'react-icons/fa';
+import { inputCls, labelCls, ComboBox } from '../../Product/ProductUi';
 
 // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
 const formatDateTime = (date = new Date()) => {
@@ -21,6 +21,12 @@ const formatDateTime = (date = new Date()) => {
 
     return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
 };
+
+const Lbl = ({ htmlFor, icon, children, required }) => (
+    <label htmlFor={htmlFor} className={`${labelCls} flex items-center gap-1.5`}>
+        <span className="text-brand-500">{icon}</span> {children} {required && <span className="text-rose-500">*</span>}
+    </label>
+);
 
 const CustomersFrom = ({
     customers,
@@ -67,7 +73,7 @@ const CustomersFrom = ({
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
-    const { canAdd, canEdit } = useCan("customers");
+    const { canAdd, canEdit } = useCan('customers');
 
     const isEditing = Boolean(editingCustomer && editingCustomer._id);
     const editingId = isEditing ? editingCustomer._id : null;
@@ -85,13 +91,12 @@ const CustomersFrom = ({
         clearDraft(draftKey);
         setEditingCustomer(null);
         setShowForm(false);
-        if (scrollToTable) {
-            scrollToTable();
-        }
+        if (scrollToTable) scrollToTable();
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (loading) return;
 
         if (isEditing && !canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         if (!isEditing && !canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
@@ -131,34 +136,19 @@ const CustomersFrom = ({
         try {
             const response = await fetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(finalData),
             });
 
             if (response.ok) {
-                showToast(
-                    isEditing ? 'Customer updated successfully!' : 'Customer added successfully!',
-                    'success'
-                );
-
-                if (fetchCustomers) {
-                    await fetchCustomers();
-                }
-
+                showToast(isEditing ? 'Customer updated successfully!' : 'Customer added successfully!', 'success');
+                if (fetchCustomers) await fetchCustomers();
                 clearDraft(draftKey);
                 setEditingCustomer(null);
                 setShowForm(false);
-
-                if (scrollToTable) {
-                    scrollToTable();
-                }
+                if (scrollToTable) scrollToTable();
             } else {
-                showToast(
-                    isEditing ? 'Failed to update customer!' : 'Something went wrong, please try again.',
-                    'error'
-                );
+                showToast(isEditing ? 'Failed to update customer!' : 'Something went wrong, please try again.', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
@@ -167,301 +157,153 @@ const CustomersFrom = ({
             setLoading(false);
         }
     };
-    const [routeSearch, setRouteSearch] = useState('');
-    const [isRouteOpen, setIsRouteOpen] = useState(false);
-    const dropdownRef = useRef(null);
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsRouteOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    useEffect(() => {
-        setRouteSearch(formData.route || '');
-    }, [formData.route]);
-
-    const filteredRoutes = routes
-        .filter(rt => rt.isActive !== false)
-        .map(rt => rt.routeName || rt.name || rt)
-        .filter(routeName => routeName.toLowerCase().includes(routeSearch.toLowerCase()));
+    // Route suggestion list (শুধু active route, free text ও চলবে)
+    const routeOptions = routes
+        .filter((rt) => rt.isActive !== false)
+        .map((rt) => rt.routeName || rt.name || rt)
+        .filter((n) => String(n).toLowerCase().includes((formData.route || '').toLowerCase()))
+        .map((n, i) => ({ key: `${n}-${i}`, title: n, value: n }));
 
     return (
-        <div className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-indigo-100 backdrop-blur-sm transition-all duration-300">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    {editingId ? <span className="text-indigo-600"><FaEdit /> Edit Customer</span> : <span className="text-indigo-600"><FaSave /> Add New Customer</span>}
+        <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200">
+            <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <span className="text-brand-600">{editingId ? <FaEdit /> : <FaSave />}</span>
+                    {editingId ? 'Edit Customer' : 'Add New Customer'}
                 </h2>
                 {editingId && (
                     <button
                         type="button"
                         onClick={handleCancelEdit}
-                        className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full transition-all"
+                        className="inline-flex items-center gap-1.5 min-h-[36px] text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 rounded-full font-semibold cursor-pointer"
                     >
                         <FaTimes /> Cancel Edit
                     </button>
                 )}
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-
-                {/* Business Name */}
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaUser className="text-indigo-500" /> Business Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        name="businessName"
-                        placeholder="Business name"
-                        value={formData.businessName}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="cu-name" icon={<FaUser />} required>Business Name</Lbl>
+                    <input id="cu-name" type="text" name="businessName" placeholder="Business name" value={formData.businessName} onChange={handleChange} required className={inputCls} />
                 </div>
 
-                {/* Contact Number */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaPhone className="text-indigo-500" /> Contact Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        name="contactNumber"
-                        placeholder="Contact number"
-                        value={formData.contactNumber}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="cu-phone" icon={<FaPhone />} required>Contact Number</Lbl>
+                    <input id="cu-phone" type="tel" inputMode="tel" name="contactNumber" placeholder="Contact number" value={formData.contactNumber} onChange={handleChange} required className={inputCls} />
                 </div>
 
-                {/* Email Address */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaEnvelope className="text-indigo-500" /> Email Address
-                    </label>
-                    <input
-                        type="email"
-                        name="email"
-                        placeholder="customer@example.com"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="cu-email" icon={<FaEnvelope />}>Email Address</Lbl>
+                    <input id="cu-email" type="email" name="email" placeholder="customer@example.com" value={formData.email} onChange={handleChange} className={inputCls} />
                 </div>
 
-                {/* Contact Name */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaUser className="text-indigo-500" /> Contact Name
-                    </label>
-                    <input
-                        type="text"
-                        name="contactName"
-                        placeholder="Reference name"
-                        value={formData.contactName}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="cu-contact" icon={<FaUser />}>Contact Name</Lbl>
+                    <input id="cu-contact" type="text" name="contactName" placeholder="Reference name" value={formData.contactName} onChange={handleChange} className={inputCls} />
                 </div>
 
-                {/* Business Number / ID */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaHashtag className="text-indigo-500" /> Business Number / ID
-                    </label>
-                    <input
-                        type="text"
-                        name="businessNumber"
-                        placeholder="ID or Reg number"
-                        value={formData.businessNumber}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="cu-bno" icon={<FaHashtag />}>Business Number / ID</Lbl>
+                    <input id="cu-bno" type="text" name="businessNumber" placeholder="ID or Reg number" value={formData.businessNumber} onChange={handleChange} className={inputCls} />
                 </div>
 
                 {/* Opening Balance */}
                 <div>
-                    <div className="flex items-center justify-between mb-1.5 gap-2 h-4">
-                        <label className="text-gray-700 text-xs font-semibold flex items-center gap-1.5">
-                            <FaWallet className="text-indigo-500" /> Opening Balance
-                        </label>
+                    <Lbl htmlFor="cu-balance" icon={<FaWallet />}>Opening Balance</Lbl>
+                    <div className="flex gap-2">
                         <select
                             name="openingBalanceType"
+                            aria-label="Opening balance type"
                             value={formData.openingBalanceType || ''}
                             onChange={handleChange}
-                            className="h-5 px-1.5 py-0 text-[11px] leading-none rounded-md border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 text-gray-700 cursor-pointer"
+                            className="w-28 shrink-0 px-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white text-slate-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none cursor-pointer"
                         >
-                            <option value="">Select type</option>
+                            <option value="">Type</option>
                             <option value="Get">Get</option>
                             <option value="Pay">Pay</option>
                         </select>
+                        <input
+                            id="cu-balance"
+                            type="number"
+                            inputMode="decimal"
+                            name="openingBalance"
+                            placeholder={formData.openingBalanceType ? '0.00' : 'Select type first'}
+                            value={formData.openingBalance}
+                            disabled={!formData.openingBalanceType}
+                            required={!!formData.openingBalanceType}
+                            onChange={(e) => {
+                                if (/^\d*\.?\d{0,2}$/.test(e.target.value)) handleChange(e);
+                            }}
+                            step="0.01"
+                            min="0"
+                            className={`${inputCls} disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed`}
+                        />
                     </div>
-                    <input
-                        type="number"
-                        name="openingBalance"
-                        placeholder={formData.openingBalanceType ? '0.00' : 'Select type first'}
-                        value={formData.openingBalance}
-                        disabled={!formData.openingBalanceType}
-                        required={!!formData.openingBalanceType}
-                        onChange={(e) => {
-                            const value = e.target.value;
-
-                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                handleChange(e);
-                            }
-                        }}
-                        step="0.01"
-                        min="0"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                    />
                 </div>
 
-                {/* Credit Limit */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaCreditCard className="text-indigo-500" /> Due Limit
-                    </label>
+                    <Lbl htmlFor="cu-credit" icon={<FaCreditCard />}>Due Limit</Lbl>
                     <input
+                        id="cu-credit"
                         type="number"
+                        inputMode="decimal"
                         name="creditLimit"
                         placeholder="0.00"
                         value={formData.creditLimit}
                         onChange={(e) => {
-                            const value = e.target.value;
-
-                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                handleChange(e);
-                            }
+                            if (/^\d*\.?\d{0,2}$/.test(e.target.value)) handleChange(e);
                         }}
                         step="0.01"
                         min="0"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
+                        className={inputCls}
                     />
                 </div>
 
-                {/* Route (Conditional: Searchable Select for Wholesale Customer) */}
-                {(
-                    <div className="relative" ref={dropdownRef}>
-                        <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-gray-700 text-xs font-semibold flex items-center gap-1.5">
-                                <FaRoute className="text-indigo-500" /> Route <span className="text-red-500">*</span>
-                            </label>
-                            <button
-                                type="button"
-                                onClick={() => navigate('/routes')}
-                                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-pink-600 transition-colors cursor-pointer"
-                            >
-                                <FaPlus size={10} />
-                                Add Route
-                            </button>
-                        </div>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Search or select route..."
-                                value={routeSearch}
-                                onFocus={() => setIsRouteOpen(true)}
-                                onChange={(e) => {
-                                    setRouteSearch(e.target.value);
-                                    setIsRouteOpen(true);
-                                    handleChange({
-                                        target: { name: 'route', value: e.target.value }
-                                    });
-                                }}
-                                required
-                                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 pr-8"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setIsRouteOpen(!isRouteOpen)}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                                <FaChevronDown size={12} />
-                            </button>
-                        </div>
-
-                        {isRouteOpen && (
-                            <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                {filteredRoutes.length > 0 ? (
-                                    filteredRoutes.map((routeName, idx) => (
-                                        <li
-                                            key={idx}
-                                            onClick={() => {
-                                                setRouteSearch(routeName);
-                                                setIsRouteOpen(false);
-                                                handleChange({
-                                                    target: { name: 'route', value: routeName }
-                                                });
-                                            }}
-                                            className="px-3 py-2 text-sm hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors"
-                                        >
-                                            {routeName}
-                                        </li>
-                                    ))
-                                ) : (
-                                    <li className="px-3 py-2 text-sm text-gray-400">
-                                        No matching route (You can type a new one)
-                                    </li>
-                                )}
-                            </ul>
-                        )}
-                    </div>
-                )}
-
-                {/* Address */}
+                {/* Route */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaMapMarkerAlt className="text-indigo-500" /> Address
-                    </label>
-                    <input
-                        type="text"
-                        name="address"
-                        placeholder="Customer address"
-                        value={formData.address}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
+                    <div className="flex items-center justify-between">
+                        <Lbl icon={<FaRoute />} required>Route</Lbl>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/routes')}
+                            className="inline-flex items-center gap-1 mb-1.5 text-xs font-semibold text-brand-600 hover:text-brand-800 cursor-pointer"
+                        >
+                            <FaPlus size={9} /> Add Route
+                        </button>
+                    </div>
+                    <ComboBox
+                        value={formData.route}
+                        placeholder="Search or select route..."
+                        options={routeOptions}
+                        required
+                        emptyText="No matching route (You can type a new one)"
+                        onType={(v) => handleChange({ target: { name: 'route', value: v } })}
+                        onPick={(o) => handleChange({ target: { name: 'route', value: o.value } })}
                     />
                 </div>
 
-                {/* Note */}
-                <div className="sm:col-span-2 md:col-span-2">
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaStickyNote className="text-indigo-500" /> Note
-                    </label>
-                    <input
-                        type="text"
-                        name="note"
-                        placeholder="Write additional notes here..."
-                        value={formData.note}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                <div>
+                    <Lbl htmlFor="cu-address" icon={<FaMapMarkerAlt />}>Address</Lbl>
+                    <input id="cu-address" type="text" name="address" placeholder="Customer address" value={formData.address} onChange={handleChange} className={inputCls} />
                 </div>
 
-                {/* Submit Button */}
-                <div className="sm:col-span-2 md:col-span-3 flex justify-end mt-2">
+                <div className="sm:col-span-2">
+                    <Lbl htmlFor="cu-note" icon={<FaStickyNote />}>Note</Lbl>
+                    <input id="cu-note" type="text" name="note" placeholder="Write additional notes here..." value={formData.note} onChange={handleChange} className={inputCls} />
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-3 flex justify-end mt-1">
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${editingId
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200'
-                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
+                        className={`w-full sm:w-auto min-h-[44px] px-7 rounded-full text-white text-sm font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-brand-600'
                             }`}
                     >
                         {loading
-                            ? editingId
-                                ? 'Updating Customer...'
-                                : 'Adding Customer...'
-                            : editingId
-                                ? 'Update Customer Details'
-                                : 'Add Customer'}
+                            ? editingId ? 'Updating Customer...' : 'Adding Customer...'
+                            : editingId ? 'Update Customer Details' : 'Add Customer'}
                     </button>
                 </div>
             </form>

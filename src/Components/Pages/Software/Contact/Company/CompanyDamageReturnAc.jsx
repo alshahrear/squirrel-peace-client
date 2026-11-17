@@ -402,9 +402,9 @@ const CompanyDamageReturnAc = () => {
 
                 {/* Table Section */}
                 <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
-                    <div className="p-5 bg-gradient-to-r from-rose-500 to-orange-500 text-white flex flex-col md:flex-row justify-between md:items-center gap-3">
-                        <h2 className="text-xl font-bold">Damage Return Payments</h2>
-                        <div className="flex flex-wrap items-center gap-2">
+                    <div className="p-4 md:p-5 bg-gradient-to-r from-rose-500 to-orange-500 text-white flex flex-col md:flex-row justify-between md:items-center gap-2 md:gap-3">
+                        <h2 className="text-lg md:text-xl font-bold">Damage Return Payments</h2>
+                        <div className="flex flex-nowrap md:flex-wrap items-center gap-1.5 md:gap-2 overflow-x-auto [&>span]:shrink-0 [&>span]:whitespace-nowrap [&>span]:!px-2 md:[&>span]:!px-3 [&>span]:text-[10px] md:[&>span]:!text-xs">
                             <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
                                 Return: ৳{fmt(totalReturn)}
                             </span>
@@ -423,8 +423,93 @@ const CompanyDamageReturnAc = () => {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
+                    {/* Mobile compact cards */}
+                    <div className="md:hidden p-1.5 space-y-1.5">
+                        {loading ? (
+                            <div className="py-8 text-center text-xs text-gray-400">Loading...</div>
+                        ) : currentRows.length === 0 ? (
+                            <div className="py-8 text-center text-xs text-gray-400">No damage returns found!</div>
+                        ) : (
+                            currentRows.map((r) => {
+                                const pay = r.payment;
+                                const received = pay ? Number(pay.amount) || 0 : 0;
+                                const due = Math.max(r.returnAmount - received, 0);
+                                const extraAmt = Math.max(received - r.returnAmount, 0);
+                                const amts = [
+                                    ['Return', r.returnAmount, 'text-orange-600'],
+                                    ['Recv', received, 'text-emerald-600'],
+                                    ['Due', due, 'text-rose-600'],
+                                    ['Extra', extraAmt, 'text-sky-600'],
+                                ];
+                                const notUsedCls = 'shrink-0 inline-block px-1.5 py-px bg-slate-100 text-slate-500 rounded-full font-semibold text-[9px] leading-tight';
+                                return (
+                                    <div
+                                        key={r.key}
+                                        className="relative rounded-xl border border-slate-200 bg-white pl-3 pr-2 py-1.5 shadow-sm"
+                                    >
+                                        <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-rose-400" />
+                                        <div className="flex items-stretch gap-2">
+                                            <div className="min-w-0 flex-1 flex flex-col justify-between gap-0.5">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenInvoice(r)}
+                                                        className="shrink-0 bg-indigo-50 text-indigo-700 px-1.5 py-px rounded-full text-[11px] font-bold leading-tight cursor-pointer"
+                                                    >
+                                                        #{r.invoiceNo}
+                                                    </button>
+                                                    {pay ? (
+                                                        <span className="shrink-0 bg-gray-100 text-gray-700 px-1.5 py-px rounded-full text-[9px] font-bold leading-tight">
+                                                            {pay.method}
+                                                        </span>
+                                                    ) : (
+                                                        <span className={notUsedCls}>Not Used</span>
+                                                    )}
+                                                    {r.fromPurchase && (
+                                                        <span className="shrink-0 bg-teal-50 text-teal-700 px-1.5 py-px rounded-full text-[9px] font-bold leading-tight">
+                                                            From Purchase
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-[11px] font-bold text-gray-800 leading-snug truncate">{r.company}</p>
+                                                <p className="text-[10.5px] text-orange-600 font-semibold leading-snug">
+                                                    <span className="uppercase text-slate-400 font-bold">Return: </span>
+                                                    {r.returnDate || 'N/A'}
+                                                </p>
+                                                {r.editedAt && (
+                                                    <div>
+                                                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
+                                                            <FaEdit size={10} /> Edited: {formatDateOnly(r.editedAt)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <p className="text-[10.5px] text-slate-500 leading-snug break-words">
+                                                    <span className="uppercase text-slate-400 font-bold">AC: </span>
+                                                    {pay ? (
+                                                        getAccountLabel(pay) || <span className="text-slate-400 italic">N/A</span>
+                                                    ) : (
+                                                        <span className={notUsedCls}>Not Used</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <div className="shrink-0 w-[108px] flex flex-col justify-center gap-px">
+                                                {amts.map(([l, v, c]) => (
+                                                    <div key={l} className="flex items-center justify-between rounded-md bg-slate-50 px-1.5 py-px">
+                                                        <span className="text-[9px] font-bold text-slate-400 uppercase">{l}</span>
+                                                        <span className={`text-[10.5px] font-bold whitespace-nowrap ${c}`}>৳{fmt(v)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    {/* Desktop table */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">>
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>

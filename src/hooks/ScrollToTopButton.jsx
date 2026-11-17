@@ -1,6 +1,6 @@
 // src/components/ScrollToTopButton.jsx
 import React, { useEffect, useState } from "react";
-import { IoIosArrowDropupCircle } from "react-icons/io";
+import { IoIosArrowUp } from "react-icons/io";
 
 const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -26,14 +26,17 @@ const ScrollToTopButton = () => {
   };
 
   return (
-    isVisible && (
+    (
       <button
         onClick={scrollToTop}
-        className="fixed bottom-11 right-1 z-50 text-[#2acb35] hover:text-[#2acb35] transition-all duration-300"
+        tabIndex={isVisible ? 0 : -1}
+        aria-hidden={!isVisible}
+        className={`fixed z-40 right-4 sm:right-6 bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] w-11 h-11 p-0 flex items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-all duration-200 ease-out motion-reduce:transition-none hover:-translate-y-0.5 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+          }`}
         aria-label="Scroll to top"
       >
-        <div className="p-1 border-2 border-[#2acb35] bg-white rounded hover:scale-110">
-            <IoIosArrowDropupCircle className="w-6 h-6 text-[#2acb35] " />
+        <div className="flex items-center justify-center">
+          <IoIosArrowUp className="w-5 h-5" />
         </div>
       </button>
     )

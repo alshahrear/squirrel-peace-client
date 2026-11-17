@@ -14,8 +14,11 @@ import AcSalesWiseProfitRepo from './AcSalesWiseProfitRepo';
 import AcOverUnderRateRepo from './AcOverUnderRateRepo';
 import AcDailyStatementRepo from './AcDailyStatementRepo';
 import AcIncomeStatementRepo from './AcIncomeStatementRepo';
+import { useClientAuth } from '../../../../../hooks/ClientAuthContext';
+import { hasAction } from '../../../../../hooks/permissionConfig';
+import TabBar from '../../../../../hooks/TabBar';
 
-const TABS = [
+const ALL_TABS = [
     { key: 'daybook', label: 'Day Book', icon: FaBook },
     { key: 'cashbook', label: 'Cash Book', icon: FaMoneyBillWave },
     { key: 'mobilebanking', label: 'Mobile Banking', icon: FaMobileAlt },
@@ -32,10 +35,32 @@ const TABS = [
     { key: 'incomestatement', label: 'Income Statement', icon: FaFileAlt },
 ];
 
+const TAB_MODULE = {
+    daybook: 'account_report_daybook',
+    cashbook: 'account_report_cashbook',
+    mobilebanking: 'account_report_mobile',
+    bank: 'account_report_bank',
+    income: 'account_report_income',
+    expense: 'account_report_expense',
+    routeexpense: 'account_report_route_expense',
+    transfer: 'account_report_transfer',
+    topbuypay: 'account_report_top_buy',
+    topsellproduct: 'account_report_top_sell',
+    saleswiseprofit: 'account_report_sales_profit',
+    overunderrate: 'account_report_over_under',
+    dailystatement: 'account_report_daily_statement',
+    incomestatement: 'account_report_income_statement',
+};
+
 const AccountReportAll = () => {
+    const { clientUser } = useClientAuth();
+    const TABS = ALL_TABS.filter(
+        (t) => !clientUser?.isStaff || hasAction(clientUser.permissions, TAB_MODULE[t.key], 'get')
+    );
     const [activeTab, setActiveTab] = useState(() => {
         try {
-            return sessionStorage.getItem('accountReportTab') || 'daybook';
+            const saved = sessionStorage.getItem('accountReportTab');
+            return TABS.some((t) => t.key === saved) ? saved : (TABS[0]?.key || 'daybook');
         } catch (e) {
             return 'daybook';
         }
@@ -49,33 +74,18 @@ const AccountReportAll = () => {
         }
     }, [activeTab]);
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
-            {/* Tab Bar */}
-            <div className="max-w-[1700px] mx-auto px-4 md:px-6 pt-4 md:pt-6">
-                <div className="grid grid-cols-7 gap-1.5 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white p-1.5">
-                    {TABS.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.key;
-                        return (
-                            <button
-                                key={tab.key}
-                                type="button"
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                                    ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-md shadow-indigo-200'
-                                    : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-                                    }`}
-                            >
-                                <Icon size={11} />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+    const tabs = TABS.map((t) => ({
+        key: t.key,
+        label: t.label,
+        icon: t.icon,
+        active: activeTab === t.key,
+        onClick: () => setActiveTab(t.key),
+    }));
 
-            {/* Tab Content */}
+    return (
+        <div>
+            <TabBar tabs={tabs} wrap />
+
             {activeTab === 'daybook' && <AcDayBookRepo />}
             {activeTab === 'cashbook' && <AcCashBookRepo />}
             {activeTab === 'mobilebanking' && <AcMobileBankingRepo />}

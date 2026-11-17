@@ -1,6 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getPurchaseItemCostPerPcs } from '../../Software/Inventory/Stock/StockPurchase';
 import useCan from '../../../../hooks/useCan';
+import toast from 'react-hot-toast';
+import { DateInput } from '../Product/ProductUi';
+import { inputCls, labelCls } from './PurchaseUi';
+import { Card, QtyField, PaymentSection } from './PurchaseFormUi';
+import { labelToISO } from './purchaseDate';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Phone,
@@ -63,10 +68,10 @@ const PurchaseReturnDetails = () => {
     const [salesBulkList, setSalesBulkList] = useState([]);
     const [damageList, setDamageList] = useState([]);
     const [adjustmentList, setAdjustmentList] = useState([]);
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
+    const setToast = () => { };
 
     const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
+        type === 'error' ? toast.error(message) : toast.success(message);
         setTimeout(() => {
             setToast({ show: false, message: '', type: '' });
         }, 3500);
@@ -899,10 +904,11 @@ const PurchaseReturnDetails = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-gray-500 font-medium text-sm">Loading invoice...</p>
+            <div className="min-h-screen p-3 sm:p-5 md:p-8">
+                <div className="max-w-[1400px] mx-auto space-y-3">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-28 rounded-2xl bg-slate-100 animate-pulse" />
+                    ))}
                 </div>
             </div>
         );
@@ -910,17 +916,14 @@ const PurchaseReturnDetails = () => {
 
     if (notFound || !selectedInvoice) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6">
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-10 border border-white text-center max-w-md w-full">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 flex items-center justify-center mb-4">
-                        <PackageX className="w-8 h-8 text-rose-500" />
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center max-w-md w-full">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 flex items-center justify-center mb-4">
+                        <PackageX className="w-7 h-7 text-rose-500" />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-800">Invoice Not Found</h2>
-                    <p className="text-gray-500 text-sm mt-2">This purchase record couldn't be found. It may have been deleted.</p>
-                    <button
-                        onClick={() => navigate('/purchase')}
-                        className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
-                    >
+                    <h2 className="text-lg font-bold text-slate-800">Invoice Not Found</h2>
+                    <p className="text-slate-500 text-sm mt-2">This purchase record couldn't be found. It may have been deleted.</p>
+                    <button onClick={() => navigate('/purchase')} className="mt-5 bg-brand-600 text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center gap-2 cursor-pointer">
                         <ArrowLeft className="w-4 h-4" /> Back to Purchases
                     </button>
                 </div>
@@ -928,554 +931,235 @@ const PurchaseReturnDetails = () => {
         );
     }
 
+    const v = (x) => (x === 0 || x === undefined || x === null ? '' : x);
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1400px] mx-auto space-y-4">
+                <button
+                    type="button"
+                    onClick={() => navigate('/purchase')}
+                    className="h-10 px-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Back to Purchases
+                </button>
 
-            {/* Top Right Toast Notification */}
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    <span>{toast.message}</span>
-                </div>
-            )}
+                {/* Invoice info */}
+                <Card>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+                                <Building2 className="w-6 h-6 text-brand-600" />
+                            </div>
+                            <div>
+                                <span className="inline-block text-[11px] font-bold tracking-widest text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md mb-1 uppercase">Purchase Return</span>
+                                <h1 className="text-lg font-bold text-slate-800">ইসরাইল এন্টারপ্রাইজ</h1>
+                                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                    <MapPin className="w-3.5 h-3.5" /> শাহজী পাড়া, বড় বাজার, মেহেরপুর
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-xs text-slate-500 space-y-1">
+                            <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> 01997074920</p>
+                            <p className="flex items-center gap-2 break-all"><Mail className="w-3.5 h-3.5" /> jakoberjak2017@gmail.com</p>
+                        </div>
+                    </div>
 
-            <div className="max-w-7xl mx-auto space-y-6">
-
-                {/* Top action bar */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-5 border border-white flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <button
-                        onClick={() => navigate('/purchase')}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-semibold text-sm hover:bg-indigo-100 transition cursor-pointer"
-                    >
-                        <ArrowLeft className="w-4 h-4" /> Back to Purchases
-                    </button>
-                </div>
-
-                {/* Invoice Card */}
-                <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-white overflow-hidden">
-
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-6 sm:p-10">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/25 shadow-inner">
-                                    <Building2 className="w-7 h-7 text-white" />
-                                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                        <div className="rounded-xl border border-slate-200 p-4">
+                            <span className="inline-block text-[11px] font-bold tracking-widest text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md mb-2 uppercase">Bill From</span>
+                            <p className="font-bold text-slate-800">{selectedInvoice.company}</p>
+                            <p className="text-xs text-slate-600 mt-0.5">{selectedInvoice.phone}</p>
+                            <p className="text-xs text-slate-600">{selectedInvoice.address}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 p-4">
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                                 <div>
-                                    <span className="inline-block text-[11px] font-bold tracking-widest text-white bg-white/20 px-2.5 py-1 rounded-md mb-1.5 uppercase">
-                                        Purchase Return
-                                    </span>
-                                    <h1 className="text-2xl font-extrabold tracking-tight text-white">ইসরাইল এন্টারপ্রাইজ</h1>
-                                    <p className="text-indigo-50/90 text-xs sm:text-sm flex items-center gap-1.5 mt-1">
-                                        <MapPin className="w-3.5 h-3.5" /> শাহজী পাড়া, বড় বাজার, মেহেরপুর
+                                    <span className="inline-block text-[11px] font-bold tracking-widest text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md mb-2 uppercase">Bill To</span>
+                                    <p className="font-bold text-slate-800">Demo Enterprise</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">01612002913</p>
+                                    <p className="text-xs text-slate-500">{selectedInvoice.shippingAddress || 'N/A'}</p>
+                                </div>
+                                <div className="sm:text-right">
+                                    <p className="text-xs text-slate-500 flex items-center sm:justify-end gap-1">
+                                        <Calendar className="w-3.5 h-3.5 text-brand-500" /> Purchase Date: {selectedInvoice.purchaseDate}
+                                    </p>
+                                    <p className="text-xs font-semibold text-slate-700 mt-1.5 bg-slate-100 px-2.5 py-1 rounded-lg inline-block">
+                                        Inv: <span className="text-brand-700">{selectedInvoice.invoiceNo}</span>
                                     </p>
                                 </div>
                             </div>
-
-                            <div className="text-xs sm:text-sm text-indigo-50/90 space-y-1.5">
-                                <p className="flex items-center sm:justify-end gap-2">
-                                    <Phone className="w-3.5 h-3.5" />
-                                    <span>01997074920</span>
-                                </p>
-                                <p className="flex items-center sm:justify-end gap-2">
-                                    <Mail className="w-3.5 h-3.5" />
-                                    <span>jakoberjak2017@gmail.com</span>
-                                </p>
-                            </div>
                         </div>
                     </div>
 
-                    {/* Bill From / To */}
-                    <div className="p-6 sm:p-8 bg-slate-50/60 border-b border-slate-200/70">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm">
-                                <span className="inline-block text-[11px] font-bold tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mb-3 uppercase">Bill From</span>
-                                <p className="font-bold text-slate-800 text-base">{selectedInvoice.company}</p>
-                                <p className="text-xs sm:text-sm text-slate-600 mt-0.5">{selectedInvoice.phone}</p>
-                                <p className="text-xs sm:text-sm text-slate-600">{selectedInvoice.address}</p>
+                    <div className="mt-4 max-w-xs">
+                        <span className={labelCls}>Return Date *</span>
+                        <DateInput name="returnDate" value={labelToISO(returnDate)} onChange={handleReturnDateChange} placeholder="Select date" />
+                    </div>
+                </Card>
+
+                {/* Items */}
+                {selectedInvoice.items.map((item, index) => {
+                    const pcsPerUnit = getPcsPerUnit(item);
+                    const freePcsPerUnit = getFreePcsPerUnit(item);
+                    const remainingQty = getRemainingQty(item);
+                    const freeRemainingQty = getFreeRemainingQty(item);
+                    const totalRtQty = getTotalRtQty(index, item);
+                    const totalRtFreeQty = getTotalRtFreeQty(index, item);
+                    const ri = returnInputs[index] || {};
+                    return (
+                        <div key={index} className="bg-white rounded-2xl border border-slate-200 p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="min-w-0">
+                                    <p className="font-bold text-slate-800">{item.productName}</p>
+                                    <p className="text-xs text-slate-500">{selectedInvoice.company}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className="text-[11px] text-slate-400">Return Amount</p>
+                                    <p className="font-bold text-orange-600">৳{getReturnAmount(index, item).toFixed(2)}</p>
+                                </div>
                             </div>
 
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-col justify-between">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <span className="inline-block text-[11px] font-bold tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mb-2 uppercase">Bill To</span>
-                                        <p className="font-bold text-slate-800 text-lg">Demo Enterprise</p>
-                                        <p className="text-xs text-slate-500 mt-1">01612002913</p>
-                                        <p className="text-xs text-slate-500">{selectedInvoice.shippingAddress || 'N/A'}</p>
+                            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_150px] gap-3">
+                                {/* Main RT */}
+                                <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-3">
+                                    <div className="flex flex-wrap justify-between gap-1 text-xs mb-2">
+                                        <span className="font-bold text-brand-700">RT Qty</span>
+                                        <span className="text-slate-600">Total <b className="text-orange-600">{totalRtQty}</b> · Remaining <b className="text-brand-700">{remainingQty}</b></span>
                                     </div>
-                                    <div className="text-right shrink-0">
-                                        <p className="text-xs text-slate-500 flex items-center justify-end gap-1">
-                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Purchase Date: {selectedInvoice.purchaseDate}
-                                        </p>
-                                        <p className="text-xs font-semibold text-slate-700 mt-1.5 bg-slate-100 px-2.5 py-1 rounded-lg inline-block">
-                                            Inv: <span className="text-indigo-600">{selectedInvoice.invoiceNo}</span>
-                                        </p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        <QtyField label={item.unit || 'Pcs'} value={v(ri.rtUnitQty)} disabled={pcsPerUnit <= 0 || remainingQty <= 0} onChange={(val) => handleRtUnitQtyChange(index, val, item)} />
+                                        {item.parentMode && (
+                                            <QtyField label={item.subUnit || 'Sub'} value={v(ri.rtSubQty)} disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0} onChange={(val) => handleRtSubQtyChange(index, val, item)} />
+                                        )}
+                                        <QtyField label="Pcs" value={v(ri.rtPcsQty)} disabled={remainingQty <= 0} onChange={(val) => handleRtPcsQtyChange(index, val, item)} />
                                     </div>
+                                </div>
+
+                                {/* Free RT */}
+                                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                                    <div className="flex flex-wrap justify-between gap-1 text-xs mb-2">
+                                        <span className="font-bold text-emerald-700">RT Free</span>
+                                        <span className="text-slate-600">Total <b className="text-emerald-700">{totalRtFreeQty}</b> · Remaining <b className="text-emerald-700">{freeRemainingQty}</b></span>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        <QtyField label={item.unit || 'Pcs'} value={v(ri.rtFreeUnitQty)} disabled={freePcsPerUnit <= 0 || freeRemainingQty <= 0} onChange={(val) => handleRtFreeUnitQtyChange(index, val, item)} />
+                                        {item.parentMode && (
+                                            <QtyField label={item.subUnit || 'Sub'} value={v(ri.rtFreeSubQty)} disabled={freeRemainingQty <= 0 || getPcsPerSub(item) <= 0} onChange={(val) => handleRtFreeSubQtyChange(index, val, item)} />
+                                        )}
+                                        <QtyField label="Pcs" value={v(ri.rtFreePcsQty)} disabled={freeRemainingQty <= 0} onChange={(val) => handleRtFreePcsQtyChange(index, val, item)} />
+                                    </div>
+                                </div>
+
+                                {/* Price */}
+                                <div>
+                                    <label className={labelCls}>Purchase Price</label>
+                                    <input
+                                        type="number"
+                                        inputMode="decimal"
+                                        min="0"
+                                        step="0.01"
+                                        value={returnPrices[index] === 0 ? '' : returnPrices[index] ?? ''}
+                                        onChange={(e) => handleReturnPriceChange(index, e.target.value)}
+                                        className={`${inputCls} text-right`}
+                                    />
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    );
+                })}
 
-                    {/* Return Date */}
-                    <div className="px-6 sm:px-8 pt-6 sm:pt-8">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Return Date <span className="text-rose-500">*</span>
-                        </label>
-                        <div
-                            className="relative w-full max-w-xs cursor-pointer"
-                            onClick={() => returnDateInputRef.current?.showPicker?.() || returnDateInputRef.current?.click()}
-                        >
-                            <input
-                                ref={returnDateInputRef}
-                                type="date"
-                                onChange={handleReturnDateChange}
-                                className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                            />
-                            <input
-                                type="text"
-                                readOnly
-                                value={returnDate}
-                                placeholder="Select date"
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none shadow-sm cursor-pointer pointer-events-none"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Products Table */}
-                    <div className="p-6 sm:p-8 overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[11px] font-bold uppercase tracking-wider">
-                                    <th className="py-3 px-3.5 rounded-l-xl">Product Name</th>
-                                    <th className="py-3 px-3.5">Company</th>
-                                    <th className="py-3 px-3.5 text-center">RT Qty</th>
-                                    <th className="py-3 px-3.5 text-center">PCS Qty</th>
-                                    <th className="py-3 px-3.5 text-center">Remaining Quantity</th>
-                                    <th className="py-3 px-3.5 text-center">RT Free Unit</th>
-                                    <th className="py-3 px-3.5 text-center">RT Free PCS</th>
-                                    <th className="py-3 px-3.5 text-center">Remaining Free Qty</th>
-                                    <th className="py-3 px-3.5 text-right">Purchase Price</th>
-                                    <th className="py-3 px-3.5 text-right rounded-r-xl">Return Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
-                                {selectedInvoice.items.map((item, index) => {
-                                    const pcsPerUnit = getPcsPerUnit(item);
-                                    const freePcsPerUnit = getFreePcsPerUnit(item);
-                                    const remainingQty = getRemainingQty(item);
-                                    const freeRemainingQty = getFreeRemainingQty(item);
-                                    const totalRtQty = getTotalRtQty(index, item);
-                                    const totalRtFreeQty = getTotalRtFreeQty(index, item);
-                                    const rtUnitDisabled = pcsPerUnit <= 0 || remainingQty <= 0;
-                                    const rtPcsDisabled = remainingQty <= 0;
-                                    const rtFreeUnitDisabled = freePcsPerUnit <= 0 || freeRemainingQty <= 0;
-                                    const rtFreePcsDisabled = freeRemainingQty <= 0;
-
-                                    return (
-                                        <tr key={index} className="hover:bg-indigo-50/40 transition-colors">
-                                            <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                            <td className="py-4 px-3.5 text-slate-600">{selectedInvoice.company}</td>
-
-                                            {/* RT Qty (Unit) */}
-                                            <td className="relative py-4 pl-3.5 pr-0">
-                                                <div
-                                                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${totalRtQty > 0 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'}`}
-                                                >
-                                                    Total: {totalRtQty}
-                                                </div>
-                                                <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
-                                                    {item.parentMode && (
-                                                        <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0}
-                                                                value={returnInputs[index]?.rtSubQty === 0 ? '' : returnInputs[index]?.rtSubQty ?? ''}
-                                                                onChange={(e) => handleRtSubQtyChange(index, e.target.value, item)}
-                                                                className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                            />
-                                                            <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
-                                                                {item.subUnit}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            disabled={rtUnitDisabled}
-                                                            value={returnInputs[index]?.rtUnitQty === 0 ? '' : returnInputs[index]?.rtUnitQty ?? ''}
-                                                            onChange={(e) => handleRtUnitQtyChange(index, e.target.value, item)}
-                                                            className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                        />
-
-                                                        <span
-                                                            className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                            title="Unit"
-                                                        >
-                                                            {item.unit || 'Pcs'}
-                                                        </span>
-
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            {/* PCS Qty */}
-                                            <td className="py-4 pl-0 pr-3.5 min-w-[100px]">
-                                                <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        disabled={rtPcsDisabled}
-                                                        value={returnInputs[index]?.rtPcsQty === 0 ? '' : returnInputs[index]?.rtPcsQty ?? ''}
-                                                        onChange={(e) => handleRtPcsQtyChange(index, e.target.value, item)}
-                                                        className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                    />
-                                                </div>
-                                            </td>
-
-                                            {/* Remaining Quantity */}
-                                            <td className="py-4 px-3.5 text-center font-semibold text-indigo-600">{remainingQty}</td>
-
-                                            {/* RT Free Unit Qty */}
-                                            <td className="relative py-4 pl-3.5 pr-0">
-                                                <div
-                                                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${totalRtFreeQty > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}
-                                                >
-                                                    Total: {totalRtFreeQty}
-                                                </div>
-                                                <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
-                                                    {item.parentMode && (
-                                                        <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                disabled={freeRemainingQty <= 0 || getPcsPerSub(item) <= 0}
-                                                                value={returnInputs[index]?.rtFreeSubQty === 0 ? '' : returnInputs[index]?.rtFreeSubQty ?? ''}
-                                                                onChange={(e) => handleRtFreeSubQtyChange(index, e.target.value, item)}
-                                                                className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                            />
-                                                            <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
-                                                                {item.subUnit}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            disabled={rtFreeUnitDisabled}
-                                                            value={returnInputs[index]?.rtFreeUnitQty === 0 ? '' : returnInputs[index]?.rtFreeUnitQty ?? ''}
-                                                            onChange={(e) => handleRtFreeUnitQtyChange(index, e.target.value, item)}
-                                                            className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                        />
-
-                                                        <span
-                                                            className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                            title="Unit"
-                                                        >
-                                                            {item.unit || 'Pcs'}
-                                                        </span>
-
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            {/* RT Free PCS Qty */}
-                                            <td className="py-4 pl-0 pr-3.5 min-w-[100px]">
-                                                <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        disabled={rtFreePcsDisabled}
-                                                        value={returnInputs[index]?.rtFreePcsQty === 0 ? '' : returnInputs[index]?.rtFreePcsQty ?? ''}
-                                                        onChange={(e) => handleRtFreePcsQtyChange(index, e.target.value, item)}
-                                                        className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                    />
-                                                </div>
-                                            </td>
-
-                                            {/* Remaining Free Qty */}
-                                            <td className="py-4 px-3.5 text-center font-medium text-emerald-600">
-                                                {freeRemainingQty}
-                                            </td>
-
-                                            {/* Purchase Price */}
-                                            <td className="py-4 px-3.5 text-right">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={returnPrices[index] === 0 ? '' : returnPrices[index] ?? ''}
-                                                    onChange={(e) => handleReturnPriceChange(index, e.target.value)}
-                                                    className="w-20 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-sm"
-                                                />
-                                            </td>
-
-
-                                            {/* Return Amount */}
-                                            <td className="py-4 px-3.5 text-right font-bold text-orange-600">
-                                                ৳{getReturnAmount(index, item).toFixed(2)}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Others Free Product Return Table */}
-                    {selectedInvoice.freeItems && selectedInvoice.freeItems.length > 0 && (
-                        <div className="px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
-                            <h4 className="text-xs font-bold text-amber-700 uppercase mb-3">Others Free Product Return</h4>
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-amber-100/70 text-amber-800 text-[11px] font-bold uppercase tracking-wider">
-                                        <th className="py-3 px-3.5 rounded-l-xl">Product Name</th>
-                                        <th className="py-3 px-3.5">Company</th>
-                                        <th className="py-3 px-3.5 text-center">RT Qty</th>
-                                        <th className="py-3 px-3.5 text-center">PCS Qty</th>
-                                        <th className="py-3 px-3.5 text-center">Total RT Qty</th>
-                                        <th className="py-3 px-3.5 text-center rounded-r-xl">Remaining Quantity</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
-                                    {selectedInvoice.freeItems.map((item, index) => {
-                                        const pcsPerUnit = getFreeItemPcsPerUnit(item);
-                                        const remainingQty = getFreeItemRemainingQty(item);
-                                        const totalRtQty = getFreeItemTotalRtQty(index, item);
-                                        const rtUnitDisabled = pcsPerUnit <= 0 || remainingQty <= 0;
-                                        const rtPcsDisabled = remainingQty <= 0;
-
-                                        return (
-                                            <tr key={index} className="hover:bg-amber-50/40 transition-colors">
-                                                <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                                <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
-
-                                                {/* RT Qty (Unit) */}
-                                                <td className="py-4 pl-3.5 pr-0 min-w-[110px]">
-                                                    <div className="p-1.5 bg-amber-50 border border-r-0 border-amber-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
-                                                        {item.parentMode && (
-                                                            <div className="flex items-center border border-amber-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0}
-                                                                    value={freeReturnInputs[index]?.rtSubQty === 0 ? '' : freeReturnInputs[index]?.rtSubQty ?? ''}
-                                                                    onChange={(e) => handleFreeRtSubQtyChange(index, e.target.value, item)}
-                                                                    className="w-14 min-w-[3.5rem] px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                                />
-                                                                <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
-                                                                    {item.subUnit}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center border border-amber-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                disabled={rtUnitDisabled}
-                                                                value={freeReturnInputs[index]?.rtUnitQty === 0 ? '' : freeReturnInputs[index]?.rtUnitQty ?? ''}
-                                                                onChange={(e) => handleFreeRtUnitQtyChange(index, e.target.value, item)}
-                                                                className="w-14 min-w-[3.5rem] px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                            />
-                                                            <span
-                                                                className="flex-1 bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                title="Unit"
-                                                            >
-                                                                {item.unit || 'Pcs'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                {/* PCS Qty */}
-                                                <td className="py-4 pl-0 pr-3.5 min-w-[90px]">
-                                                    <div className="p-1.5 bg-amber-50 border border-l-0 border-amber-200 rounded-r-2xl">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            disabled={rtPcsDisabled}
-                                                            value={freeReturnInputs[index]?.rtPcsQty === 0 ? '' : freeReturnInputs[index]?.rtPcsQty ?? ''}
-                                                            onChange={(e) => handleFreeRtPcsQtyChange(index, e.target.value, item)}
-                                                            className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-amber-200 bg-white text-sm outline-none shadow-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                        />
-                                                    </div>
-                                                </td>
-
-                                                {/* Total RT Qty */}
-                                                <td className="py-4 px-3.5 text-center font-semibold text-orange-600">{totalRtQty}</td>
-
-                                                {/* Remaining Quantity */}
-                                                <td className="py-4 px-3.5 text-center font-semibold text-indigo-600">{remainingQty}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Return Note */}
-                    <div className="px-6 sm:px-8 pb-6 sm:pb-8">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Return Note <span className="text-slate-400 font-normal">(Optional)</span>
-                        </label>
-                        <textarea
-                            rows="3"
-                            placeholder="Write any note about this return..."
-                            value={returnNote}
-                            onChange={(e) => setReturnNote(e.target.value)}
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-y shadow-sm"
-                        />
-                    </div>
-
-                    {/* Return Payment (Optional, default collapsed) */}
-                    <div className="px-6 sm:px-8 pb-6 sm:pb-8">
-                        <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
-                            <div className="flex items-center justify-between flex-wrap gap-3">
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-base font-bold text-emerald-800">Return Payment</h3>
-                                    <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
-                                        Return Amount: ৳{totalReturnAmount.toFixed(2)}
-                                    </span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setPaymentOpen((prev) => !prev)}
-                                    className="flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
-                                >
-                                    {paymentOpen ? 'Enabled' : 'Disabled'}
-                                    <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                                        <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </span>
-                                </button>
-                            </div>
-
-                            {paymentOpen && (
-                                <div className="mt-5">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Payment Amount <span className="text-rose-500">*</span>
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={paymentAmount}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                        setPaymentAmount(value);
-                                                        setPaymentAmountTouched(true);
-                                                    }
-                                                }}
-                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
-                                            />
+                {/* Others Free */}
+                {selectedInvoice.freeItems && selectedInvoice.freeItems.length > 0 && (
+                    <Card title="Others Free Product Return">
+                        <div className="space-y-3">
+                            {selectedInvoice.freeItems.map((item, index) => {
+                                const pcsPerUnit = getFreeItemPcsPerUnit(item);
+                                const remainingQty = getFreeItemRemainingQty(item);
+                                const totalRtQty = getFreeItemTotalRtQty(index, item);
+                                const fi = freeReturnInputs[index] || {};
+                                return (
+                                    <div key={index} className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+                                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                                            <div>
+                                                <p className="font-bold text-slate-800">{item.productName}</p>
+                                                <p className="text-xs text-slate-500">{item.company}</p>
+                                            </div>
+                                            <span className="text-xs text-slate-600">Total RT <b className="text-orange-600">{totalRtQty}</b> · Remaining <b className="text-brand-700">{remainingQty}</b></span>
                                         </div>
-
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Payment Method <span className="text-rose-500">*</span>
-                                            </label>
-                                            <select
-                                                value={paymentAccountType}
-                                                onChange={(e) => {
-                                                    setPaymentAccountType(e.target.value);
-                                                    setSelectedAccountKey(
-                                                        e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
-                                                            ? 'cash'
-                                                            : ''
-                                                    );
-                                                }}
-                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
-                                            >
-                                                <option value="">Select method...</option>
-                                                {accountTypes.map((type) => (
-                                                    <option key={type} value={type}>{type}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Account <span className="text-rose-500">*</span>
-                                            </label>
-                                            <select
-                                                value={selectedAccountKey}
-                                                onChange={(e) => setSelectedAccountKey(e.target.value)}
-                                                disabled={!paymentAccountType}
-                                                className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
-                                                    ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
-                                                    : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                    }`}
-                                            >
-                                                <option value="">
-                                                    {paymentAccountType ? 'Select account...' : 'Select method first'}
-                                                </option>
-                                                {uniqueAccounts.map((inv) => {
-                                                    const key = getAccountKey(inv);
-                                                    const label =
-                                                        inv.accountType === 'Bank'
-                                                            ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
-                                                            : inv.accountType === 'Mobile Banking'
-                                                                ? `${inv.accountName} - ${inv.accountNumber}`
-                                                                : 'Cash';
-                                                    return <option key={key} value={key}>{label}</option>;
-                                                })}
-                                            </select>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-w-xl">
+                                            <QtyField label={item.unit || 'Pcs'} value={v(fi.rtUnitQty)} disabled={pcsPerUnit <= 0 || remainingQty <= 0} onChange={(val) => handleFreeRtUnitQtyChange(index, val, item)} />
+                                            {item.parentMode && (
+                                                <QtyField label={item.subUnit || 'Sub'} value={v(fi.rtSubQty)} disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0} onChange={(val) => handleFreeRtSubQtyChange(index, val, item)} />
+                                            )}
+                                            <QtyField label="Pcs" value={v(fi.rtPcsQty)} disabled={remainingQty <= 0} onChange={(val) => handleFreeRtPcsQtyChange(index, val, item)} />
                                         </div>
                                     </div>
-
-                                    <div className="mt-6">
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
-                                        </label>
-                                        <textarea
-                                            rows="2"
-                                            placeholder="Write any note about this payment..."
-                                            value={paymentNote}
-                                            onChange={(e) => setPaymentNote(e.target.value)}
-                                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
-                                        />
-                                    </div>
-                                </div>
-                            )}
+                                );
+                            })}
                         </div>
-                    </div>
+                    </Card>
+                )}
 
-                    {/* Totals + Confirm Return */}
-                    <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6">
-                        <div className="flex flex-wrap items-start gap-6 flex-1 w-full [&>div]:flex-1 [&>div]:basis-0 [&>div]:min-w-[150px] [&>div>p:first-child]:min-h-[2rem]">
+                <Card>
+                    <label className={labelCls}>Return Note (Optional)</label>
+                    <textarea
+                        rows="3"
+                        placeholder="Write any note about this return..."
+                        value={returnNote}
+                        onChange={(e) => setReturnNote(e.target.value)}
+                        className={`${inputCls} resize-y`}
+                    />
+                </Card>
 
+                <PaymentSection
+                    returnAmount={totalReturnAmount}
+                    open={paymentOpen}
+                    setOpen={setPaymentOpen}
+                    amount={paymentAmount}
+                    setAmount={setPaymentAmount}
+                    setTouched={setPaymentAmountTouched}
+                    accountType={paymentAccountType}
+                    setAccountType={setPaymentAccountType}
+                    accountKey={selectedAccountKey}
+                    setAccountKey={setSelectedAccountKey}
+                    note={paymentNote}
+                    setNote={setPaymentNote}
+                    investments={investments}
+                />
+
+                {/* Totals + confirm */}
+                <Card>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 flex-1">
                             <div>
                                 <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Qty</p>
                                 <p className="text-lg font-bold text-slate-800">{totalReturnPcs}</p>
                                 <p className="text-[11px] font-semibold text-emerald-600">Free: {totalReturnFreeQty}</p>
-                                <p className="text-[11px] font-semibold text-orange-600">৳{totalReturnAmount.toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500 uppercase font-semibold">Return Amount</p>
+                                <p className="text-lg font-bold text-orange-600">৳{totalReturnAmount.toFixed(2)}</p>
                             </div>
                             {(selectedInvoice.freeItems || []).length > 0 && (
                                 <div>
-                                    <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Others Free Qty</p>
+                                    <p className="text-xs text-slate-500 uppercase font-semibold">RT Others Free</p>
                                     <p className="text-lg font-bold text-amber-600">{totalReturnFreeItemsQty}</p>
                                 </div>
                             )}
                         </div>
-
                         <button
                             onClick={handleConfirmReturn}
                             disabled={submitting}
-                            className="shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-brand-600 text-white text-sm font-semibold px-6 py-3 inline-flex items-center justify-center gap-2 w-full lg:w-auto disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                             <RotateCcw className="w-4 h-4" />
                             {submitting ? 'Processing...' : isEditMode ? 'Update Return' : 'Confirm Return'}
                         </button>
                     </div>
-                </div>
-            </div >
-        </div >
+                </Card>
+            </div>
+        </div>
     );
 };
 

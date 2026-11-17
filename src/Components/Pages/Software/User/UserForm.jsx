@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaUserPlus, FaUserEdit, FaEye, FaEyeSlash, FaPlus } from 'react-icons/fa';
 import useDraftState, { clearDraft } from '../../../../hooks/useDraftState';
 import useCan from '../../../../hooks/useCan';
 
 const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,128}$/;
+
+const inputCls =
+    'w-full px-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white text-slate-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition';
+const labelCls = 'block text-xs font-medium text-slate-600 mb-1.5';
 
 // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
 const formatDateTime = (date = new Date()) => {
@@ -59,8 +63,6 @@ const UserForm = ({
             })
             .catch((error) => console.error('Error fetching roles:', error));
     }, []);
-
-
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -173,93 +175,57 @@ const UserForm = ({
     };
 
     return (
-        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white mb-8 transition-all duration-300">
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-pink-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.765z" />
-                        </svg>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 shrink-0 rounded-xl bg-brand-600 flex items-center justify-center text-white">
+                        {isEditing ? <FaUserEdit size={16} /> : <FaUserPlus size={16} />}
                     </div>
-                    <div>
-                        <h3 className="text-xl font-extrabold text-gray-800">
+                    <div className="min-w-0">
+                        <h3 className="text-lg sm:text-xl font-bold text-slate-800 truncate">
                             {editingUser ? 'Edit User Information' : 'New User Registration'}
                         </h3>
-                        <p className="text-xs text-gray-400 mt-0.5">Fill out the essential details below to manage system access</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Fill out the essential details below to manage system access</p>
                     </div>
                 </div>
                 {isEditing && (
                     <button
                         type="button"
                         onClick={handleCancelEdit}
-                        className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full transition-all cursor-pointer"
+                        className="shrink-0 flex items-center gap-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 h-9 rounded-full cursor-pointer"
                     >
                         <FaTimes /> Cancel Edit
                     </button>
                 )}
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Name <span className="text-red-500">*</span></label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            required
-                            placeholder="Enter name"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
-                        />
+                        <label className={labelCls}>Name <span className="text-rose-500">*</span></label>
+                        <input type="text" name="name" value={formData.name} onChange={handleChange} required placeholder="Enter name" className={inputCls} />
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address <span className="text-red-500">*</span></label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                            placeholder="example@email.com"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
-                        />
+                        <label className={labelCls}>Email Address <span className="text-rose-500">*</span></label>
+                        <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="example@email.com" className={inputCls} />
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-                        <input
-                            type="tel"
-                            name="phone"
-                            value={formData.phone}
-                            onChange={handleChange}
-                            placeholder="Enter phone number"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
-                        />
+                        <label className={labelCls}>Phone</label>
+                        <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Enter phone number" className={inputCls} />
                     </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <label className="block text-sm font-semibold text-gray-700">Role <span className="text-red-500">*</span></label>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-xs font-medium text-slate-600">Role <span className="text-rose-500">*</span></label>
                             <button
                                 type="button"
                                 onClick={() => navigate('/user-role')}
-                                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-pink-600 transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-800 cursor-pointer"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
-                                Add Role
+                                <FaPlus size={9} /> Add Role
                             </button>
                         </div>
-                        <select
-                            name="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm cursor-pointer"
-                        >
+                        <select name="role" value={formData.role} onChange={handleChange} required className={`${inputCls} cursor-pointer`}>
                             <option value="" disabled>Select role</option>
                             {roles.map((item) => (
                                 <option key={item._id} value={item.role}>
@@ -269,79 +235,63 @@ const UserForm = ({
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
-                        <input
-                            type="text"
-                            name="address"
-                            value={formData.address}
-                            onChange={handleChange}
-                            placeholder="Enter address"
-                            className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
-                        />
+                        <label className={labelCls}>Address</label>
+                        <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Enter address" className={inputCls} />
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Password {!editingUser && <span className="text-red-500">*</span>}
+                        <label className={labelCls}>
+                            Password {!editingUser && <span className="text-rose-500">*</span>}
                         </label>
                         <div className="relative">
                             <input
-                                type={showPassword ? "text" : "password"}
+                                type={showPassword ? 'text' : 'password'}
                                 name="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required={!editingUser}
-                                placeholder={editingUser ? 'Leave blank to keep current password' : 'Min 8 chars, letters & numbers'}
+                                placeholder={editingUser ? 'Leave blank to keep current' : 'Min 8 chars, letters & numbers'}
                                 maxLength={128}
                                 autoComplete="new-password"
-                                className="w-full px-4 py-3.5 pr-12 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700 shadow-sm"
+                                className={`${inputCls} pr-11`}
                             />
                             <button
                                 type="button"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-600 focus:outline-none transition-colors cursor-pointer"
+                                className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-slate-400 hover:text-brand-600 cursor-pointer"
                             >
-                                {showPassword ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                )}
+                                {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center pt-2">
-                    <div className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-gray-200/60 shadow-sm">
-                        <div>
-                            <span className="block text-sm font-semibold text-gray-800">Account Status</span>
-                            <span className="text-xs text-gray-400">Active status enables user permissions</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center pt-1">
+                    <div className="flex items-center justify-between gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                        <div className="min-w-0">
+                            <span className="block text-sm font-semibold text-slate-800">Account Status</span>
+                            <span className="text-xs text-slate-400">Active status enables user permissions</span>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
                             <input
                                 type="checkbox"
                                 name="isActive"
                                 checked={formData.isActive}
                                 onChange={handleChange}
                                 className="sr-only peer"
+                                aria-label="Account status"
                             />
-                            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-indigo-600 peer-checked:to-pink-600"></div>
+                            <div className="w-12 h-7 bg-slate-300 rounded-full peer peer-focus-visible:ring-2 peer-focus-visible:ring-brand-200 peer-checked:bg-brand-600 transition-colors after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                         </label>
                     </div>
 
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition duration-300 transform active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                        >
-                            {loading ? (isEditing ? 'Updating User...' : 'Adding User...') : (isEditing ? 'Update User' : 'Add User')}
-                        </button>
-                    </div>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full min-h-[46px] px-4 bg-brand-600 text-white text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                    >
+                        {loading ? (isEditing ? 'Updating User...' : 'Adding User...') : (isEditing ? 'Update User' : 'Add User')}
+                    </button>
                 </div>
             </form>
         </div>

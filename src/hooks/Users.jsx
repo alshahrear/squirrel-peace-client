@@ -1,13 +1,11 @@
-// unchanged imports and setup
 import { useQuery } from '@tanstack/react-query';
-import { LuMessageCircleX } from "react-icons/lu";
+import { LuTrash2, LuShieldCheck, LuShieldOff } from "react-icons/lu";
 import useAuth from "./useAuth";
 import useAxiosSecure from "./useAxiosSecure";
 import Swal from 'sweetalert2';
 import { createRoot } from 'react-dom/client';
 import React, { useState } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa6';
-import Loader from "./Loader";
 import { Helmet } from 'react-helmet';
 
 const PasswordField = ({ onChange }) => {
@@ -20,18 +18,27 @@ const PasswordField = ({ onChange }) => {
         onChange={(e) => onChange(e.target.value)}
         autoComplete="off"
         name="admin-password"
-        className="w-full px-4 py-2 pr-12 mt-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+        className="w-full h-11 pl-3 pr-11 mt-2 text-base rounded-xl border border-slate-300 bg-white outline-none focus:border-[#4a58e6] focus:ring-2 focus:ring-[#e0e6ff]"
         required
       />
-      <span
-        className="absolute right-4 top-1/2 -translate-y-1/2 mt-1 text-xl cursor-pointer text-gray-500 hover:text-[#2acb35] transition"
+      <button
+        type="button"
+        aria-label={show ? "Hide password" : "Show password"}
+        className="absolute right-0 top-2 w-11 h-11 flex items-center justify-center bg-transparent border-0 p-0 text-lg text-slate-400 hover:text-[#4a58e6] transition"
         onClick={() => setShow(!show)}
       >
         {show ? <FaEyeSlash /> : <FaEye />}
-      </span>
+      </button>
     </div>
   );
 };
+
+const RoleBadge = ({ role }) =>
+  role === 'admin' ? (
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-700">Admin</span>
+  ) : (
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">User</span>
+  );
 
 const Users = () => {
   const { user } = useAuth();
@@ -61,8 +68,10 @@ const Users = () => {
       focusConfirm: false,
       showLoaderOnConfirm: true,
       allowOutsideClick: () => !Swal.isLoading(),
-      confirmButtonText: '<span class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">OK</span>',
-      cancelButtonText: '<span class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Cancel</span>',
+      confirmButtonText: 'OK',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#4a58e6',
+      cancelButtonColor: '#94a3b8',
       preConfirm: async () => {
         if (!password) {
           Swal.showValidationMessage('Please enter the password');
@@ -92,8 +101,8 @@ const Users = () => {
         text: `You are about to make ${targetUser.name} an admin.`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
+        confirmButtonColor: '#4a58e6',
+        cancelButtonColor: '#94a3b8',
         confirmButtonText: 'Yes, make admin'
       });
       if (!confirm.isConfirmed) return;
@@ -116,9 +125,6 @@ const Users = () => {
     });
   };
 
-
-
-
   const handleRemoveAdmin = (targetUser) => {
     renderPasswordInput(async (result) => {
       if (!result.isConfirmed || !result.value) return;
@@ -129,8 +135,8 @@ const Users = () => {
         text: `You are about to remove admin role from ${targetUser.name}.`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
+        confirmButtonColor: '#4a58e6',
+        cancelButtonColor: '#94a3b8',
         confirmButtonText: 'Yes, remove admin'
       });
       if (!confirm.isConfirmed) return;
@@ -176,8 +182,8 @@ const Users = () => {
         text: `Do you want to delete ${name}?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#e53935',
-        cancelButtonColor: '#9e9e9e',
+        confirmButtonColor: '#e11d48',
+        cancelButtonColor: '#94a3b8',
         confirmButtonText: 'Yes, delete it!'
       });
       if (result.isConfirmed) proceedDelete(actionToken);
@@ -193,125 +199,123 @@ const Users = () => {
     }
   };
 
-  if (isLoading) return <Loader />;
-  if (error) return <p className="text-center mt-10 text-red-600">Failed to load users.</p>;
+  const RoleButton = ({ u }) =>
+    u.role === 'admin' ? (
+      <button
+        type="button"
+        onClick={() => handleRemoveAdmin(u)}
+        className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-full border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-semibold transition"
+      >
+        <LuShieldOff className="text-base" /> Remove Admin
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={() => handleMakeAdmin(u)}
+        className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-full border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 text-xs font-semibold transition"
+      >
+        <LuShieldCheck className="text-base" /> Make Admin
+      </button>
+    );
+
+  const DeleteButton = ({ u }) => (
+    <button
+      type="button"
+      aria-label={`Delete ${u.name}`}
+      onClick={() => handleDeleteUser(u._id, u.name, u.email, u.role)}
+      className="w-10 h-10 inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition"
+    >
+      <LuTrash2 className="text-lg" />
+    </button>
+  );
 
   return (
-    <div className="my-10 max-w-screen-xl mx-auto px-2 sm:px-4">
+    <div className="min-h-screen p-3 sm:p-5 md:p-8">
       <Helmet>
-        <title>Users - Squirrel Peace</title>
+        <title>Users - Bashay Bazar</title>
       </Helmet>
 
-      <div className="text-center space-y-3 mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold">
-          Welcome <i className="text-[#2acb35]">{user?.displayName || "Admin"}</i> To The Users Administration Panel
-        </h1>
+      <div className="max-w-screen-xl mx-auto">
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Users Administration</h1>
+            <p className="text-sm text-slate-500 mt-0.5">{user?.displayName || "Admin"}</p>
+          </div>
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-sm font-semibold text-slate-600">
+            Total Users
+            <span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700">{users.length}</span>
+          </span>
+        </div>
 
-      </div>
-
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-5 gap-2">
-        <p className="text-lg sm:text-xl font-bold text-gray-700">
-          Total Users: <span className='text-[#2acb35]'>{users.length}</span>
-        </p>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg">
-        <table className="table w-full text-left text-sm sm:text-base users-table">
-          <thead>
-            <tr className="bg-[#2acb35] text-white">
-              <th className="py-3 px-2 sm:px-4">#</th>
-              <th className="py-3 px-2 sm:px-4">Name</th>
-              <th className="py-3 px-2 sm:px-4">Email</th>
-              <th className="py-3 px-2 sm:px-4">Role</th>
-              <th className="py-3 px-2 sm:px-4 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user, index) => (
-              <tr key={user._id} className="odd:bg-white even:bg-gray-100">
-                <td className="py-3 px-2 sm:px-4 font-semibold text-gray-700" data-label="#">
-                  {index + 1}
-                </td>
-                <td className="py-3 px-2 sm:px-4 font-bold text-gray-800" data-label="Name">
-                  {user.name}
-                </td>
-                <td className="py-3 px-2 sm:px-4 text-gray-700 break-words" data-label="Email">
-                  {user.email}
-                </td>
-                <td className="py-3 px-2 sm:px-4" data-label="Role">
-                  {user.role === 'admin' ? (
-                    <button
-                      onClick={() => handleRemoveAdmin(user)}
-                      className="btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-xs sm:text-sm font-semibold"
-                    >
-                      Remove Admin
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleMakeAdmin(user)}
-                      className="btn bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs sm:text-sm font-semibold"
-                    >
-                      Make Admin
-                    </button>
-                  )}
-                </td>
-                <td className="py-3 px-2 sm:px-4 text-center" data-label="Action">
-                  <button
-                    onClick={() => handleDeleteUser(user._id, user.name, user.email, user.role)}
-                    className="btn bg-[#e53935] hover:bg-[#d32f2f] text-white p-2 rounded-full"
-                  >
-                    <LuMessageCircleX className="text-2xl" />
-                  </button>
-                </td>
-              </tr>
+        {isLoading ? (
+          <div className="space-y-3 animate-pulse">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-16 rounded-2xl bg-white/70 border border-slate-200" />
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-2xl border border-rose-200 p-6 text-center text-sm font-medium text-rose-600">
+            Failed to load users.
+          </div>
+        ) : users.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-400">
+            No users found.
+          </div>
+        ) : (
+          <>
+            {/* Mobile: cards */}
+            <div className="md:hidden space-y-3">
+              {users.map((u, index) => (
+                <div key={u._id} className="bg-white rounded-2xl border border-slate-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-400 font-semibold">#{index + 1}</p>
+                      <p className="font-bold text-slate-800 break-words">{u.name}</p>
+                      <p className="text-sm text-slate-500 break-all">{u.email}</p>
+                    </div>
+                    <RoleBadge role={u.role} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <RoleButton u={u} />
+                    <DeleteButton u={u} />
+                  </div>
+                </div>
+              ))}
+            </div>
 
-      <style>{`
-        @media (max-width: 1024px) {
-          .users-table thead {
-            display: none;
-          }
-          .users-table tbody tr {
-            display: block;
-            margin-bottom: 1rem;
-            border: 1px solid #ccc;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            background: white;
-            box-shadow: 0 0 5px rgb(0 0 0 / 0.1);
-          }
-          .users-table tbody tr td {
-            display: block;
-            padding: 0.5rem 0;
-            text-align: left !important;
-            font-size: 1rem;
-            border: none !important;
-            position: relative;
-            padding-left: 130px;
-            word-break: break-word;
-          }
-          .users-table tbody tr td::before {
-            content: attr(data-label);
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            font-weight: 600;
-            color: #2acb35;
-            white-space: nowrap;
-          }
-          .users-table tbody tr td.text-center {
-            padding-left: 0;
-          }
-          .users-table tbody tr td.text-center button {
-            margin: 0 auto;
-            display: block;
-          }
-        }
-      `}</style>
+            {/* md+: table */}
+            <div className="hidden md:block bg-white rounded-2xl border border-slate-200 overflow-x-auto">
+              <table className="w-full text-left text-sm min-w-[640px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+                    <th className="py-3 px-4 w-12">#</th>
+                    <th className="py-3 px-4">Name</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Role</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.map((u, index) => (
+                    <tr key={u._id} className="hover:bg-slate-50/70 transition">
+                      <td className="py-3 px-4 font-semibold text-slate-400">{index + 1}</td>
+                      <td className="py-3 px-4 font-bold text-slate-800">{u.name}</td>
+                      <td className="py-3 px-4 text-slate-600 break-all">{u.email}</td>
+                      <td className="py-3 px-4"><RoleBadge role={u.role} /></td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <RoleButton u={u} />
+                          <DeleteButton u={u} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };

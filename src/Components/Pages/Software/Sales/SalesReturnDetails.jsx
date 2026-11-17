@@ -828,7 +828,23 @@ const SalesReturnDetails = () => {
         }
     };
 
+    const submitLock = useRef(false);
     const handleConfirmReturn = async () => {
+        if (submitLock.current) return;
+        submitLock.current = true;
+        setSubmitting(true);
+        let done = false;
+        try {
+            done = (await handleConfirmReturnInner()) === true;
+        } finally {
+            if (!done) {
+                submitLock.current = false;
+                setSubmitting(false);
+            }
+        }
+    };
+
+    const handleConfirmReturnInner = async () => {
         if (isEditMode ? !can.canEdit : !can.canAdd) {
             showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', 'error');
             return;
@@ -1008,6 +1024,7 @@ const SalesReturnDetails = () => {
                     'success'
                 );
                 setTimeout(() => navigate('/sales-return'), 900);
+                return true;
             } else {
                 showToast('Failed to update return!', 'error');
             }
@@ -1015,7 +1032,7 @@ const SalesReturnDetails = () => {
             console.error('Error updating return:', error);
             showToast('Server error while updating return!', 'error');
         } finally {
-            setSubmitting(false);
+            // submitting reset wrapper (handleConfirmReturn) e hoy
         }
     };
 

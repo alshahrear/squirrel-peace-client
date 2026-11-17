@@ -27,7 +27,7 @@ const Main = () => {
         <div className="flex flex-col min-h-screen">
             <ScrollToTop />
             <ScrollToTopButton />
-            <div className="sticky top-0 z-50 bg-white shadow-sm">
+            <div className="sticky top-0 z-50 bg-white border-b border-slate-200">
                 <Navbar />
             </div>
 
@@ -41,7 +41,7 @@ const Main = () => {
             <Toaster
                 position="top-right"
                 toastOptions={{
-                    style: { fontSize: '16px', zIndex: 999999 },
+                    style: { fontSize: '14px', zIndex: 999999, borderRadius: '16px', boxShadow: '0 8px 24px rgba(15,23,42,.12)' },
                 }}
             />
         </div>

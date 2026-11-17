@@ -1,6 +1,7 @@
 import React from 'react';
+import { LedgerTable, MethodPill, GetPayPill, fmt } from '../LedgerUi';
 
-const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+const MOBILE_STRIPE = { Get: 'bg-sky-500', Pay: 'bg-rose-500' };
 
 const formatDateOnly = (value) => {
     if (!value) return '';
@@ -9,59 +10,73 @@ const formatDateOnly = (value) => {
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const TH = 'px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider';
+const COLUMNS = [
+    { key: 'company', label: 'Company', cls: 'font-bold text-slate-900', cell: (r) => r.company },
+    { key: 'date', label: 'Date', cell: (r) => formatDateOnly(r.date) || 'N/A' },
+    { key: 'inv', label: 'Invoice', cls: 'font-medium text-slate-600', cell: (r) => r.invoiceNo || 'N/A' },
+    { key: 'method', label: 'Payment Method', cell: (r) => <MethodPill>{r.method}</MethodPill> },
+    {
+        key: 'account',
+        label: 'Payment Account',
+        cell: (r) => r.account || <span className="text-slate-400 italic">N/A</span>,
+    },
+    { key: 'amount', label: 'Amount', cls: 'font-semibold text-emerald-600', cell: (r) => `৳ ${fmt(r.total)}` },
+    { key: 'status', label: 'Status', cell: (r) => <GetPayPill status={r.status} /> },
+];
 
-const CompanyDuePayAc = ({ rows = [], loading = false }) => {
-    return (
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className={TH}>Company</th>
-                        <th className={TH}>Date</th>
-                        <th className={TH}>Invoice</th>
-                        <th className={TH}>Payment Method</th>
-                        <th className={TH}>Payment Account</th>
-                        <th className={TH}>Amount</th>
-                        <th className={TH}>Status</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                    {loading ? (
-                        <tr>
-                            <td colSpan="7" className="text-center py-10 text-gray-400 text-sm">Loading...</td>
-                        </tr>
-                    ) : rows.length > 0 ? (
-                        rows.map((r) => (
-                            <tr key={r.key} className="hover:bg-indigo-50/50 transition-colors">
-                                <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">{r.company}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{formatDateOnly(r.date) || 'N/A'}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">{r.invoiceNo || 'N/A'}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                    <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">{r.method}</span>
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                    {r.account || <span className="text-gray-400 italic">N/A</span>}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">৳ {fmt(r.total)}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                    <span className={`px-2 py-0.5 rounded text-xs font-bold border ${r.status === 'Get' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                                        {r.status === 'Get' ? 'Get' : 'Pay'}
+const CompanyDuePayAc = ({ rows = [], loading = false }) => (
+    <>
+        {/* Mobile compact cards */}
+        <div className="md:hidden p-1.5 space-y-1.5">
+            {loading ? (
+                <div className="py-8 text-center text-xs text-slate-400">Loading...</div>
+            ) : rows.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">No records found for this company!</div>
+            ) : (
+                rows.map((r) => (
+                    <div
+                        key={r.key}
+                        className="relative rounded-xl border border-slate-200 bg-white pl-3 pr-2 py-1.5 shadow-sm"
+                    >
+                        <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${MOBILE_STRIPE[r.status] || 'bg-emerald-500'}`} />
+                        <div className="flex items-stretch gap-2">
+                            <div className="min-w-0 flex-1 flex flex-col justify-between gap-0.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="shrink-0 bg-slate-100 text-slate-700 px-1.5 py-px rounded-full text-[11px] font-bold leading-tight">
+                                        #{r.invoiceNo || 'N/A'}
                                     </span>
-                                </td>
-                            </tr>
-                        ))
-                    ) : (
-                        <tr>
-                            <td colSpan="6" className="text-center py-10 text-gray-400 text-sm">
-                                No records found for this company!
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
+                                    {r.method && <MethodPill>{r.method}</MethodPill>}
+                                </div>
+                                <p className="text-[11px] font-bold text-slate-800 leading-snug truncate">{r.company}</p>
+                                <p className="text-[10.5px] text-slate-500 leading-snug">
+                                    <span className="uppercase text-slate-400 font-bold">Date: </span>
+                                    {formatDateOnly(r.date) || 'N/A'}
+                                </p>
+                                <p className="text-[10.5px] text-slate-500 leading-snug break-words">
+                                    <span className="uppercase text-slate-400 font-bold">AC: </span>
+                                    {r.account || <span className="text-slate-400 italic">N/A</span>}
+                                </p>
+                            </div>
+                            <div className="shrink-0 w-[108px] flex flex-col justify-center gap-1">
+                                <div className="flex items-center justify-between rounded-md bg-slate-50 px-1.5 py-px">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase">Amount</span>
+                                    <span className="text-[10.5px] font-bold whitespace-nowrap text-emerald-600">৳{fmt(r.total)}</span>
+                                </div>
+                                <div className="flex items-center justify-center">
+                                    <GetPayPill status={r.status} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))
+            )}
         </div>
-    );
-};
+
+        {/* Desktop table */}
+        <div className="hidden md:block">
+            <LedgerTable columns={COLUMNS} rows={rows} loading={loading} emptyText="No records found for this company!" />
+        </div>
+    </>
+);
 
 export default CompanyDuePayAc;

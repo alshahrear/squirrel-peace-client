@@ -1,8 +1,143 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaFilter, FaRedo, FaPlus, FaEye, FaEdit, FaTrash, FaUndoAlt, FaTruck, FaChevronDown, FaFileInvoice } from 'react-icons/fa';
 import useCan from '../../../../hooks/useCan';
+import { ComboBox, DateInput, Pager, RowMenu, Skeleton, PopStyle, inputCls, labelCls } from '../Product/ProductUi';
+
+const EXTRA_OPTIONS = ['Others Free', 'Damage', 'Sales Return', 'Bulk Return', 'Previous Get', 'Previous Pay'];
+
+const EMPTY_FILTERS = {
+    startDate: '', endDate: '', customer: '', customerContact: '', invoiceNo: '',
+    sr: '', deliveredBy: '', address: '', route: '', status: '', due: '',
+};
+
+const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+const parseToLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const datePart = dateStr.split(',')[0].trim();
+    if (datePart.includes('/')) {
+        const [d, m, y] = datePart.split('/');
+        if (!d || !m || !y) return null;
+        return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
+        const [y, m, d] = datePart.split('-');
+        return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    const parsed = new Date(datePart);
+    return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+};
+
+const getDue = (item) => {
+    if (typeof item.due === 'number') return item.due;
+    const total = item.payableAmount ?? item.grandTotal ?? 0;
+    const paid = item.paidAmount ?? 0;
+    const due = total - paid;
+    return due > 0 ? due : 0;
+};
+
+const getStatus = (item) => item.status || item.deliveryStatus || 'New Order';
+
+const hasReturned = (item) =>
+    (item.returnHistory || []).some(
+        (r) =>
+            (Number(r.totalReturnPcs) || 0) > 0 ||
+            (Number(r.totalReturnFreeQty) || 0) > 0 ||
+            (Number(r.totalReturnFreeItemsQty) || 0) > 0
+    );
+
+const getItemExtras = (item) => {
+    const list = [];
+    if ((item.freeItems || []).length > 0) list.push('Others Free');
+    if ((item.damageItems || []).length > 0) list.push('Damage');
+    if (hasReturned(item)) list.push('Sales Return');
+    if ((item.returnItems || []).length > 0) list.push('Bulk Return');
+    if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Due') list.push('Previous Get');
+    if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Get') list.push('Previous Pay');
+    return list;
+};
+
+const EXTRA_TAGS = {
+    Damage: 'bg-red-50 text-red-600',
+    'Sales Return': 'bg-violet-50 text-violet-600',
+    'Bulk Return': 'bg-fuchsia-50 text-fuchsia-600',
+    'Others Free': 'bg-amber-50 text-amber-700',
+    'Previous Get': 'bg-sky-50 text-sky-600',
+    'Previous Pay': 'bg-rose-50 text-rose-600',
+};
+
+const ExtraTags = ({ item }) => {
+    const extras = ['Damage', 'Sales Return', 'Bulk Return', 'Others Free', 'Previous Get', 'Previous Pay'].filter((x) =>
+        getItemExtras(item).includes(x)
+    );
+    if (!extras.length) return <span className="text-slate-300 text-xs">N/A</span>;
+    return (
+        <div className="flex flex-wrap gap-1">
+            {extras.map((x) => (
+                <span key={x} className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${EXTRA_TAGS[x]}`}>{x}</span>
+            ))}
+        </div>
+    );
+};
+
+const StatusPill = ({ status }) => (
+    <span className={`inline-block px-2 py-0.5 rounded-full font-semibold text-[11px] whitespace-nowrap ${status === 'Delivered' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+        {status}
+    </span>
+);
+
+const ReceivedCell = ({ item }) => {
+    const status = getStatus(item);
+    const payable = Number(item.payableAmount ?? item.grandTotal) || 0;
+    return (
+        <div>
+            {payable <= 0 ? (
+                <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-semibold text-[11px]">No Bill</span>
+            ) : status !== 'Delivered' || !item.paidAmount ? (
+                <span className="inline-block px-2 py-0.5 bg-rose-50 text-rose-700 rounded-full font-semibold text-[11px] whitespace-nowrap">Not Received</span>
+            ) : (
+                <div className="font-bold">
+                    <span className="text-emerald-600">৳{item.paidAmount}</span>{' '}
+                    <span className="text-rose-600">({getDue(item)})</span>
+                </div>
+            )}
+            {(item.items || []).some((p) => (Number(p.freeQty) || 0) > 0) && (
+                <div className="mt-0.5 text-[10px] font-bold text-emerald-600">Free - Has</div>
+            )}
+        </div>
+    );
+};
+
+const AmountCell = ({ item }) => {
+    const v = Number(item.payableAmount ?? item.grandTotal) || 0;
+    return (
+        <div className="font-bold text-brand-700 whitespace-nowrap">
+            ৳{fmt(Math.abs(v))}
+            {v < 0 && <div className="text-[10px] font-bold text-rose-600">Payable</div>}
+        </div>
+    );
+};
+
+const SumBox = ({ title, tone, children }) => (
+    <div className={`rounded-xl border bg-white overflow-hidden ${tone.border}`}>
+        <div className={`${tone.head} text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5`}>{title}</div>
+        <div className="flex">{children}</div>
+    </div>
+);
+
+const SumCol = ({ label, rows, returned }) => (
+    <div className={`px-3 py-2.5 flex flex-col gap-1 flex-1 ${returned ? 'bg-orange-50 border-l-2 border-dashed border-orange-300' : ''}`}>
+        <span className={`text-[10px] font-bold uppercase ${returned ? 'text-orange-500' : 'text-slate-400'}`}>{label}</span>
+        {rows.map((r) => (
+            <span key={r[0]} className="text-xs font-semibold text-slate-600">
+                {r[0]}: <b className={r[2]}>{r[1]}</b>
+            </span>
+        ))}
+    </div>
+);
 
 const Wholesale = () => {
     const [orders, setOrders] = useState([]);
@@ -10,76 +145,39 @@ const Wholesale = () => {
     const srCan = useCan('sales_return');
     const coCan = useCan('create_order');
     const [customers, setCustomers] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    // Filter States
-    const [filters, setFilters] = useState({
-        startDate: '',
-        endDate: '',
-        customer: '',
-        customerContact: '',
-        invoiceNo: '',
-        sr: '',
-        deliveredBy: '',
-        address: '',
-        route: '',
-        status: '',
-        due: ''
-    });
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [filtersOpen, setFiltersOpen] = useState(false);
 
-    // Extra filter (multi select) - default: sob select kora
-    const EXTRA_OPTIONS = ['Others Free', 'Damage', 'Sales Return', 'Bulk Return', 'Previous Get', 'Previous Pay'];
     const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
     const [isExtraOpen, setIsExtraOpen] = useState(false);
     const extraDropdownRef = useRef(null);
     const [returnFilter, setReturnFilter] = useState('');
     const [directOnly, setDirectOnly] = useState(false);
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
 
-    const [isCustomerOpen, setIsCustomerOpen] = useState(false);
-    const customerDropdownRef = useRef(null);
-
-    // SR ও Delivery Man searchable-select state
-    const [users, setUsers] = useState([]);
-    const [isSrOpen, setIsSrOpen] = useState(false);
-    const srDropdownRef = useRef(null);
-    const [isDeliveryOpen, setIsDeliveryOpen] = useState(false);
-    const deliveryDropdownRef = useRef(null);
-
-    const [openDropdownId, setOpenDropdownId] = useState(null);
-
-    // Checkbox selection state
     const [selectedIds, setSelectedIds] = useState([]);
-
-    // Summary Bar collapse state (default: collapsed)
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-
-    // Multi Return feature (default OFF)
     const [multiReturnEnabled, setMultiReturnEnabled] = useState(false);
+
+    // Toast: Main.jsx এর Toaster
+    const showToast = (message, type = 'success') => {
+        if (type === 'error') toast.error(message);
+        else toast.success(message);
+    };
+
     useEffect(() => {
         fetch('http://localhost:5000/feature')
             .then((res) => res.json())
             .then((data) => setMultiReturnEnabled(data?.salesMultiReturn === true))
             .catch(() => setMultiReturnEnabled(false));
     }, [location.pathname]);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.action-dropdown-container')) {
-                setOpenDropdownId(null);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     const fetchOrders = async () => {
         try {
@@ -97,8 +195,7 @@ const Wholesale = () => {
     const fetchCustomers = async () => {
         try {
             const res = await fetch('http://localhost:5000/customer');
-            const data = await res.json();
-            setCustomers(data);
+            setCustomers(await res.json());
         } catch (error) {
             console.error('Error fetching customers:', error);
         }
@@ -115,164 +212,21 @@ const Wholesale = () => {
     }, [location.pathname]);
 
     useEffect(() => {
-        const handleClickOutsideCustomer = (event) => {
-            if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target)) {
-                setIsCustomerOpen(false);
-            }
+        const h = (e) => {
+            if (extraDropdownRef.current && !extraDropdownRef.current.contains(e.target)) setIsExtraOpen(false);
         };
-        document.addEventListener('mousedown', handleClickOutsideCustomer);
-        return () => document.removeEventListener('mousedown', handleClickOutsideCustomer);
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
     }, []);
 
-    useEffect(() => {
-        const handleClickOutsideExtra = (event) => {
-            if (extraDropdownRef.current && !extraDropdownRef.current.contains(event.target)) {
-                setIsExtraOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutsideExtra);
-        return () => document.removeEventListener('mousedown', handleClickOutsideExtra);
-    }, []);
-
-    // SR / Delivery Man dropdown এর বাইরে ক্লিক করলে বন্ধ হবে
-    useEffect(() => {
-        const handleClickOutsideUsers = (event) => {
-            if (srDropdownRef.current && !srDropdownRef.current.contains(event.target)) {
-                setIsSrOpen(false);
-            }
-            if (deliveryDropdownRef.current && !deliveryDropdownRef.current.contains(event.target)) {
-                setIsDeliveryOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutsideUsers);
-        return () => document.removeEventListener('mousedown', handleClickOutsideUsers);
-    }, []);
-
-    const filteredSRs = users.filter(
-        (u) => u.role === 'SR' && u.name?.toLowerCase().includes(filters.sr.toLowerCase())
-    );
-    const filteredDeliveryMen = users.filter(
-        (u) => u.role === 'Delivery Man' && u.name?.toLowerCase().includes(filters.deliveredBy.toLowerCase())
-    );
-
-    const handleSelectSr = (u) => {
-        setFilters({ ...filters, sr: u.name });
-        setIsSrOpen(false);
+    const setF = (patch) => {
+        setFilters((f) => ({ ...f, ...patch }));
         setCurrentPage(1);
     };
-
-    const handleClearSr = (e) => {
-        e.stopPropagation();
-        setFilters({ ...filters, sr: '' });
-        setIsSrOpen(false);
-        setCurrentPage(1);
-    };
-
-    const handleSelectDeliveryMan = (u) => {
-        setFilters({ ...filters, deliveredBy: u.name });
-        setIsDeliveryOpen(false);
-        setCurrentPage(1);
-    };
-
-    const handleClearDeliveryMan = (e) => {
-        e.stopPropagation();
-        setFilters({ ...filters, deliveredBy: '' });
-        setIsDeliveryOpen(false);
-        setCurrentPage(1);
-    };
-
-    const handleToggleExtra = (opt) => {
-        setExtraFilter((prev) =>
-            prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]
-        );
-        setCurrentPage(1);
-    };
-
-    const getItemExtras = (item) => {
-        const list = [];
-        if ((item.freeItems || []).length > 0) list.push('Others Free');
-        if ((item.damageItems || []).length > 0) list.push('Damage');
-        if (hasReturned(item)) list.push('Sales Return');
-        if ((item.returnItems || []).length > 0) list.push('Bulk Return');
-        if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Due') list.push('Previous Get');
-        if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Get') list.push('Previous Pay');
-        return list;
-    };
-
-    const getCustomerName = (c) => c.businessName || c.name || '';
-
-    const filteredCustomers = customers.filter((c) => {
-        const s = filters.customer.toLowerCase();
-        return (
-            getCustomerName(c).toLowerCase().includes(s) ||
-            c.contactNumber?.toLowerCase().includes(s)
-        );
-    });
-
-    const getPhoneByName = (name) =>
-        customers.find((c) => getCustomerName(c).trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
-
-    const handleSelectCustomer = (c) => {
-        setFilters({ ...filters, customer: getCustomerName(c), customerContact: c.contactNumber || '' });
-        setCurrentPage(1);
-        setIsCustomerOpen(false);
-    };
-
-    const handleClearCustomer = (e) => {
-        e.stopPropagation();
-        setFilters({ ...filters, customer: '', customerContact: '' });
-        setCurrentPage(1);
-        setIsCustomerOpen(false);
-    };
-
-    const displayFormattedDate = (dateString) => {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        if (!year || !month || !day) return dateString;
-        const dateObj = new Date(year, month - 1, day);
-        const options = { day: '2-digit', month: 'short', year: 'numeric' };
-        return dateObj.toLocaleDateString('en-GB', options);
-    };
-
-    const parseToLocalDate = (dateStr) => {
-        if (!dateStr) return null;
-        const datePart = dateStr.split(',')[0].trim();
-
-        if (datePart.includes('/')) {
-            const [d, m, y] = datePart.split('/');
-            if (!d || !m || !y) return null;
-            return new Date(Number(y), Number(m) - 1, Number(d));
-        }
-
-        if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
-            const [y, m, d] = datePart.split('-');
-            return new Date(Number(y), Number(m) - 1, Number(d));
-        }
-
-        // Handles "22 Sept 2026" style strings
-        const parsed = new Date(datePart);
-        return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
-    };
-
-    const handleFilterChange = (e) => {
-        setFilters({ ...filters, [e.target.name]: e.target.value });
-        setCurrentPage(1);
-    };
+    const handleFilterChange = (e) => setF({ [e.target.name]: e.target.value });
 
     const handleClearFilters = () => {
-        setFilters({
-            startDate: '',
-            endDate: '',
-            customer: '',
-            customerContact: '',
-            invoiceNo: '',
-            sr: '',
-            deliveredBy: '',
-            address: '',
-            route: '',
-            status: '',
-            due: ''
-        });
+        setFilters(EMPTY_FILTERS);
         setExtraFilter([...EXTRA_OPTIONS]);
         setReturnFilter('');
         setDirectOnly(false);
@@ -280,57 +234,68 @@ const Wholesale = () => {
         setCurrentPage(1);
     };
 
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => {
-            setToast({ show: false, message: '', type: '' });
-        }, 3500);
+    const handleToggleExtra = (opt) => {
+        setExtraFilter((prev) => (prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]));
+        setCurrentPage(1);
     };
 
+    const getCustomerName = (c) => c.businessName || c.name || '';
+    const getPhoneByName = (name) =>
+        customers.find((c) => getCustomerName(c).trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
+
+    // combo options
+    const customerOptions = customers
+        .filter((c) => {
+            const s = filters.customer.toLowerCase();
+            return getCustomerName(c).toLowerCase().includes(s) || c.contactNumber?.toLowerCase().includes(s);
+        })
+        .slice(0, 50)
+        .map((c) => ({ key: c._id, title: getCustomerName(c), sub: c.contactNumber ? `📞 ${c.contactNumber}` : '', value: c }));
+    const srOptions = users
+        .filter((u) => u.role === 'SR' && u.name?.toLowerCase().includes(filters.sr.toLowerCase()))
+        .map((u) => ({ key: u._id, title: u.name, value: u }));
+    const dsrOptions = users
+        .filter((u) => u.role === 'Delivery Man' && u.name?.toLowerCase().includes(filters.deliveredBy.toLowerCase()))
+        .map((u) => ({ key: u._id, title: u.name, value: u }));
+
+    const activeFilterCount =
+        Object.values(filters).filter(Boolean).length +
+        (returnFilter ? 1 : 0) +
+        (directOnly ? 1 : 0) +
+        (extraFilter.length !== EXTRA_OPTIONS.length ? 1 : 0);
+
+    // ---------- actions ----------
     const handleEdit = (item) => {
-        setOpenDropdownId(null);
         if (!wsCan.canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         navigate('/create-order', { state: { order: item } });
     };
-
     const handleDelivery = (item) => {
-        setOpenDropdownId(null);
         if (!wsCan.canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         navigate('/create-order', { state: { order: item, mode: 'delivery' } });
     };
-
     const handleReturn = (id) => {
-        setOpenDropdownId(null);
         if (!srCan.canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
         navigate(`/sales-return-details/${id}`);
     };
-
-    const handleViewDetails = (id) => {
-        setOpenDropdownId(null);
-        navigate(`/sales-details/${id}`);
-    };
+    const handleViewDetails = (id) => navigate(`/sales-details/${id}`);
 
     const handleDelete = async (id) => {
         if (!wsCan.canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
-        setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#4f46e5',
-            cancelButtonColor: '#f43f5e',
-            confirmButtonText: 'Yes, delete it!'
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, delete it!',
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`http://localhost:5000/sales/${id}`, {
-                        method: 'DELETE',
-                    });
-
+                    const response = await fetch(`http://localhost:5000/sales/${id}`, { method: 'DELETE' });
                     if (response.ok) {
                         showToast('Order deleted successfully!', 'success');
-                        setOrders(prev => prev.filter(item => item._id !== id));
+                        setOrders((prev) => prev.filter((item) => item._id !== id));
                     } else {
                         showToast('Failed to delete order!', 'error');
                     }
@@ -342,38 +307,20 @@ const Wholesale = () => {
         });
     };
 
-    // Derive due & status per item (falls back gracefully if fields absent)
-    const getDue = (item) => {
-        if (typeof item.due === 'number') return item.due;
-        const total = item.payableAmount ?? item.grandTotal ?? 0;
-        const paid = item.paidAmount ?? 0;
-        const due = total - paid;
-        return due > 0 ? due : 0;
+    const menuItems = (item) => {
+        const status = getStatus(item);
+        const list = [{ label: 'View Details', icon: <FaEye size={12} />, onClick: () => handleViewDetails(item._id) }];
+        if (status === 'Delivered' && (multiReturnEnabled || (item.returnHistory || []).length === 0))
+            list.push({ label: 'Return', icon: <FaUndoAlt size={12} />, tone: 'rose', onClick: () => handleReturn(item._id) });
+        if (status !== 'Delivered')
+            list.push({ label: 'Delivery', icon: <FaTruck size={12} />, tone: 'emerald', onClick: () => handleDelivery(item) });
+        if (!hasReturned(item))
+            list.push({ label: 'Edit', icon: <FaEdit size={12} />, onClick: () => handleEdit(item) });
+        list.push({ label: 'Delete', icon: <FaTrash size={12} />, tone: 'rose', onClick: () => handleDelete(item._id) });
+        return list;
     };
 
-    const getStatus = (item) => {
-        if (item.status) return item.status;
-        if (item.deliveryStatus) return item.deliveryStatus;
-        return 'New Order';
-    };
-
-    // Return Info -> return thakle {qty, amount}, na thakle null
-    const getReturnInfo = (item) => {
-        if (!item.returnHistory || item.returnHistory.length === 0) return null;
-        const qty = item.returnHistory.reduce((s, r) => s + (Number(r.totalReturnPcs) || 0), 0);
-        const amount = item.returnHistory.reduce((s, r) => s + (Number(r.totalReturnAmount) || 0), 0);
-        if (qty <= 0 && amount <= 0) return null;
-        return { qty, amount };
-    };
-    // Kono product return hoyeche kina (Yes / No)
-    const hasReturned = (item) =>
-        (item.returnHistory || []).some(
-            (r) =>
-                (Number(r.totalReturnPcs) || 0) > 0 ||
-                (Number(r.totalReturnFreeQty) || 0) > 0 ||
-                (Number(r.totalReturnFreeItemsQty) || 0) > 0
-        );
-
+    // ---------- filtering ----------
     const filteredOrders = orders.filter((item) => {
         if (returnFilter === 'yes' && !hasReturned(item)) return false;
         if (returnFilter === 'no' && hasReturned(item)) return false;
@@ -381,21 +328,16 @@ const Wholesale = () => {
         if (filters.startDate || filters.endDate) {
             const orderDateObj = parseToLocalDate(item.orderDate);
             if (!orderDateObj) return false;
-
             if (filters.startDate) {
-                const startDateObj = parseToLocalDate(filters.startDate);
-                if (startDateObj && orderDateObj < startDateObj) return false;
+                const s = parseToLocalDate(filters.startDate);
+                if (s && orderDateObj < s) return false;
             }
-
             if (filters.endDate) {
-                const endDateObj = parseToLocalDate(filters.endDate);
-                if (endDateObj && orderDateObj > endDateObj) return false;
+                const e = parseToLocalDate(filters.endDate);
+                if (e && orderDateObj > e) return false;
             }
         }
-
-        if (filters.customer && !item.customer?.toLowerCase().includes(filters.customer.toLowerCase())) {
-            return false;
-        }
+        if (filters.customer && !item.customer?.toLowerCase().includes(filters.customer.toLowerCase())) return false;
         if (filters.customerContact) {
             const phone = getPhoneByName(item.customer);
             if (phone && phone !== filters.customerContact) return false;
@@ -404,19 +346,13 @@ const Wholesale = () => {
             const inv = (item.invoiceNo || item.orderNo || '').toLowerCase();
             if (!inv.includes(filters.invoiceNo.toLowerCase())) return false;
         }
-        if (filters.sr && !item.sr?.toLowerCase().includes(filters.sr.toLowerCase())) {
-            return false;
-        }
-        if (filters.deliveredBy && !item.deliveredBy?.toLowerCase().includes(filters.deliveredBy.toLowerCase())) {
-            return false;
-        }
+        if (filters.sr && !item.sr?.toLowerCase().includes(filters.sr.toLowerCase())) return false;
+        if (filters.deliveredBy && !item.deliveredBy?.toLowerCase().includes(filters.deliveredBy.toLowerCase())) return false;
         if (filters.address) {
             const addr = (item.shippingAddress || item.address || '').toLowerCase();
             if (!addr.includes(filters.address.toLowerCase())) return false;
         }
-        if (filters.route && !item.route?.toLowerCase().includes(filters.route.toLowerCase())) {
-            return false;
-        }
+        if (filters.route && !item.route?.toLowerCase().includes(filters.route.toLowerCase())) return false;
         if (filters.status) {
             const st = getStatus(item);
             if (filters.status === 'Delivered' && st !== 'Delivered') return false;
@@ -428,14 +364,11 @@ const Wholesale = () => {
             if (filters.due === 'hasDue' && (!isDelivered || dueAmt <= 0)) return false;
             if (filters.due === 'noDue' && (!isDelivered || !item.paidAmount || dueAmt > 0)) return false;
         }
-
-        // Extra filter: sob select thakle filter apply hobe na, kichu select thakle matching extra thaka order dekhabe
         if (extraFilter.length !== EXTRA_OPTIONS.length) {
             if (extraFilter.length === 0) return false;
             const itemExtras = getItemExtras(item);
             if (!extraFilter.some((opt) => itemExtras.includes(opt))) return false;
         }
-
         return true;
     });
 
@@ -444,27 +377,16 @@ const Wholesale = () => {
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentOrders = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
 
-    // Checkbox handlers (Select All = বর্তমান পেজের সব row)
-    const isAllSelected =
-        currentOrders.length > 0 &&
-        currentOrders.every((i) => selectedIds.includes(i._id));
-
+    const isAllSelected = currentOrders.length > 0 && currentOrders.every((i) => selectedIds.includes(i._id));
     const handleSelectAll = () => {
         const ids = currentOrders.map((i) => i._id);
-        if (isAllSelected) {
-            setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
-        } else {
-            setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
-        }
+        if (isAllSelected) setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+        else setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
     };
+    const handleSelectRow = (id) =>
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-    const handleSelectRow = (id) => {
-        setSelectedIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        );
-    };
-
-    // Summary: checkbox select থাকলে selected row এর total, নাহলে filter করা সব row এর total
+    // ---------- summary ----------
     const selectedRows = filteredOrders.filter((i) => selectedIds.includes(i._id));
     const isSelectionMode = selectedRows.length > 0;
     const summaryRows = isSelectionMode ? selectedRows : filteredOrders;
@@ -473,836 +395,455 @@ const Wholesale = () => {
     const totalPaid = summaryRows.reduce((s, i) => s + (Number(i.paidAmount) || 0), 0);
     const totalDue = summaryRows.reduce((s, i) => s + getDue(i), 0);
     const sumBy = (rows, listKey, field) =>
-        rows.reduce(
-            (s, i) => s + (i[listKey] || []).reduce((ss, it) => ss + (Number(it[field]) || 0), 0),
-            0
-        );
+        rows.reduce((s, i) => s + (i[listKey] || []).reduce((ss, it) => ss + (Number(it[field]) || 0), 0), 0);
 
-    // Main product total qty
     const totalMainQty = summaryRows.reduce(
         (s, i) => s + (i.items || []).reduce((ss, it) => ss + (Number(it.totalPcs ?? it.totalQty) || 0), 0),
         0
     );
-    // Main product free qty
     const totalMainFreeQty = sumBy(summaryRows, 'items', 'freeQty');
-    // Others Free Product qty
     const totalOthersFreeQty = sumBy(summaryRows, 'freeItems', 'totalQty');
-    // Damage Product
     const totalDamageQty = sumBy(summaryRows, 'damageItems', 'totalQty');
     const totalDamageFreeQty = sumBy(summaryRows, 'damageItems', 'freeQty');
     const totalDamageAmount = sumBy(summaryRows, 'damageItems', 'itemTotal') || sumBy(summaryRows, 'damageItems', 'subtotal');
-    // Return Product (Order Add page theke add kora)
     const totalRetProdQty = sumBy(summaryRows, 'returnItems', 'totalQty');
     const totalRetProdFreeQty = sumBy(summaryRows, 'returnItems', 'freeQty');
     const totalRetProdAmount = sumBy(summaryRows, 'returnItems', 'itemTotal') || sumBy(summaryRows, 'returnItems', 'subtotal');
 
-    // ---- Returned (returnHistory theke) ----
     const sumRet = (rows, field) =>
-        rows.reduce(
-            (s, i) => s + (i.returnHistory || []).reduce((ss, r) => ss + (Number(r[field]) || 0), 0),
-            0
-        );
+        rows.reduce((s, i) => s + (i.returnHistory || []).reduce((ss, r) => ss + (Number(r[field]) || 0), 0), 0);
     const retMainQty = sumRet(summaryRows, 'totalReturnPcs');
     const retMainFree = sumRet(summaryRows, 'totalReturnFreeQty');
     const retMainAmount = sumRet(summaryRows, 'totalReturnAmount');
     const retOthersQty = sumRet(summaryRows, 'totalReturnFreeItemsQty');
 
-    const fmt = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
-
-    const handlePageChange = (pageNumber) => {
-        if (pageNumber >= 1 && pageNumber <= totalPages) {
-            setCurrentPage(pageNumber);
-        }
+    const handlePageChange = (n) => {
+        if (n >= 1 && n <= totalPages) setCurrentPage(n);
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
-
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    <span>{toast.message}</span>
-                </div>
-            )}
-
-            <div className="max-w-[1600px] mx-auto space-y-6">
-
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div>
-                        <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                            Wholesale Management
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">Manage and track all wholesale sales orders</p>
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <PopStyle />
+            <div className="max-w-[1600px] mx-auto space-y-4 sm:space-y-5">
+                {/* Header */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Wholesale Management</h1>
+                        <p className="text-slate-500 text-xs sm:text-sm mt-1">Manage and track all wholesale sales orders</p>
                     </div>
-
                     <button
+                        type="button"
                         onClick={() => (coCan.canAdd ? navigate('/create-order') : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
-                        className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
+                        className="inline-flex items-center justify-center gap-2 px-5 min-h-[44px] w-full sm:w-auto bg-brand-600 text-white text-sm font-semibold cursor-pointer"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        New Order
+                        <FaPlus size={12} /> New Order
                     </button>
                 </div>
 
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
-
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-gray-800">Wholesale Directory</h3>
-                        <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                            Showing: {filteredOrders.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredOrders.length)}` : 0} of {filteredOrders.length} ({orders.length} total)
-                        </span>
+                {/* Filters */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4">
+                    <div className="flex justify-between items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setFiltersOpen((v) => !v)}
+                            aria-expanded={filtersOpen}
+                            className="lg:cursor-default flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer min-h-[36px]"
+                        >
+                            <FaFilter className="text-brand-600" /> Filter &amp; Search
+                            {activeFilterCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-brand-600 text-white text-[10px] font-bold">{activeFilterCount}</span>
+                            )}
+                            <FaChevronDown size={11} className={`lg:hidden transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleClearFilters}
+                            className="flex items-center gap-1.5 text-xs bg-white border border-slate-300 hover:bg-rose-50 hover:text-rose-600 text-slate-600 px-3 h-9 rounded-xl font-semibold cursor-pointer"
+                        >
+                            <FaRedo size={11} /> Clear
+                        </button>
                     </div>
 
-                    <div className="bg-white shadow-lg rounded-2xl p-5 border border-indigo-100">
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                            </h3>
+                    <div className={`${filtersOpen ? 'grid' : 'hidden'} lg:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 mt-3`}>
+                        <div>
+                            <span className={labelCls}>Start Date</span>
+                            <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
+                        </div>
+                        <div>
+                            <span className={labelCls}>End Date</span>
+                            <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
+                        </div>
+                        <div>
+                            <span className={labelCls}>Customer</span>
+                            <ComboBox
+                                value={filters.customer}
+                                placeholder="Search customer..."
+                                options={customerOptions}
+                                emptyText="No customer found"
+                                onType={(v) => setF({ customer: v, customerContact: '' })}
+                                onPick={(o) => setF({ customer: getCustomerName(o.value), customerContact: o.value.contactNumber || '' })}
+                                onClear={() => setF({ customer: '', customerContact: '' })}
+                            />
+                        </div>
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label htmlFor="ws-inv" className="text-xs font-medium text-slate-600">Invoice / Order No</label>
+                                <label className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={directOnly}
+                                        onChange={(e) => { setDirectOnly(e.target.checked); setCurrentPage(1); }}
+                                        className="w-3.5 h-3.5 accent-emerald-600 cursor-pointer"
+                                    />
+                                    Direct
+                                </label>
+                            </div>
+                            <input id="ws-inv" type="text" name="invoiceNo" placeholder="Search invoice..." value={filters.invoiceNo} onChange={handleFilterChange} className={inputCls} />
+                        </div>
+                        <div>
+                            <span className={labelCls}>SR</span>
+                            <ComboBox
+                                value={filters.sr}
+                                placeholder="Search SR..."
+                                options={srOptions}
+                                emptyText="No SR found"
+                                onType={(v) => setF({ sr: v })}
+                                onPick={(o) => setF({ sr: o.value.name })}
+                                onClear={() => setF({ sr: '' })}
+                            />
+                        </div>
+                        <div>
+                            <span className={labelCls}>Delivery Man</span>
+                            <ComboBox
+                                value={filters.deliveredBy}
+                                placeholder="Search delivery man..."
+                                options={dsrOptions}
+                                emptyText="No delivery man found"
+                                onType={(v) => setF({ deliveredBy: v })}
+                                onPick={(o) => setF({ deliveredBy: o.value.name })}
+                                onClear={() => setF({ deliveredBy: '' })}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="ws-addr" className={labelCls}>Address</label>
+                            <input id="ws-addr" type="text" name="address" placeholder="Search address..." value={filters.address} onChange={handleFilterChange} className={inputCls} />
+                        </div>
+                        <div>
+                            <label htmlFor="ws-route" className={labelCls}>Route</label>
+                            <input id="ws-route" type="text" name="route" placeholder="Search route..." value={filters.route} onChange={handleFilterChange} className={inputCls} />
+                        </div>
+                        <div>
+                            <label htmlFor="ws-status" className={labelCls}>Status</label>
+                            <select id="ws-status" name="status" value={filters.status} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                                <option value="">All</option>
+                                <option value="Delivered">Delivered</option>
+                                <option value="New Order">New Order</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="ws-due" className={labelCls}>Due</label>
+                            <select id="ws-due" name="due" value={filters.due} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                                <option value="">All</option>
+                                <option value="hasDue">Has Due</option>
+                                <option value="noDue">Fully Received</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="ws-ret" className={labelCls}>Return</label>
+                            <select id="ws-ret" value={returnFilter} onChange={(e) => { setReturnFilter(e.target.value); setCurrentPage(1); }} className={`${inputCls} cursor-pointer`}>
+                                <option value="">All</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div className="relative" ref={extraDropdownRef}>
+                            <span className={labelCls}>Extra</span>
                             <button
-                                onClick={handleClearFilters}
-                                className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+                                type="button"
+                                onClick={() => setIsExtraOpen((v) => !v)}
+                                aria-expanded={isExtraOpen}
+                                className={`${inputCls} flex items-center justify-between gap-2 text-left cursor-pointer`}
                             >
-                                <FaRedo size={11} /> Clear All Filters
+                                <span className="truncate">
+                                    {extraFilter.length === EXTRA_OPTIONS.length ? 'All' : extraFilter.length === 0 ? 'None' : extraFilter.join(', ')}
+                                </span>
+                                <FaChevronDown size={11} className={`text-slate-400 shrink-0 transition-transform ${isExtraOpen ? 'rotate-180' : ''}`} />
                             </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={startDateRef}
-                                        type="date"
-                                        name="startDate"
-                                        value={filters.startDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select start date"
-                                        value={displayFormattedDate(filters.startDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
+                            {isExtraOpen && (
+                                <div className="pd-pop absolute z-[60] left-0 right-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-lg py-1">
+                                    {EXTRA_OPTIONS.map((opt) => (
+                                        <label key={opt} className="flex items-center gap-2 px-3 min-h-[40px] hover:bg-brand-50 cursor-pointer text-sm font-medium text-slate-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={extraFilter.includes(opt)}
+                                                onChange={() => handleToggleExtra(opt)}
+                                                className="w-4 h-4 accent-brand-600 cursor-pointer"
+                                            />
+                                            {opt}
+                                        </label>
+                                    ))}
                                 </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={endDateRef}
-                                        type="date"
-                                        name="endDate"
-                                        value={filters.endDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select end date"
-                                        value={displayFormattedDate(filters.endDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="relative" ref={customerDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer</label>
-                                <div
-                                    onClick={() => setIsCustomerOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select customer..."
-                                        value={filters.customer}
-                                        onChange={(e) => {
-                                            setFilters({ ...filters, customer: e.target.value, customerContact: '' });
-                                            setCurrentPage(1);
-                                            setIsCustomerOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.customer && (
-                                        <button type="button" onClick={handleClearCustomer} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isCustomerOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredCustomers.length > 0 ? (
-                                            filteredCustomers.map((c) => (
-                                                <div
-                                                    key={c._id}
-                                                    onClick={() => handleSelectCustomer(c)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
-                                                >
-                                                    <p className="text-xs font-semibold text-gray-800">{getCustomerName(c)}</p>
-                                                    {c.contactNumber && (
-                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
-                                                    )}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div>
-                                <div className="flex items-center justify-between mb-1">
-                                    <label className="block text-gray-600 text-[11px] font-semibold">Invoice / Order No</label>
-                                    <label className="flex items-center gap-1 text-[10px] font-semibold text-teal-700 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={directOnly}
-                                            onChange={(e) => { setDirectOnly(e.target.checked); setCurrentPage(1); }}
-                                            className="w-3 h-3 accent-teal-600 cursor-pointer"
-                                        />
-                                        Direct Sales
-                                    </label>
-                                </div>
-                                <input
-                                    type="text"
-                                    name="invoiceNo"
-                                    placeholder="Search invoice..."
-                                    value={filters.invoiceNo}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                            </div>
-
-                            <div className="relative" ref={srDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">SR</label>
-                                <div
-                                    onClick={() => setIsSrOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select SR..."
-                                        value={filters.sr}
-                                        onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'sr', value: e.target.value } });
-                                            setIsSrOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.sr && (
-                                        <button type="button" onClick={handleClearSr} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isSrOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredSRs.length > 0 ? (
-                                            filteredSRs.map((u) => (
-                                                <div
-                                                    key={u._id}
-                                                    onClick={() => handleSelectSr(u)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
-                                                >
-                                                    {u.name}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No SR found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="relative" ref={deliveryDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Delivery Man</label>
-                                <div
-                                    onClick={() => setIsDeliveryOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select delivery man..."
-                                        value={filters.deliveredBy}
-                                        onChange={(e) => {
-                                            handleFilterChange({ target: { name: 'deliveredBy', value: e.target.value } });
-                                            setIsDeliveryOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.deliveredBy && (
-                                        <button type="button" onClick={handleClearDeliveryMan} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isDeliveryOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredDeliveryMen.length > 0 ? (
-                                            filteredDeliveryMen.map((u) => (
-                                                <div
-                                                    key={u._id}
-                                                    onClick={() => handleSelectDeliveryMan(u)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
-                                                >
-                                                    {u.name}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No delivery man found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Address</label>
-                                <input
-                                    type="text"
-                                    name="address"
-                                    placeholder="Search address..."
-                                    value={filters.address}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Route</label>
-                                <input
-                                    type="text"
-                                    name="route"
-                                    placeholder="Search route..."
-                                    value={filters.route}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
-                                <select
-                                    name="status"
-                                    value={filters.status}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="Delivered">Delivered</option>
-                                    <option value="New Order">New Order</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Due</label>
-                                <select
-                                    name="due"
-                                    value={filters.due}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="hasDue">Has Due</option>
-                                    <option value="noDue">Fully Received</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Return</label>
-                                <select
-                                    value={returnFilter}
-                                    onChange={(e) => { setReturnFilter(e.target.value); setCurrentPage(1); }}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="yes">Yes</option>
-                                    <option value="no">No</option>
-                                </select>
-                            </div>
-
-                            <div className="relative" ref={extraDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Extra</label>
-                                <div
-                                    onClick={() => setIsExtraOpen((prev) => !prev)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <span className="truncate">
-                                        {extraFilter.length === EXTRA_OPTIONS.length
-                                            ? 'All'
-                                            : extraFilter.length === 0
-                                                ? 'None'
-                                                : extraFilter.join(', ')}
-                                    </span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-3 h-3 shrink-0 transition-transform ${isExtraOpen ? 'rotate-180' : ''}`}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                    </svg>
-                                </div>
-
-                                {isExtraOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 py-1">
-                                        {EXTRA_OPTIONS.map((opt) => (
-                                            <label
-                                                key={opt}
-                                                className="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer text-xs font-medium text-gray-700"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={extraFilter.includes(opt)}
-                                                    onChange={() => handleToggleExtra(opt)}
-                                                    className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
-                                                />
-                                                {opt}
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            )}
                         </div>
                     </div>
+                </div>
 
-                    {/* Summary Bar */}
-                    <div className="flex flex-wrap items-start gap-x-6 gap-y-3 text-xs bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-3">
-                        {/* Showing / Rows */}
-                        <div className="flex flex-col items-start gap-1.5">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold ${isSelectionMode ? 'bg-pink-100 text-pink-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                                {isSelectionMode ? 'Selected' : 'Showing'}
-                                <button
-                                    type="button"
-                                    onClick={() => setIsSummaryOpen((prev) => !prev)}
-                                    title={isSummaryOpen ? 'Hide Details' : 'Show Details'}
-                                    className="flex items-center justify-center w-4 h-4 rounded-full bg-white/70 hover:bg-white transition cursor-pointer"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-2.5 h-2.5 transition-transform duration-200 ${isSummaryOpen ? 'rotate-180' : ''}`}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                    </svg>
-                                </button>
-                            </span>
-                            <span className="font-semibold text-gray-600">
-                                Rows: <b className="text-gray-800">{summaryRows.length}</b>
-                            </span>
-                        </div>
-
-                        {isSummaryOpen && (
-                            <>
-                                <div className="w-px self-stretch bg-indigo-200" />
-
-                                {/* ============ 1. MAIN PRODUCT ============ */}
-                                <div className="rounded-xl border border-indigo-200 bg-white overflow-hidden shadow-sm">
-                                    <div className="bg-indigo-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Main Product</div>
-                                    <div className="flex">
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[130px]">
-                                            <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Total Qty: <b className="text-indigo-600">{fmt(totalMainQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                {totalPayable < 0 ? 'Payable Amount' : 'Receivable Amount'}: <b className="text-indigo-600">৳{fmt(Math.abs(totalPayable))}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Received Amount: <b className="text-emerald-600">৳{fmt(totalPaid)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Due Amount: <b className="text-rose-600">৳{fmt(totalDue)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Free Qty: <b className="text-emerald-600">{fmt(totalMainFreeQty)}</b>
-                                            </span>
-                                        </div>
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[110px] bg-orange-50 border-l-2 border-dashed border-orange-300">
-                                            <span className="text-[9px] font-bold uppercase text-orange-500">↩ Returned</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-orange-600">{fmt(retMainQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Free Qty: <b className="text-emerald-600">{fmt(retMainFree)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Amount: <b className="text-orange-600">৳{fmt(retMainAmount)}</b>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* ============ 2. OTHERS FREE ============ */}
-                                <div className="rounded-xl border border-amber-200 bg-white overflow-hidden shadow-sm">
-                                    <div className="bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Others Free</div>
-                                    <div className="flex">
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[90px]">
-                                            <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-amber-600">{fmt(totalOthersFreeQty)}</b>
-                                            </span>
-                                        </div>
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[90px] bg-orange-50 border-l-2 border-dashed border-orange-300">
-                                            <span className="text-[9px] font-bold uppercase text-orange-500">↩ Returned</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-orange-600">{fmt(retOthersQty)}</b>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* ============ 3. DAMAGE ============ */}
-                                <div className="rounded-xl border border-red-200 bg-white overflow-hidden shadow-sm">
-                                    <div className="bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Damage Product</div>
-                                    <div className="flex">
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[110px]">
-                                            <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-red-600">{fmt(totalDamageQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Free Qty: <b className="text-emerald-600">{fmt(totalDamageFreeQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Amount: <b className="text-red-600">৳{fmt(totalDamageAmount)}</b>
-                                            </span>
-                                        </div>
-
-                                    </div>
-                                </div>
-
-                                {/* ============ 4. RETURN PRODUCT ============ */}
-                                <div className="rounded-xl border border-violet-200 bg-white overflow-hidden shadow-sm">
-                                    <div className="bg-violet-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Return Product</div>
-                                    <div className="flex">
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[110px]">
-                                            <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-violet-600">{fmt(totalRetProdQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Free Qty: <b className="text-emerald-600">{fmt(totalRetProdFreeQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Amount: <b className="text-violet-600">৳{fmt(totalRetProdAmount)}</b>
-                                            </span>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </>
-                        )}
+                {/* Summary */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setIsSummaryOpen((v) => !v)}
+                            aria-expanded={isSummaryOpen}
+                            className={`inline-flex items-center gap-2 px-3 min-h-[36px] rounded-full text-xs font-bold cursor-pointer ${isSelectionMode ? 'bg-pink-50 text-pink-700' : 'bg-brand-50 text-brand-700'}`}
+                        >
+                            {isSelectionMode ? 'Selected' : 'Showing'}
+                            <FaChevronDown size={10} className={`transition-transform ${isSummaryOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        <span className="text-xs font-semibold text-slate-600">
+                            Rows: <b className="text-slate-800">{summaryRows.length}</b>
+                        </span>
                         {isSelectionMode && (
                             <button
+                                type="button"
                                 onClick={() => setSelectedIds([])}
-                                className="ml-auto text-[11px] bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 text-gray-600 px-2.5 py-1 rounded-lg font-semibold cursor-pointer"
+                                className="ml-auto text-xs bg-white border border-slate-300 hover:bg-rose-50 hover:text-rose-600 text-slate-600 px-3 h-9 rounded-xl font-semibold cursor-pointer"
                             >
                                 Clear Selection
                             </button>
                         )}
                     </div>
 
-                    {loading ? (
-                        <div className="text-center py-20 text-gray-500 font-medium">Loading orders...</div>
-                    ) : filteredOrders.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400 font-medium">No orders found!</div>
-                    ) : (
-                        <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full text-left border-collapse [&_th]:px-1.5 [&_th]:py-2.5 [&_th]:text-[10px] [&_th]:whitespace-normal [&_td]:px-1.5 [&_td]:py-2.5 [&_td]:text-[11px] [&_td]:whitespace-normal [&_td_span]:text-[9px]">
-                                <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[10px] uppercase tracking-wide whitespace-nowrap">
-                                        <th className="w-8 text-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={isAllSelected}
-                                                onChange={handleSelectAll}
-                                                className="w-4 h-4 accent-pink-500 cursor-pointer"
-                                            />
-                                        </th>
-                                        <th className="py-3 px-2.5">Date</th>
-                                        <th className="py-3 px-2.5">Customer</th>
-                                        <th className="py-3 px-2.5">Invoice</th>
-                                        <th className="py-3 px-2.5">Delivery Address</th>
-                                        <th className="py-3 px-2.5">SR</th>
-                                        <th className="py-3 px-2.5">Delivery Man</th>
-                                        <th className="py-3 px-2.5">Total Amount</th>
-                                        <th className="py-3 px-2.5">Received (Due)</th>
-                                        <th className="py-3 px-2.5">Return</th>
-                                        <th className="py-3 px-2.5">Extra</th>
-                                        <th className="py-3 px-2.5">Status</th>
-                                        <th className="py-3 px-2.5 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
-                                    {currentOrders.map((item, index) => {
-                                        const status = getStatus(item);
-                                        const due = getDue(item);
-                                        return (
-                                            <tr key={item._id || index} className={`transition duration-150 ${selectedIds.includes(item._id) ? 'bg-pink-50/70' : 'hover:bg-indigo-50/40'}`}>
-                                                <td className="text-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedIds.includes(item._id)}
-                                                        onChange={() => handleSelectRow(item._id)}
-                                                        className="w-4 h-4 accent-pink-500 cursor-pointer"
-                                                    />
-                                                </td>
-                                                <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">
-                                                    <div className="font-medium">Order : {item.orderDate || 'N/A'}</div>
-                                                    <div className="mt-0.5">
-                                                        {item.deliveryDate ? (
-                                                            <span>Delivered: {item.deliveryDate}</span>
-                                                        ) : (
-                                                            <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
-                                                                Not Delivered
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">
-                                                    <div>{item.customer}</div>
-                                                    {getPhoneByName(item.customer) && (
-                                                        <div className="text-[10px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-2.5 text-gray-600 font-medium whitespace-nowrap">
-                                                    <div>{item.invoiceNo || item.orderNo}</div>
-                                                    {item.directSales && (
-                                                        <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-[9px] leading-none whitespace-nowrap shadow-sm">
-                                                            ⚡ Direct Delivery
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap max-w-[140px] overflow-hidden text-ellipsis">
-                                                    <div>{item.shippingAddress || item.address || 'N/A'}</div>
-                                                    {item.route && (
-                                                        <div className="text-[10px] text-gray-400 mt-0.5">({item.route})</div>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.sr || 'N/A'}</td>
-                                                <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">{item.deliveredBy || 'N/A'}</td>
-                                                <td className="py-3 px-2.5 font-bold text-indigo-600 whitespace-nowrap">
-                                                    ৳{Math.abs(Number(item.payableAmount ?? item.grandTotal) || 0)}
-                                                    {(Number(item.payableAmount ?? item.grandTotal) || 0) < 0 && (
-                                                        <div className="text-[9px] font-bold text-rose-600">Payable</div>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-2.5 whitespace-nowrap">
-                                                    {(Number(item.payableAmount ?? item.grandTotal) || 0) <= 0 ? (
-                                                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-semibold text-[10px] whitespace-nowrap">
-                                                            No Bill
-                                                        </span>
-                                                    ) : status !== 'Delivered' || !item.paidAmount ? (
-                                                        <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
-                                                            Not Received
-                                                        </span>
-                                                    ) : (
-                                                        <div className="font-bold">
-                                                            <b className="text-emerald-600">৳{item.paidAmount}</b>
-                                                            <b className="text-rose-600">({due})</b>
-                                                        </div>
-                                                    )}
-                                                    {(item.items || []).some((p) => (Number(p.freeQty) || 0) > 0) && (
-                                                        <div className="mt-0.5 text-[9px] font-bold text-emerald-600">
-                                                            Free - Has
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-2.5 whitespace-nowrap">
-                                                    {hasReturned(item) ? (
-                                                        <span className="inline-block px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-emerald-100 text-emerald-700">Yes</span>
-                                                    ) : (
-                                                        <span className="inline-block px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-rose-100 text-rose-700">No</span>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-2.5 whitespace-nowrap">
-                                                    {(() => {
-                                                        const extras = [];
-                                                        if ((item.damageItems || []).length > 0) extras.push({ label: 'Damage', color: 'text-red-600' });
-                                                        if (hasReturned(item)) extras.push({ label: 'Sales Return', color: 'text-violet-600' });
-                                                        if ((item.returnItems || []).length > 0) extras.push({ label: 'Bulk Return', color: 'text-fuchsia-600' });
-                                                        if ((item.freeItems || []).length > 0) extras.push({ label: 'Others Free', color: 'text-amber-600' });
-                                                        if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Due') extras.push({ label: 'Previous Get', color: 'text-sky-600' });
-                                                        if (Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Get') extras.push({ label: 'Previous Pay', color: 'text-rose-600' });
-                                                        if (extras.length === 0) return <div className="text-[9px] text-gray-300">N/A</div>;
-                                                        return (
-                                                            <div className="flex flex-col leading-tight">
-                                                                {extras.map((ex) => (
-                                                                    <div key={ex.label} className={`text-[9px] font-bold ${ex.color}`}>{ex.label}</div>
-                                                                ))}
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </td>
-                                                <td className="py-3 px-2.5">
-                                                    <span className={`inline-block px-2 py-0.5 rounded-full font-semibold text-[10px] whitespace-nowrap ${status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                        {status}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-2.5 text-center relative">
-                                                    <div className="relative inline-block action-dropdown-container">
-
-                                                        <button
-                                                            onClick={() =>
-                                                                setOpenDropdownId(
-                                                                    openDropdownId === item._id
-                                                                        ? null
-                                                                        : item._id
-                                                                )
-                                                            }
-                                                            className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-[11px] flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
-                                                        >
-                                                            <span>Select</span>
-                                                            <svg
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                strokeWidth={2}
-                                                                stroke="currentColor"
-                                                                className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === item._id ? 'rotate-180' : ''}`}
-                                                            >
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                            </svg>
-                                                        </button>
-
-                                                        {openDropdownId === item._id && (
-                                                            <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150">
-
-                                                                <button
-                                                                    onClick={() => handleViewDetails(item._id)}
-                                                                    className="w-full px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                >
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-slate-500">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                                    </svg>
-                                                                    View Details
-                                                                </button>
-
-                                                                {status === 'Delivered' &&
-                                                                    (multiReturnEnabled || (item.returnHistory || []).length === 0) && (
-                                                                        <button
-                                                                            onClick={() => handleReturn(item._id)}
-                                                                            className="w-full px-4 py-2.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                        >
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-orange-500">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-                                                                            </svg>
-                                                                            Return
-                                                                        </button>
-                                                                    )}
-
-                                                                {status !== 'Delivered' && (
-                                                                    <button
-                                                                        onClick={() => handleDelivery(item)}
-                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                    >
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-emerald-500">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z" />
-                                                                        </svg>
-                                                                        Delivery
-                                                                    </button>
-                                                                )}
-
-                                                                {!hasReturned(item) && (
-                                                                    <button
-                                                                        onClick={() => handleEdit(item)}
-                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                    >
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                                                                        </svg>
-                                                                        Edit
-                                                                    </button>
-                                                                )}
-
-                                                                <button
-                                                                    onClick={() => handleDelete(item._id)}
-                                                                    className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                >
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-rose-500">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                                                    </svg>
-                                                                    Delete
-                                                                </button>
-
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                    {isSummaryOpen && (
+                        <div className="pd-pop grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mt-3">
+                            <SumBox title="Main Product" tone={{ border: 'border-indigo-200', head: 'bg-brand-600' }}>
+                                <SumCol
+                                    label="Order"
+                                    rows={[
+                                        ['Total Qty', fmt(totalMainQty), 'text-brand-700'],
+                                        [totalPayable < 0 ? 'Payable Amount' : 'Receivable Amount', `৳${fmt(Math.abs(totalPayable))}`, 'text-brand-700'],
+                                        ['Received', `৳${fmt(totalPaid)}`, 'text-emerald-600'],
+                                        ['Due', `৳${fmt(totalDue)}`, 'text-rose-600'],
+                                        ['Free Qty', fmt(totalMainFreeQty), 'text-emerald-600'],
+                                    ]}
+                                />
+                                <SumCol
+                                    returned
+                                    label="↩ Returned"
+                                    rows={[
+                                        ['Qty', fmt(retMainQty), 'text-orange-600'],
+                                        ['Free Qty', fmt(retMainFree), 'text-emerald-600'],
+                                        ['Amount', `৳${fmt(retMainAmount)}`, 'text-orange-600'],
+                                    ]}
+                                />
+                            </SumBox>
+                            <SumBox title="Others Free" tone={{ border: 'border-amber-200', head: 'bg-amber-500' }}>
+                                <SumCol label="Order" rows={[['Qty', fmt(totalOthersFreeQty), 'text-amber-600']]} />
+                                <SumCol returned label="↩ Returned" rows={[['Qty', fmt(retOthersQty), 'text-orange-600']]} />
+                            </SumBox>
+                            <SumBox title="Damage Product" tone={{ border: 'border-red-200', head: 'bg-red-500' }}>
+                                <SumCol
+                                    label="Order"
+                                    rows={[
+                                        ['Qty', fmt(totalDamageQty), 'text-red-600'],
+                                        ['Free Qty', fmt(totalDamageFreeQty), 'text-emerald-600'],
+                                        ['Amount', `৳${fmt(totalDamageAmount)}`, 'text-red-600'],
+                                    ]}
+                                />
+                            </SumBox>
+                            <SumBox title="Return Product" tone={{ border: 'border-violet-200', head: 'bg-violet-500' }}>
+                                <SumCol
+                                    label="Order"
+                                    rows={[
+                                        ['Qty', fmt(totalRetProdQty), 'text-violet-600'],
+                                        ['Free Qty', fmt(totalRetProdFreeQty), 'text-emerald-600'],
+                                        ['Amount', `৳${fmt(totalRetProdAmount)}`, 'text-violet-600'],
+                                    ]}
+                                />
+                            </SumBox>
                         </div>
+                    )}
+                </div>
+
+                {/* List */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <FaFileInvoice className="text-brand-600" /> Wholesale Directory
+                        </h2>
+                        <span className="px-3 py-1 bg-brand-50 text-brand-700 font-semibold text-xs rounded-full w-fit">
+                            Showing {filteredOrders.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredOrders.length)}` : 0} of {filteredOrders.length} ({orders.length} total)
+                        </span>
+                    </div>
+
+                    {loading ? (
+                        <Skeleton rows={6} />
+                    ) : filteredOrders.length === 0 ? (
+                        <div className="text-center py-14 text-slate-400">
+                            <FaFileInvoice size={32} className="mx-auto mb-2 text-slate-300" />
+                            <p className="text-sm font-medium">No orders found!</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden space-y-3">
+                                {currentOrders.map((item, index) => {
+                                    const status = getStatus(item);
+                                    const phone = getPhoneByName(item.customer);
+                                    const selected = selectedIds.includes(item._id);
+                                    return (
+                                        <div
+                                            key={item._id || index}
+                                            className={`rounded-2xl border p-3.5 space-y-3 ${selected ? 'border-pink-300 bg-pink-50/60' : 'border-slate-200 bg-slate-50/60'}`}
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selected}
+                                                    onChange={() => handleSelectRow(item._id)}
+                                                    aria-label="Select order"
+                                                    className="w-5 h-5 mt-0.5 accent-pink-500 cursor-pointer shrink-0"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-bold text-slate-800 break-words">{item.customer}</p>
+                                                    {phone && <p className="text-xs text-slate-500">📞 {phone}</p>}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleViewDetails(item._id)}
+                                                        className="mt-1 text-xs font-semibold text-brand-700 bg-brand-50 px-2 py-1 rounded-lg cursor-pointer"
+                                                    >
+                                                        {item.invoiceNo || item.orderNo}
+                                                    </button>
+                                                    {item.directSales && (
+                                                        <span className="ml-1 inline-block px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px]">⚡ Direct</span>
+                                                    )}
+                                                </div>
+                                                <StatusPill status={status} />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div className="rounded-xl bg-white border border-slate-200 p-2">
+                                                    <p className="text-[10px] uppercase text-slate-400 font-bold">Total</p>
+                                                    <AmountCell item={item} />
+                                                </div>
+                                                <div className="rounded-xl bg-white border border-slate-200 p-2">
+                                                    <p className="text-[10px] uppercase text-slate-400 font-bold">Received (Due)</p>
+                                                    <ReceivedCell item={item} />
+                                                </div>
+                                            </div>
+
+                                            <div className="text-xs text-slate-600 space-y-0.5">
+                                                <p>Order: {item.orderDate || 'N/A'}</p>
+                                                <p>{item.deliveryDate ? `Delivered: ${item.deliveryDate}` : 'Not Delivered'}</p>
+                                                <p className="break-words">📍 {item.shippingAddress || item.address || 'N/A'}{item.route ? ` (${item.route})` : ''}</p>
+                                                <p>SR: {item.sr || 'N/A'} • DSR: {item.deliveredBy || 'N/A'}</p>
+                                            </div>
+
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${hasReturned(item) ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                                                        Return: {hasReturned(item) ? 'Yes' : 'No'}
+                                                    </span>
+                                                    <ExtraTags item={item} />
+                                                </div>
+                                                <RowMenu items={menuItems(item)} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200">
+                                <table className="w-full min-w-[1100px] text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr className="bg-slate-50 text-slate-500 uppercase tracking-wide">
+                                            <th className="px-3 py-3 w-10 text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isAllSelected}
+                                                    onChange={handleSelectAll}
+                                                    aria-label="Select all on this page"
+                                                    className="w-4 h-4 accent-pink-500 cursor-pointer"
+                                                />
+                                            </th>
+                                            {['Date', 'Customer', 'Invoice', 'Delivery Address', 'SR', 'Delivery Man', 'Total', 'Received (Due)', 'Return', 'Extra', 'Status'].map((h) => (
+                                                <th key={h} className="px-3 py-3 whitespace-nowrap">{h}</th>
+                                            ))}
+                                            <th className="px-3 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700 align-middle">
+                                        {currentOrders.map((item, index) => {
+                                            const status = getStatus(item);
+                                            const phone = getPhoneByName(item.customer);
+                                            const selected = selectedIds.includes(item._id);
+                                            return (
+                                                <tr key={item._id || index} className={`transition-colors ${selected ? 'bg-pink-50/70' : 'hover:bg-brand-50/40'}`}>
+                                                    <td className="px-3 py-3 text-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selected}
+                                                            onChange={() => handleSelectRow(item._id)}
+                                                            aria-label="Select order"
+                                                            className="w-4 h-4 accent-pink-500 cursor-pointer"
+                                                        />
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-slate-600">
+                                                        <div className="font-medium">Order: {item.orderDate || 'N/A'}</div>
+                                                        <div className="mt-0.5">
+                                                            {item.deliveryDate ? (
+                                                                <span>Delivered: {item.deliveryDate}</span>
+                                                            ) : (
+                                                                <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-semibold text-[10px]">Not Delivered</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <div className="font-bold text-slate-800">{item.customer}</div>
+                                                        {phone && <div className="text-[11px] text-slate-400 mt-0.5">📞 {phone}</div>}
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleViewDetails(item._id)}
+                                                            className="text-brand-700 hover:underline font-semibold cursor-pointer"
+                                                        >
+                                                            {item.invoiceNo || item.orderNo}
+                                                        </button>
+                                                        {item.directSales && (
+                                                            <div>
+                                                                <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px]">⚡ Direct Delivery</span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-slate-600 max-w-[170px]">
+                                                        <div className="truncate" title={item.shippingAddress || item.address}>{item.shippingAddress || item.address || 'N/A'}</div>
+                                                        {item.route && <div className="text-[11px] text-slate-400 mt-0.5">({item.route})</div>}
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-slate-600">{item.sr || 'N/A'}</td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-slate-600">{item.deliveredBy || 'N/A'}</td>
+                                                    <td className="px-3 py-3"><AmountCell item={item} /></td>
+                                                    <td className="px-3 py-3 whitespace-nowrap"><ReceivedCell item={item} /></td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <span className={`inline-block px-2.5 py-0.5 rounded-full font-bold text-[11px] ${hasReturned(item) ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                                                            {hasReturned(item) ? 'Yes' : 'No'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-3 min-w-[110px]"><ExtraTags item={item} /></td>
+                                                    <td className="px-3 py-3"><StatusPill status={status} /></td>
+                                                    <td className="px-3 py-3 text-center"><RowMenu items={menuItems(item)} /></td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
 
                     {!loading && filteredOrders.length > 0 && (
-                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
-                            </span>
-
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
-                                </button>
-
-                                <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                        }`}
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        } else if (
-                                            pageNum === currentPage - 2 ||
-                                            pageNum === currentPage + 2
-                                        ) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                        }
-                                        return null;
-                                    })}
-                                </div>
-
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
-                            </div>
-                        </div>
+                        <Pager page={currentPage} total={totalPages} onChange={handlePageChange} />
                     )}
                 </div>
             </div>

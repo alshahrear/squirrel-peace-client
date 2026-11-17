@@ -95,6 +95,7 @@ import ContactAll from "../Components/Pages/Software/Contact/ContactAll";
 import PurchaseAll from "../Components/Pages/Software/Purchase/PurchaseAll";
 import SalesAll from "../Components/Pages/Software/Sales/SalesAll";
 import AccountAll from "../Components/Pages/Software/Account/AccountAll";
+import ImpersonateLogin from "../hooks/ImpersonateLogin";
 
 export const router = createBrowserRouter([
   {
@@ -383,9 +384,13 @@ export const router = createBrowserRouter([
             path: "/client-details/:id",
             element: <AdminRoute><ClientDetails></ClientDetails></AdminRoute>
           },
-          {
+                   {
             path: "/login-client",
             element: <LoginClient></LoginClient>
+          },
+          {
+            path: "/impersonate",
+            element: <ImpersonateLogin></ImpersonateLogin>
           },
           {
             path: "/dashboard",

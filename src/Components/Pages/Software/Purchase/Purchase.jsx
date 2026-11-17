@@ -1,27 +1,105 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaPlus, FaChevronDown } from 'react-icons/fa';
 import useCan from '../../../../hooks/useCan';
+import { DateInput } from '../Product/ProductUi';
+import { fmt, inputCls, labelCls, Pill, Pager, ComboField, FilterPanel, RowMenu, ListSkeleton, Empty } from './PurchaseUi';
 
+const EXTRA_OPTIONS = ['Free', 'Others Free', 'Purchase Return', 'Bulk Return', 'Damage', 'Previous Pay', 'Previous Get'];
+
+const parseToLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const datePart = dateStr.split(',')[0].trim();
+    if (datePart.includes('/')) {
+        const [d, m, y] = datePart.split('/');
+        if (!d || !m || !y) return null;
+        return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
+        const [y, m, d] = datePart.split('-');
+        return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    const parsed = new Date(datePart);
+    return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+};
+
+const isReceived = (item) => item.receiveStatus === 'Received' || item.receiveStatus === 'Yes';
+const hasReturned = (item) =>
+    (item.returnHistory || []).some(
+        (r) =>
+            (Number(r.totalReturnPcs) || 0) > 0 ||
+            (Number(r.totalReturnFreeQty) || 0) > 0 ||
+            (Number(r.totalReturnFreeItemsQty) || 0) > 0
+    );
+const hasBulkReturn = (item) => (item.returnItems || []).length > 0;
+const hasDamage = (item) => (item.damageItems || []).length > 0;
+const hasPrevPay = (item) => Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Due';
+const hasPrevGet = (item) => Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Get';
+const hasFree = (item) => (item.items || []).some((p) => (Number(p.freeTotalQty ?? p.freeQty) || 0) > 0);
+const getDue = (item) => Math.max((Number(item.payableAmount) || 0) - (Number(item.paidAmount) || 0), 0);
+
+const getItemExtras = (item) => {
+    const list = [];
+    if (hasFree(item)) list.push('Free');
+    if ((item.freeItems || []).length > 0) list.push('Others Free');
+    if (hasReturned(item)) list.push('Purchase Return');
+    if (hasBulkReturn(item)) list.push('Bulk Return');
+    if (hasDamage(item)) list.push('Damage');
+    if (hasPrevPay(item)) list.push('Previous Pay');
+    if (hasPrevGet(item)) list.push('Previous Get');
+    return list;
+};
+
+const extraTags = (item) => {
+    const t = [];
+    if ((item.freeItems || []).length > 0) t.push({ label: 'Others Free', tone: 'amber' });
+    if (hasReturned(item)) t.push({ label: 'Purchase Return', tone: 'orange' });
+    if (hasBulkReturn(item)) t.push({ label: 'Bulk Return', tone: 'orange' });
+    if (hasDamage(item)) t.push({ label: 'Damage', tone: 'rose' });
+    if (hasPrevPay(item)) t.push({ label: 'Previous Pay', tone: 'rose' });
+    if (hasPrevGet(item)) t.push({ label: 'Previous Get', tone: 'brand' });
+    if (hasFree(item)) t.push({ label: 'Free - Has', tone: 'green' });
+    return t;
+};
+
+const MOBILE_TAG = {
+    brand: 'bg-brand-50 text-brand-700',
+    green: 'bg-emerald-50 text-emerald-700',
+    amber: 'bg-amber-50 text-amber-700',
+    rose: 'bg-rose-50 text-rose-700',
+    orange: 'bg-orange-50 text-orange-700',
+    slate: 'bg-slate-100 text-slate-600',
+};
+
+const renderPaid = (item) => {
+    if ((Number(item.payableAmount) || 0) <= 0) return <Pill tone="slate">No Bill</Pill>;
+    if (!isReceived(item) || !item.paidAmount) return <Pill tone="rose">Not Paid</Pill>;
+    return (
+        <span className="font-bold text-sm">
+            <span className="text-emerald-600">৳{item.paidAmount}</span>
+            <span className="text-rose-600"> ({getDue(item)})</span>
+        </span>
+    );
+};
 
 const Purchase = () => {
     const [purchases, setPurchases] = useState([]);
     const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const navigate = useNavigate();
     const location = useLocation();
     const pAll = useCan('purchase_all');
     const pAdd = useCan('purchase_add');
     const pRet = useCan('purchase_return');
+
+    const showToast = (message, type = 'success') => (type === 'error' ? toast.error(message) : toast.success(message));
     const denyMsg = (what) => showToast(`আপনার ${what} করার অনুমতি নেই!`, 'error');
 
-    // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    // Separate Filter States
     const [filters, setFilters] = useState({
         startDate: '',
         endDate: '',
@@ -29,29 +107,12 @@ const Purchase = () => {
         invoiceNo: '',
         status: '',
         dueStatus: '',
-        companyContact: ''
+        companyContact: '',
     });
 
-    // Refs for triggering date pickers
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
-
-    // Company searchable-select state
-    const [isCompanyOpen, setIsCompanyOpen] = useState(false);
-    const companyDropdownRef = useRef(null);
-
-    // Action Dropdown state (কোন রো এর ড্রপডাউন ওপেন আছে তা ট্র্যাক করার জন্য)
-    const [openDropdownId, setOpenDropdownId] = useState(null);
-    // Received purchase er Edit submenu (Purchase Edit / Receive Edit)
-    const [editMenuId, setEditMenuId] = useState(null);
-
-    // Checkbox selection state
     const [selectedIds, setSelectedIds] = useState([]);
-
-    // Summary Bar collapse state (default: collapsed)
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
-    // Multi Return feature (default OFF)
     const [multiReturnEnabled, setMultiReturnEnabled] = useState(false);
     useEffect(() => {
         fetch('http://localhost:5000/feature')
@@ -60,43 +121,21 @@ const Purchase = () => {
             .catch(() => setMultiReturnEnabled(false));
     }, [location.pathname]);
 
-    // Extra filter (multi select) - default: sob select kora
-    const EXTRA_OPTIONS = ['Free', 'Others Free', 'Purchase Return', 'Bulk Return', 'Damage', 'Previous Pay', 'Previous Get'];
     const [extraFilter, setExtraFilter] = useState([...EXTRA_OPTIONS]);
     const [isExtraOpen, setIsExtraOpen] = useState(false);
-    const extraDropdownRef = useRef(null);
-
+    const extraRef = useRef(null);
     useEffect(() => {
-        const handleClickOutsideExtra = (event) => {
-            if (extraDropdownRef.current && !extraDropdownRef.current.contains(event.target)) {
-                setIsExtraOpen(false);
-            }
+        const h = (e) => {
+            if (extraRef.current && !extraRef.current.contains(e.target)) setIsExtraOpen(false);
         };
-        document.addEventListener('mousedown', handleClickOutsideExtra);
-        return () => document.removeEventListener('mousedown', handleClickOutsideExtra);
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
     }, []);
 
-    // Select dropdown er baire click korle dropdown close hobe
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.action-dropdown-container')) {
-                setOpenDropdownId(null);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    // Fetch Purchases Data
     const fetchPurchases = async () => {
         try {
             const response = await fetch('http://localhost:5000/purchase');
             const data = await response.json();
-            // নতুন add হওয়া purchase সবার উপরে দেখাবে
             setPurchases([...data].reverse());
         } catch (error) {
             console.error('Error fetching purchases:', error);
@@ -106,7 +145,6 @@ const Purchase = () => {
         }
     };
 
-    // Fetch Companies data for filter dropdown
     const fetchCompanies = async () => {
         try {
             const res = await fetch('http://localhost:5000/company');
@@ -117,7 +155,6 @@ const Purchase = () => {
         }
     };
 
-    // Je purchase er product bikri hoyeche tar id set
     const [soldPurchaseIds, setSoldPurchaseIds] = useState(new Set());
     useEffect(() => {
         const loadSold = async () => {
@@ -132,9 +169,7 @@ const Purchase = () => {
                     safeJson('http://localhost:5000/sales-bulk-return'),
                     safeJson('http://localhost:5000/stock-adjustment'),
                 ]);
-                const batchToPurchase = new Map(
-                    stock.map((b) => [String(b._id), String(b.purchaseId)])
-                );
+                const batchToPurchase = new Map(stock.map((b) => [String(b._id), String(b.purchaseId)]));
                 const ids = new Set();
                 const mark = (list) =>
                     list.forEach((r) => {
@@ -143,15 +178,10 @@ const Purchase = () => {
                             if (pid && (Number(a.qty) || 0) > 0) ids.add(pid);
                         });
                     });
-                // Sales (return hoye gele o qty change hoyeche, tai qty > 0 holei lock)
                 mark(sales);
-                // Purchase bulk return
                 mark(bulks);
-                // Customer (sales) bulk return
                 mark(salesBulks);
-                // Damage
                 mark(damages);
-                // Stock adjustment (In / Out)
                 mark(adjustments);
                 setSoldPurchaseIds(ids);
             } catch (error) {
@@ -168,163 +198,69 @@ const Purchase = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname]);
 
-    // Close Company dropdown on outside click
-    useEffect(() => {
-        const handleClickOutsideCompany = (event) => {
-            if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target)) {
-                setIsCompanyOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutsideCompany);
-        return () => document.removeEventListener('mousedown', handleClickOutsideCompany);
-    }, []);
+    const companyOptions = companies
+        .filter((comp) => {
+            const s = filters.company.toLowerCase();
+            return comp.businessName?.toLowerCase().includes(s) || comp.contactNumber?.toLowerCase().includes(s);
+        })
+        .map((c) => ({ key: c._id, title: c.businessName, sub: c.contactNumber ? `📞 ${c.contactNumber}` : '', raw: c }));
 
-    // Filter companies based on search typing
-    const filteredCompanies = companies.filter((comp) => {
-        const s = filters.company.toLowerCase();
-        return (
-            comp.businessName?.toLowerCase().includes(s) ||
-            comp.contactNumber?.toLowerCase().includes(s)
-        );
-    });
-
-    const handleSelectCompany = (comp) => {
-        setFilters({ ...filters, company: comp.businessName, companyContact: comp.contactNumber || '' });
-        setCurrentPage(1);
-        setIsCompanyOpen(false);
-    };
-
-    const handleClearCompany = (e) => {
-        e.stopPropagation();
-        setFilters({ ...filters, company: '', companyContact: '' });
-        setCurrentPage(1);
-        setIsCompanyOpen(false);
-    };
-
-    // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
-    const displayFormattedDate = (dateString) => {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        if (!year || !month || !day) return dateString;
-
-        const dateObj = new Date(year, month - 1, day);
-        const options = { day: '2-digit', month: 'short', year: 'numeric' };
-        return dateObj.toLocaleDateString('en-GB', options);
-    };
-
-    // Helper function to parse any date string into a timezone-safe LOCAL date (time stripped)
-    // Handles: DD/MM/YYYY (with optional ", time" suffix), YYYY-MM-DD (from <input type="date">), and ISO strings
-    const parseToLocalDate = (dateStr) => {
-        if (!dateStr) return null;
-        const datePart = dateStr.split(',')[0].trim();
-
-        if (datePart.includes('/')) {
-            const [d, m, y] = datePart.split('/');
-            if (!d || !m || !y) return null;
-            return new Date(Number(y), Number(m) - 1, Number(d));
-        }
-
-        if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
-            const [y, m, d] = datePart.split('-');
-            return new Date(Number(y), Number(m) - 1, Number(d));
-        }
-
-        const parsed = new Date(datePart);
-        return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
-    };
-
-    // Handle Filter input change
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
-        setCurrentPage(1); // Reset to first page on filter change
+        setCurrentPage(1);
     };
 
-    // Clear all filters
     const handleClearFilters = () => {
-        setFilters({
-            startDate: '',
-            endDate: '',
-            company: '',
-            invoiceNo: '',
-            status: '',
-            dueStatus: '',
-            companyContact: ''
-        });
+        setFilters({ startDate: '', endDate: '', company: '', invoiceNo: '', status: '', dueStatus: '', companyContact: '' });
         setExtraFilter([...EXTRA_OPTIONS]);
         setIsExtraOpen(false);
         setCurrentPage(1);
     };
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => {
-            setToast({ show: false, message: '', type: '' });
-        }, 3500);
+
+    const handleToggleExtra = (opt) => {
+        setExtraFilter((prev) => (prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]));
+        setCurrentPage(1);
     };
 
-    // Edit Purchase Handler -> navigate to /add-purchase with data
     const handleEdit = (item) => {
-        if (!pAll.canEdit) { setOpenDropdownId(null); return denyMsg('Edit'); }
-        setOpenDropdownId(null);
+        if (!pAll.canEdit) return denyMsg('Edit');
         navigate('/add-purchase', { state: { purchase: item } });
     };
-
-    // Purchase Edit (original order edit) -> save er por shorashori Receive page e jabe
     const handleEditOrder = (item) => {
-        if (!pAll.canEdit) { setOpenDropdownId(null); setEditMenuId(null); return denyMsg('Edit'); }
-        setOpenDropdownId(null);
-        setEditMenuId(null);
+        if (!pAll.canEdit) return denyMsg('Edit');
         navigate('/add-purchase', { state: { purchase: item, mode: 'orderEdit' } });
     };
-
-    // Receive Edit (received qty edit)
     const handleEditReceived = (item) => {
-        if (!pAll.canEdit) { setOpenDropdownId(null); setEditMenuId(null); return denyMsg('Edit'); }
-        setOpenDropdownId(null);
-        setEditMenuId(null);
+        if (!pAll.canEdit) return denyMsg('Edit');
         navigate('/add-purchase', { state: { purchase: item } });
     };
-
-    // View Details Handler -> navigate to /purchase-details/:id
-    const handleViewDetails = (id) => {
-        setOpenDropdownId(null);
-        navigate(`/purchase-details/${id}`);
-    };
-
+    const handleViewDetails = (id) => navigate(`/purchase-details/${id}`);
     const handleReturn = (id) => {
-        if (!pRet.canAdd) { setOpenDropdownId(null); return denyMsg('Return'); }
-        setOpenDropdownId(null);
+        if (!pRet.canAdd) return denyMsg('Return');
         navigate(`/purchase-return-details/${id}`);
     };
-
-    // Receive Handler -> Edit mode এর মতোই /add-purchase এ যাবে, কিন্তু Receive mode এ (Payment section সহ)
     const handleReceive = (item) => {
-        if (!pAll.canEdit) { setOpenDropdownId(null); return denyMsg('Edit'); }
-        setOpenDropdownId(null);
+        if (!pAll.canEdit) return denyMsg('Edit');
         navigate('/add-purchase', { state: { purchase: item, mode: 'receive' } });
     };
 
-    // Delete Purchase Handler with SweetAlert2
     const handleDelete = async (id) => {
-        if (!pAll.canDelete) { setOpenDropdownId(null); return denyMsg('Delete'); }
-        setOpenDropdownId(null);
+        if (!pAll.canDelete) return denyMsg('Delete');
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#4f46e5',
-            cancelButtonColor: '#f43f5e',
-            confirmButtonText: 'Yes, delete it!'
+            confirmButtonColor: '#4a58e6',
+            cancelButtonColor: '#e11d48',
+            confirmButtonText: 'Yes, delete it!',
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`http://localhost:5000/purchase/${id}`, {
-                        method: 'DELETE',
-                    });
-
+                    const response = await fetch(`http://localhost:5000/purchase/${id}`, { method: 'DELETE' });
                     if (response.ok) {
                         showToast('Purchase deleted successfully!', 'success');
-                        setPurchases(prev => prev.filter(item => item._id !== id));
+                        setPurchases((prev) => prev.filter((item) => item._id !== id));
                     } else {
                         showToast('Failed to delete purchase!', 'error');
                     }
@@ -336,139 +272,69 @@ const Purchase = () => {
         });
     };
 
-    const isReceived = (item) => item.receiveStatus === 'Received' || item.receiveStatus === 'Yes';
-
-    // Kono product return hoyeche kina
-    const hasReturned = (item) =>
-        (item.returnHistory || []).some(
-            (r) =>
-                (Number(r.totalReturnPcs) || 0) > 0 ||
-                (Number(r.totalReturnFreeQty) || 0) > 0 ||
-                (Number(r.totalReturnFreeItemsQty) || 0) > 0
-        );
-
-    // PurchaseAdd theke Bulk Return (returnItems) deya ase kina
-    const hasBulkReturn = (item) => (item.returnItems || []).length > 0;
-
-    // Damage product deya ase kina
-    const hasDamage = (item) => (item.damageItems || []).length > 0;
-
-    // Previous Pay (Due) / Previous Get adjustment kora ase kina
-    const hasPrevPay = (item) => Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Due';
-    const hasPrevGet = (item) => Number(item.previousBalanceAmount) > 0 && item.previousBalanceType === 'Get';
-
-    // Main product e free ase kina
-    const hasFree = (item) =>
-        (item.items || []).some((p) => (Number(p.freeTotalQty ?? p.freeQty) || 0) > 0);
-
-    const getItemExtras = (item) => {
-        const list = [];
-        if (hasFree(item)) list.push('Free');
-        if ((item.freeItems || []).length > 0) list.push('Others Free');
-        if (hasReturned(item)) list.push('Purchase Return');
-        if (hasBulkReturn(item)) list.push('Bulk Return');
-        if (hasDamage(item)) list.push('Damage');
-        if (hasPrevPay(item)) list.push('Previous Pay');
-        if (hasPrevGet(item)) list.push('Previous Get');
-        return list;
+    const menuItems = (item) => {
+        const rec = isReceived(item);
+        const editable = !soldPurchaseIds.has(String(item._id)) && (item.returnHistory || []).length === 0;
+        return [
+            { label: 'View Details', onClick: () => handleViewDetails(item._id) },
+            {
+                label: 'Return',
+                tone: 'warn',
+                hidden: !(rec && (multiReturnEnabled || (item.returnHistory || []).length === 0)),
+                onClick: () => handleReturn(item._id),
+            },
+            { label: 'Receive', tone: 'success', hidden: rec, onClick: () => handleReceive(item) },
+            { label: 'Edit', tone: 'brand', hidden: !(editable && !rec), onClick: () => handleEdit(item) },
+            { label: 'Purchase Edit', tone: 'brand', hidden: !(editable && rec), onClick: () => handleEditOrder(item) },
+            { label: 'Receive Edit', tone: 'success', hidden: !(editable && rec), onClick: () => handleEditReceived(item) },
+            { label: 'Delete', tone: 'danger', onClick: () => handleDelete(item._id) },
+        ];
     };
 
-    const handleToggleExtra = (opt) => {
-        setExtraFilter((prev) =>
-            prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]
-        );
-        setCurrentPage(1);
-    };
-
-    // Advanced Multi-field & Date Range Filtering Logic
     const filteredPurchases = purchases.filter((item) => {
-        // Date Range Filter (purchaseDate)
         if (filters.startDate || filters.endDate) {
             const purchaseDateObj = parseToLocalDate(item.purchaseDate);
             if (!purchaseDateObj) return false;
-
             if (filters.startDate) {
-                const startDateObj = parseToLocalDate(filters.startDate);
-                if (startDateObj && purchaseDateObj < startDateObj) return false;
+                const s = parseToLocalDate(filters.startDate);
+                if (s && purchaseDateObj < s) return false;
             }
-
             if (filters.endDate) {
-                const endDateObj = parseToLocalDate(filters.endDate);
-                if (endDateObj && purchaseDateObj > endDateObj) return false;
+                const e = parseToLocalDate(filters.endDate);
+                if (e && purchaseDateObj > e) return false;
             }
         }
-
-        // Company Filter
-        if (filters.company && !item.company?.toLowerCase().includes(filters.company.toLowerCase())) {
-            return false;
-        }
-        if (filters.companyContact && item.companyContact && item.companyContact !== filters.companyContact) {
-            return false;
-        }
-        // Invoice No Filter
-        if (filters.invoiceNo && !item.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) {
-            return false;
-        }
-        // Receive Status Filter
-        if (filters.status === 'Received' && !(item.receiveStatus === 'Received' || item.receiveStatus === 'Yes')) {
-            return false;
-        }
-        if (filters.status === 'No' && (item.receiveStatus === 'Received' || item.receiveStatus === 'Yes')) {
-            return false;
-        }
-        // Due Status Filter (wholesale er moto: Received hole tobei due/paid gonona hobe)
-        const dueAmt = Math.max((Number(item.payableAmount) || 0) - (Number(item.paidAmount) || 0), 0);
-        const receivedNow = item.receiveStatus === 'Received' || item.receiveStatus === 'Yes';
-        if (filters.dueStatus === 'Due' && (!receivedNow || dueAmt <= 0)) {
-            return false;
-        }
-        if (filters.dueStatus === 'NoDue' && (!receivedNow || !item.paidAmount || dueAmt > 0)) {
-            return false;
-        }
-
-        // Extra filter: sob select thakle filter apply hobe na, kichu select thakle matching extra thaka purchase dekhabe
+        if (filters.company && !item.company?.toLowerCase().includes(filters.company.toLowerCase())) return false;
+        if (filters.companyContact && item.companyContact && item.companyContact !== filters.companyContact) return false;
+        if (filters.invoiceNo && !item.invoiceNo?.toLowerCase().includes(filters.invoiceNo.toLowerCase())) return false;
+        if (filters.status === 'Received' && !isReceived(item)) return false;
+        if (filters.status === 'No' && isReceived(item)) return false;
+        const dueAmt = getDue(item);
+        const receivedNow = isReceived(item);
+        if (filters.dueStatus === 'Due' && (!receivedNow || dueAmt <= 0)) return false;
+        if (filters.dueStatus === 'NoDue' && (!receivedNow || !item.paidAmount || dueAmt > 0)) return false;
         if (extraFilter.length !== EXTRA_OPTIONS.length) {
             if (extraFilter.length === 0) return false;
             const itemExtras = getItemExtras(item);
             if (!extraFilter.some((opt) => itemExtras.includes(opt))) return false;
         }
-
         return true;
     });
 
-    // Pagination Calculations
     const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentPurchases = filteredPurchases.slice(indexOfFirstItem, indexOfLastItem);
 
-    // Due Amount helper
-    const getDue = (item) =>
-        Math.max((Number(item.payableAmount) || 0) - (Number(item.paidAmount) || 0), 0);
-
-
-
-    // Checkbox handlers (Select All = বর্তমান পেজের সব row)
-    const isAllSelected =
-        currentPurchases.length > 0 &&
-        currentPurchases.every((i) => selectedIds.includes(i._id));
-
+    const isAllSelected = currentPurchases.length > 0 && currentPurchases.every((i) => selectedIds.includes(i._id));
     const handleSelectAll = () => {
         const ids = currentPurchases.map((i) => i._id);
-        if (isAllSelected) {
-            setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
-        } else {
-            setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
-        }
+        if (isAllSelected) setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+        else setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
     };
+    const handleSelectRow = (id) =>
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-    const handleSelectRow = (id) => {
-        setSelectedIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        );
-    };
-
-    // Summary: checkbox select থাকলে selected row এর total, নাহলে filter করা সব row এর total
     const selectedRows = filteredPurchases.filter((i) => selectedIds.includes(i._id));
     const isSelectionMode = selectedRows.length > 0;
     const summaryRows = isSelectionMode ? selectedRows : filteredPurchases;
@@ -476,726 +342,349 @@ const Purchase = () => {
     const totalPayable = summaryRows.reduce((s, i) => s + (Number(i.payableAmount) || 0), 0);
     const totalPaid = summaryRows.reduce((s, i) => s + (Number(i.paidAmount) || 0), 0);
     const totalDue = summaryRows.reduce((s, i) => s + getDue(i), 0);
-
-    // Main product free qty
     const totalMainFreeQty = summaryRows.reduce(
         (s, i) => s + (i.items || []).reduce((ss, it) => ss + (Number(it.freeTotalQty ?? it.freeQty) || 0), 0),
         0
     );
-    // Main product total qty
     const totalMainQty = summaryRows.reduce(
         (s, i) => s + (i.items || []).reduce((ss, it) => ss + (Number(it.totalPcs ?? it.totalQty) || 0), 0),
         0
     );
-    // Others Free Product qty
     const totalOthersFreeQty = summaryRows.reduce(
         (s, i) => s + (i.freeItems || []).reduce((ss, it) => ss + (Number(it.totalQty) || 0), 0),
         0
     );
-
-    // ---- Returned (returnHistory theke) ----
     const sumRet = (rows, field) =>
-        rows.reduce(
-            (s, i) => s + (i.returnHistory || []).reduce((ss, r) => ss + (Number(r[field]) || 0), 0),
-            0
-        );
+        rows.reduce((s, i) => s + (i.returnHistory || []).reduce((ss, r) => ss + (Number(r[field]) || 0), 0), 0);
     const retMainQty = sumRet(summaryRows, 'totalReturnPcs');
     const retMainFree = sumRet(summaryRows, 'totalReturnFreeQty');
     const retMainAmount = sumRet(summaryRows, 'totalReturnAmount');
     const retOthersQty = sumRet(summaryRows, 'totalReturnFreeItemsQty');
 
-    const fmt = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
-
-    // Handle page change
-    const handlePageChange = (pageNumber) => {
-        if (pageNumber >= 1 && pageNumber <= totalPages) {
-            setCurrentPage(pageNumber);
-        }
+    const handlePageChange = (n) => {
+        if (n >= 1 && n <= totalPages) setCurrentPage(n);
     };
 
+    const activeCount =
+        ['startDate', 'endDate', 'company', 'invoiceNo', 'status', 'dueStatus'].filter((k) => filters[k]).length +
+        (extraFilter.length !== EXTRA_OPTIONS.length ? 1 : 0);
+
+    const Line = ({ label, value, cls = 'text-slate-800' }) => (
+        <div className="flex items-center justify-between gap-4 text-xs">
+            <span className="text-slate-500">{label}</span>
+            <b className={cls}>{value}</b>
+        </div>
+    );
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
-
-            {/* Top Right Toast Notification */}
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    <span>{toast.message}</span>
-                </div>
-            )}
-
-            <div className="max-w-[1600px] mx-auto space-y-6">
-
-                {/* Top Section: Title */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1600px] mx-auto space-y-4">
+                {/* Header */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                            Purchase Management
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">Manage and track all purchase orders and records</p>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Purchase Management</h1>
+                        <p className="text-sm text-slate-500 mt-0.5">Manage and track all purchase orders and records</p>
                     </div>
-
                     <button
+                        type="button"
                         onClick={() => (pAdd.canAdd ? navigate('/add-purchase') : denyMsg('Add'))}
-                        className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
+                        className="bg-brand-600 text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
                     >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2.2}
-                            stroke="currentColor"
-                            className="w-4 h-4"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        New Purchase
+                        <FaPlus size={12} /> New Purchase
                     </button>
                 </div>
 
-                {/* Table Card Section */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
-
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-gray-800">Purchase Directory</h3>
-                        <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                            Showing: {filteredPurchases.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredPurchases.length)}` : 0} of {filteredPurchases.length} ({purchases.length} total)
-                        </span>
+                {/* Filter */}
+                <FilterPanel activeCount={activeCount} onClear={handleClearFilters} cols="lg:grid-cols-4 xl:grid-cols-7">
+                    <div>
+                        <span className={labelCls}>Start Date</span>
+                        <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
                     </div>
-
-                    {/* Filter & Search Panel */}
-                    <div className="bg-white shadow-lg rounded-2xl p-5 border border-indigo-100">
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                            </h3>
-                            <button
-                                onClick={handleClearFilters}
-                                className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
-                            >
-                                <FaRedo size={11} /> Clear All Filters
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
-                            {/* Start Date */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={startDateRef}
-                                        type="date"
-                                        name="startDate"
-                                        value={filters.startDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select start date"
-                                        value={displayFormattedDate(filters.startDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* End Date */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={endDateRef}
-                                        type="date"
-                                        name="endDate"
-                                        value={filters.endDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select end date"
-                                        value={displayFormattedDate(filters.endDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Company Searchable Dropdown */}
-                            <div className="relative" ref={companyDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
-                                <div
-                                    onClick={() => setIsCompanyOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select company..."
-                                        value={filters.company}
-                                        onChange={(e) => {
-                                            setFilters({ ...filters, company: e.target.value, companyContact: '' });
-                                            setCurrentPage(1);
-                                            setIsCompanyOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.company && (
-                                        <button type="button" onClick={handleClearCompany} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isCompanyOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredCompanies.length > 0 ? (
-                                            filteredCompanies.map((comp) => (
-                                                <div
-                                                    key={comp._id}
-                                                    onClick={() => handleSelectCompany(comp)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
-                                                >
-                                                    <p className="text-xs font-semibold text-gray-800">{comp.businessName}</p>
-                                                    {comp.contactNumber && (
-                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {comp.contactNumber}</p>
-                                                    )}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Invoice Number Search */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
-                                <input
-                                    type="text"
-                                    name="invoiceNo"
-                                    placeholder="Search invoice..."
-                                    value={filters.invoiceNo}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                            </div>
-
-                            {/* Receive Status Dropdown */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Receive Status</label>
-                                <select
-                                    name="status"
-                                    value={filters.status}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="Received">Received</option>
-                                    <option value="No">Not Received</option>
-                                </select>
-                            </div>
-
-                            {/* Due Status Dropdown */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Due Status</label>
-                                <select
-                                    name="dueStatus"
-                                    value={filters.dueStatus}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="Due">Has Due</option>
-                                    <option value="NoDue">Fully Paid</option>
-                                </select>
-                            </div>
-
-                            {/* Extra Multi Select */}
-                            <div className="relative" ref={extraDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Extra</label>
-                                <div
-                                    onClick={() => setIsExtraOpen((prev) => !prev)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <span className="truncate">
-                                        {extraFilter.length === EXTRA_OPTIONS.length
-                                            ? 'All'
-                                            : extraFilter.length === 0
-                                                ? 'None'
-                                                : extraFilter.join(', ')}
-                                    </span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-3 h-3 shrink-0 transition-transform ${isExtraOpen ? 'rotate-180' : ''}`}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                    </svg>
-                                </div>
-
-                                {isExtraOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 py-1">
-                                        {EXTRA_OPTIONS.map((opt) => (
-                                            <label
-                                                key={opt}
-                                                className="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer text-xs font-medium text-gray-700"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={extraFilter.includes(opt)}
-                                                    onChange={() => handleToggleExtra(opt)}
-                                                    className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
-                                                />
-                                                {opt}
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    <div>
+                        <span className={labelCls}>End Date</span>
+                        <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
                     </div>
-
-                    {/* Summary Bar */}
-                    <div className="flex flex-wrap items-start gap-x-6 gap-y-3 text-xs bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-3">
-                        {/* Showing / Rows */}
-                        <div className="flex flex-col items-start gap-1.5">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold ${isSelectionMode ? 'bg-pink-100 text-pink-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                                {isSelectionMode ? 'Selected' : 'Showing'}
-                                <button
-                                    type="button"
-                                    onClick={() => setIsSummaryOpen((prev) => !prev)}
-                                    title={isSummaryOpen ? 'Hide Details' : 'Show Details'}
-                                    className="flex items-center justify-center w-4 h-4 rounded-full bg-white/70 hover:bg-white transition cursor-pointer"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-2.5 h-2.5 transition-transform duration-200 ${isSummaryOpen ? 'rotate-180' : ''}`}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                    </svg>
-                                </button>
+                    <ComboField
+                        label="Company"
+                        value={filters.company}
+                        placeholder="Search company..."
+                        options={companyOptions}
+                        onType={(v) => {
+                            setFilters({ ...filters, company: v, companyContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onClear={() => {
+                            setFilters({ ...filters, company: '', companyContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onPick={(o) => {
+                            setFilters({ ...filters, company: o.raw.businessName, companyContact: o.raw.contactNumber || '' });
+                            setCurrentPage(1);
+                        }}
+                    />
+                    <div>
+                        <label className={labelCls}>Invoice Number</label>
+                        <input type="text" name="invoiceNo" placeholder="Search invoice..." value={filters.invoiceNo} onChange={handleFilterChange} className={inputCls} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>Receive Status</label>
+                        <select name="status" value={filters.status} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                            <option value="">All</option>
+                            <option value="Received">Received</option>
+                            <option value="No">Not Received</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className={labelCls}>Due Status</label>
+                        <select name="dueStatus" value={filters.dueStatus} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                            <option value="">All</option>
+                            <option value="Due">Has Due</option>
+                            <option value="NoDue">Fully Paid</option>
+                        </select>
+                    </div>
+                    <div className="relative" ref={extraRef}>
+                        <span className={labelCls}>Extra</span>
+                        <button
+                            type="button"
+                            onClick={() => setIsExtraOpen((p) => !p)}
+                            className={`${inputCls} flex items-center justify-between gap-2 text-left cursor-pointer`}
+                        >
+                            <span className="truncate">
+                                {extraFilter.length === EXTRA_OPTIONS.length ? 'All' : extraFilter.length === 0 ? 'None' : extraFilter.join(', ')}
                             </span>
-                            <span className="font-semibold text-gray-600">
-                                Rows: <b className="text-gray-800">{summaryRows.length}</b>
-                            </span>
-                        </div>
-
-                        {isSummaryOpen && (
-                            <>
-                                <div className="w-px self-stretch bg-indigo-200" />
-
-                                {/* ============ 1. MAIN PRODUCT ============ */}
-                                <div className="rounded-xl border border-indigo-200 bg-white overflow-hidden shadow-sm">
-                                    <div className="bg-indigo-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Main Product</div>
-                                    <div className="flex">
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[130px]">
-                                            <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Total Qty: <b className="text-indigo-600">{fmt(totalMainQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Total Amount: <b className="text-indigo-600">৳{fmt(totalPayable)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Paid Amount: <b className="text-emerald-600">৳{fmt(totalPaid)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Due Amount: <b className="text-rose-600">৳{fmt(totalDue)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Free Qty: <b className="text-emerald-600">{fmt(totalMainFreeQty)}</b>
-                                            </span>
-                                        </div>
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[110px] bg-orange-50 border-l-2 border-dashed border-orange-300">
-                                            <span className="text-[9px] font-bold uppercase text-orange-500">↩ Returned</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-orange-600">{fmt(retMainQty)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Free Qty: <b className="text-emerald-600">{fmt(retMainFree)}</b>
-                                            </span>
-                                            <span className="font-semibold text-gray-600">
-                                                Amount: <b className="text-orange-600">৳{fmt(retMainAmount)}</b>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* ============ 2. OTHERS FREE ============ */}
-                                <div className="rounded-xl border border-amber-200 bg-white overflow-hidden shadow-sm">
-                                    <div className="bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1">Others Free</div>
-                                    <div className="flex">
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[90px]">
-                                            <span className="text-[9px] font-bold uppercase text-slate-400">Order</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-amber-600">{fmt(totalOthersFreeQty)}</b>
-                                            </span>
-                                        </div>
-                                        <div className="px-3 py-2 flex flex-col gap-1 min-w-[90px] bg-orange-50 border-l-2 border-dashed border-orange-300">
-                                            <span className="text-[9px] font-bold uppercase text-orange-500">↩ Returned</span>
-                                            <span className="font-semibold text-gray-600">
-                                                Qty: <b className="text-orange-600">{fmt(retOthersQty)}</b>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                        {isSelectionMode && (
-                            <button
-                                onClick={() => setSelectedIds([])}
-                                className="ml-auto text-[11px] bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 text-gray-600 px-2.5 py-1 rounded-lg font-semibold cursor-pointer"
-                            >
-                                Clear Selection
-                            </button>
+                            <FaChevronDown size={10} className={`shrink-0 transition-transform ${isExtraOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isExtraOpen && (
+                            <div className="absolute z-40 left-0 right-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-lg py-1">
+                                {EXTRA_OPTIONS.map((opt) => (
+                                    <label key={opt} className="flex items-center gap-2.5 px-3 h-10 hover:bg-brand-50 cursor-pointer text-sm font-medium text-slate-700">
+                                        <input type="checkbox" checked={extraFilter.includes(opt)} onChange={() => handleToggleExtra(opt)} className="w-4 h-4 accent-brand-600 cursor-pointer" />
+                                        {opt}
+                                    </label>
+                                ))}
+                            </div>
                         )}
                     </div>
+                </FilterPanel>
 
-                    {/* Table Container */}
-                    {loading ? (
-                        <div className="text-center py-20 text-gray-500 font-medium">Loading purchases...</div>
-                    ) : filteredPurchases.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400 font-medium">No purchases found!</div>
-                    ) : (
-                        <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full text-left border-collapse [&_th]:px-1.5 [&_th]:py-2.5 [&_th]:text-[10px] [&_th]:whitespace-normal [&_td]:px-1.5 [&_td]:py-2.5 [&_td]:text-[11px] [&_td]:whitespace-normal [&_td_span]:text-[9px]">
-                                <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[10px] uppercase tracking-wide whitespace-nowrap">
-                                        <th className="w-8 text-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={isAllSelected}
-                                                onChange={handleSelectAll}
-                                                className="w-4 h-4 accent-pink-500 cursor-pointer"
-                                            />
-                                        </th>
-                                        <th className="py-3 px-2.5">Date</th>
-                                        <th className="py-3 px-2.5">Company Name</th>
-                                        <th className="py-3 px-2.5">Invoice No</th>
-                                        <th className="py-3 px-2.5">Total Amount</th>
-                                        <th className="py-3 px-2.5">Paid (Due)</th>
-                                        <th className="py-3 px-2.5">Extra</th>
-                                        <th className="py-3 px-2.5">Receive Status</th>
-                                        <th className="py-3 px-2.5 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                                    {currentPurchases.map((item, index) => (
-                                        <tr key={item._id || index} className={`transition duration-150 ${selectedIds.includes(item._id) ? 'bg-pink-50/70' : 'hover:bg-indigo-50/40'}`}>
-                                            <td className="text-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedIds.includes(item._id)}
-                                                    onChange={() => handleSelectRow(item._id)}
-                                                    className="w-4 h-4 accent-pink-500 cursor-pointer"
-                                                />
-                                            </td>
-                                            <td className="py-3 px-2.5 text-gray-600 whitespace-nowrap">
-                                                <div className="font-medium">Purchase : {item.purchaseDate || 'N/A'}</div>
-                                                <div className="mt-0.5">
-                                                    {item.receiveDate ? (
-                                                        <span>Received: {item.receiveDate}</span>
-                                                    ) : (
-                                                        <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
-                                                            Not Received
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="py-3 px-2.5 font-bold text-gray-800 whitespace-nowrap">{item.company}</td>
-                                            <td className="py-3 px-2.5 text-gray-600 font-medium whitespace-nowrap">{item.invoiceNo}</td>
-                                            <td className="py-3 px-2.5 font-bold text-indigo-600 whitespace-nowrap">৳{item.payableAmount}</td>
-                                            <td className="py-3 px-2.5 whitespace-nowrap">
-                                                {(Number(item.payableAmount) || 0) <= 0 ? (
-                                                    <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-semibold text-[10px] whitespace-nowrap">
-                                                        No Bill
-                                                    </span>
-                                                ) : !isReceived(item) || !item.paidAmount ? (
-                                                    <span className="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold text-[10px] whitespace-nowrap">
-                                                        Not Paid
-                                                    </span>
-                                                ) : (
-                                                    <div className="font-bold">
-                                                        <b className="text-emerald-600">৳{item.paidAmount}</b>
-                                                        <b className="text-rose-600">({getDue(item)})</b>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="py-3 px-2.5 whitespace-nowrap">
-                                                {(() => {
-                                                    const extras = [];
-                                                    if ((item.freeItems || []).length > 0) extras.push({ label: 'Others Free', color: 'text-amber-600' });
-                                                    if (hasReturned(item)) extras.push({ label: 'Purchase Return', color: 'text-violet-600' });
-                                                    if (hasBulkReturn(item)) extras.push({ label: 'Bulk Return', color: 'text-fuchsia-600' });
-                                                    if (hasDamage(item)) extras.push({ label: 'Damage', color: 'text-red-600' });
-                                                    if (hasPrevPay(item)) extras.push({ label: 'Previous Pay', color: 'text-rose-600' });
-                                                    if (hasPrevGet(item)) extras.push({ label: 'Previous Get', color: 'text-sky-600' });
-                                                    if (hasFree(item)) extras.push({ label: 'Free - Has', color: 'text-emerald-600' });
-                                                    if (extras.length === 0) return <div className="text-[9px] text-gray-300">N/A</div>;
-                                                    return (
-                                                        <div className="flex flex-col leading-tight">
-                                                            {extras.map((ex) => (
-                                                                <div key={ex.label} className={`text-[9px] font-bold ${ex.color}`}>{ex.label}</div>
-                                                            ))}
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </td>
-                                            <td className="py-3 px-2.5">
-                                                <span className={`inline-block px-2 py-0.5 rounded-full font-semibold text-[10px] whitespace-nowrap ${item.receiveStatus === 'Received' || item.receiveStatus === 'Yes' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                    {item.receiveStatus || 'No'}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-2.5 text-center relative">
-                                                <div className="relative inline-block action-dropdown-container">
-
-                                                    <button
-                                                        onClick={() =>
-                                                            setOpenDropdownId(
-                                                                openDropdownId === item._id
-                                                                    ? null
-                                                                    : item._id
-                                                            )
-                                                        }
-                                                        className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-[11px] flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
-                                                    >
-                                                        <span>Select</span>
-
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={2}
-                                                            stroke="currentColor"
-                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === item._id
-                                                                ? 'rotate-180'
-                                                                : ''
-                                                                }`}
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-                                                            />
-                                                        </svg>
-                                                    </button>
-
-                                                    {openDropdownId === item._id && (
-                                                        <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150">
-
-                                                            <button
-                                                                onClick={() => handleViewDetails(item._id)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <svg
-                                                                    xmlns="http://www.w3.org/2000/svg"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    strokeWidth={1.8}
-                                                                    stroke="currentColor"
-                                                                    className="w-3.5 h-3.5 text-slate-500"
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                                                                    />
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                                                    />
-                                                                </svg>
-                                                                View Details
-                                                            </button>
-
-                                                            {(item.receiveStatus === 'Received' || item.receiveStatus === 'Yes') &&
-                                                                (multiReturnEnabled || (item.returnHistory || []).length === 0) && (
-                                                                    <button
-                                                                        onClick={() => handleReturn(item._id)}
-                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                    >
-                                                                        <svg
-                                                                            xmlns="http://www.w3.org/2000/svg"
-                                                                            fill="none"
-                                                                            viewBox="0 0 24 24"
-                                                                            strokeWidth={1.8}
-                                                                            stroke="currentColor"
-                                                                            className="w-3.5 h-3.5 text-orange-500"
-                                                                        >
-                                                                            <path
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                                d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"
-                                                                            />
-                                                                        </svg>
-                                                                        Return
-                                                                    </button>
-                                                                )}
-
-                                                            {!isReceived(item) && (
-                                                                <button
-                                                                    onClick={() => handleReceive(item)}
-                                                                    className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                >
-                                                                    <svg
-                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                        fill="none"
-                                                                        viewBox="0 0 24 24"
-                                                                        strokeWidth={1.8}
-                                                                        stroke="currentColor"
-                                                                        className="w-3.5 h-3.5 text-emerald-500"
-                                                                    >
-                                                                        <path
-                                                                            strokeLinecap="round"
-                                                                            strokeLinejoin="round"
-                                                                            d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z"
-                                                                        />
-                                                                    </svg>
-                                                                    Receive
-                                                                </button>
-                                                            )}
-
-                                                            {!soldPurchaseIds.has(String(item._id)) && (item.returnHistory || []).length === 0 && (
-                                                                <button
-                                                                    onClick={() =>
-                                                                        isReceived(item)
-                                                                            ? setEditMenuId(editMenuId === item._id ? null : item._id)
-                                                                            : handleEdit(item)
-                                                                    }
-                                                                    className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                >
-                                                                    <svg
-                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                        fill="none"
-                                                                        viewBox="0 0 24 24"
-                                                                        strokeWidth={1.8}
-                                                                        stroke="currentColor"
-                                                                        className="w-3.5 h-3.5 text-indigo-500"
-                                                                    >
-                                                                        <path
-                                                                            strokeLinecap="round"
-                                                                            strokeLinejoin="round"
-                                                                            d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
-                                                                        />
-                                                                    </svg>
-                                                                    Edit
-                                                                </button>
-                                                            )}
-                                                            {isReceived(item) && editMenuId === item._id && !soldPurchaseIds.has(String(item._id)) && (item.returnHistory || []).length === 0 && (
-                                                                <div className="mx-3 mb-1 rounded-xl border border-indigo-100 bg-indigo-50/60 overflow-hidden">
-                                                                    <button
-                                                                        onClick={() => handleEditOrder(item)}
-                                                                        className="w-full px-3 py-2 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 text-left cursor-pointer"
-                                                                    >
-                                                                        Purchase Edit
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleEditReceived(item)}
-                                                                        className="w-full px-3 py-2 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 text-left border-t border-indigo-100 cursor-pointer"
-                                                                    >
-                                                                        Receive Edit
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                            <button
-                                                                onClick={() => handleDelete(item._id)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <svg
-                                                                    xmlns="http://www.w3.org/2000/svg"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    strokeWidth={1.8}
-                                                                    stroke="currentColor"
-                                                                    className="w-3.5 h-3.5 text-rose-500"
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                                                                    />
-                                                                </svg>
-
-                                                                Delete
-                                                            </button>
-
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Pagination Footer */}
-                    {!loading && filteredPurchases.length > 0 && (
-                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                {/* Summary */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <Pill tone={isSelectionMode ? 'rose' : 'brand'}>{isSelectionMode ? 'Selected' : 'Showing'}</Pill>
+                            <span className="text-sm text-slate-600">
+                                Rows: <b className="text-slate-800">{summaryRows.length}</b>
                             </span>
-
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {isSelectionMode && (
+                                <button type="button" onClick={() => setSelectedIds([])} className="h-9 px-3 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-600 cursor-pointer">
+                                    Clear Selection
                                 </button>
+                            )}
+                            <button type="button" onClick={() => setIsSummaryOpen((p) => !p)} className="h-9 px-3 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer">
+                                {isSummaryOpen ? 'Hide Details' : 'Show Details'}
+                                <FaChevronDown size={10} className={`transition-transform ${isSummaryOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                        </div>
+                    </div>
 
-                                <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                        }`}
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        } else if (
-                                            pageNum === currentPage - 2 ||
-                                            pageNum === currentPage + 2
-                                        ) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                        }
-                                        return null;
-                                    })}
+                    {isSummaryOpen && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
+                            <div className="rounded-xl border border-slate-200 overflow-hidden">
+                                <div className="px-3 py-1.5 bg-brand-50 text-brand-700 text-[11px] font-bold uppercase tracking-wide">Main Product</div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2">
+                                    <div className="p-3 space-y-1.5">
+                                        <Line label="Total Qty" value={fmt(totalMainQty)} cls="text-brand-700" />
+                                        <Line label="Total Amount" value={`৳${fmt(totalPayable)}`} cls="text-brand-700" />
+                                        <Line label="Paid Amount" value={`৳${fmt(totalPaid)}`} cls="text-emerald-600" />
+                                        <Line label="Due Amount" value={`৳${fmt(totalDue)}`} cls="text-rose-600" />
+                                        <Line label="Free Qty" value={fmt(totalMainFreeQty)} cls="text-emerald-600" />
+                                    </div>
+                                    <div className="p-3 space-y-1.5 bg-orange-50/60 border-t sm:border-t-0 sm:border-l border-dashed border-orange-200">
+                                        <p className="text-[10px] font-bold uppercase text-orange-600">↩ Returned</p>
+                                        <Line label="Qty" value={fmt(retMainQty)} cls="text-orange-600" />
+                                        <Line label="Free Qty" value={fmt(retMainFree)} cls="text-emerald-600" />
+                                        <Line label="Amount" value={`৳${fmt(retMainAmount)}`} cls="text-orange-600" />
+                                    </div>
                                 </div>
-
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 overflow-hidden">
+                                <div className="px-3 py-1.5 bg-amber-50 text-amber-700 text-[11px] font-bold uppercase tracking-wide">Others Free</div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2">
+                                    <div className="p-3 space-y-1.5">
+                                        <Line label="Order Qty" value={fmt(totalOthersFreeQty)} cls="text-amber-600" />
+                                    </div>
+                                    <div className="p-3 space-y-1.5 bg-orange-50/60 border-t sm:border-t-0 sm:border-l border-dashed border-orange-200">
+                                        <p className="text-[10px] font-bold uppercase text-orange-600">↩ Returned</p>
+                                        <Line label="Qty" value={fmt(retOthersQty)} cls="text-orange-600" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
+
+                {/* List */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-1.5 sm:p-4 space-y-2 sm:space-y-3">
+                    {loading ? (
+                        <ListSkeleton />
+                    ) : filteredPurchases.length === 0 ? (
+                        <Empty text="No purchases found!" />
+                    ) : (
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden space-y-1.5">
+                                {currentPurchases.map((item, index) => {
+                                    const sel = selectedIds.includes(item._id);
+                                    const tags = extraTags(item);
+                                    const rec = isReceived(item);
+                                    return (
+                                        <div
+                                            key={item._id || index}
+                                            className={`relative rounded-xl border pl-3 pr-2 py-2 shadow-sm ${sel ? 'border-brand-300 bg-brand-50/60' : 'border-slate-200 bg-white'}`}
+                                        >
+                                            <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${rec ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                            <div className="flex items-center gap-2 min-w-0 mb-1">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={sel}
+                                                    onChange={() => handleSelectRow(item._id)}
+                                                    aria-label="Select row"
+                                                    className="shrink-0 w-4 h-4 accent-brand-600 cursor-pointer"
+                                                />
+                                                <p className="shrink-0 max-w-[68%] font-bold text-[13px] text-brand-700 truncate leading-tight">{item.company}</p>
+                                                <span className="ml-auto min-w-[28px] truncate text-[10px] font-semibold text-slate-600 bg-slate-100 rounded-full px-1.5 py-px leading-tight">
+                                                    #{item.invoiceNo}
+                                                </span>
+                                                <RowMenu compact items={menuItems(item)} />
+                                            </div>
+                                            <div className="flex items-stretch gap-2">
+                                                {/* Left: info */}
+                                                <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <p className="text-[10.5px] text-slate-500 leading-snug truncate min-w-0">
+                                                            <span className="uppercase text-slate-400 font-bold">Purchase: </span>
+                                                            {item.purchaseDate || 'N/A'}
+                                                        </p>
+                                                        <span
+                                                            className={`shrink-0 px-1.5 py-px rounded-full text-[9px] font-bold leading-tight ${rec ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
+                                                        >
+                                                            {item.receiveStatus || 'No'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">Received: </span>
+                                                        {item.receiveDate || <span className="text-amber-600 font-semibold">Not Received</span>}
+                                                    </p>
+                                                    {tags.length > 0 && (
+                                                        <div className="flex flex-wrap gap-x-1 gap-y-0.5">
+                                                            {tags.map((t) => (
+                                                                <span
+                                                                    key={t.label}
+                                                                    className={`inline-flex items-center px-1.5 py-px rounded-full text-[9px] font-semibold leading-tight whitespace-nowrap ${MOBILE_TAG[t.tone]}`}
+                                                                >
+                                                                    {t.label}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Right: checkbox + actions, total, paid */}
+                                                <div className="shrink-0 w-[116px] flex flex-col items-end justify-end gap-1.5">
+
+                                                    <div className="w-full space-y-px">
+                                                        <div className="flex items-center justify-between rounded-md bg-brand-50 px-1.5 py-0.5">
+                                                            <span className="text-[9px] font-bold text-brand-400">TOTAL</span>
+                                                            <span className="text-[11px] font-bold text-brand-700">৳{item.payableAmount}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between rounded-md bg-slate-50 px-1.5 py-0.5">
+                                                            <span className="text-[9px] font-bold text-slate-400">PAID</span>
+                                                            <span className="text-[10.5px]">{renderPaid(item)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[980px] text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+                                        <tr>
+                                            <th className="w-10 px-3 py-3 text-center">
+                                                <input type="checkbox" checked={isAllSelected} onChange={handleSelectAll} aria-label="Select all" className="w-4 h-4 accent-brand-600 cursor-pointer" />
+                                            </th>
+                                            <th className="px-3 py-3">Date</th>
+                                            <th className="px-3 py-3">Company</th>
+                                            <th className="px-3 py-3">Invoice No</th>
+                                            <th className="px-3 py-3">Total</th>
+                                            <th className="px-3 py-3">Paid (Due)</th>
+                                            <th className="px-3 py-3">Extra</th>
+                                            <th className="px-3 py-3">Status</th>
+                                            <th className="px-3 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        {currentPurchases.map((item, index) => {
+                                            const sel = selectedIds.includes(item._id);
+                                            const tags = extraTags(item);
+                                            return (
+                                                <tr key={item._id || index} className={`align-middle ${sel ? 'bg-brand-50/60' : 'hover:bg-slate-50'}`}>
+                                                    <td className="px-3 py-3 text-center">
+                                                        <input type="checkbox" checked={sel} onChange={() => handleSelectRow(item._id)} aria-label="Select row" className="w-4 h-4 accent-brand-600 cursor-pointer" />
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-xs">
+                                                        <div className="font-medium text-slate-700">Purchase: {item.purchaseDate || 'N/A'}</div>
+                                                        <div className="mt-1">
+                                                            {item.receiveDate ? <span className="text-slate-500">Received: {item.receiveDate}</span> : <Pill tone="amber">Not Received</Pill>}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-3 font-bold text-slate-800">{item.company}</td>
+                                                    <td className="px-3 py-3 font-medium whitespace-nowrap">{item.invoiceNo}</td>
+                                                    <td className="px-3 py-3 font-bold text-brand-700 whitespace-nowrap">৳{item.payableAmount}</td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">{renderPaid(item)}</td>
+                                                    <td className="px-3 py-3">
+                                                        {tags.length === 0 ? (
+                                                            <span className="text-xs text-slate-300">N/A</span>
+                                                        ) : (
+                                                            <div className="flex flex-wrap gap-1 max-w-[180px]">
+                                                                {tags.map((t) => (
+                                                                    <Pill key={t.label} tone={t.tone}>{t.label}</Pill>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3">
+                                                        <Pill tone={isReceived(item) ? 'green' : 'slate'}>{item.receiveStatus || 'No'}</Pill>
+                                                    </td>
+                                                    <td className="px-3 py-3 text-center">
+                                                        <RowMenu items={menuItems(item)} />
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <Pager
+                                page={currentPage}
+                                totalPages={totalPages}
+                                onChange={handlePageChange}
+                                from={indexOfFirstItem + 1}
+                                to={Math.min(indexOfLastItem, filteredPurchases.length)}
+                                total={filteredPurchases.length}
+                            />
+                        </>
+                    )}
+                </div>
             </div>
-        </div >
+        </div>
     );
 };
 

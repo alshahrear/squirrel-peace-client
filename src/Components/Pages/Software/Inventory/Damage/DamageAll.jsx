@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import useCan from '../../../../../hooks/useCan';
 import { useClientAuth } from '../../../../../hooks/ClientAuthContext';
 import { canAccessPath } from '../../../../../hooks/permissionConfig';
+import TabBar from '../../../../../hooks/TabBar';
 
 const STOCK_TABS = [
     { key: 'invoice', path: '/damage-stock-invoice', label: 'Damage Stock Invoice', icon: '🧾' },
@@ -28,8 +29,6 @@ const DamageAll = () => {
     const stockTabs = STOCK_TABS.filter(canSee);
     const returnTabs = RETURN_TABS.filter(canSee);
     const allTabs = [...stockTabs, ...returnTabs];
-    const matched = allTabs.find((t) => t.path === location.pathname);
-    const activeTab = matched ? matched.key : null;
 
     // /damage-products -> state.tab onujayi sothik tab e redirect
     useEffect(() => {
@@ -43,56 +42,56 @@ const DamageAll = () => {
         // eslint-disable-next-line
     }, [location.pathname]);
 
-    const renderTab = (t, activeCls) => (
-        <button
-            key={t.key}
-            type="button"
-            onClick={() => navigate(t.path)}
-            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${activeTab === t.key
-                ? activeCls
-                : 'text-gray-500 hover:bg-indigo-50 hover:text-indigo-600'
-                }`}
-        >
-            <span>{t.icon}</span>
-            {t.label}
-        </button>
-    );
+    const SHORT_LABEL = {
+        invoice: 'Stock Invoice',
+        singleInvoice: 'Single Invoice',
+        products: 'Stock Products',
+        returnInvoice: 'Return Invoice',
+        returnProducts: 'Return Products',
+    };
+
+    const toItem = (t, tone) => ({
+        key: t.key,
+        label: SHORT_LABEL[t.key] || t.label,
+        icon: t.icon,
+        tone,
+        active: location.pathname === t.path,
+        onClick: () => navigate(t.path),
+    });
+
+    const tabs = [
+        ...stockTabs.map((t) => toItem(t, 'brand')),
+        ...(stockTabs.length > 0 && returnTabs.length > 0 ? [{ key: 'sep', divider: true }] : []),
+        ...returnTabs.map((t) => toItem(t, 'rose')),
+    ];
 
     return (
-        <div className="bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
-            {/* Tab Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-6 px-4">
-                <button
-                    type="button"
-                    onClick={() => (addStock.canAdd ? navigate('/damage-add') : toast.error('আপনার Add করার অনুমতি নেই!'))}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-xs whitespace-nowrap shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
-                >
-                    + New Damage
-                </button>
+        <div>
+            <div className="max-w-[1700px] mx-auto px-3 sm:px-5 md:px-8 pt-3 sm:pt-5">
+                <div className="grid grid-cols-2 lg:flex lg:flex-nowrap items-center gap-2 lg:gap-3">
+                    <button
+                        type="button"
+                        onClick={() => (addStock.canAdd ? navigate('/damage-add') : toast.error('আপনার Add করার অনুমতি নেই!'))}
+                        className="order-2 lg:order-1 min-h-[38px] px-4 rounded-full bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-semibold whitespace-nowrap shadow-sm transition-colors cursor-pointer lg:shrink-0"
+                    >
+                        + New Damage
+                    </button>
 
-                <div className="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-xl bg-white border border-indigo-100 shadow-md">
-                    {stockTabs.map((t) =>
-                        renderTab(t, 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-md shadow-indigo-200')
-                    )}
-                    {stockTabs.length > 0 && returnTabs.length > 0 && <span className="w-px h-5 bg-indigo-100 mx-0.5" />}
-                    {returnTabs.map((t) =>
-                        renderTab(t, 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-md shadow-rose-200')
-                    )}
+                    <div className="order-1 lg:order-2 col-span-2 lg:col-span-1 w-full lg:w-auto lg:flex-1 min-w-0">
+                        <TabBar tabs={tabs} bare align="center" />
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => (addReturn.canAdd ? navigate('/damage-return-add') : toast.error('আপনার Add করার অনুমতি নেই!'))}
+                        className="order-3 lg:order-3 min-h-[38px] px-4 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-semibold whitespace-nowrap shadow-sm transition-colors cursor-pointer lg:shrink-0"
+                    >
+                        ↩ Return Damage
+                    </button>
                 </div>
-
-                <button
-                    type="button"
-                    onClick={() => (addReturn.canAdd ? navigate('/damage-return-add') : toast.error('আপনার Add করার অনুমতি নেই!'))}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-xl font-semibold text-xs whitespace-nowrap shadow-md hover:opacity-90 transition duration-200 cursor-pointer"
-                >
-                    ↩ Return Damage
-                </button>
             </div>
 
-            {/* Active Page */}
-            <div>
-                <Outlet />
-            </div>
+            <Outlet />
         </div>
     );
 };

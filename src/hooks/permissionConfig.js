@@ -25,7 +25,7 @@ export const PERMISSION_GROUPS = [
   {
     key: "purchase", label: "Purchase",
     modules: [
-      { key: "purchase_add", label: "Add Purchase", routes: ["/add-purchase"] },
+      { key: "purchase_all", label: "All Purchase", routes: ["/purchase", "/purchase-details"] },
       { key: "purchase_all", label: "All Purchase", routes: ["/purchase", "/purchase-details"] },
       { key: "purchase_return", label: "Purchase Return", routes: ["/purchase-return", "/purchase-return-details", "/purchase-return-view"] },
       { key: "purchase_bulk_return", label: "Purchase Bulk Return", routes: ["/purchase-bulk-return", "/purchase-bulk-return-form", "/purchase-bulk-return-view"] },
@@ -104,12 +104,51 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
-    key: "report", label: "Report",
+    key: "report", label: "Report", subGroups: [
+      { key: "sales", label: "Sales Report", from: 0, to: 11 },
+      { key: "purchase", label: "Purchase Report", from: 11, to: 19 },
+      { key: "stock", label: "Stock Report", from: 19, to: 24 },
+      { key: "account", label: "Account Report", from: 24, to: 38 },
+    ],
     modules: [
-      { key: "sales_report", label: "Sales Reports", routes: ["/sales-report", "/sale-customer-sum-details"] },
-      { key: "purchase_report", label: "Purchase Reports", routes: ["/purchase-report"] },
-      { key: "stock_report", label: "Stock Reports", routes: ["/stock-report"] },
-      { key: "account_report", label: "Account Reports", routes: ["/account-report"] },
+      { key: "sales_report_wholesales", label: "Wholesales Report", routes: ["/sales-report"] },
+      { key: "sales_report_todays", label: "Todays Sale", routes: ["/sales-report"] },
+      { key: "sales_report_customer_invoice", label: "Customer Invoice Summary", routes: ["/sales-report", "/sale-customer-sum-details"] },
+      { key: "sales_report_product_wise", label: "Product Wise Sales", routes: ["/sales-report"] },
+      { key: "sales_report_date_top", label: "Date Wise Top Chart", routes: ["/sales-report"] },
+      { key: "sales_report_net_delivery", label: "Net Delivery", routes: ["/sales-report"] },
+      { key: "sales_report_top_sheet", label: "Sales Top Sheet", routes: ["/sales-report"] },
+      { key: "sales_report_customer_ledger", label: "Customer Ledger", routes: ["/sales-report"] },
+      { key: "sales_report_customer_due", label: "Customer Due Report", routes: ["/sales-report"] },
+      { key: "sales_report_sr_dsr_due", label: "SR & DSR Due Report", routes: ["/sales-report"] },
+      { key: "sales_report_return", label: "Sales Return Report", routes: ["/sales-report"] },
+      { key: "purchase_report_invoice", label: "Invoice Wise Purchase", routes: ["/purchase-report"] },
+      { key: "purchase_report_product", label: "Product Wise Purchase", routes: ["/purchase-report"] },
+      { key: "purchase_report_vs_rec_date", label: "Purchase & Receive Date Wise", routes: ["/purchase-report"] },
+      { key: "purchase_report_vs_rec_sum", label: "Purchase vs Receive Summary", routes: ["/purchase-report"] },
+      { key: "purchase_report_top_chart", label: "Purchase Top Chart", routes: ["/purchase-report"] },
+      { key: "purchase_report_ledger", label: "Company Ledger", routes: ["/purchase-report"] },
+      { key: "purchase_report_due", label: "Purchase Due Report", routes: ["/purchase-report"] },
+      { key: "purchase_report_return", label: "Purchase Return Report", routes: ["/purchase-report"] },
+      { key: "stock_report_current", label: "Current Stock", routes: ["/stock-report"] },
+      { key: "stock_report_damage_daily", label: "Daily Damage Report", routes: ["/stock-report"] },
+      { key: "stock_report_damage_summery", label: "Damage Summery", routes: ["/stock-report"] },
+      { key: "stock_report_dam_return", label: "Damage Return Repo", routes: ["/stock-report"] },
+      { key: "stock_report_dam_return_summery", label: "Damage Return Summery", routes: ["/stock-report"] },
+      { key: "account_report_daybook", label: "Day Book", routes: ["/account-report"] },
+      { key: "account_report_cashbook", label: "Cash Book", routes: ["/account-report"] },
+      { key: "account_report_mobile", label: "Mobile Banking", routes: ["/account-report"] },
+      { key: "account_report_bank", label: "Bank", routes: ["/account-report"] },
+      { key: "account_report_income", label: "Income", routes: ["/account-report"] },
+      { key: "account_report_expense", label: "Expense", routes: ["/account-report"] },
+      { key: "account_report_route_expense", label: "Route Expense", routes: ["/account-report"] },
+      { key: "account_report_transfer", label: "Transfer", routes: ["/account-report"] },
+      { key: "account_report_top_buy", label: "Top Buy/Pay Customers", routes: ["/account-report"] },
+      { key: "account_report_top_sell", label: "Top Sell Products", routes: ["/account-report"] },
+      { key: "account_report_sales_profit", label: "Sales Wise Profit", routes: ["/account-report"] },
+      { key: "account_report_over_under", label: "Over Rate & Under Rate", routes: ["/account-report"] },
+      { key: "account_report_daily_statement", label: "Daily Statement", routes: ["/account-report"] },
+      { key: "account_report_income_statement", label: "Income Statement", routes: ["/account-report"] },
     ],
   },
   {
@@ -133,6 +172,9 @@ const ALWAYS_ALLOWED = ["/client-profile"];
 
 const inPath = (path, base) => path === base || path.startsWith(base + "/");
 
+// Report group এর সব module key (detail পেজ খোলার জন্য)
+const REPORT_KEYS = PERMISSION_GROUPS.find((g) => g.key === "report").modules.map((m) => m.key);
+
 // Detail / View পেজ: নিচের যেকোনো module এর View থাকলেই খুলবে (এগুলোতে শুধু দেখা যায়)
 const DETAIL_VIEW = [
   {
@@ -142,7 +184,7 @@ const DETAIL_VIEW = [
       "damage_stock_invoice", "damage_single_invoice", "stock_purchase", "stock_products",
       "account_sales", "account_sales_return", "account_sales_bulk_return",
       "account_sales_damage_return", "account_sales_due",
-      "sales_report", "profit_sales_wise", "account_report", "stock_report",
+      ...REPORT_KEYS, "profit_sales_wise",
     ],
   },
   {
@@ -152,7 +194,7 @@ const DETAIL_VIEW = [
       "damage_return_invoice", "stock_purchase", "stock_products",
       "account_purchase", "account_purchase_return", "account_purchase_bulk_return",
       "account_purchase_damage_return", "account_purchase_due",
-      "purchase_report", "profit_others", "account_report", "stock_report",
+      ...REPORT_KEYS, "profit_others",
     ],
   },
   {

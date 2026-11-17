@@ -1,0 +1,177 @@
+/* ===== Bashay Bazar Design System (Theme v4, blue glass) ===== */
+:root {
+  --brand-50: #f0f3ff;
+  --brand-100: #e2e8ff;
+  --brand-200: #c9d3ff;
+  --brand-300: #a5b4fd;
+  --brand-400: #7f8ffa;
+  --brand-500: #5f70f3;
+  --brand-600: #4a58e6;
+  --brand-700: #3d45c9;
+  --brand-800: #3239a1;
+  --brand-900: #2d3380;
+  --brand-950: #1c1f4d;
+  --app-bg-grad: linear-gradient(160deg, #e9edff 0%, #d8dfff 45%, #c6d0fb 100%);
+  --btn-grad: linear-gradient(135deg, #7088ff 0%, #4a58e6 100%);
+  --glass: rgba(255, 255, 255, 0.84);
+  --glass-line: rgba(255, 255, 255, 0.95);
+  --ink: #1f2547;
+  --ink-soft: #64709a;
+  --line: #e1e6f7;
+}
+
+@theme {
+  --font-sans: "Inter", "Hind Siliguri", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+
+  --color-slate-50: #f6f8ff;
+  --color-slate-100: #eef1fd;
+  --color-slate-200: #e1e6f7;
+
+  --shadow-xl: 0 10px 30px -10px rgb(60 72 200 / 0.22);
+  --shadow-2xl: 0 18px 44px -12px rgb(60 72 200 / 0.28);
+
+  /* brand */
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+
+  /* indigo, violet, purple, fuchsia, pink, blue, sky, cyan => brand */
+  --color-indigo-50: var(--brand-50); --color-indigo-100: var(--brand-100); --color-indigo-200: var(--brand-200); --color-indigo-300: var(--brand-300); --color-indigo-400: var(--brand-400); --color-indigo-500: var(--brand-500); --color-indigo-600: var(--brand-600); --color-indigo-700: var(--brand-700); --color-indigo-800: var(--brand-800); --color-indigo-900: var(--brand-900); --color-indigo-950: var(--brand-950);
+  --color-violet-50: var(--brand-50); --color-violet-100: var(--brand-100); --color-violet-200: var(--brand-200); --color-violet-300: var(--brand-300); --color-violet-400: var(--brand-400); --color-violet-500: var(--brand-500); --color-violet-600: var(--brand-600); --color-violet-700: var(--brand-700); --color-violet-800: var(--brand-800); --color-violet-900: var(--brand-900); --color-violet-950: var(--brand-950);
+  --color-purple-50: var(--brand-50); --color-purple-100: var(--brand-100); --color-purple-200: var(--brand-200); --color-purple-300: var(--brand-300); --color-purple-400: var(--brand-400); --color-purple-500: var(--brand-500); --color-purple-600: var(--brand-600); --color-purple-700: var(--brand-700); --color-purple-800: var(--brand-800); --color-purple-900: var(--brand-900); --color-purple-950: var(--brand-950);
+  --color-fuchsia-50: var(--brand-50); --color-fuchsia-100: var(--brand-100); --color-fuchsia-200: var(--brand-200); --color-fuchsia-300: var(--brand-300); --color-fuchsia-400: var(--brand-400); --color-fuchsia-500: var(--brand-500); --color-fuchsia-600: var(--brand-600); --color-fuchsia-700: var(--brand-700); --color-fuchsia-800: var(--brand-800); --color-fuchsia-900: var(--brand-900); --color-fuchsia-950: var(--brand-950);
+  --color-pink-50: var(--brand-50); --color-pink-100: var(--brand-100); --color-pink-200: var(--brand-200); --color-pink-300: var(--brand-300); --color-pink-400: var(--brand-400); --color-pink-500: var(--brand-500); --color-pink-600: var(--brand-600); --color-pink-700: var(--brand-700); --color-pink-800: var(--brand-800); --color-pink-900: var(--brand-900); --color-pink-950: var(--brand-950);
+  --color-blue-50: var(--brand-50); --color-blue-100: var(--brand-100); --color-blue-200: var(--brand-200); --color-blue-300: var(--brand-300); --color-blue-400: var(--brand-400); --color-blue-500: var(--brand-500); --color-blue-600: var(--brand-600); --color-blue-700: var(--brand-700); --color-blue-800: var(--brand-800); --color-blue-900: var(--brand-900); --color-blue-950: var(--brand-950);
+  --color-sky-50: var(--brand-50); --color-sky-100: var(--brand-100); --color-sky-200: var(--brand-200); --color-sky-300: var(--brand-300); --color-sky-400: var(--brand-400); --color-sky-500: var(--brand-500); --color-sky-600: var(--brand-600); --color-sky-700: var(--brand-700); --color-sky-800: var(--brand-800); --color-sky-900: var(--brand-900); --color-sky-950: var(--brand-950);
+  --color-cyan-50: var(--brand-50); --color-cyan-100: var(--brand-100); --color-cyan-200: var(--brand-200); --color-cyan-300: var(--brand-300); --color-cyan-400: var(--brand-400); --color-cyan-500: var(--brand-500); --color-cyan-600: var(--brand-600); --color-cyan-700: var(--brand-700); --color-cyan-800: var(--brand-800); --color-cyan-900: var(--brand-900); --color-cyan-950: var(--brand-950);
+
+  /* teal => emerald (সবুজ badge আলাদা থাকবে) */
+  --color-teal-50: var(--color-emerald-50); --color-teal-100: var(--color-emerald-100); --color-teal-200: var(--color-emerald-200); --color-teal-300: var(--color-emerald-300); --color-teal-400: var(--color-emerald-400); --color-teal-500: var(--color-emerald-500); --color-teal-600: var(--color-emerald-600); --color-teal-700: var(--color-emerald-700); --color-teal-800: var(--color-emerald-800); --color-teal-900: var(--color-emerald-900); --color-teal-950: var(--color-emerald-950);
+}
+
+/* ===== Base ===== */
+html {
+  scroll-behavior: smooth;
+}
+
+html body {
+  font-family: "Inter", "Hind Siliguri", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--ink);
+  background-color: #d8dfff;
+  background-image: var(--app-bg-grad);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #b7c0ea transparent;
+}
+
+button,
+[role="button"],
+a {
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--brand-400);
+  outline-offset: 2px;
+}
+
+/* পেজের নিজস্ব ব্যাকগ্রাউন্ড সরিয়ে body-র gradient দেখাবে */
+.min-h-screen[class*="bg-gradient-to-"],
+.min-h-screen[class*="bg-slate-50"],
+.min-h-screen[class*="bg-gray-50"] {
+  background-image: none;
+  background-color: transparent;
+}
+
+/* blur বন্ধ (পুরনো laptop-এ দ্রুত থাকবে) */
+.backdrop-blur,
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur-lg {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1023px) {
+  table.table-fixed {
+    min-width: 1000px;
+  }
+
+  .table-scroll > table {
+    min-width: 1100px;
+  }
+}
+
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ===== Theme v4: আধা-স্বচ্ছ কার্ড (blur ছাড়া) ===== */
+.bg-white.rounded-xl:not(.fixed):not(.absolute):not(.dropdown-content),
+.bg-white.rounded-2xl:not(.fixed):not(.absolute):not(.dropdown-content),
+.bg-white.rounded-3xl:not(.fixed):not(.absolute):not(.dropdown-content) {
+  background-color: var(--glass);
+  border-color: var(--glass-line);
+  box-shadow: 0 10px 30px -14px rgb(60 72 200 / 0.28);
+}
+
+/* ===== primary বাটন = gradient pill ===== */
+button.bg-brand-600,
+a.bg-brand-600 {
+  background-image: var(--btn-grad);
+  border-radius: 9999px;
+  box-shadow: 0 6px 16px -6px rgb(74 88 230 / 0.55);
+  border-color: transparent;
+}
+
+button.bg-brand-600:hover,
+a.bg-brand-600:hover {
+  filter: brightness(0.95);
+}
+
+button.bg-brand-600:disabled {
+  filter: grayscale(0.4) opacity(0.7);
+}
+
+/* ===== SweetAlert ===== */
+.swal2-popup {
+  border-radius: 1.5rem !important;
+  font-family: inherit !important;
+}
+
+/* ===== কম animation ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

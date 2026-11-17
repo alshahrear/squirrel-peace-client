@@ -706,9 +706,26 @@ const SalesBulkReturnForm = () => {
     };
 
     // ---------- Submit ----------
+    const submitLock = useRef(false);
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (isSaving) return;
+        if (submitLock.current) return;
+        submitLock.current = true;
+        setIsSaving(true);
+        let done = false;
+        try {
+            done = (await handleSubmitInner(e)) === true;
+        } finally {
+            if (!done) {
+                submitLock.current = false;
+                setIsSaving(false);
+            }
+        }
+    };
+
+    const handleSubmitInner = async (e) => {
+        e.preventDefault();
+        // lock wrapper (handleSubmit) e boshano ache
         if (isEditMode ? !can.canEdit : !can.canAdd) {
             return showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', true);
         }
@@ -825,6 +842,7 @@ const SalesBulkReturnForm = () => {
             await res.json();
             showToast(isEditMode ? 'Bulk return updated successfully!' : 'Bulk return added successfully!');
             setTimeout(() => navigate('/sales-bulk-return', { replace: true, state: null }), 1000);
+            return true;
         } catch (error) {
             console.error(error);
             setIsSaving(false);

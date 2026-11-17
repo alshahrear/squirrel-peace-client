@@ -11,13 +11,102 @@ const formatDateOnly = (value) => {
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const TH = 'px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider';
+const TH = 'px-3 py-2 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider';
 
 const CustomerWholesaleAc = ({ rows = [], loading = false }) => {
     const navigate = useNavigate();
 
-    return (
-        <div className="overflow-x-auto">
+       return (
+        <>
+            {/* Mobile compact cards */}
+            <div className="md:hidden p-1.5 space-y-1.5">
+                {loading ? (
+                    <div className="py-8 text-center text-xs text-gray-400">Loading...</div>
+                ) : rows.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-gray-400">No records found for this customer!</div>
+                ) : (
+                    rows.map((r) => {
+                        const amts = [
+                            ['Total', r.total, 'text-indigo-600'],
+                            ['Paid', r.paid, 'text-emerald-600'],
+                            ['Pay', r.due, 'text-rose-600'],
+                            ['Get', r.extra, 'text-sky-600'],
+                        ];
+                        return (
+                            <div
+                                key={r.key}
+                                className="relative rounded-xl border border-slate-200 bg-white pl-3 pr-2 py-1.5 shadow-sm"
+                            >
+                                <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-indigo-500" />
+                                <div className="flex items-stretch gap-2">
+                                    <div className="min-w-0 flex-1 flex flex-col justify-between gap-0.5">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate(`/sales-details/${r.id}`)}
+                                                className="shrink-0 bg-indigo-50 text-indigo-700 px-1.5 py-px rounded-full text-[11px] font-bold leading-tight cursor-pointer"
+                                            >
+                                                #{r.invoiceNo}
+                                            </button>
+                                            {r.method && (
+                                                <span className="shrink-0 bg-gray-100 text-gray-700 px-1.5 py-px rounded-full text-[9px] font-bold leading-tight">
+                                                    {r.method}
+                                                </span>
+                                            )}
+                                            {r.directSales && (
+                                                <span className="shrink-0 bg-teal-50 text-teal-700 px-1.5 py-px rounded-full text-[9px] font-bold leading-tight">
+                                                    ⚡ Direct
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                            <span className="uppercase text-slate-400 font-bold">Order: </span>
+                                            {r.orderDate || 'N/A'}
+                                        </p>
+                                        <p className="text-[10.5px] text-slate-500 leading-snug">
+                                            <span className="uppercase text-slate-400 font-bold">Delivered: </span>
+                                            {r.deliveryDate || (
+                                                <span className="px-1.5 py-px bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold">Not Delivered</span>
+                                            )}
+                                        </p>
+                                        <p className="text-[10.5px] text-emerald-700 font-semibold leading-snug">
+                                            <span className="uppercase text-slate-400 font-bold">Paid: </span>
+                                            {formatDateOnly(r.paymentDate) || 'N/A'}
+                                        </p>
+                                        {r.account && (
+                                            <p className="text-[10.5px] text-slate-500 leading-snug break-words">
+                                                <span className="uppercase text-slate-400 font-bold">AC: </span>
+                                                {r.account}
+                                            </p>
+                                        )}
+                                        {(r.damageAdj > 0 || r.returnAdj > 0) && (
+                                            <div className="flex flex-wrap gap-x-1 gap-y-0.5">
+                                                {r.damageAdj > 0 && (
+                                                    <span className="px-1.5 py-px rounded-full bg-red-50 text-red-600 text-[9px] font-semibold">Damage: ৳{fmt(r.damageAdj)}</span>
+                                                )}
+                                                {r.returnAdj > 0 && (
+                                                    <span className="px-1.5 py-px rounded-full bg-violet-50 text-violet-600 text-[9px] font-semibold">Bulk: ৳{fmt(r.returnAdj)}</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="shrink-0 w-[108px] flex flex-col justify-center gap-px">
+                                        {amts.map(([l, v, c]) => (
+                                            <div key={l} className="flex items-center justify-between rounded-md bg-slate-50 px-1.5 py-px">
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase">{l}</span>
+                                                <span className={`text-[10.5px] font-bold whitespace-nowrap ${c}`}>৳{fmt(v)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
@@ -103,7 +192,8 @@ const CustomerWholesaleAc = ({ rows = [], loading = false }) => {
                     )}
                 </tbody>
             </table>
-        </div>
+            </div>
+        </>
     );
 };
 

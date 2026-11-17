@@ -13,44 +13,41 @@ const Footer = () => {
   };
 
   return (
-    <div className="bg-[#222426] mt-auto w-full">
-      <footer className="footer bg-[#1c1e20] text-[#878787] text-[14px] font-semibold border-base-300 px-4 md:px-10 py-3 min-h-0">
-        <div className="w-full flex justify-between items-center">
-          <p>
-            © {new Date().getFullYear()} All Rights Reserved, Powered by{" "}
-            <span className="text-[#2acb35]">Squirrel Peace</span>.
-          </p>
-          {user && (
-            <div className="flex items-center gap-3">
-              {isAdmin ? (
-                <span
-                  title="Logged in as Admin"
-                  className="flex items-center gap-1.5 text-[#2acb35]"
-                >
-                  <FaUserShield className="text-lg" />
-                
-                </span>
-              ) : (
-                <span
-                  title="Logged in as User"
-                  className="flex items-center gap-1.5 text-[#878787]"
-                >
-                  <FaUser className="text-base" />
-                  
-                </span>
-              )}
-              <button
-                onClick={handleAdminLogout}
-                title="Logout"
-                className="p-1.5 text-[#878787] hover:text-red-500 transition"
+    <footer className="mt-auto w-full px-3 sm:px-5 pb-3 pt-2">
+      <div className="max-w-[1700px] mx-auto rounded-2xl border border-white/80 bg-white/70 px-4 md:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-[13px] text-slate-500">
+        <p>
+          © {new Date().getFullYear()} All Rights Reserved. Powered by{" "}
+          <span className="font-semibold text-brand-600">Bashay Bazar</span>
+        </p>
+
+        {user && (
+          <div className="flex items-center gap-2">
+            {isAdmin ? (
+              <span
+                title="Logged in as Admin"
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-brand-700 font-medium"
               >
-                <FaSignOutAlt className="text-lg" />
-              </button>
-            </div>
-          )}
-        </div>
-      </footer>
-    </div>
+                <FaUserShield className="text-sm" /> Admin
+              </span>
+            ) : (
+              <span
+                title="Logged in as User"
+                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 font-medium"
+              >
+                <FaUser className="text-xs" /> User
+              </span>
+            )}
+            <button
+              onClick={handleAdminLogout}
+              title="Logout"
+              className="h-8 w-8 flex items-center justify-center rounded-full text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+            >
+              <FaSignOutAlt className="text-sm" />
+            </button>
+          </div>
+        )}
+      </div>
+    </footer>
   );
 };
 

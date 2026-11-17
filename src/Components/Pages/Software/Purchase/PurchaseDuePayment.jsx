@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { FaTrash, FaStickyNote, FaTimes, FaEye, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight, FaPlus, FaMinus } from 'react-icons/fa';
+import toast from 'react-hot-toast';
+import { FaStickyNote, FaTimes, FaPlus, FaMinus } from 'react-icons/fa';
 import PurchaseDuePaymentForm from './PurchaseDuePaymentForm';
 import { calcCompanyBalance } from '../../Software/Contact/Company/CompanyAccountAc';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 import useCan from '../../../../hooks/useCan';
+import { DateInput } from '../Product/ProductUi';
+import { inputCls, labelCls, Pill, Pager, ComboField, FilterPanel, RowMenu, ListSkeleton, Empty } from './PurchaseUi';
 
-
-// Local timezone er today (YYYY-MM-DD)
 const getTodayISO = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -25,32 +26,6 @@ const emptyForm = () => ({
     type: 'Pay',
 });
 
-// 26/08/2026, 3:19:09 pm
-const formatDateTime = (date = new Date()) => {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    let hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
-};
-
-// "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
-const formatCreatedDate = (value) => {
-    if (!value) return '';
-    const datePart = value.split(/[ ,]/)[0];
-    const [day, month, year] = datePart.split('/');
-    if (!day || !month || !year) return value;
-    const dateObj = new Date(year, month - 1, day);
-    if (isNaN(dateObj)) return value;
-    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-
-// ISO (YYYY-MM-DD) -> "05 Aug 2026"
 const displayFormattedDate = (dateString) => {
     if (!dateString) return '';
     const [year, month, day] = dateString.split('-');
@@ -59,7 +34,6 @@ const displayFormattedDate = (dateString) => {
     return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-// Invoice Number Generate (YYMMDDHHMMSS - 24hr)
 const generateInvoiceNo = () => {
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -71,7 +45,6 @@ const generateInvoiceNo = () => {
     return `${yy}${mm}${dd}${hh}${min}${ss}`;
 };
 
-// invoiceNo na thakle createdAt / _id theke generate (YYMMDDHHMMSS)
 const getInvoiceNo = (p) => {
     if (p.invoiceNo) return p.invoiceNo;
     const pad = (n) => String(n).padStart(2, '0');
@@ -101,9 +74,10 @@ const getAccountLabel = (method, acc = {}) => {
     return 'Cash';
 };
 
-// type server e save na hole o paymentAccount.dueType theke Get/Pay ber hobe
 const getDueType = (p) =>
     p?.type === 'Get' || p?.status === 'Get' || p?.paymentAccount?.dueType === 'Get' ? 'Get' : 'Pay';
+
+const money = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const PurchaseDuePayment = () => {
     const { canAdd, canDelete } = useCan('purchase_due_payment');
@@ -117,56 +91,19 @@ const PurchaseDuePayment = () => {
     const [formKey, setFormKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
     const submitLock = useRef(false);
 
-    // Action dropdown
-    const [openDropdownId, setOpenDropdownId] = useState(null);
-    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
-
-    // Note modal
     const [selectedNote, setSelectedNote] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Toast
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
-
-    // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    // Filters
     const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '', status: '' });
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
 
-    // Company searchable-select state (filter panel)
-    const [isCompanyFilterOpen, setIsCompanyFilterOpen] = useState(false);
-    const companyFilterRef = useRef(null);
+    const showToast = (message, type = 'success') => (type === 'error' ? toast.error(message) : toast.success(message));
 
-    useEffect(() => {
-        const handleOutside = (event) => {
-            if (companyFilterRef.current && !companyFilterRef.current.contains(event.target)) {
-                setIsCompanyFilterOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleOutside);
-        return () => document.removeEventListener('mousedown', handleOutside);
-    }, []);
-
-    const companyFilterOptions = companies.filter((c) => {
-        const s = filters.company.toLowerCase();
-        return (
-            c.businessName?.toLowerCase().includes(s) ||
-            c.contactNumber?.toLowerCase().includes(s)
-        );
-    });
-
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => setToast({ show: false, message: '', type: '' }), 3500);
-    };
-
-    // ---------------- Fetch ----------------
     const fetchPayments = async () => {
         try {
             const res = await fetch('http://localhost:5000/purchase-due-payment');
@@ -174,6 +111,8 @@ const PurchaseDuePayment = () => {
             setPayments(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching due payments:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -206,23 +145,6 @@ const PurchaseDuePayment = () => {
             .catch((error) => console.error('Error fetching investments:', error));
     }, []);
 
-    // Dropdown er baire click / scroll korle close
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.action-dropdown-container')) setOpenDropdownId(null);
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    useEffect(() => {
-        if (openDropdownId === null) return;
-        const handleScroll = () => setOpenDropdownId(null);
-        window.addEventListener('scroll', handleScroll, true);
-        return () => window.removeEventListener('scroll', handleScroll, true);
-    }, [openDropdownId]);
-
-    // ---------------- Payment accounts ----------------
     const accountTypes = [...new Set(investments.map((inv) => inv.accountType).filter(Boolean))];
 
     const uniqueAccountsMap = new Map();
@@ -234,7 +156,6 @@ const PurchaseDuePayment = () => {
         });
     const uniqueAccounts = Array.from(uniqueAccountsMap.values());
 
-    // ---------------- Due amount (CompanyAccountAc er final Pay amount) ----------------
     const balance = (() => {
         const b = calcCompanyBalance(
             { purchases, bulkReturns, damageReturns, duePayments: payments, companies },
@@ -250,7 +171,6 @@ const PurchaseDuePayment = () => {
         !!formData.accountKey &&
         Number(formData.amount) > 0;
 
-    // ---------------- Pay ----------------
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!canAdd) {
@@ -284,7 +204,6 @@ const PurchaseDuePayment = () => {
             paymentAccount = { accountName: 'Cash' };
         }
 
-        // Pay hole oi account e porjapto balance ache kina check
         if (formData.type !== 'Get') {
             const payAmt = Math.round((Number(formData.amount) || 0) * 100) / 100;
             let available = 0;
@@ -321,7 +240,6 @@ const PurchaseDuePayment = () => {
             type: formData.type === 'Get' ? 'Get' : 'Pay',
             status: formData.type === 'Get' ? 'Get' : 'Pay',
             invoiceNo: generateInvoiceNo(),
-            createdAt: formatDateTime(new Date()),
         };
 
         submitLock.current = true;
@@ -336,7 +254,7 @@ const PurchaseDuePayment = () => {
             if (res.ok && data.insertedId) {
                 showToast('Payment added successfully!', 'success');
                 setFormData(emptyForm());
-                setFormKey((prev) => prev + 1); // form (company search) reset
+                setFormKey((prev) => prev + 1);
                 setIsFormOpen(false);
                 setCurrentPage(1);
                 fetchPayments();
@@ -348,25 +266,24 @@ const PurchaseDuePayment = () => {
             showToast('Failed to add payment!', 'error');
         } finally {
             setIsSubmitting(false);
-            setTimeout(() => { submitLock.current = false; }, 1000);
+            setTimeout(() => {
+                submitLock.current = false;
+            }, 1000);
         }
     };
 
-    // ---------------- Delete ----------------
     const handleDelete = (id) => {
         if (!canDelete) {
-            setOpenDropdownId(null);
             showToast('আপনার Delete করার অনুমতি নেই!', 'error');
             return;
         }
-        setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6b7280',
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
             confirmButtonText: 'Yes, delete it!',
         }).then(async (result) => {
             if (result.isConfirmed) {
@@ -389,19 +306,23 @@ const PurchaseDuePayment = () => {
         setIsModalOpen(true);
     };
 
-    // ---------------- Filters ----------------
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
         setCurrentPage(1);
     };
-
     const handleClearFilters = () => {
         setFilters({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '', status: '' });
         setCurrentPage(1);
     };
 
+    const companyFilterOptions = companies
+        .filter((c) => {
+            const s = filters.company.toLowerCase();
+            return c.businessName?.toLowerCase().includes(s) || c.contactNumber?.toLowerCase().includes(s);
+        })
+        .map((c) => ({ key: c._id, title: c.businessName, sub: c.contactNumber ? `📞 ${c.contactNumber}` : '', raw: c }));
+
     const filteredPayments = payments.filter((p) => {
-        // p.date ISO (YYYY-MM-DD) tai string compare kaj korbe
         if (filters.startDate && (!p.date || p.date < filters.startDate)) return false;
         if (filters.endDate && (!p.date || p.date > filters.endDate)) return false;
         if (filters.company && !p.company?.toLowerCase().includes(filters.company.toLowerCase())) return false;
@@ -413,53 +334,49 @@ const PurchaseDuePayment = () => {
 
     const totalFilteredAmount = filteredPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-    // ---------------- Pagination ----------------
     const totalPages = Math.ceil(filteredPayments.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentPayments = filteredPayments.slice(indexOfFirstItem, indexOfLastItem);
 
-    const handlePageChange = (pageNumber) => {
-        if (pageNumber >= 1 && pageNumber <= totalPages) setCurrentPage(pageNumber);
+    const handlePageChange = (n) => {
+        if (n >= 1 && n <= totalPages) setCurrentPage(n);
     };
 
+    const activeCount = ['startDate', 'endDate', 'company', 'invoiceNo', 'status'].filter((k) => filters[k]).length;
+
+    const typePill = (p) => (getDueType(p) === 'Get' ? <Pill tone="brand">Get</Pill> : <Pill tone="rose">Pay</Pill>);
+    const menuItems = (p) => [{ label: 'Delete', tone: 'danger', onClick: () => handleDelete(p._id) }];
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8 relative">
-
-            {/* Toast */}
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    <span>{toast.message}</span>
-                </div>
-            )}
-
-            <div className="max-w-7xl mx-auto">
-
-                {/* Header Title & Toggle Button */}
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1600px] mx-auto space-y-4">
+                {/* Header */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                            Purchase Due Payment
-                        </h1>
-                        <p className="text-gray-500 text-sm mt-1">Pay company dues and keep track of every payment.</p>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Purchase Due Payment</h1>
+                        <p className="text-sm text-slate-500 mt-0.5">Pay company dues and keep track of every payment.</p>
                     </div>
-
-                    <button
-                        onClick={() => (isFormOpen || canAdd ? setIsFormOpen(!isFormOpen) : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 cursor-pointer ${isFormOpen
-                            ? 'bg-red-500 hover:bg-red-600 shadow-red-200'
-                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
-                            }`}
-                    >
-                        {isFormOpen ? <><FaMinus /> Close Form</> : <><FaPlus /> Add Due Payment</>}
-                    </button>
+                    {isFormOpen ? (
+                        <button
+                            type="button"
+                            onClick={() => setIsFormOpen(false)}
+                            className="h-11 px-5 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 w-full sm:w-auto cursor-pointer"
+                        >
+                            <FaMinus size={12} /> Close Form
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => (canAdd ? setIsFormOpen(true) : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
+                            className="bg-brand-600 text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
+                        >
+                            <FaPlus size={12} /> Add Due Payment
+                        </button>
+                    )}
                 </div>
 
-                {/* Smooth Collapsible Form */}
-                <div
-                    className={`transition-all duration-500 ease-in-out ${isFormOpen ? 'max-h-[1000px] opacity-100 mb-8 overflow-visible' : 'max-h-0 opacity-0 mb-0 overflow-hidden'
-                        }`}
-                >
+                {isFormOpen && (
                     <PurchaseDuePaymentForm
                         key={formKey}
                         formData={formData}
@@ -473,391 +390,204 @@ const PurchaseDuePayment = () => {
                         dueAmount={formData.type === 'Get' ? balance.get : balance.pay}
                         isSubmitting={isSubmitting}
                     />
-                </div>
+                )}
 
-                {/* Filter Panel */}
-                <div className="bg-white shadow-lg rounded-2xl p-5 mb-6 border border-indigo-100">
-                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                        <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                        </h3>
-                        <button
-                            onClick={handleClearFilters}
-                            className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
-                        >
-                            <FaRedo size={11} /> Clear All Filters
-                        </button>
+                <FilterPanel activeCount={activeCount} onClear={handleClearFilters} cols="lg:grid-cols-5">
+                    <div>
+                        <span className={labelCls}>Start Date</span>
+                        <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-                        {/* Start Date */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                            <div
-                                className="relative w-full cursor-pointer"
-                                onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                            >
-                                <input
-                                    ref={startDateRef}
-                                    type="date"
-                                    name="startDate"
-                                    value={filters.startDate}
-                                    onChange={handleFilterChange}
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                />
-                                <input
-                                    type="text"
-                                    readOnly
-                                    placeholder="Select start date"
-                                    value={displayFormattedDate(filters.startDate)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                />
-                            </div>
-                        </div>
-
-                        {/* End Date */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                            <div
-                                className="relative w-full cursor-pointer"
-                                onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                            >
-                                <input
-                                    ref={endDateRef}
-                                    type="date"
-                                    name="endDate"
-                                    value={filters.endDate}
-                                    onChange={handleFilterChange}
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                />
-                                <input
-                                    type="text"
-                                    readOnly
-                                    placeholder="Select end date"
-                                    value={displayFormattedDate(filters.endDate)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Invoice Number */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
-                            <input
-                                type="text"
-                                name="invoiceNo"
-                                placeholder="Search invoice..."
-                                value={filters.invoiceNo}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
-                        </div>
-
-                        {/* Status */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
-                            <select
-                                name="status"
-                                value={filters.status}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 cursor-pointer"
-                            >
-                                <option value="">All</option>
-                                <option value="Pay">Pay</option>
-                                <option value="Get">Get</option>
-                            </select>
-                        </div>
-
-                        {/* Company (Select Input) */}
-                        <div className="relative" ref={companyFilterRef}>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    name="company"
-                                    placeholder="Search or select company..."
-                                    value={filters.company}
-                                    onChange={(e) => {
-                                        setFilters({ ...filters, company: e.target.value, companyContact: '' });
-                                        setCurrentPage(1);
-                                        setIsCompanyFilterOpen(true);
-                                    }}
-                                    onFocus={() => setIsCompanyFilterOpen(true)}
-                                    autoComplete="off"
-                                    className="w-full px-3 py-1.5 pr-14 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                    {filters.company && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setFilters({ ...filters, company: '', companyContact: '' });
-                                                setCurrentPage(1);
-                                                setIsCompanyFilterOpen(false);
-                                            }}
-                                            className="text-gray-400 hover:text-rose-500 cursor-pointer"
-                                        >
-                                            <FaTimes size={11} />
-                                        </button>
-                                    )}
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500 pointer-events-none">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                    </svg>
-                                </div>
-                            </div>
-
-                            {isCompanyFilterOpen && (
-                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
-                                    {companyFilterOptions.length > 0 ? (
-                                        companyFilterOptions.map((c) => (
-                                            <div
-                                                key={c._id}
-                                                onClick={() => {
-                                                    setFilters({ ...filters, company: c.businessName, companyContact: c.contactNumber || '' });
-                                                    setCurrentPage(1);
-                                                    setIsCompanyFilterOpen(false);
-                                                }}
-                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
-                                            >
-                                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
-                                                {c.contactNumber && (
-                                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
-                                                )}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                    <div>
+                        <span className={labelCls}>End Date</span>
+                        <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
                     </div>
-                </div>
+                    <div>
+                        <label className={labelCls}>Invoice Number</label>
+                        <input type="text" name="invoiceNo" placeholder="Search invoice..." value={filters.invoiceNo} onChange={handleFilterChange} className={inputCls} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>Status</label>
+                        <select name="status" value={filters.status} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                            <option value="">All</option>
+                            <option value="Pay">Pay</option>
+                            <option value="Get">Get</option>
+                        </select>
+                    </div>
+                    <ComboField
+                        label="Company"
+                        value={filters.company}
+                        placeholder="Search company..."
+                        options={companyFilterOptions}
+                        onType={(v) => {
+                            setFilters({ ...filters, company: v, companyContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onClear={() => {
+                            setFilters({ ...filters, company: '', companyContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onPick={(o) => {
+                            setFilters({ ...filters, company: o.raw.businessName, companyContact: o.raw.contactNumber || '' });
+                            setCurrentPage(1);
+                        }}
+                    />
+                </FilterPanel>
 
-                {/* Table */}
-                <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
-                    <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex flex-wrap gap-2 justify-between items-center">
-                        <h2 className="text-xl font-bold">Due Payment History</h2>
-                        <div className="flex items-center gap-2">
-                            <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                                Total: ৳ {totalFilteredAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                            <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                                Showing: {filteredPayments.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredPayments.length)}` : 0} of {filteredPayments.length} ({payments.length} total)
-                            </span>
+                {/* History */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-1.5 sm:p-4 space-y-2 sm:space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-base font-bold text-slate-800">Due Payment History</h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Pill tone="brand">Total: ৳ {money(totalFilteredAmount)}</Pill>
+                            <Pill tone="slate">{filteredPayments.length} of {payments.length}</Pill>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto overflow-y-visible">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Company</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Invoice</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Method</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Account</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Note</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Created At</th>
-                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-100">
-                                {currentPayments.length > 0 ? (
-                                    currentPayments.map((p) => (
-                                        <tr key={p._id} className="hover:bg-indigo-50/50 transition-colors">
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                                                {p.company}
-                                                {p.companyContact && (
-                                                    <div className="text-xs font-normal text-gray-400">{p.companyContact}</div>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {displayFormattedDate(p.date)}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">
-                                                {getInvoiceNo(p) || 'N/A'}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">
-                                                    {p.paymentMethod}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {getAccountLabel(p.paymentMethod, p.paymentAccount)}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
-                                                ৳ {Number(p.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-bold border ${getDueType(p) === 'Get' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                                                    {getDueType(p)}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
-                                                <button
-                                                    onClick={() => handleOpenModal(p.note)}
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-lg transition-all text-xs font-semibold shadow-sm cursor-pointer"
-                                                >
-                                                    <FaEye size={12} /> View Note
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {p.createdAt ? (
-                                                    <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
-                                                        <FaClock className="text-indigo-400" size={11} /> {formatCreatedDate(p.createdAt)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400 italic text-xs">N/A</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium relative">
-                                                <div className="relative inline-block action-dropdown-container">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setDropdownPos({ top: rect.top - 8, left: rect.right });
-                                                            setOpenDropdownId(openDropdownId === p._id ? null : p._id);
-                                                        }}
-                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-                                                    >
-                                                        <span>Select</span>
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={2}
-                                                            stroke="currentColor"
-                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === p._id ? 'rotate-180' : ''}`}
-                                                        >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                        </svg>
-                                                    </button>
-
-                                                    {openDropdownId === p._id && (
-                                                        <div
-                                                            style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
-                                                            className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left"
-                                                        >
-                                                            <button
-                                                                onClick={() => handleDelete(p._id)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <FaTrash size={12} className="text-rose-500" />
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                    )}
+                    {loading ? (
+                        <ListSkeleton />
+                    ) : filteredPayments.length === 0 ? (
+                        <Empty text="No matching payments found!" />
+                    ) : (
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden space-y-1.5">
+                                {currentPayments.map((p) => {
+                                    const isGetRow = getDueType(p) === 'Get';
+                                    return (
+                                        <div key={p._id} className="relative rounded-xl border border-slate-200 bg-white pl-3 pr-2 py-2 shadow-sm">
+                                            <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${isGetRow ? 'bg-emerald-500' : 'bg-rose-400'}`} />
+                                            <div className="flex items-stretch gap-2">
+                                                {/* Left: info */}
+                                                <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <p className="font-bold text-[13px] text-brand-700 truncate leading-tight min-w-0">{p.company}</p>
+                                                        {p.companyContact && (
+                                                            <span className="shrink-0 text-[10px] font-semibold text-slate-600 bg-slate-100 rounded-full px-1.5 py-px leading-tight">
+                                                                📞 {p.companyContact}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <span className="shrink-0 px-1.5 py-px rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold leading-tight">
+                                                            #{getInvoiceNo(p) || 'N/A'}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-500 leading-tight truncate min-w-0">{displayFormattedDate(p.date)}</span>
+                                                    </div>
+                                                    <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">{p.paymentMethod || 'Method'}: </span>
+                                                        {getAccountLabel(p.paymentMethod, p.paymentAccount)}
+                                                    </p>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="10" className="text-center py-10 text-gray-400 text-sm">
-                                            No matching payments found!
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
 
-                    {/* Pagination */}
-                    {filteredPayments.length > 0 && (
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
-                            </span>
-
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
-                                </button>
-
-                                <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                        }`}
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                        }
-                                        return null;
-                                    })}
-                                </div>
-
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
+                                                {/* Right: note + actions, amount */}
+                                                <div className="shrink-0 w-[104px] flex flex-col items-end justify-between gap-1.5">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Note"
+                                                            onClick={() => handleOpenModal(p.note)}
+                                                            className="inline-flex items-center gap-1 h-6 px-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-[10px] font-semibold cursor-pointer"
+                                                        >
+                                                            <FaStickyNote size={9} /> Note
+                                                        </button>
+                                                        <RowMenu compact items={menuItems(p)} />
+                                                    </div>
+                                                    <div className={`w-full rounded-lg px-2 py-1.5 text-right ${isGetRow ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+                                                        <div className="flex items-center justify-between gap-1">
+                                                            <span className={`px-1.5 py-px rounded-full text-[9px] font-bold leading-tight ${isGetRow ? 'bg-sky-100 text-sky-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                                {isGetRow ? 'Get' : 'Pay'}
+                                                            </span>
+                                                            <span className="text-[9px] uppercase font-bold leading-none text-slate-400">Amount</span>
+                                                        </div>
+                                                        <p className={`text-[12.5px] font-extrabold leading-tight mt-1 whitespace-nowrap ${isGetRow ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            ৳ {money(p.amount)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[1050px] text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+                                        <tr>
+                                            <th className="px-3 py-3">Company</th>
+                                            <th className="px-3 py-3">Date</th>
+                                            <th className="px-3 py-3">Invoice</th>
+                                            <th className="px-3 py-3">Method</th>
+                                            <th className="px-3 py-3">Account</th>
+                                            <th className="px-3 py-3">Amount</th>
+                                            <th className="px-3 py-3">Status</th>
+                                            <th className="px-3 py-3 text-center">Note</th>
+                                            <th className="px-3 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        {currentPayments.map((p) => (
+                                            <tr key={p._id} className="align-middle hover:bg-slate-50">
+                                                <td className="px-3 py-3 font-bold text-slate-800">
+                                                    {p.company}
+                                                    {p.companyContact && <div className="text-xs font-normal text-slate-400">{p.companyContact}</div>}
+                                                </td>
+                                                <td className="px-3 py-3 whitespace-nowrap">{displayFormattedDate(p.date)}</td>
+                                                <td className="px-3 py-3 whitespace-nowrap font-medium">{getInvoiceNo(p) || 'N/A'}</td>
+                                                <td className="px-3 py-3"><Pill tone="slate">{p.paymentMethod}</Pill></td>
+                                                <td className="px-3 py-3">{getAccountLabel(p.paymentMethod, p.paymentAccount)}</td>
+                                                <td className="px-3 py-3 whitespace-nowrap font-semibold text-emerald-600">৳ {money(p.amount)}</td>
+                                                <td className="px-3 py-3">{typePill(p)}</td>
+                                                <td className="px-3 py-3 text-center">
+                                                    <button type="button" onClick={() => handleOpenModal(p.note)} className="h-9 px-3 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer">
+                                                        <FaStickyNote size={11} /> View
+                                                    </button>
+                                                </td>
+                                                <td className="px-3 py-3 text-center"><RowMenu items={menuItems(p)} /></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <Pager
+                                page={currentPage}
+                                totalPages={totalPages}
+                                onChange={handlePageChange}
+                                from={indexOfFirstItem + 1}
+                                to={Math.min(indexOfLastItem, filteredPayments.length)}
+                                total={filteredPayments.length}
+                            />
+                        </>
                     )}
                 </div>
+            </div>
 
-                {/* Note Modal */}
-                <div
-                    className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300 ${isModalOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                >
-                    <div
-                        className={`bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all duration-300 ${isModalOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}
-                    >
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <FaStickyNote className="text-indigo-600" /> Payment Note
+            {/* Note Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/50" onClick={() => setIsModalOpen(false)} />
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-5">
+                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+                            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <FaStickyNote className="text-brand-600" /> Payment Note
                             </h3>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                            >
-                                <FaTimes size={18} />
+                            <button type="button" aria-label="Close" onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 cursor-pointer">
+                                <FaTimes size={16} />
                             </button>
                         </div>
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-gray-700 text-sm min-h-[80px] whitespace-pre-wrap">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700 text-sm min-h-[80px] whitespace-pre-wrap break-words">
                             {selectedNote}
                         </div>
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all cursor-pointer"
-                            >
+                        <div className="mt-4 flex justify-end">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="bg-brand-600 text-white text-sm font-semibold px-5 py-2 cursor-pointer">
                                 Close
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

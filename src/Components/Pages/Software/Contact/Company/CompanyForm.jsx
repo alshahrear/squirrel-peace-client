@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import useDraftState, { clearDraft } from '../../../../../hooks/useDraftState';
 import useCan from '../../../../../hooks/useCan';
 import { FaBuilding, FaPhone, FaUser, FaHashtag, FaWallet, FaMapMarkerAlt, FaStickyNote, FaTimes, FaEnvelope, FaEdit, FaSave } from 'react-icons/fa';
+import { inputCls, labelCls } from '../../Product/ProductUi';
 
 // Helper function to format date & time like: 26/08/2026, 3:19:09 pm
 const formatDateTime = (date = new Date()) => {
@@ -19,6 +20,12 @@ const formatDateTime = (date = new Date()) => {
 
     return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
 };
+
+const Lbl = ({ htmlFor, icon, children, required }) => (
+    <label htmlFor={htmlFor} className={`${labelCls} flex items-center gap-1.5`}>
+        <span className="text-brand-500">{icon}</span> {children} {required && <span className="text-rose-500">*</span>}
+    </label>
+);
 
 const CompanyForm = ({
     companies,
@@ -58,7 +65,7 @@ const CompanyForm = ({
             : emptyForm
     );
     const [loading, setLoading] = useState(false);
-    const { canAdd, canEdit } = useCan("company");
+    const { canAdd, canEdit } = useCan('company');
 
     const isEditing = Boolean(editingCompany && editingCompany._id);
     const editingId = isEditing ? editingCompany._id : null;
@@ -76,13 +83,12 @@ const CompanyForm = ({
         clearDraft(draftKey);
         setEditingCompany(null);
         setShowForm(false);
-        if (scrollToTable) {
-            scrollToTable();
-        }
+        if (scrollToTable) scrollToTable();
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (loading) return;
 
         if (isEditing && !canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         if (!isEditing && !canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
@@ -122,34 +128,19 @@ const CompanyForm = ({
         try {
             const response = await fetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(finalData),
             });
 
             if (response.ok) {
-                showToast(
-                    isEditing ? 'Company updated successfully!' : 'Company added successfully!',
-                    'success'
-                );
-
-                if (fetchCompanies) {
-                    await fetchCompanies();
-                }
-
+                showToast(isEditing ? 'Company updated successfully!' : 'Company added successfully!', 'success');
+                if (fetchCompanies) await fetchCompanies();
                 clearDraft(draftKey);
                 setEditingCompany(null);
                 setShowForm(false);
-
-                if (scrollToTable) {
-                    scrollToTable();
-                }
+                if (scrollToTable) scrollToTable();
             } else {
-                showToast(
-                    isEditing ? 'Failed to update company!' : 'Something went wrong, please try again.',
-                    'error'
-                );
+                showToast(isEditing ? 'Failed to update company!' : 'Something went wrong, please try again.', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
@@ -158,187 +149,105 @@ const CompanyForm = ({
             setLoading(false);
         }
     };
+
     return (
-        <div className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-indigo-100 backdrop-blur-sm transition-all duration-300">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    {editingId ? <span className="text-indigo-600"><FaEdit /> Edit Company</span> : <span className="text-indigo-600"><FaSave /> Add New Company</span>}
+        <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200">
+            <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <span className="text-brand-600">{editingId ? <FaEdit /> : <FaSave />}</span>
+                    {editingId ? 'Edit Company' : 'Add New Company'}
                 </h2>
                 {editingId && (
                     <button
                         type="button"
                         onClick={handleCancelEdit}
-                        className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full transition-all"
+                        className="inline-flex items-center gap-1.5 min-h-[36px] text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 rounded-full font-semibold cursor-pointer"
                     >
                         <FaTimes /> Cancel Edit
                     </button>
                 )}
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-
-                {/* Business Name */}
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaBuilding className="text-indigo-500" /> Business Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        name="businessName"
-                        placeholder="Business name"
-                        value={formData.businessName}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="co-name" icon={<FaBuilding />} required>Business Name</Lbl>
+                    <input id="co-name" type="text" name="businessName" placeholder="Business name" value={formData.businessName} onChange={handleChange} required className={inputCls} />
                 </div>
 
-                {/* Contact Number */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaPhone className="text-indigo-500" /> Contact Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        name="contactNumber"
-                        placeholder="Contact number"
-                        value={formData.contactNumber}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="co-phone" icon={<FaPhone />} required>Contact Number</Lbl>
+                    <input id="co-phone" type="tel" inputMode="tel" name="contactNumber" placeholder="Contact number" value={formData.contactNumber} onChange={handleChange} required className={inputCls} />
                 </div>
 
-                {/* Email Address */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaEnvelope className="text-indigo-500" /> Email Address
-                    </label>
-                    <input
-                        type="email"
-                        name="email"
-                        placeholder="company@example.com"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="co-email" icon={<FaEnvelope />}>Email Address</Lbl>
+                    <input id="co-email" type="email" name="email" placeholder="company@example.com" value={formData.email} onChange={handleChange} className={inputCls} />
                 </div>
 
-                {/* Contact Name */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaUser className="text-indigo-500" /> Contact Name
-                    </label>
-                    <input
-                        type="text"
-                        name="contactName"
-                        placeholder="Contact person name"
-                        value={formData.contactName}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="co-contact" icon={<FaUser />}>Contact Name</Lbl>
+                    <input id="co-contact" type="text" name="contactName" placeholder="Contact person name" value={formData.contactName} onChange={handleChange} className={inputCls} />
                 </div>
 
-                {/* Business Number */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaHashtag className="text-indigo-500" /> Business Number / Reg
-                    </label>
-                    <input
-                        type="text"
-                        name="businessNumber"
-                        placeholder="Reg / ID number"
-                        value={formData.businessNumber}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="co-bno" icon={<FaHashtag />}>Business Number / Reg</Lbl>
+                    <input id="co-bno" type="text" name="businessNumber" placeholder="Reg / ID number" value={formData.businessNumber} onChange={handleChange} className={inputCls} />
                 </div>
 
                 {/* Opening Balance */}
                 <div>
-                    <div className="flex items-center justify-between mb-1.5 gap-2 h-4">
-                        <label className="text-gray-700 text-xs font-semibold flex items-center gap-1.5">
-                            <FaWallet className="text-indigo-500" /> Opening Balance
-                        </label>
+                    <Lbl htmlFor="co-balance" icon={<FaWallet />}>Opening Balance</Lbl>
+                    <div className="flex gap-2">
                         <select
                             name="openingBalanceType"
+                            aria-label="Opening balance type"
                             value={formData.openingBalanceType || ''}
                             onChange={handleChange}
-                            className="h-5 px-1.5 py-0 text-[11px] leading-none rounded-md border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 text-gray-700 cursor-pointer"
+                            className="w-28 shrink-0 px-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white text-slate-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none cursor-pointer"
                         >
-                            <option value="">Select type</option>
+                            <option value="">Type</option>
                             <option value="Get">Get</option>
                             <option value="Pay">Pay</option>
                         </select>
+                        <input
+                            id="co-balance"
+                            type="number"
+                            inputMode="decimal"
+                            name="openingBalance"
+                            placeholder={formData.openingBalanceType ? '0.00' : 'Select type first'}
+                            value={formData.openingBalance}
+                            disabled={!formData.openingBalanceType}
+                            required={!!formData.openingBalanceType}
+                            onChange={(e) => {
+                                if (/^\d*\.?\d{0,2}$/.test(e.target.value)) handleChange(e);
+                            }}
+                            step="0.01"
+                            min="0"
+                            className={`${inputCls} disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed`}
+                        />
                     </div>
-                    <input
-                        type="number"
-                        name="openingBalance"
-                        placeholder={formData.openingBalanceType ? '0.00' : 'Select type first'}
-                        value={formData.openingBalance}
-                        disabled={!formData.openingBalanceType}
-                        required={!!formData.openingBalanceType}
-                        onChange={(e) => {
-                            const value = e.target.value;
-
-                            // Decimal-এর পরে সর্বোচ্চ 2 digit allow করবে
-                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                handleChange(e);
-                            }
-                        }}
-                        step="0.01"
-                        min="0"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                    />
                 </div>
 
-                {/* Address */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaMapMarkerAlt className="text-indigo-500" /> Address
-                    </label>
-                    <input
-                        type="text"
-                        name="address"
-                        placeholder="Business address"
-                        value={formData.address}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                    <Lbl htmlFor="co-address" icon={<FaMapMarkerAlt />}>Address</Lbl>
+                    <input id="co-address" type="text" name="address" placeholder="Business address" value={formData.address} onChange={handleChange} className={inputCls} />
                 </div>
 
-                {/* Note */}
-                <div className="sm:col-span-2 md:col-span-2">
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaStickyNote className="text-indigo-500" /> Note
-                    </label>
-                    <input
-                        type="text"
-                        name="note"
-                        placeholder="Write additional notes here..."
-                        value={formData.note}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50"
-                    />
+                <div className="sm:col-span-2">
+                    <Lbl htmlFor="co-note" icon={<FaStickyNote />}>Note</Lbl>
+                    <input id="co-note" type="text" name="note" placeholder="Write additional notes here..." value={formData.note} onChange={handleChange} className={inputCls} />
                 </div>
 
-                {/* Submit Button */}
-                <div className="sm:col-span-2 md:col-span-3 flex justify-end mt-2">
+                <div className="sm:col-span-2 lg:col-span-3 flex justify-end mt-1">
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${editingId
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200'
-                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
+                        className={`w-full sm:w-auto min-h-[44px] px-7 rounded-full text-white text-sm font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-brand-600'
                             }`}
                     >
                         {loading
-                            ? editingId
-                                ? 'Updating Company...'
-                                : 'Adding Company...'
-                            : editingId
-                                ? 'Update Company Details'
-                                : 'Add Company'}
+                            ? editingId ? 'Updating Company...' : 'Adding Company...'
+                            : editingId ? 'Update Company Details' : 'Add Company'}
                     </button>
                 </div>
             </form>

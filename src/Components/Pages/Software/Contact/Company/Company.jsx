@@ -1,108 +1,68 @@
 import React, { useState, useEffect, useRef } from 'react';
-
 import Swal from 'sweetalert2';
-import { FaEdit, FaTrash, FaStickyNote, FaTimes, FaEye, FaPlus, FaMinus, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import toast from 'react-hot-toast';
+import { FaEdit, FaTrash, FaEye, FaPlus, FaMinus, FaFilter, FaRedo, FaBuilding } from 'react-icons/fa';
 import CompanyForm from './CompanyForm';
 import { useNavigate } from 'react-router-dom';
 import useDraftState from '../../../../../hooks/useDraftState';
 import useCan from '../../../../../hooks/useCan';
+import { inputCls, labelCls, PopStyle, Skeleton, Pager, ComboBox, RowMenu, DateInput } from '../../Product/ProductUi';
 
-// "23/10/2026, 8:03:51 pm" -> "23 Oct 2026"
-const formatCreatedDate = (value) => {
-    if (!value) return '';
-    const datePart = value.split(/[ ,]/)[0];
-    const [day, month, year] = datePart.split('/');
-    if (!day || !month || !year) return value;
-    const dateObj = new Date(year, month - 1, day);
-    if (isNaN(dateObj)) return value;
-    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+const EMPTY_FILTERS = {
+    startDate: '',
+    endDate: '',
+    businessName: '',
+    contactNumber: '',
+    email: '',
+    contactName: '',
+    businessNumber: '',
+    address: '',
 };
+
+const NA = () => <span className="text-slate-400 italic">N/A</span>;
+
+const BalanceCell = ({ item }) => (
+    <span className="font-semibold text-emerald-600 whitespace-nowrap">
+        ৳ {item.openingBalance ? Number(item.openingBalance).toLocaleString() : '0'}
+        {item.openingBalanceType && (
+            <span
+                className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${item.openingBalanceType === 'Get' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                    }`}
+            >
+                {item.openingBalanceType}
+            </span>
+        )}
+    </span>
+);
 
 const Company = () => {
     const navigate = useNavigate();
     const [companies, setCompanies] = useState([]);
-    const { canAdd, canEdit, canDelete } = useCan("company");
+    const { canAdd, canEdit, canDelete } = useCan('company');
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useDraftState('companyEditingId', null);
     const editingCompany = companies.find((c) => c._id === editingId) || null;
     const setEditingCompany = (c) => setEditingId(c ? c._id : null);
 
-    // Action Dropdown state
-    const [openDropdownId, setOpenDropdownId] = useState(null);
-    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
-
-    // Toggle Form State (Default false/off)
     const [isFormOpen, setIsFormOpen] = useDraftState('companyFormOpen', false);
+    const [showFilters, setShowFilters] = useState(false);
 
-    // Modal State for Note
-    const [selectedNote, setSelectedNote] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    // Toast State
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
-
-    // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    // Separate Filter States
-    const [filters, setFilters] = useState({
-        startDate: '',
-        endDate: '',
-        businessName: '',
-        contactNumber: '',
-        email: '',
-        contactName: '',
-        businessNumber: '',
-        address: ''
-    });
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
 
-    // Section refs for auto scrolling
     const tableSectionRef = useRef(null);
     const formSectionRef = useRef(null);
 
-    // Refs for triggering date pickers
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
+    const showToast = (message, type = 'success') =>
+        type === 'error' ? toast.error(message) : toast.success(message);
 
-    // Company search dropdown (filter panel)
-    const [isCompanyFilterOpen, setIsCompanyFilterOpen] = useState(false);
-    const companyFilterRef = useRef(null);
-
-    useEffect(() => {
-        const handleOutside = (event) => {
-            if (companyFilterRef.current && !companyFilterRef.current.contains(event.target)) {
-                setIsCompanyFilterOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleOutside);
-        return () => document.removeEventListener('mousedown', handleOutside);
-    }, []);
-
-    const companyFilterOptions = companies.filter((c) => {
-        const s = filters.businessName.toLowerCase();
-        return (
-            c.businessName?.toLowerCase().includes(s) ||
-            c.contactNumber?.toLowerCase().includes(s)
-        );
-    });
-
-    // Show Toast Notification
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => {
-            setToast({ show: false, message: '', type: '' });
-        }, 3500);
-    };
-
-
-
-    // Fetch companies data
     const fetchCompanies = async () => {
         try {
             const res = await fetch('http://localhost:5000/company');
             const data = await res.json();
-            setCompanies(data);
+            setCompanies(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching companies:', error);
             showToast('Failed to load companies!', 'error');
@@ -115,86 +75,32 @@ const Company = () => {
         fetchCompanies();
     }, []);
 
-    // Dropdown er baire click korle close hobe
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.action-dropdown-container')) {
-                setOpenDropdownId(null);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    // Scroll korle dropdown auto close hoye jabe
-    useEffect(() => {
-        if (openDropdownId === null) return;
-
-        const handleScroll = () => {
-            setOpenDropdownId(null);
-        };
-
-        window.addEventListener('scroll', handleScroll, true);
-        return () => window.removeEventListener('scroll', handleScroll, true);
-    }, [openDropdownId]);
-
-
-
-    // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
-    const displayFormattedDate = (dateString) => {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        if (!year || !month || !day) return dateString;
-
-        const dateObj = new Date(year, month - 1, day);
-        const options = { day: '2-digit', month: 'short', year: 'numeric' };
-        return dateObj.toLocaleDateString('en-GB', options); // e.g., 05 Aug 2026
-    };
-
-    // Handle Filter input change
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
-        setCurrentPage(1); // Reset to first page on filter change
-    };
-
-    // Clear all filters
-    const handleClearFilters = () => {
-        setFilters({
-            startDate: '',
-            endDate: '',
-            businessName: '',
-            contactNumber: '',
-            email: '',
-            contactName: '',
-            businessNumber: '',
-            address: ''
-        });
         setCurrentPage(1);
     };
 
+    const handleClearFilters = () => {
+        setFilters(EMPTY_FILTERS);
+        setCurrentPage(1);
+    };
 
-    // Handle Delete with SweetAlert
+    const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
     const handleDelete = (id) => {
-        if (!canDelete) {
-            setOpenDropdownId(null);
-            return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
-        }
-        setOpenDropdownId(null);
+        if (!canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
         Swal.fire({
-            title: "Are you sure?",
+            title: 'Are you sure?',
             text: "You won't be able to revert this!",
-            icon: "warning",
+            icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: "#ef4444",
-            cancelButtonColor: "#6b7280",
-            confirmButtonText: "Yes, delete it!"
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, delete it!',
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const response = await fetch(`http://localhost:5000/company/${id}`, {
-                        method: 'DELETE',
-                    });
-
+                    const response = await fetch(`http://localhost:5000/company/${id}`, { method: 'DELETE' });
                     if (response.ok) {
                         showToast('Company deleted successfully!', 'success');
                         setCompanies((prev) => prev.filter((company) => company._id !== id));
@@ -209,13 +115,8 @@ const Company = () => {
         });
     };
 
-    // Handle Edit (Open form with selected company)
     const handleEdit = (company) => {
-        if (!canEdit) {
-            setOpenDropdownId(null);
-            return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
-        }
-        setOpenDropdownId(null);
+        if (!canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
         setEditingCompany(company);
         setIsFormOpen(true);
         setTimeout(() => {
@@ -223,112 +124,97 @@ const Company = () => {
         }, 100);
     };
 
-    // Open Note Modal
-    const handleOpenModal = (noteText) => {
-        setSelectedNote(noteText || 'No note available for this company.');
-        setIsModalOpen(true);
-    };
-
-    // Advanced Multi-field & Date Range Filtering Logic
     const filteredCompanies = [...companies].reverse().filter((company) => {
-        // Date Range Filter (YYYY-MM-DD backend to formatted check)
         if (filters.startDate || filters.endDate) {
             if (!company.createdAt) return false;
-
-            const datePart = company.createdAt.split(',')[0].trim(); // DD/MM/YYYY
+            const datePart = company.createdAt.split(',')[0].trim();
             const [cDay, cMonth, cYear] = datePart.split('/');
             const companyDate = new Date(`${cYear}-${cMonth}-${cDay}`);
-
             if (filters.startDate) {
-                const startDateObj = new Date(filters.startDate);
-                if (!isNaN(startDateObj) && companyDate < startDateObj) return false;
+                const s = new Date(filters.startDate);
+                if (!isNaN(s) && companyDate < s) return false;
             }
-
             if (filters.endDate) {
-                const endDateObj = new Date(filters.endDate);
-                if (!isNaN(endDateObj) && companyDate > endDateObj) return false;
+                const e = new Date(filters.endDate);
+                if (!isNaN(e) && companyDate > e) return false;
             }
         }
-
-        // Business Name Filter
-        if (filters.businessName && !company.businessName?.toLowerCase().includes(filters.businessName.toLowerCase())) {
-            return false;
-        }
-        // Contact Number Filter
-        if (filters.contactNumber && !company.contactNumber?.toLowerCase().includes(filters.contactNumber.toLowerCase())) {
-            return false;
-        }
-        // Email Filter
-        if (filters.email && !company.email?.toLowerCase().includes(filters.email.toLowerCase())) {
-            return false;
-        }
-        // Contact Name Filter
-        if (filters.contactName && !company.contactName?.toLowerCase().includes(filters.contactName.toLowerCase())) {
-            return false;
-        }
-        // Business Number Filter
-        if (filters.businessNumber && !company.businessNumber?.toLowerCase().includes(filters.businessNumber.toLowerCase())) {
-            return false;
-        }
-        // Address Filter
-        if (filters.address && !company.address?.toLowerCase().includes(filters.address.toLowerCase())) {
-            return false;
-        }
-
-        return true;
+        const has = (field, val) => !val || company[field]?.toLowerCase().includes(val.toLowerCase());
+        return (
+            has('businessName', filters.businessName) &&
+            has('contactNumber', filters.contactNumber) &&
+            has('email', filters.email) &&
+            has('contactName', filters.contactName) &&
+            has('businessNumber', filters.businessNumber) &&
+            has('address', filters.address)
+        );
     });
 
-    // Pagination Calculations
     const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentCompanies = filteredCompanies.slice(indexOfFirstItem, indexOfLastItem);
 
-    // Handle page change
-    const handlePageChange = (pageNumber) => {
-        if (pageNumber >= 1 && pageNumber <= totalPages) {
-            setCurrentPage(pageNumber);
-        }
+    const handlePageChange = (n) => {
+        if (n >= 1 && n <= totalPages) setCurrentPage(n);
     };
 
+    const businessOptions = companies
+        .filter((c) => {
+            const s = filters.businessName.toLowerCase();
+            return c.businessName?.toLowerCase().includes(s) || c.contactNumber?.toLowerCase().includes(s);
+        })
+        .slice(0, 50)
+        .map((c) => ({ key: c._id, title: c.businessName, sub: `📞 ${c.contactNumber || ''}`, value: c }));
+
+    const menuItems = (c) => [
+        { label: 'View Details', icon: <FaEye size={12} />, tone: 'emerald', onClick: () => navigate(`/company-details/${c._id}`) },
+        { label: 'Edit', icon: <FaEdit size={12} />, onClick: () => handleEdit(c) },
+        { label: 'Delete', icon: <FaTrash size={12} />, tone: 'rose', onClick: () => handleDelete(c._id) },
+    ];
+
+    const textField = (name, label, placeholder) => (
+        <div>
+            <label htmlFor={`cf-${name}`} className={labelCls}>{label}</label>
+            <input
+                id={`cf-${name}`}
+                type="text"
+                name={name}
+                placeholder={placeholder}
+                value={filters[name]}
+                onChange={handleFilterChange}
+                className={inputCls}
+            />
+        </div>
+    );
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8 relative">
-
-            {/* Top Right Toast Notification */}
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    <span>{toast.message}</span>
-                </div>
-            )}
-
-            <div className="max-w-7xl mx-auto">
-
-                {/* Header Title & Add New Button */}
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <PopStyle />
+            <div className="max-w-7xl mx-auto space-y-4 sm:space-y-5">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                            Company Management
-                        </h1>
-                        <p className="text-gray-500 text-sm mt-1">Manage your business contacts, balances, and details efficiently.</p>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Company Management</h1>
+                        <p className="text-sm text-slate-500 mt-0.5">
+                            Manage your business contacts, balances, and details efficiently.
+                        </p>
                     </div>
-
-                    {/* Toggle Button for Form */}
                     <button
+                        type="button"
                         onClick={() => {
                             if (!isFormOpen && !canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
                             setEditingCompany(null);
                             setIsFormOpen(!isFormOpen);
                         }}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 ${isFormOpen
-                            ? 'bg-red-500 hover:bg-red-600 shadow-red-200'
-                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
+                        className={`inline-flex items-center justify-center gap-2 min-h-[42px] px-5 rounded-full text-white text-sm font-semibold cursor-pointer ${isFormOpen ? 'bg-slate-600 hover:bg-slate-700' : 'bg-brand-600'
                             }`}
                     >
-                        {isFormOpen ? <><FaMinus /> Close Form</> : <><FaPlus /> Add New Company</>}
+                        {isFormOpen ? <><FaMinus size={12} /> Close Form</> : <><FaPlus size={12} /> Add New Company</>}
                     </button>
                 </div>
 
-                {/* Collapsible Form Component */}
+                {/* Form */}
                 {isFormOpen && !loading && (
                     <div ref={formSectionRef}>
                         <CompanyForm
@@ -348,427 +234,199 @@ const Company = () => {
                     </div>
                 )}
 
-                {/* Separate Multi-Search Filter Panel (Above Table) */}
-                <div className="bg-white shadow-lg rounded-2xl p-5 mb-6 border border-indigo-100">
-                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                        <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                        </h3>
+                {/* Filters */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                    <div className="flex items-center justify-between gap-2">
                         <button
-                            onClick={handleClearFilters}
-                            className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold"
+                            type="button"
+                            onClick={() => setShowFilters((v) => !v)}
+                            aria-expanded={showFilters}
+                            className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer lg:cursor-default"
                         >
-                            <FaRedo size={11} /> Clear All Filters
+                            <FaFilter className="text-brand-600" /> Filter & Search
+                            {activeFilterCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-brand-600 text-white text-[10px] font-bold">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                            <span className="lg:hidden text-xs font-medium text-brand-600">
+                                {showFilters ? 'Hide' : 'Show'}
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleClearFilters}
+                            className="inline-flex items-center gap-1.5 min-h-[36px] text-xs bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 px-3 rounded-full font-semibold cursor-pointer"
+                        >
+                            <FaRedo size={10} /> Clear All
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {/* Start Date */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                            <div
-                                className="relative w-full cursor-pointer"
-                                onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                            >
-                                <input
-                                    ref={startDateRef}
-                                    type="date"
-                                    name="startDate"
-                                    value={filters.startDate}
-                                    onChange={handleFilterChange}
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                />
-                                <input
-                                    type="text"
-                                    readOnly
-                                    placeholder="Select start date"
-                                    value={displayFormattedDate(filters.startDate)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                />
+                    <div className={`${showFilters ? 'block' : 'hidden'} lg:block mt-4 pt-4 border-t border-slate-100`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                                <span className={labelCls}>Start Date</span>
+                                <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
                             </div>
-                        </div>
-
-                        {/* End Date */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                            <div
-                                className="relative w-full cursor-pointer"
-                                onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                            >
-                                <input
-                                    ref={endDateRef}
-                                    type="date"
-                                    name="endDate"
-                                    value={filters.endDate}
-                                    onChange={handleFilterChange}
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                />
-                                <input
-                                    type="text"
-                                    readOnly
-                                    placeholder="Select end date"
-                                    value={displayFormattedDate(filters.endDate)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                />
+                            <div>
+                                <span className={labelCls}>End Date</span>
+                                <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
                             </div>
-                        </div>
-
-                        {/* Business Name Search (Select Input) */}
-                        <div className="relative" ref={companyFilterRef}>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Business Name</label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    name="businessName"
-                                    placeholder="Search or select company..."
+                            <div>
+                                <span className={labelCls}>Business Name</span>
+                                <ComboBox
                                     value={filters.businessName}
-                                    onChange={(e) => {
-                                        handleFilterChange(e);
-                                        setIsCompanyFilterOpen(true);
+                                    placeholder="Search or select company..."
+                                    options={businessOptions}
+                                    emptyText="No company found"
+                                    onType={(v) => {
+                                        setFilters({ ...filters, businessName: v });
+                                        setCurrentPage(1);
                                     }}
-                                    onFocus={() => setIsCompanyFilterOpen(true)}
-                                    autoComplete="off"
-                                    className="w-full px-3 py-1.5 pr-14 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                    onPick={(o) => {
+                                        setFilters({ ...filters, businessName: o.value.businessName, contactNumber: o.value.contactNumber || '' });
+                                        setCurrentPage(1);
+                                    }}
+                                    onClear={() => {
+                                        setFilters({ ...filters, businessName: '' });
+                                        setCurrentPage(1);
+                                    }}
                                 />
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                    {filters.businessName && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setFilters({ ...filters, businessName: '' });
-                                                setCurrentPage(1);
-                                                setIsCompanyFilterOpen(false);
-                                            }}
-                                            className="text-gray-400 hover:text-rose-500"
-                                        >
-                                            <FaTimes size={11} />
-                                        </button>
-                                    )}
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-indigo-500 pointer-events-none">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                    </svg>
-                                </div>
                             </div>
-
-                            {isCompanyFilterOpen && (
-                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
-                                    {companyFilterOptions.length > 0 ? (
-                                        companyFilterOptions.map((c) => (
-                                            <div
-                                                key={c._id}
-                                                onClick={() => {
-                                                    setFilters({ ...filters, businessName: c.businessName, contactNumber: c.contactNumber || '' });
-                                                    setCurrentPage(1);
-                                                    setIsCompanyFilterOpen(false);
-                                                }}
-                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
-                                            >
-                                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
-                                                <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Contact Number Search */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Contact Number</label>
-                            <input
-                                type="text"
-                                name="contactNumber"
-                                placeholder="Search number..."
-                                value={filters.contactNumber}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
-                        </div>
-
-                        {/* Email Search */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Email</label>
-                            <input
-                                type="text"
-                                name="email"
-                                placeholder="Search email..."
-                                value={filters.email}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
-                        </div>
-
-                        {/* Contact Name Search */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Contact Name</label>
-                            <input
-                                type="text"
-                                name="contactName"
-                                placeholder="Search contact..."
-                                value={filters.contactName}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
-                        </div>
-
-                        {/* Business Number Search */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Business Number</label>
-                            <input
-                                type="text"
-                                name="businessNumber"
-                                placeholder="Search reg / ID..."
-                                value={filters.businessNumber}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
-                        </div>
-
-                        {/* Address Search */}
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Address</label>
-                            <input
-                                type="text"
-                                name="address"
-                                placeholder="Search address..."
-                                value={filters.address}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
+                            {textField('contactNumber', 'Contact Number', 'Search number...')}
+                            {textField('email', 'Email', 'Search email...')}
+                            {textField('contactName', 'Contact Name', 'Search contact...')}
+                            {textField('businessNumber', 'Business Number', 'Search reg / ID...')}
+                            {textField('address', 'Address', 'Search address...')}
                         </div>
                     </div>
                 </div>
 
-                {/* Table Section */}
-                <div ref={tableSectionRef} className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
-                    <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center">
-                        <h2 className="text-xl font-bold">Company Directory</h2>
-                        <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                            Showing: {filteredCompanies.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredCompanies.length)}` : 0} of {filteredCompanies.length} ({companies.length} total)
+                {/* List */}
+                <div ref={tableSectionRef} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-4 py-3 sm:px-5 border-b border-slate-200 flex flex-wrap gap-2 justify-between items-center">
+                        <h2 className="text-base font-semibold text-slate-800">Company Directory</h2>
+                        <span className="bg-brand-50 text-brand-700 px-3 py-0.5 rounded-full text-xs font-semibold">
+                            Showing {filteredCompanies.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredCompanies.length)}` : 0} of {filteredCompanies.length} ({companies.length} total)
                         </span>
                     </div>
 
-                    <div className="overflow-x-auto overflow-y-visible">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Business Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact Number</th>
-
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Business Number</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Opening Balance</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Address</th>
-
-                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-100">
-                                {currentCompanies.length > 0 ? (
-                                    currentCompanies.map((company) => (
-                                        <tr key={company._id} className="hover:bg-indigo-50/50 transition-colors">
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                                                <button
-                                                    onClick={() => navigate(`/company-details/${company._id}`)}
-                                                    className="text-indigo-700 hover:text-purple-600 hover:underline font-bold text-left cursor-pointer transition-colors"
-                                                >
-                                                    {company.businessName}
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">
-                                                    {company.contactNumber}
-                                                </span>
-                                            </td>
-
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {company.contactName || <span className="text-gray-400 italic">N/A</span>}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {company.businessNumber || <span className="text-gray-400 italic">N/A</span>}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
-                                                ৳ {company.openingBalance ? Number(company.openingBalance).toLocaleString() : '0'}
-                                                {company.openingBalanceType && (
-                                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${company.openingBalanceType === 'Get' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                                                        {company.openingBalanceType}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {company.address || <span className="text-gray-400 italic">N/A</span>}
-                                            </td>
-
-                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium relative">
-                                                <div className="relative inline-block action-dropdown-container">
+                    {loading ? (
+                        <div className="p-4">
+                            <Skeleton rows={6} />
+                        </div>
+                    ) : currentCompanies.length === 0 ? (
+                        <div className="text-center py-14 text-slate-400 flex flex-col items-center">
+                            <FaBuilding size={32} className="mb-2 opacity-40" />
+                            No matching companies found!
+                        </div>
+                    ) : (
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden p-2 space-y-1.5">
+                                {currentCompanies.map((company) => (
+                                    <div
+                                        key={company._id}
+                                        className="relative rounded-xl border border-slate-200 bg-white pl-3 pr-2 py-2 shadow-sm"
+                                    >
+                                        <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-brand-500" />
+                                        <div className="flex items-stretch gap-2">
+                                            {/* Left: info */}
+                                            <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                                                <div className="flex items-center gap-1.5 min-w-0">
                                                     <button
-                                                        onClick={(e) => {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setDropdownPos({ top: rect.top - 8, left: rect.right });
-                                                            setOpenDropdownId(
-                                                                openDropdownId === company._id ? null : company._id
-                                                            );
-                                                        }}
-                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                                        type="button"
+                                                        onClick={() => navigate(`/company-details/${company._id}`)}
+                                                        className="font-bold text-[13px] text-brand-700 text-left truncate cursor-pointer leading-tight min-w-0"
                                                     >
-                                                        <span>Select</span>
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={2}
-                                                            stroke="currentColor"
-                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === company._id ? 'rotate-180' : ''}`}
-                                                        >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                        </svg>
+                                                        {company.businessName}
                                                     </button>
-
-                                                    {openDropdownId === company._id && (
-                                                        <div
-                                                            style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
-                                                            className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150"
-                                                        >
-                                                            <button
-                                                                onClick={() => {
-                                                                    setOpenDropdownId(null);
-                                                                    navigate(`/company-details/${company._id}`);
-                                                                }}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <FaEye size={12} className="text-emerald-500" />
-                                                                View Details
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleEdit(company)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <FaEdit size={12} className="text-indigo-500" />
-                                                                Edit
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(company._id)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <FaTrash size={12} className="text-rose-500" />
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                    <span className="shrink-0 text-[10px] font-semibold text-slate-600 bg-slate-100 rounded-full px-1.5 py-px leading-tight">
+                                                        📞 {company.contactNumber || 'N/A'}
+                                                    </span>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="7" className="text-center py-10 text-gray-400 text-sm">
-                                            No matching companies found!
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                                <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                    <span className="uppercase text-slate-400 font-bold">Contact: </span>
+                                                    {company.contactName || 'N/A'}
+                                                </p>
+                                                <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                    <span className="uppercase text-slate-400 font-bold">Biz No: </span>
+                                                    {company.businessNumber || 'N/A'}
+                                                </p>
+                                                <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                    <span className="uppercase text-slate-400 font-bold">📍 </span>
+                                                    {company.address || 'N/A'}
+                                                </p>
+                                            </div>
 
-                    {/* Pagination Footer */}
-                    {filteredCompanies.length > 0 && (
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
-                            </span>
-
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
-                                </button>
-
-                                <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        // Show first, last, current, and surrounding pages
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                        }`}
+                                            {/* Right: actions + balance */}
+                                            <div className="shrink-0 w-[116px] flex flex-col items-end justify-between gap-1.5">
+                                                <RowMenu compact items={menuItems(company)} />
+                                                <div
+                                                    className={`w-full rounded-lg px-2 py-1.5 text-right ${company.openingBalanceType === 'Pay' ? 'bg-rose-50' : 'bg-emerald-50'}`}
                                                 >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        } else if (
-                                            pageNum === currentPage - 2 ||
-                                            pageNum === currentPage + 2
-                                        ) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                        }
-                                        return null;
-                                    })}
-                                </div>
-
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm'
-                                        }`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
+                                                    <p className="text-[9px] uppercase font-bold leading-none text-slate-400">Opening Balance</p>
+                                                    <p
+                                                        className={`text-[12.5px] font-extrabold leading-tight mt-1 whitespace-nowrap ${company.openingBalanceType === 'Pay' ? 'text-rose-600' : 'text-emerald-600'}`}
+                                                    >
+                                                        ৳ {company.openingBalance ? Number(company.openingBalance).toLocaleString() : '0'}
+                                                        {company.openingBalanceType && (
+                                                            <span className="ml-1 text-[9px] font-bold">{company.openingBalanceType}</span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            {['Business Name', 'Contact Number', 'Contact Name', 'Business Number', 'Opening Balance', 'Address'].map((h) => (
+                                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{h}</th>
+                                            ))}
+                                            <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {currentCompanies.map((company) => (
+                                            <tr key={company._id} className="border-t border-slate-100 hover:bg-brand-50/40 transition-colors">
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(`/company-details/${company._id}`)}
+                                                        className="text-brand-700 hover:underline font-bold text-left cursor-pointer"
+                                                    >
+                                                        {company.businessName}
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-medium text-slate-700">{company.contactNumber}</span>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-slate-600">{company.contactName || <NA />}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-slate-600">{company.businessNumber || <NA />}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap"><BalanceCell item={company} /></td>
+                                                <td className="px-4 py-3 text-slate-600 max-w-[240px] truncate" title={company.address}>{company.address || <NA />}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-center">
+                                                    <RowMenu items={menuItems(company)} />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+
+                    {filteredCompanies.length > 0 && (
+                        <div className="px-4 py-3 sm:px-5 bg-slate-50 border-t border-slate-200">
+                            <Pager page={currentPage} total={totalPages} onChange={handlePageChange} />
                         </div>
                     )}
-                </div>
-
-                {/* Smooth Note Modal */}
-                <div
-                    className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300 ${isModalOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                        }`}
-                >
-                    <div
-                        className={`bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all duration-300 ${isModalOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-                            }`}
-                    >
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <FaStickyNote className="text-indigo-600" /> Company Note
-                            </h3>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                <FaTimes size={18} />
-                            </button>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-gray-700 text-sm min-h-[80px] whitespace-pre-wrap">
-                            {selectedNote}
-                        </div>
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

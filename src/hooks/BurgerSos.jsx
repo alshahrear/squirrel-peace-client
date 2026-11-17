@@ -48,34 +48,34 @@ const BurgerSos = () => {
     if (loading || user) return null;
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center px-4 bg-[#0a0a0a] relative">
+        <div className="relative min-h-[calc(100dvh-61px)] w-full flex items-center justify-center px-4 bg-[#0a0a0a]">
             <Helmet>
                 <title>Burger Sos</title>
             </Helmet>
 
-            {/* Hidden Button (right bottom corner) */}
+            {/* Hidden Button (right bottom corner, invisible, 44px touch area for phones) */}
             <button
                 onClick={handleClick}
                 aria-label="hidden"
-                className="absolute right-0 bottom-0 w-4 h-4 bg-[#0a0a0a] border border-[#1f1f1f] outline-none cursor-default focus:outline-none"
+                className="absolute right-0 bottom-0 w-11 h-11 p-0 border-0 bg-transparent outline-none cursor-default focus:outline-none"
             ></button>
 
-            <p className="flex items-center gap-3 text-[#3a3a3a] text-sm tracking-widest select-none">
-                <GiCookingPot className="text-2xl" />
+            <p className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center text-[#3a3a3a] text-xs sm:text-sm tracking-widest select-none">
+                <GiCookingPot className="text-2xl shrink-0" />
                 The only thing we have to fear is fear itself.
             </p>
 
             {showModal && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
                     onClick={() => setShowModal(false)}
                 >
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className="p-5 bg-[#111111] border border-[#2a2a2a] rounded-md shadow-2xl"
+                        className="w-full max-w-sm p-4 bg-[#111111] border border-[#2a2a2a] rounded-xl shadow-2xl"
                     >
-                        <div className="flex items-center gap-2">
-                            <div className="relative">
+                        <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                            <div className="relative flex-1">
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     autoFocus
@@ -83,19 +83,21 @@ const BurgerSos = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                                    className="w-64 pl-3 pr-10 py-2 bg-[#0a0a0a] border border-[#333] rounded text-gray-200 caret-gray-200 outline-none focus:outline-none focus:border-[#555]"
+                                    className="w-full h-11 pl-3 pr-11 bg-[#0a0a0a] border border-[#333] rounded-lg text-base text-gray-200 caret-gray-200 outline-none focus:outline-none focus:border-[#555]"
                                 />
-                                <span
+                                <button
+                                    type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-500 hover:text-gray-300"
+                                    aria-label={showPassword ? "Hide" : "Show"}
+                                    className="absolute right-0 top-0 w-11 h-11 flex items-center justify-center bg-transparent border-0 p-0 text-gray-500 hover:text-gray-300"
                                 >
                                     {showPassword ? <FaEyeSlash /> : <FaEye />}
-                                </span>
+                                </button>
                             </div>
                             <button
                                 type="button"
                                 onClick={handleSubmit}
-                                className="px-4 py-2 bg-[#1a1a1a] border border-[#333] rounded text-gray-300 hover:bg-[#222] hover:border-[#555] transition"
+                                className="h-11 px-5 bg-[#1a1a1a] border border-[#333] rounded-lg text-sm text-gray-300 hover:bg-[#222] hover:border-[#555] transition"
                             >
                                 Submit
                             </button>

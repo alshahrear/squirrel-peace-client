@@ -11,9 +11,11 @@ import SaleSrDsrDueRepo from './SaleSrDsrDueRepo';
 import SaleCustomerReturnRepo from './SaleCustomerReturnRepo';
 import SaleCustomerWiseInvoiceRepo from './SaleCustomerWiseInvoiceRepo';
 import SaleTodaysOrder from './SaleTodaysOrder';
+import { useClientAuth } from '../../../../../hooks/ClientAuthContext';
+import { hasAction } from '../../../../../hooks/permissionConfig';
+import TabBar from '../../../../../hooks/TabBar';
 
-
-const TABS = [
+const ALL_TABS = [
     { key: 'wholesales', label: 'Wholesales Report', icon: FaFileInvoice },
     { key: 'todaysale', label: 'Todays Sale', icon: FaCalendarDay },
     { key: 'customerinvoice', label: 'Customer Invoice Summary', icon: FaUserTag },
@@ -27,10 +29,29 @@ const TABS = [
     { key: 'salesreturn', label: 'Sales Return Report', icon: FaUndoAlt },
 ];
 
+const TAB_MODULE = {
+    wholesales: 'sales_report_wholesales',
+    todaysale: 'sales_report_todays',
+    customerinvoice: 'sales_report_customer_invoice',
+    productwise: 'sales_report_product_wise',
+    datewisetop: 'sales_report_date_top',
+    netdelivery: 'sales_report_net_delivery',
+    salestopsheet: 'sales_report_top_sheet',
+    customerledger: 'sales_report_customer_ledger',
+    customerdue: 'sales_report_customer_due',
+    srdsrdue: 'sales_report_sr_dsr_due',
+    salesreturn: 'sales_report_return',
+};
+
 const SalesReportAll = () => {
+    const { clientUser } = useClientAuth();
+    const TABS = ALL_TABS.filter(
+        (t) => !clientUser?.isStaff || hasAction(clientUser.permissions, TAB_MODULE[t.key], 'get')
+    );
     const [activeTab, setActiveTab] = useState(() => {
         try {
-            return sessionStorage.getItem('salesReportTab') || 'wholesales';
+            const saved = sessionStorage.getItem('salesReportTab');
+            return TABS.some((t) => t.key === saved) ? saved : (TABS[0]?.key || 'wholesales');
         } catch (e) {
             return 'wholesales';
         }
@@ -44,33 +65,18 @@ const SalesReportAll = () => {
         }
     }, [activeTab]);
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
-            {/* Tab Bar */}
-            <div className="max-w-[1700px] mx-auto px-4 md:px-6 pt-4 md:pt-6">
-                <div className="grid grid-cols-5 gap-1.5 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white p-1.5">
-                    {TABS.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.key;
-                        return (
-                            <button
-                                key={tab.key}
-                                type="button"
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                                    ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-md shadow-indigo-200'
-                                    : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-                                    }`}
-                            >
-                                <Icon size={11} />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+    const tabs = TABS.map((t) => ({
+        key: t.key,
+        label: t.label,
+        icon: t.icon,
+        active: activeTab === t.key,
+        onClick: () => setActiveTab(t.key),
+    }));
 
-            {/* Tab Content */}
+    return (
+        <div>
+            <TabBar tabs={tabs} wrap />
+
             {activeTab === 'wholesales' && <WholesalesRepo />}
             {activeTab === 'todaysale' && <SaleTodaysOrder />}
             {activeTab === 'customerinvoice' && <SaleCustomerWiseInvoiceRepo />}

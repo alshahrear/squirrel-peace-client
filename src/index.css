@@ -2,7 +2,33 @@
    🌐 Base Imports: Tailwind, DaisyUI, Google Fonts
 -------------------------------------------------- */
 @import "tailwindcss";
-@plugin "daisyui";
+@import "./theme.css";
+
+@plugin "daisyui" {
+  themes: light --default;
+}
+
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  color-scheme: light;
+  --color-primary: #4a58e6;
+  --color-primary-content: #ffffff;
+  --color-secondary: #64748b;
+  --color-accent: #4a58e6;
+  --color-neutral: #1f2937;
+  --color-base-100: #ffffff;
+  --color-base-200: #eef1ff;
+  --color-base-300: #dbe1ff;
+  --color-base-content: #1f2937;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #4a58e6;
+  --radius-box: 0.75rem;
+  --radius-field: 0.5rem;
+  --radius-selector: 0.5rem;
+}
 
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 

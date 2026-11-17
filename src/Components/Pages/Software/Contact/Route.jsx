@@ -1,21 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import { FiPlus, FiAlertCircle, FiEdit3, FiTrash2, FiSearch, FiArrowLeft, FiChevronDown } from "react-icons/fi";
-import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FiPlus, FiAlertCircle, FiEdit3, FiTrash2, FiSearch } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import useAxiosClient from "../../../../hooks/useAxiosClient";
 import useCan from "../../../../hooks/useCan";
+import { inputCls, labelCls, PopStyle, Skeleton, Switch, StatusBadge, Pager, RowMenu } from "../Product/ProductUi";
 
 // "23/10/2026 08:03:51 pm" -> "23 Oct 2026"
 const formatCreatedDate = (value) => {
-  if (!value) return '';
-  const datePart = value.split(' ')[0];
-  const [day, month, year] = datePart.split('/');
+  if (!value) return "";
+  const datePart = value.split(/[ ,]/)[0];
+  const [day, month, year] = datePart.split("/");
   if (!day || !month || !year) return value;
   const dateObj = new Date(year, month - 1, day);
   if (isNaN(dateObj)) return value;
-  return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return dateObj.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
 const Route = () => {
@@ -23,74 +22,57 @@ const Route = () => {
   const [formData, setFormData] = useState({ name: "", isActive: true });
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeDropdownId, setActiveDropdownId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
 
-  // Frontend Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
 
-  // Form reference for auto-scrolling
   const formRef = useRef(null);
-
-  const navigate = useNavigate();
   const axiosClient = useAxiosClient();
   const { canAdd, canEdit, canDelete } = useCan("routes");
 
   const fetchRoutes = async () => {
     try {
-      const res = await axiosClient.get('/route');
-      setRoutes(res.data);
+      const res = await axiosClient.get("/route");
+      setRoutes(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error("Error fetching routes", error);
+    } finally {
+      setListLoading(false);
     }
   };
 
   useEffect(() => {
     fetchRoutes();
+    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.action-dropdown-container')) {
-        setActiveDropdownId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    setCurrentPage(1);
+  }, [searchTerm]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (loading) return;
     try {
       if (editingId && !canEdit) return toast.error("আপনার Edit করার অনুমতি নেই!");
       if (!editingId && !canAdd) return toast.error("আপনার Add করার অনুমতি নেই!");
       if (!formData.name.trim()) return toast.error("Please enter route name");
 
       const isDuplicateName = routes.some(
-        item => item.name?.trim().toLowerCase() === formData.name.trim().toLowerCase() && item._id !== editingId
+        (item) => item.name?.trim().toLowerCase() === formData.name.trim().toLowerCase() && item._id !== editingId
       );
-      if (isDuplicateName) {
-        return toast.error("This route name already exists!");
-      }
+      if (isDuplicateName) return toast.error("This route name already exists!");
 
-
-      const token = localStorage.getItem('clientToken');
-      const config = {
-        headers: { Authorization: `Bearer ${token}` }
-      };
-
-      const payload = {
-        name: formData.name.trim(),
-        isActive: formData.isActive
-      };
+      const payload = { name: formData.name.trim(), isActive: formData.isActive };
 
       setLoading(true);
-
       if (editingId) {
-        await axiosClient.put(`/route/${editingId}`, payload, config);
+        await axiosClient.put(`/route/${editingId}`, payload);
         toast.success("Route updated successfully");
       } else {
-        await axiosClient.post('/route', payload, config);
+        await axiosClient.post("/route", payload);
         toast.success("Route added successfully");
       }
 
@@ -100,7 +82,7 @@ const Route = () => {
     } catch (error) {
       toast.error(
         error.response?.data?.message ||
-        (editingId ? "Failed to update route" : "Something went wrong, please try again.")
+          (editingId ? "Failed to update route" : "Something went wrong, please try again.")
       );
     } finally {
       setLoading(false);
@@ -112,21 +94,24 @@ const Route = () => {
     setFormData({ name: "", isActive: true });
   };
 
-  const handleDelete = async (id) => {
-    if (!canDelete) {
-      setActiveDropdownId(null);
-      return toast.error("আপনার Delete করার অনুমতি নেই!");
-    }
-    setActiveDropdownId(null);
+  const handleEdit = (item) => {
+    if (!canEdit) return toast.error("আপনার Edit করার অনুমতি নেই!");
+    setEditingId(item._id);
+    setFormData({ name: item.name, isActive: item.isActive });
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleDelete = (id) => {
+    if (!canDelete) return toast.error("আপনার Delete করার অনুমতি নেই!");
     Swal.fire({
       title: "Are you sure?",
       text: "This route will be deleted!",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#4f46e5",
+      confirmButtonColor: "#4a58e6",
       cancelButtonColor: "#f43f5e",
       confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "Cancel"
+      cancelButtonText: "Cancel",
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
@@ -141,259 +126,146 @@ const Route = () => {
     });
   };
 
-  // ১. সার্চ ফিল্টারিং (নাম বা কোড দিয়ে সার্চ করতে পারবেন)
-    const filteredList = [...routes].reverse().filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredList = [...routes]
+    .reverse()
+    .filter((item) => item.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  // ২. ফ্রন্টএন্ড পেজিনেশন ক্যালকুলেশন
   const totalPages = Math.ceil(filteredList.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentRoutes = filteredList.slice(startIndex, startIndex + itemsPerPage);
 
-  // সার্চ করলে পেজ ১ এ নিয়ে আসার জন্য
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const handlePageChange = (pageNumber) => {
-    if (pageNumber >= 1 && pageNumber <= totalPages) {
-      setCurrentPage(pageNumber);
-    }
+  const handlePageChange = (n) => {
+    if (n >= 1 && n <= totalPages) setCurrentPage(n);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
-      <div className="max-w-5xl mx-auto space-y-8">
-
+    <div className="min-h-screen p-3 sm:p-5 md:p-8">
+      <PopStyle />
+      <div className="max-w-5xl mx-auto space-y-4 sm:space-y-5">
         {/* Header */}
-        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-all cursor-pointer"
-            >
-              <FiArrowLeft size={20} />
-            </button>
-            <div>
-              <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                Routes Config
-              </h2>
-              <p className="text-gray-500 text-sm mt-1">Manage all delivery routes</p>
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Routes</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Manage all delivery routes</p>
           </div>
-          <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm whitespace-nowrap">
+          <span className="px-3 py-1 bg-brand-50 text-brand-700 text-xs font-semibold rounded-full whitespace-nowrap">
             Total: {routes.length} routes
           </span>
         </div>
 
-        {/* Input Form Section with Code and Active Toggle */}
-        <div ref={formRef} className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-end">
-            <div className="w-full">
-              <label className="block text-gray-700 text-xs font-semibold mb-1.5">Route Name</label>
+        {/* Form */}
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <label htmlFor="route-name" className={labelCls}>Route Name</label>
               <input
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
+                id="route-name"
+                className={inputCls}
                 placeholder="Enter route name..."
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
 
-            {/* Active Toggle Switch */}
-            <div className="w-full sm:w-auto flex flex-col justify-center">
-              <label className="block text-gray-700 text-xs font-semibold mb-1.5">Status</label>
-              <div className="flex items-center h-[46px] px-4 bg-gray-50/50 border border-gray-200 rounded-2xl gap-3">
-                <span className="text-xs font-bold text-gray-600">{formData.isActive ? "Active" : "Inactive"}</span>
-                <input
-                  type="checkbox"
+            <div>
+              <span className={labelCls}>Status</span>
+              <div className="flex items-center gap-3 h-[42px]">
+                <Switch
                   checked={formData.isActive}
                   onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                  label="Route active status"
                 />
+                <span className="text-xs font-semibold text-slate-600 w-14">
+                  {formData.isActive ? "Active" : "Inactive"}
+                </span>
               </div>
             </div>
 
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className={`w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition duration-300 active:scale-95 shrink-0 cursor-pointer whitespace-nowrap disabled:opacity-50 ${editingId
-                ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200"
-                : "bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 shadow-indigo-200"
-                }`}
-            >
-              {loading
-                ? editingId ? 'Updating...' : 'Adding...'
-                : editingId ? <><FiEdit3 size={18} /> Update Route</> : <><FiPlus size={18} /> Add Route</>}
-            </button>
-
-            {editingId && (
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="min-h-[42px] px-5 rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer whitespace-nowrap"
+                >
+                  Cancel Edit
+                </button>
+              )}
               <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition duration-300 shrink-0 cursor-pointer whitespace-nowrap"
+                type="submit"
+                disabled={loading}
+                className={`min-h-[42px] px-6 rounded-full text-white text-sm font-semibold flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+                  editingId ? "bg-amber-500 hover:bg-amber-600" : "bg-brand-600"
+                }`}
               >
-                Cancel Edit
+                {loading ? (
+                  editingId ? "Updating..." : "Adding..."
+                ) : editingId ? (
+                  <><FiEdit3 size={16} /> Update Route</>
+                ) : (
+                  <><FiPlus size={16} /> Add Route</>
+                )}
               </button>
-            )}
+            </div>
           </div>
-        </div>
+        </form>
 
-        {/* Table Card Section */}
-        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-6">
-
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <h3 className="text-xl font-bold text-gray-800">Routes Directory</h3>
-            <div className="relative w-full md:w-80">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400">
-                <FiSearch size={16} />
+        {/* List */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-slate-800">Routes Directory</h2>
+            <div className="relative w-full sm:w-72">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                <FiSearch size={15} />
               </span>
               <input
                 type="text"
+                aria-label="Search routes"
                 placeholder="Search routes by name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
+                className={`${inputCls} pl-10`}
               />
             </div>
           </div>
 
-          {/* List Section */}
-          {currentRoutes.length === 0 ? (
-            <div className="text-center py-20 text-gray-400 font-medium flex flex-col items-center">
-              <FiAlertCircle size={40} className="mb-2 opacity-30" />
+          {listLoading ? (
+            <Skeleton rows={5} />
+          ) : currentRoutes.length === 0 ? (
+            <div className="text-center py-14 text-slate-400 font-medium flex flex-col items-center">
+              <FiAlertCircle size={36} className="mb-2 opacity-40" />
               No routes found!
             </div>
           ) : (
-            <div className="space-y-3">
-              {currentRoutes.map((item, index) => {
-                const isNearBottom = index >= currentRoutes.length - 3;
-                return (
-                  <div
-                    key={item._id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all gap-3"
-                    style={activeDropdownId === item._id ? { position: 'relative', zIndex: 50 } : undefined}
-                  >
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="font-bold text-sm sm:text-base text-gray-800">
-                        {item.name}
-                      </span>
-
-                      <span className={`px-3 py-1 rounded-full font-semibold text-xs ${item.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                        {item.isActive ? "Active" : "Inactive"}
-                      </span>
-
-                      {item.createdAt && (
-                        <span className="text-xs text-gray-500 hidden lg:inline">
-                          {formatCreatedDate(item.createdAt)}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-end">
-                      <div className="relative inline-block action-dropdown-container">
-                        <button
-                          onClick={() => setActiveDropdownId(activeDropdownId === item._id ? null : item._id)}
-                          className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-                        >
-                          <span>Select</span>
-                          <FiChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdownId === item._id ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {activeDropdownId === item._id && (
-                          <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-2' : 'top-full mt-2'} w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150`}>
-                            <button
-                              onClick={() => {
-                                setActiveDropdownId(null);
-                                if (!canEdit) return toast.error("আপনার Edit করার অনুমতি নেই!");
-                                setEditingId(item._id);
-                                setFormData({ name: item.name, isActive: item.isActive });
-                                formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                              }}
-                              className="w-full px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 transition duration-150 cursor-pointer"
-                            >
-                              <FiEdit3 className="w-3.5 h-3.5 text-indigo-500" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(item._id)}
-                              className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                            >
-                              <FiTrash2 className="w-3.5 h-3.5 text-rose-500" />
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+            <div className="space-y-2.5">
+              {currentRoutes.map((item) => (
+                <div
+                  key={item._id}
+                  className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-200 transition-colors"
+                >
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0">
+                    <span className="font-semibold text-sm sm:text-base text-slate-800 break-words">{item.name}</span>
+                    <StatusBadge active={item.isActive} />
+                    {item.createdAt && (
+                      <span className="text-xs text-slate-400 hidden sm:inline">{formatCreatedDate(item.createdAt)}</span>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Pagination Footer */}
-          {filteredList.length > 0 && (
-            <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <span className="text-xs text-gray-500 font-medium">
-                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
-              </span>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                    }`}
-                >
-                  <FaChevronLeft size={10} /> Previous
-                </button>
-
-                <div className="hidden sm:flex items-center gap-1">
-                  {[...Array(totalPages)].map((_, index) => {
-                    const pageNum = index + 1;
-                    if (
-                      pageNum === 1 ||
-                      pageNum === totalPages ||
-                      (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                    ) {
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
-                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                            : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
-                            }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    } else if (
-                      pageNum === currentPage - 2 ||
-                      pageNum === currentPage + 2
-                    ) {
-                      return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                    }
-                    return null;
-                  })}
+                  <RowMenu
+                    items={[
+                      { label: "Edit", icon: <FiEdit3 size={13} />, onClick: () => handleEdit(item) },
+                      { label: "Delete", icon: <FiTrash2 size={13} />, tone: "rose", onClick: () => handleDelete(item._id) },
+                    ]}
+                  />
                 </div>
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                    }`}
-                >
-                  Next <FaChevronRight size={10} />
-                </button>
-              </div>
+              ))}
             </div>
           )}
+
+          {filteredList.length > 0 && <Pager page={currentPage} total={totalPages} onChange={handlePageChange} />}
         </div>
       </div>
     </div>

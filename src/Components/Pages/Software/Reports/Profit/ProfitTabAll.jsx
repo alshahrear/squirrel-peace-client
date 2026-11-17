@@ -7,6 +7,7 @@ import ProfitRouteExpense from './ProfitRouteExpense';
 import ProfitOthers from './ProfitOthers';
 import { useClientAuth } from '../../../../../hooks/ClientAuthContext';
 import { hasAction } from '../../../../../hooks/permissionConfig';
+import TabBar from '../../../../../hooks/TabBar';
 
 const TAB_MODULE = {
     profitsaleswise: 'profit_sales_wise',
@@ -173,65 +174,63 @@ const ProfitTabAll = () => {
     const isPositive = net.profit >= 0;
     const isSalesPositive = net.salesProfit >= 0;
 
+    const tabs = visibleTabs.map((t) => ({
+        key: t.key,
+        label: t.label,
+        icon: t.icon,
+        active: currentTab === t.key,
+        onClick: () => setActiveTab(t.key),
+    }));
+
+    const cardBase = 'relative overflow-hidden rounded-2xl text-white px-4 py-3 sm:px-6 lg:min-w-[210px]';
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
-            <div className="max-w-[1700px] mx-auto px-4 md:px-6 pt-4 md:pt-6 flex flex-wrap items-center justify-between gap-4">
-                {/* Total Profit (Sales Wise) */}
-                <div
-                    className={`relative overflow-hidden rounded-2xl shadow-xl px-6 py-3 min-w-[200px] text-white ${canSeeSummary ? 'flex' : 'hidden'} items-center justify-start bg-gradient-to-r ${isSalesPositive ? 'from-indigo-500 via-blue-500 to-sky-600' : 'from-rose-500 via-red-500 to-orange-600'
-                        }`}
-                >
-                    <div className="absolute -right-6 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
-                    <div className="absolute right-10 -bottom-10 w-20 h-20 bg-white/10 rounded-full"></div>
-                    <div className="relative w-full text-right">
-                        <p className="text-[11px] font-semibold text-white/80 uppercase tracking-wide">
-                            {isSalesPositive ? 'Total Profit' : 'Total Loss'}
-                        </p>
-                        <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
-                            {isSalesPositive ? '' : '-'}৳ {fmt(Math.abs(net.salesProfit))}
-                        </p>
-                    </div>
-                </div>
+        <div>
+            <div className="max-w-[1700px] mx-auto px-3 sm:px-5 md:px-8 pt-3 sm:pt-5">
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Total Profit (Sales Wise) */}
+                    {canSeeSummary && (
+                        <div
+                            className={`order-1 flex-1 lg:flex-none ${cardBase} bg-gradient-to-br ${isSalesPositive ? 'from-brand-500 to-brand-700' : 'from-rose-500 to-rose-700'
+                                }`}
+                        >
+                            <div className="absolute -right-6 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
+                            <div className="relative">
+                                <p className="text-[10px] sm:text-[11px] font-semibold text-white/80 uppercase tracking-wide">
+                                    {isSalesPositive ? 'Total Profit' : 'Total Loss'}
+                                </p>
+                                <p className="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight break-words">
+                                    {isSalesPositive ? '' : '-'}৳ {fmt(Math.abs(net.salesProfit))}
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
-                <div className="inline-flex gap-1 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white p-1">
-                    {visibleTabs.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = currentTab === tab.key;
-                        return (
-                            <button
-                                key={tab.key}
-                                type="button"
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                                    ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-md shadow-indigo-200'
-                                    : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-                                    }`}
-                            >
-                                <Icon size={11} />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Net Profit */}
-                <div
-                    className={`relative overflow-hidden rounded-2xl shadow-xl px-6 py-3 min-w-[200px] text-white ${canSeeSummary ? 'flex' : 'hidden'} items-center justify-end bg-gradient-to-r ${isPositive ? 'from-emerald-500 via-teal-500 to-cyan-600' : 'from-rose-500 via-red-500 to-orange-600'
-                        }`}
-                >
-                    <div className="absolute -left-6 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
-                    <div className="absolute left-10 -bottom-10 w-20 h-20 bg-white/10 rounded-full"></div>
-                    <div className="relative w-full text-right">
-                        <p className="text-[11px] font-semibold text-white/80 uppercase tracking-wide">
-                            {isPositive ? 'Net Profit' : 'Net Loss'}
-                        </p>
-                        <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
-                            {isPositive ? '' : '-'}৳ {fmt(Math.abs(net.profit))}
-                        </p>
+                    {/* Tabs */}
+                    <div className="order-3 lg:order-2 w-full lg:w-auto lg:flex-1 min-w-0">
+                        <TabBar tabs={tabs} bare align="center" />
                     </div>
 
+                    {/* Net Profit */}
+                    {canSeeSummary && (
+                        <div
+                            className={`order-2 lg:order-3 flex-1 lg:flex-none ${cardBase} bg-gradient-to-br ${isPositive ? 'from-emerald-500 to-emerald-700' : 'from-rose-500 to-rose-700'
+                                }`}
+                        >
+                            <div className="absolute -left-6 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
+                            <div className="relative text-right">
+                                <p className="text-[10px] sm:text-[11px] font-semibold text-white/80 uppercase tracking-wide">
+                                    {isPositive ? 'Net Profit' : 'Net Loss'}
+                                </p>
+                                <p className="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight break-words">
+                                    {isPositive ? '' : '-'}৳ {fmt(Math.abs(net.profit))}
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
             {currentTab === 'profitsaleswise' && <ProfitSalesWise />}
             {currentTab === 'profitincome' && <ProfitIncome />}
             {currentTab === 'profitexpense' && <ProfitExpense />}

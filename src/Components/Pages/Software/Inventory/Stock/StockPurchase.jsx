@@ -179,7 +179,7 @@ const QtyLine = ({ label, text, total, lbl, chip }) => (
 const QtyCell = ({ b }) => {
     const q = getOrigQty(b);
     return (
-        <div className="flex flex-col gap-1 min-w-[170px]">
+        <div className="flex flex-col gap-1 min-w-0 md:min-w-[170px]">
             {q.main && (
                 <QtyLine
                     label="Main"
@@ -244,7 +244,7 @@ const AvailCell = ({ b }) => {
         </div>
     );
     return (
-        <div className="flex flex-col gap-1 min-w-[170px]">
+        <div className="flex flex-col gap-1 min-w-0 md:min-w-[170px]">
             {q.main && line('Main', q.main, 'text-indigo-500', 'bg-indigo-50 border-indigo-200 text-indigo-600')}
             {q.free && line(
                 'Free',
@@ -438,6 +438,56 @@ const calcProfit = (b, sales, unitCost) => {
         lines,
     };
 };
+
+const spInputCls =
+    'w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white text-slate-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
+
+const SP_TONE = {
+    brand: 'bg-brand-50 border-brand-100 text-brand-700',
+    emerald: 'bg-emerald-50 border-emerald-100 text-emerald-700',
+    violet: 'bg-violet-50 border-violet-100 text-violet-700',
+    amber: 'bg-amber-50 border-amber-100 text-amber-700',
+};
+const SpStat = ({ label, value, tone = 'brand' }) => (
+    <div className={`rounded-xl border px-2.5 sm:px-3 py-1.5 sm:py-2.5 min-w-0 ${SP_TONE[tone]}`}>
+        <div className="text-[10px] sm:text-[11px] font-medium opacity-80 truncate">{label}</div>
+        <div className="text-[13px] sm:text-lg font-bold truncate">{value}</div>
+    </div>
+);
+
+const SpPager = ({ page, total, onChange }) => (
+    <div className="flex items-center justify-between gap-3 pt-3">
+        <span className="text-xs text-slate-500">
+            Page <b className="text-slate-700">{page}</b> of <b className="text-slate-700">{total}</b>
+        </span>
+        <div className="flex items-center gap-2">
+            <button
+                type="button"
+                onClick={() => onChange(page - 1)}
+                disabled={page === 1}
+                aria-label="Previous page"
+                className="h-10 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+                <FaChevronLeft size={10} /> <span className="hidden sm:inline">Previous</span>
+            </button>
+            <button
+                type="button"
+                onClick={() => onChange(page + 1)}
+                disabled={page === total}
+                aria-label="Next page"
+                className="h-10 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+                <span className="hidden sm:inline">Next</span> <FaChevronRight size={10} />
+            </button>
+        </div>
+    </div>
+);
+
+const SpChevron = ({ open }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+    </svg>
+);
 
 const StockPurchase = () => {
     const { canEdit } = useCan('stock_purchase');
@@ -1013,14 +1063,91 @@ const StockPurchase = () => {
         setOpenOrders(next);
     };
 
+    const [isDesktop, setIsDesktop] = useState(
+        typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true
+    );
+    useEffect(() => {
+        const m = window.matchMedia('(min-width: 768px)');
+        const h = (e) => setIsDesktop(e.matches);
+        m.addEventListener('change', h);
+        return () => m.removeEventListener('change', h);
+    }, []);
+
+    // Cost + Sell price (edit korar button shoho), table ar mobile card duita te e use hoy
+    const renderPrice = (b, stack = false) => {
+        if (b.isFreeProduct) return <span className="text-slate-300">—</span>;
+        return (
+            <span className={stack ? 'flex flex-wrap items-center gap-x-2 gap-y-1 font-bold w-full' : 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 font-bold'}>
+                <span className="text-violet-600" title="Cost Price">Cost ৳{fmt(getCost(b))}</span>
+                <span className="text-slate-300">·</span>
+                {editingId === b._id ? (
+                    <span className="inline-flex items-center gap-1 flex-wrap">
+                        <span className="text-emerald-600">Sell ৳</span>
+                        <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            inputMode="decimal"
+                            autoFocus
+                            value={editPrice}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                if (/^\d*\.?\d{0,2}$/.test(value)) setEditPrice(value);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveSellPrice(b);
+                                if (e.key === 'Escape') cancelEdit();
+                            }}
+                            className="w-20 sm:w-24 h-9 px-2 text-sm font-bold text-emerald-700 rounded-lg border border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none bg-white"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => saveSellPrice(b)}
+                            disabled={savingId === b._id}
+                            aria-label="Update sell price"
+                            className="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
+                        >
+                            <FaCheck size={11} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={cancelEdit}
+                            aria-label="Cancel"
+                            className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600"
+                        >
+                            <FaTimes size={11} />
+                        </button>
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center gap-1.5 text-emerald-600" title="Sell Price">
+                        Sell ৳{fmt(b.sellPrice)}
+                        <button
+                            type="button"
+                            onClick={() => startEdit(b)}
+                            aria-label="Edit sell price"
+                            className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white"
+                        >
+                            <FaEdit size={11} />
+                        </button>
+                    </span>
+                )}
+            </span>
+        );
+    };
+
+    const renderProfit = (b) =>
+        (b.profitInfo?.pcs || 0) > 0 ? (
+            <>৳{fmt(b.profitInfo.profit)} <span className="text-[11px] text-slate-500">({fmt(b.profitInfo.pcs)} pcs)</span></>
+        ) : (
+            <span className="text-slate-300">—</span>
+        );
+
     return (
-        <div className="bg-gradient-to-br from-slate-100 via-indigo-50 to-pink-50">
+        <div>
             {toast && (
                 <div
-                    className={`fixed top-5 right-5 z-[300] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border text-sm font-bold text-white ${toast.type === 'success'
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 border-emerald-300'
-                        : 'bg-gradient-to-r from-rose-500 to-red-600 border-rose-300'
-                        }`}
+                    role="status"
+                    className={`fixed top-4 right-4 left-4 sm:left-auto z-[300] flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-sm font-semibold text-white ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'}`}
                 >
                     <span className="w-6 h-6 flex items-center justify-center rounded-full bg-white/25 text-xs">
                         {toast.type === 'success' ? '✓' : '!'}
@@ -1029,77 +1156,189 @@ const StockPurchase = () => {
                 </div>
             )}
             {(
-                <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8">
-                    <div className="max-w-[1600px] mx-auto space-y-6">
+                <div className="min-h-screen p-3 sm:p-5 md:p-8">
+                    <div className="max-w-[1600px] mx-auto space-y-4 sm:space-y-5">
 
-                        {/* Header */}
-                        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div>
-                                <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                                    Stock All
-                                </h2>
-
-                            </div>
-                            <div className="flex gap-3">
-                                <div className="px-4 py-2 rounded-2xl bg-indigo-50 border border-indigo-100 text-center">
-                                    <div className="text-[10px] font-bold uppercase text-indigo-400">Available Qty</div>
-                                    <div className="text-lg font-extrabold text-indigo-700">{fmt(grandQty)} pcs</div>
-                                </div>
-                                <div className="px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-100 text-center">
-                                    <div className="text-[10px] font-bold uppercase text-emerald-400">Stock Value</div>
-                                    <div className="text-lg font-extrabold text-emerald-700">৳{fmt(grandValue)}</div>
-                                </div>
+                        {/* Header + totals */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5">
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-800 mb-2 sm:mb-3">Stock Purchase</h2>
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2.5">
+                                <SpStat label="Available Qty" value={`${fmt(grandQty)} pcs`} tone="brand" />
+                                <SpStat label="Free Qty" value={`${fmt(grandFree)} pcs`} tone="emerald" />
+                                <SpStat label="Others Free Qty" value={`${fmt(grandOthersFree)} pcs`} tone="violet" />
+                                <SpStat label="Stock Value" value={`৳${fmt(grandValue)}`} tone="amber" />
                             </div>
                         </div>
 
-                        {/* Table Card */}
-                        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-xl font-bold text-gray-800">Batch Directory</h3>
-                                    <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full">
+                        {/* List card */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-1.5 sm:p-4 space-y-2 sm:space-y-3">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 sm:gap-3 px-1.5 pt-1 sm:p-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-base sm:text-lg font-bold text-slate-800">Batch Directory</h3>
+                                    <span className="px-3 py-1 bg-brand-50 border border-brand-100 text-brand-700 font-semibold text-xs rounded-full">
                                         {orders.length} orders / {orders.reduce((s, o) => s + o.rows.length, 0)} batches
                                     </span>
                                     <button
                                         type="button"
                                         onClick={openHistory}
-                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold shadow-sm transition cursor-pointer"
+                                        className="h-9 px-4 rounded-full bg-brand-600 text-white text-sm font-semibold"
                                     >
-                                        🔔 History
+                                        History
                                     </button>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="text"
-                                        value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                                        value={search}
+                                        onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                                         placeholder="Search batch, company, product..."
-                                        className="w-64 px-3 py-2 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
+                                        className={`${spInputCls} lg:w-72`}
                                     />
                                     <button
+                                        type="button"
                                         onClick={toggleAll}
-                                        className="px-3 py-2 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 transition cursor-pointer"
+                                        className="h-10 px-3 shrink-0 text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                                     >
-                                        {allOpen ? 'Collapse All' : 'Expand All'}
+                                        {allOpen ? 'Collapse all' : 'Expand all'}
                                     </button>
                                 </div>
                             </div>
 
                             {loading ? (
-                                <div className="text-center py-20 text-gray-500 font-medium">Loading stock...</div>
+                                <div className="space-y-2" aria-busy="true">
+                                    {[...Array(5)].map((_, i) => (
+                                        <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
+                                    ))}
+                                </div>
                             ) : orders.length === 0 ? (
-                                <div className="text-center py-20 text-gray-400 font-medium">No stock found!</div>
+                                <div className="text-center py-16">
+                                    <div className="text-slate-500 font-semibold">কোনো stock পাওয়া যায়নি</div>
+                                    <div className="text-xs text-slate-400 mt-1">Search বদলে আবার চেষ্টা করুন</div>
+                                </div>
+                            ) : !isDesktop ? (
+                                /* ===== Mobile cards ===== */
+                                <div className="space-y-1.5">
+                                    {currentOrders.map((order) => {
+                                        const isOpen = !!openOrders[order.key];
+                                        return (
+                                            <div key={order.key} className="relative rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                                <span className="absolute left-0 top-0 bottom-0 w-1 bg-brand-500 z-10" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleOrder(order.key)}
+                                                    aria-expanded={isOpen}
+                                                    className={`w-full text-left pl-3 pr-2 py-2 ${isOpen ? 'bg-brand-50' : 'bg-white'}`}
+                                                >
+                                                    <div className="flex items-start gap-2">
+                                                        {/* Left: info */}
+                                                        <div className="min-w-0 flex-1 flex flex-col gap-1">
+                                                            <div className="font-bold text-[13px] text-brand-700 leading-tight break-words">{order.company}</div>
+                                                            <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                                <span className="uppercase text-slate-400 font-bold">Purchase: </span>
+                                                                {order.purchaseDate || 'N/A'}
+                                                            </p>
+                                                            <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                                <span className="uppercase text-slate-400 font-bold">Received: </span>
+                                                                {order.receiveDate || 'N/A'}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Right: product count, available, profit, value */}
+                                                        <div className="shrink-0 w-[124px] flex flex-col items-end gap-1">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-600 text-white text-[10px] font-semibold whitespace-nowrap">
+                                                                {order.rows.length} product <SpChevron open={isOpen} />
+                                                            </span>
+                                                            <div className="w-full space-y-px">
+                                                                <div className="flex items-center justify-between rounded-md bg-slate-50 px-1.5 py-0.5">
+                                                                    <span className="text-[9px] font-bold text-slate-400">AVAIL</span>
+                                                                    <span className={`text-[10.5px] font-bold ${order.totalQty > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{fmt(order.totalQty)}</span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between rounded-md bg-slate-50 px-1.5 py-0.5">
+                                                                    <span className="text-[9px] font-bold text-slate-400">PROFIT</span>
+                                                                    <span className={`text-[10.5px] font-bold ${order.totalProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>৳{fmt(order.totalProfit)}</span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between rounded-md bg-emerald-50 px-1.5 py-0.5">
+                                                                    <span className="text-[9px] font-bold text-emerald-400">VALUE</span>
+                                                                    <span className="text-[10.5px] font-bold text-emerald-700">৳{fmt(order.totalValue)}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </button>
+
+                                                {isOpen && (
+                                                    <div className="p-1.5 space-y-1.5 bg-white">
+                                                        {order.rows.map((b) => (
+                                                            <div
+                                                                key={b._id}
+                                                                id={`batch-row-${b._id}`}
+                                                                data-hl={highlight[b._id] ? '1' : undefined}
+                                                                className={`rounded-lg border px-2 py-1.5 ${highlight[b._id] ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-300' : 'border-slate-200'}`}
+                                                            >
+                                                                <div className="flex items-start justify-between gap-2">
+                                                                    <div className="min-w-0">
+                                                                        <div className="font-bold text-[13px] text-slate-800 leading-tight break-words">
+                                                                            {b.productName}
+                                                                            {b.isFreeProduct && (
+                                                                                <span className="ml-2 px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold">Others Free</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="text-[11px] text-slate-500">{b.company}</div>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openSalesModal(b)}
+                                                                        className="h-8 px-3 shrink-0 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold hover:bg-emerald-100"
+                                                                    >
+                                                                        History
+                                                                    </button>
+                                                                </div>
+                                                                <div className="flex flex-col gap-1 mt-1.5 min-w-0">
+                                                                    <div className="rounded-lg bg-slate-50 px-1.5 py-1 min-w-0">
+                                                                        <div className="text-[9px] uppercase font-bold text-slate-400 mb-0.5">Qty</div>
+                                                                        <QtyCell b={b} />
+                                                                    </div>
+                                                                    <div className="rounded-lg bg-slate-50 px-1.5 py-1 min-w-0">
+                                                                        <div className="text-[9px] uppercase font-bold text-slate-400 mb-0.5">Available</div>
+                                                                        <AvailCell b={b} />
+                                                                    </div>
+                                                                    {!b.isFreeProduct && (
+                                                                        <div className="rounded-lg bg-slate-50 px-1.5 py-1 min-w-0">
+                                                                            <div className="text-[9px] uppercase font-bold text-slate-400 mb-0.5">Cost / Sell (per pcs)</div>
+                                                                            <div className="text-[12px]">{renderPrice(b, true)}</div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-2 mt-1 text-xs">
+                                                                    <div>
+                                                                        <div className="text-[11px] text-slate-500">Profit</div>
+                                                                        <div className={`font-bold ${(b.profitInfo?.profit || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{renderProfit(b)}</div>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <div className="text-[11px] text-slate-500">Value</div>
+                                                                        <div className="font-bold text-emerald-700">{b.isFreeProduct ? '—' : `৳${fmt(getValue(b))}`}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             ) : (
-                                <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
-                                    <table className="w-full text-left border-collapse">
+                                /* ===== Desktop table ===== */
+                                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                                    <table className="w-full min-w-[1000px] text-left border-collapse">
                                         <thead>
-                                            <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[11px] uppercase tracking-wide whitespace-nowrap">
+                                            <tr className="bg-slate-50 text-slate-600 text-xs font-semibold whitespace-nowrap">
                                                 <th className="py-3 px-3">Date</th>
                                                 <th className="py-3 px-3">Company</th>
                                                 <th className="py-3 px-3">Product</th>
                                                 <th className="py-3 px-3">Qty</th>
                                                 <th className="py-3 px-3">Available Qty</th>
-                                                <th className="py-3 px-3 text-center">Per Pcs Price </th>
-
+                                                <th className="py-3 px-3">Cost / Sell (per pcs)</th>
                                                 <th className="py-3 px-3 text-right">Profit</th>
                                                 <th className="py-3 px-3 text-right">Total Value</th>
                                             </tr>
@@ -1108,196 +1347,67 @@ const StockPurchase = () => {
                                         {currentOrders.map((order) => {
                                             const isOpen = !!openOrders[order.key];
                                             return (
-                                                <tbody key={order.key} className="border-t-4 border-white">
-                                                    {/* Order Header Row */}
-                                                    <tr
-                                                        className={`transition ${isOpen ? 'bg-indigo-100' : 'bg-indigo-50'}`}
-                                                    >
-                                                        {/* Date */}
-                                                        <td className="py-3 px-3 border-l-4 border-indigo-500 whitespace-nowrap">
-                                                            <div className="flex flex-col leading-tight text-[11px] text-gray-500 font-medium">
+                                                <tbody key={order.key} className="border-t border-slate-200">
+                                                    <tr className={`cursor-pointer ${isOpen ? 'bg-brand-100/60' : 'bg-brand-50/50 hover:bg-brand-50'}`} onClick={() => toggleOrder(order.key)}>
+                                                        <td className="py-3 px-3 border-l-4 border-brand-500 whitespace-nowrap">
+                                                            <div className="flex flex-col leading-tight text-[11px] text-slate-500 font-medium">
                                                                 <span>Purchase: {order.purchaseDate || 'N/A'}</span>
                                                                 <span>Received: {order.receiveDate || 'N/A'}</span>
                                                             </div>
                                                         </td>
-
-                                                        {/* Company */}
-                                                        <td className="py-3 px-3 text-sm font-bold text-gray-800 whitespace-nowrap">
-                                                            {order.company}
-                                                        </td>
-
-                                                        {/* Product */}
+                                                        <td className="py-3 px-3 text-sm font-bold text-slate-800 whitespace-nowrap">{order.company}</td>
                                                         <td className="py-3 px-3 whitespace-nowrap">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => toggleOrder(order.key)}
-                                                                title={isOpen ? 'Collapse' : 'Expand'}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white text-[10px] font-bold shadow-sm shadow-indigo-200 cursor-pointer transition"
-                                                            >
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-white/90"></span>
-                                                                {order.rows.length} product
-                                                                <svg
-                                                                    xmlns="http://www.w3.org/2000/svg"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    strokeWidth={3}
-                                                                    stroke="currentColor"
-                                                                    className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                                                                >
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                                </svg>
-                                                            </button>
-                                                        </td>
-
-                                                        {/* Qty */}
-                                                        <td className="py-3 px-3 text-center">
-                                                            <svg
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                strokeWidth={2.5}
-                                                                stroke="currentColor"
-                                                                className={`w-4 h-4 mx-auto text-indigo-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : 'animate-bounce'}`}
-                                                            >
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                            </svg>
-                                                        </td>
-
-                                                        {/* Total Qty */}
-                                                        <td className="py-3 px-3 text-sm font-extrabold text-indigo-700 whitespace-nowrap">
-                                                            <span className={order.totalQty > 0 ? 'text-emerald-600' : 'text-red-600'}>
-                                                                {fmt(order.totalQty)} pcs
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-600 text-white text-xs font-semibold">
+                                                                {order.rows.length} product <SpChevron open={isOpen} />
                                                             </span>
                                                         </td>
-
-                                                        {/* Per Pcs Cost */}
-                                                        <td className="py-3 px-3 text-center">
-                                                            <svg
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                strokeWidth={2.5}
-                                                                stroke="currentColor"
-                                                                className={`w-4 h-4 mx-auto text-indigo-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : 'animate-bounce'}`}
-                                                            >
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                            </svg>
+                                                        <td className="py-3 px-3 text-slate-300">—</td>
+                                                        <td className="py-3 px-3 text-sm font-bold whitespace-nowrap">
+                                                            <span className={order.totalQty > 0 ? 'text-emerald-600' : 'text-rose-600'}>{fmt(order.totalQty)} pcs</span>
                                                         </td>
-                                                        <td className={`py-3 px-3 text-right text-sm font-extrabold whitespace-nowrap ${order.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                            ৳{fmt(order.totalProfit)} <span className="text-[11px] text-gray-500 font-bold">({fmt(order.totalSoldPcs)} pcs)</span>
+                                                        <td className="py-3 px-3 text-slate-300">—</td>
+                                                        <td className={`py-3 px-3 text-right text-sm font-bold whitespace-nowrap ${order.totalProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            ৳{fmt(order.totalProfit)} <span className="text-[11px] text-slate-500">({fmt(order.totalSoldPcs)} pcs)</span>
                                                         </td>
-                                                        <td className="py-3 px-3 text-right text-sm font-extrabold text-emerald-700 whitespace-nowrap">
-                                                            ৳{fmt(order.totalValue)}
-                                                        </td>
+                                                        <td className="py-3 px-3 text-right text-sm font-bold text-emerald-700 whitespace-nowrap">৳{fmt(order.totalValue)}</td>
                                                     </tr>
 
-                                                    {/* Product Rows */}
                                                     {isOpen &&
-                                                        order.rows.map((b) => {
-                                                            const value = getValue(b);
-                                                            return (
-                                                                <tr
-                                                                    key={b._id}
-                                                                    id={`batch-row-${b._id}`}
-                                                                    data-hl={highlight[b._id] ? '1' : undefined}
-                                                                    className={`${highlight[b._id] ? 'bg-amber-100 ring-2 ring-inset ring-amber-400' : 'bg-white hover:bg-indigo-50/40'} border-l-4 border-indigo-200 text-[13px] text-gray-700 transition`}
-                                                                >
-                                                                    <td className="py-2.5 px-3 whitespace-nowrap"></td>
-                                                                    <td className="py-2.5 px-3 text-gray-600 whitespace-nowrap">{b.company}</td>
-                                                                    <td className="py-2.5 px-3 font-semibold text-gray-800 whitespace-nowrap">
-                                                                        {b.productName}
+                                                        order.rows.map((b) => (
+                                                            <tr
+                                                                key={b._id}
+                                                                id={`batch-row-${b._id}`}
+                                                                data-hl={highlight[b._id] ? '1' : undefined}
+                                                                className={`${highlight[b._id] ? 'bg-amber-50 ring-2 ring-inset ring-amber-300' : 'bg-white hover:bg-slate-50/70'} border-l-4 border-brand-200 text-sm text-slate-700 transition-colors`}
+                                                            >
+                                                                <td className="py-2.5 px-3"></td>
+                                                                <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{b.company}</td>
+                                                                <td className="py-2.5 px-3 font-semibold text-slate-800">
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        <span>{b.productName}</span>
                                                                         {b.isFreeProduct && (
-                                                                            <span className="ml-2 px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[9px] font-bold">Others Free</span>
+                                                                            <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-bold">Others Free</span>
                                                                         )}
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => openSalesModal(b)}
-                                                                            className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 text-[10px] font-bold shadow-sm transition cursor-pointer"
+                                                                            className="h-7 px-3 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold hover:bg-emerald-100"
                                                                         >
-                                                                            🧾 See History
+                                                                            See History
                                                                         </button>
-                                                                    </td>
-
-                                                                    <td className="py-2.5 px-3 whitespace-nowrap">
-                                                                        <QtyCell b={b} />
-                                                                    </td>
-                                                                    <td className="py-2.5 px-3 whitespace-nowrap">
-                                                                        <AvailCell b={b} />
-                                                                    </td>
-                                                                    <td className="py-2.5 px-3 font-bold whitespace-nowrap text-center">
-                                                                        {b.isFreeProduct ? (
-                                                                            <span className="text-gray-300">—</span>
-                                                                        ) : (
-                                                                            <span className="inline-flex items-center gap-1.5">
-                                                                                <span className="text-violet-600" title="Cost Price">🛒 ৳{fmt(getCost(b))}</span>
-                                                                                <span className="text-gray-300">-</span>
-                                                                                {editingId === b._id ? (
-                                                                                    <span className="inline-flex items-center gap-1">
-                                                                                        <span className="text-emerald-600">🏷️ ৳</span>
-                                                                                        <input
-                                                                                            type="number"
-                                                                                            min="0"
-                                                                                            step="any"
-                                                                                            autoFocus
-                                                                                            value={editPrice}
-                                                                                            onChange={(e) => {
-                                                                                                const value = e.target.value;
-                                                                                                if (/^\d*\.?\d{0,2}$/.test(value)) setEditPrice(value);
-                                                                                            }}
-                                                                                            onKeyDown={(e) => {
-                                                                                                if (e.key === 'Enter') saveSellPrice(b);
-                                                                                                if (e.key === 'Escape') cancelEdit();
-                                                                                            }}
-                                                                                            className="w-20 px-2 py-1 text-xs font-bold text-emerald-700 rounded-lg border border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none bg-emerald-50/50"
-                                                                                        />
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            onClick={() => saveSellPrice(b)}
-                                                                                            disabled={savingId === b._id}
-                                                                                            title="Update"
-                                                                                            className="w-6 h-6 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition cursor-pointer disabled:opacity-50"
-                                                                                        >
-                                                                                            <FaCheck size={10} />
-                                                                                        </button>
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            onClick={cancelEdit}
-                                                                                            title="Cancel"
-                                                                                            className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-rose-100 text-gray-500 hover:text-rose-600 transition cursor-pointer"
-                                                                                        >
-                                                                                            <FaTimes size={10} />
-                                                                                        </button>
-                                                                                    </span>
-                                                                                ) : (
-                                                                                    <span className="inline-flex items-center gap-1.5 text-emerald-600" title="Sell Price">
-                                                                                        🏷️ ৳{fmt(b.sellPrice)}
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            onClick={() => startEdit(b)}
-                                                                                            title="Edit Sell Price"
-                                                                                            className="w-6 h-6 flex items-center justify-center rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition cursor-pointer"
-                                                                                        >
-                                                                                            <FaEdit size={10} />
-                                                                                        </button>
-                                                                                    </span>
-                                                                                )}
-                                                                            </span>
-                                                                        )}
-                                                                    </td>
-
-                                                                    <td className={`py-2.5 px-3 text-right font-bold whitespace-nowrap ${(b.profitInfo?.profit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                                        {(b.profitInfo?.pcs || 0) > 0 ? (
-                                                                            <>৳{fmt(b.profitInfo.profit)} <span className="text-[11px] text-gray-500">({fmt(b.profitInfo.pcs)} pcs)</span></>
-                                                                        ) : (
-                                                                            <span className="text-gray-300">—</span>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="py-2.5 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">
-                                                                        {b.isFreeProduct ? <span className="text-gray-300">—</span> : `৳${fmt(value)}`}
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-2.5 px-3 whitespace-nowrap"><QtyCell b={b} /></td>
+                                                                <td className="py-2.5 px-3 whitespace-nowrap"><AvailCell b={b} /></td>
+                                                                <td className="py-2.5 px-3 whitespace-nowrap">{renderPrice(b)}</td>
+                                                                <td className={`py-2.5 px-3 text-right font-bold whitespace-nowrap ${(b.profitInfo?.profit || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                                    {renderProfit(b)}
+                                                                </td>
+                                                                <td className="py-2.5 px-3 text-right font-bold text-emerald-700 whitespace-nowrap">
+                                                                    {b.isFreeProduct ? <span className="text-slate-300">—</span> : `৳${fmt(getValue(b))}`}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
                                                 </tbody>
                                             );
                                         })}
@@ -1305,76 +1415,17 @@ const StockPurchase = () => {
                                 </div>
                             )}
 
-                            {/* Pagination Footer */}
                             {!loading && orders.length > 0 && (
-                                <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                                    <span className="text-xs text-gray-500 font-medium">
-                                        Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
-                                    </span>
-
-                                    <div className="flex items-center gap-1.5">
-                                        <button
-                                            onClick={() => handlePageChange(currentPage - 1)}
-                                            disabled={currentPage === 1}
-                                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                                }`}
-                                        >
-                                            <FaChevronLeft size={10} /> Previous
-                                        </button>
-
-                                        <div className="hidden sm:flex items-center gap-1">
-                                            {[...Array(totalPages)].map((_, index) => {
-                                                const pageNum = index + 1;
-                                                if (
-                                                    pageNum === 1 ||
-                                                    pageNum === totalPages ||
-                                                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                                ) {
-                                                    return (
-                                                        <button
-                                                            key={pageNum}
-                                                            onClick={() => handlePageChange(pageNum)}
-                                                            className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
-                                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                                }`}
-                                                        >
-                                                            {pageNum}
-                                                        </button>
-                                                    );
-                                                } else if (
-                                                    pageNum === currentPage - 2 ||
-                                                    pageNum === currentPage + 2
-                                                ) {
-                                                    return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                                }
-                                                return null;
-                                            })}
-                                        </div>
-
-                                        <button
-                                            onClick={() => handlePageChange(currentPage + 1)}
-                                            disabled={currentPage === totalPages}
-                                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                                }`}
-                                        >
-                                            Next <FaChevronRight size={10} />
-                                        </button>
-                                    </div>
-                                </div>
+                                <SpPager page={currentPage} total={totalPages} onChange={handlePageChange} />
                             )}
                         </div>
                     </div>
                     {/* Overall History Modal */}
                     {historyOpen && (
-                        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${historyShow ? 'opacity-100' : 'opacity-0'}`}>
+                        <div className={`fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-3 transition-opacity duration-300 ${historyShow ? 'opacity-100' : 'opacity-0'}`}>
                             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeHistory} />
-                            <div className={`relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 ease-out ${historyShow ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
-                                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+                            <div className={`relative w-full max-w-3xl bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 ease-out ${historyShow ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+                                <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-brand-600 text-white">
                                     <div>
                                         <h3 className="text-base font-extrabold">🔔 Overall History</h3>
                                         <p className="text-[11px] text-white/80 mt-0.5">Latest {historyEvents.length} activities</p>
@@ -1387,8 +1438,42 @@ const StockPurchase = () => {
                                         ✕
                                     </button>
                                 </div>
-                                <div className="max-h-[75vh] overflow-y-auto">
-                                    <table className="w-full text-left border-collapse">
+                                <div className="max-h-[78vh] overflow-y-auto md:overflow-auto [&>table]:hidden md:[&>table]:table">
+                                    {/* Mobile cards */}
+                                    <div className="md:hidden p-3 space-y-2">
+                                        {historyEvents.length === 0 ? (
+                                            <div className="py-14 text-center text-sm text-slate-400">Kono history nai</div>
+                                        ) : (
+                                            historyEvents.map((e) => (
+                                                <div key={e.key} className="rounded-2xl border border-slate-200 p-3">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap ${HISTORY_STYLE[e.type].cls}`}>
+                                                            {HISTORY_STYLE[e.type].label}{e.isBulk ? ' (Bulk)' : ''}
+                                                        </span>
+                                                        <span className="text-[11px] text-slate-500 whitespace-nowrap">{e.date || 'N/A'}</span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 mt-1.5">#{e.ref}</div>
+                                                    <div className="mt-2 flex items-end justify-between gap-2">
+                                                        <div className="flex flex-wrap gap-1 min-w-0">
+                                                            {e.batchNos.map((n, i) => (
+                                                                <span key={i} className="px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-700 break-all">
+                                                                    {n}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openHistoryItem(e)}
+                                                            className="h-10 px-4 shrink-0 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 text-xs font-semibold hover:bg-indigo-100"
+                                                        >
+                                                            Open
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                    <table className="w-full min-w-[560px] text-left border-collapse">
                                         <thead className="sticky top-0">
                                             <tr className="bg-emerald-50 text-emerald-700 text-[11px] font-bold uppercase tracking-wide">
                                                 <th className="py-2.5 px-3">Batch No</th>
@@ -1911,10 +1996,10 @@ const StockPurchase = () => {
                         const availFree = Math.max(purchaseFree - compRetFree - soldFree - (Number(salesRow.dmgFree) || 0) + custRetFree + adjInFree - adjOutFree, 0);
 
                         return (
-                            <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${salesModalShow ? 'opacity-100' : 'opacity-0'}`}>
+                            <div className={`fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-3 transition-opacity duration-300 ${salesModalShow ? 'opacity-100' : 'opacity-0'}`}>
                                 <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeSalesModal} />
-                                <div className={`relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 ease-out ${salesModalShow ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
-                                    <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+                                <div className={`relative w-full max-w-5xl bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 ease-out ${salesModalShow ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+                                    <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-brand-600 text-white">
                                         <div>
                                             <h3 className="text-base font-extrabold">🧾 Batch History</h3>
                                             <p className="text-[11px] text-white/80 mt-0.5">Batch: {salesRow.batchNo} | {salesRow.productName}</p>
@@ -1928,17 +2013,17 @@ const StockPurchase = () => {
                                         </button>
                                     </div>
 
-                                    <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-                                        <div className="grid grid-cols-2 md:grid-cols-8 gap-3">
+                                    <div className="p-3 sm:p-5 space-y-4 max-h-[82vh] overflow-y-auto">
+                                        <div className="grid grid-cols-3 md:grid-cols-8 gap-1.5 sm:gap-3">
                                             {cards.map((c) => (
                                                 <button
                                                     key={c.key}
                                                     type="button"
                                                     onClick={() => setSalesTab(c.key)}
-                                                    className={`rounded-2xl border px-3 py-3 text-center transition cursor-pointer hover:shadow-md ${c.box} ${salesTab === c.key ? `ring-2 ${c.ring} shadow-md` : ''}`}
+                                                    className={`min-w-0 rounded-xl sm:rounded-2xl border px-1 py-2 sm:px-3 sm:py-3 text-center transition cursor-pointer hover:shadow-md ${c.box} ${salesTab === c.key ? `ring-2 ${c.ring} shadow-md` : ''}`}
                                                 >
-                                                    <div className={`text-[10px] font-bold uppercase ${c.lbl}`}>{c.label}</div>
-                                                    <div className={`text-base font-extrabold ${c.val}`}>{c.money ? `৳${fmt(c.value)}` : `${fmt(c.value)} pcs`}</div>
+                                                    <div className={`text-[8.5px] sm:text-[10px] font-bold uppercase leading-tight ${c.lbl}`}>{c.label}</div>
+                                                    <div className={`text-[12px] sm:text-base font-extrabold leading-tight mt-0.5 break-words ${c.val}`}>{c.money ? `৳${fmt(c.value)}` : `${fmt(c.value)} pcs`}</div>
                                                 </button>
                                             ))}
                                         </div>
@@ -1958,7 +2043,7 @@ const StockPurchase = () => {
 
                                         <div className="overflow-x-auto rounded-2xl border border-gray-100 max-h-80 overflow-y-auto">
                                             {salesTab === 'batch' && (
-                                                <table className="w-full text-left border-collapse">
+                                                <table className="w-full min-w-[560px] text-left border-collapse">
                                                     <thead className="sticky top-0">
                                                         <tr className="bg-indigo-50 text-indigo-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Invoice</th>
@@ -2003,7 +2088,7 @@ const StockPurchase = () => {
                                             )}
 
                                             {salesTab === 'company' && (
-                                                <table className="w-full text-left border-collapse">
+                                                <table className="w-full min-w-[560px] text-left border-collapse">
                                                     <thead className="sticky top-0">
                                                         <tr className="bg-rose-50 text-rose-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Invoice / Date</th>
@@ -2073,7 +2158,7 @@ const StockPurchase = () => {
                                             )}
 
                                             {salesTab === 'sold' && (
-                                                <table className="w-full text-left border-collapse">
+                                                <table className="w-full min-w-[560px] text-left border-collapse">
                                                     <thead className="sticky top-0">
                                                         <tr className="bg-orange-50 text-orange-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Order No / Date</th>
@@ -2171,7 +2256,7 @@ const StockPurchase = () => {
                                             )}
 
                                             {salesTab === 'customer' && (
-                                                <table className="w-full text-left border-collapse">
+                                                <table className="w-full min-w-[560px] text-left border-collapse">
                                                     <thead className="sticky top-0">
                                                         <tr className="bg-violet-50 text-violet-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Order No / Date</th>
@@ -2239,7 +2324,7 @@ const StockPurchase = () => {
                                             )}
 
                                             {salesTab === 'damage' && (
-                                                <table className="w-full text-left border-collapse">
+                                                <table className="w-full min-w-[560px] text-left border-collapse">
                                                     <thead className="sticky top-0">
                                                         <tr className="bg-red-50 text-red-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Invoice / Date</th>
@@ -2300,7 +2385,7 @@ const StockPurchase = () => {
                                             )}
 
                                             {salesTab === 'adjustment' && (
-                                                <table className="w-full text-left border-collapse">
+                                                <table className="w-full min-w-[560px] text-left border-collapse">
                                                     <thead className="sticky top-0">
                                                         <tr className="bg-amber-50 text-amber-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Invoice / Date</th>
@@ -2361,7 +2446,7 @@ const StockPurchase = () => {
                                             )}
 
                                             {salesTab === 'profit' && (
-                                                <table className="w-full text-left border-collapse">
+                                                <table className="w-full min-w-[560px] text-left border-collapse">
                                                     <thead className="sticky top-0">
                                                         <tr className="bg-lime-50 text-lime-700 text-[11px] font-bold uppercase tracking-wide">
                                                             <th className={th}>Order No / Date</th>
@@ -2445,7 +2530,7 @@ const StockPurchase = () => {
                                             )}
 
                                             {salesTab === 'available' && (
-                                                <table className="w-full text-left border-collapse">
+                                                <table className="w-full min-w-[560px] text-left border-collapse">
                                                     <thead className="sticky top-0">
                                                         <tr className={`text-[11px] font-bold uppercase tracking-wide ${salesAvailable > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                                                             <th className={th}>Details</th>
@@ -2534,4 +2619,5 @@ const StockPurchase = () => {
     );
 };
 
-export default StockPurchase; 
+
+export default StockPurchase;

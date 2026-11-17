@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaPlus } from 'react-icons/fa';
 import useCan from '../../../../../hooks/useCan';
-
-const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+import { DateInput } from '../../Product/ProductUi';
+import { fmt, labelCls, inputCls, Pill, Pager, ComboField, FilterPanel, RowMenu, ListSkeleton, Empty } from '../../Purchase/PurchaseUi';
 
 const parseToLocalDate = (dateStr) => {
     if (!dateStr) return null;
@@ -39,40 +40,13 @@ const StockAdjustment = () => {
     const navigate = useNavigate();
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const [filters, setFilters] = useState({ startDate: '', endDate: '', company: '', companyContact: '', invoiceNo: '' });
     const [companies, setCompanies] = useState([]);
-
-    // Company searchable-select state
-    const [isCompanyOpen, setIsCompanyOpen] = useState(false);
-    const companyDropdownRef = useRef(null);
-
-    useEffect(() => {
-        const handleClickOutsideCompany = (event) => {
-            if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target)) {
-                setIsCompanyOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutsideCompany);
-        return () => document.removeEventListener('mousedown', handleClickOutsideCompany);
-    }, []);
     const [currentPage, setCurrentPage] = useState(1);
-    const [openDropdownId, setOpenDropdownId] = useState(null);
     const itemsPerPage = 30;
     const fetched = useRef(false);
 
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => setToast({ show: false, message: '', type: '' }), 3500);
-    };
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (!e.target.closest('.action-dropdown-container')) setOpenDropdownId(null);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
+    const showToast = (message, type = 'success') => (type === 'error' ? toast.error(message) : toast.success(message));
 
     useEffect(() => {
         if (fetched.current) return;
@@ -103,41 +77,26 @@ const StockAdjustment = () => {
         setCurrentPage(1);
     };
 
-    const filteredCompanies = companies.filter((comp) => {
-        const s = filters.company.toLowerCase();
-        return (
-            comp.businessName?.toLowerCase().includes(s) ||
-            comp.contactNumber?.toLowerCase().includes(s)
-        );
-    });
+    const companyOptions = companies
+        .filter((c) => {
+            const s = filters.company.toLowerCase();
+            return c.businessName?.toLowerCase().includes(s) || c.contactNumber?.toLowerCase().includes(s);
+        })
+        .map((c) => ({ key: c._id, title: c.businessName, sub: c.contactNumber ? `📞 ${c.contactNumber}` : '', raw: c }));
 
     const getPhoneByName = (name) =>
         companies.find((c) => (c.businessName || '').trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
     const getRowPhone = (r) => r.companyContact || getPhoneByName(r.company);
 
-    const handleSelectCompany = (comp) => {
-        setFilters({ ...filters, company: comp.businessName, companyContact: comp.contactNumber || '' });
-        setCurrentPage(1);
-        setIsCompanyOpen(false);
-    };
-
-    const handleClearCompany = (e) => {
-        e.stopPropagation();
-        setFilters({ ...filters, company: '', companyContact: '' });
-        setCurrentPage(1);
-        setIsCompanyOpen(false);
-    };
-
     const handleDelete = async (id) => {
-        if (!canDelete) { setOpenDropdownId(null); return showToast('আপনার Delete করার অনুমতি নেই!', 'error'); }
-        setOpenDropdownId(null);
+        if (!canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
         const result = await Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#4f46e5',
-            cancelButtonColor: '#f43f5e',
+            confirmButtonColor: '#4a58e6',
+            cancelButtonColor: '#e11d48',
             confirmButtonText: 'Yes, delete it!',
         });
         if (!result.isConfirmed) return;
@@ -154,6 +113,17 @@ const StockAdjustment = () => {
             showToast('Server error while deleting!', 'error');
         }
     };
+
+    const handleEdit = (r) => {
+        if (!canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+        navigate(`/stock-adjustment-form?edit=${r._id}`, { state: { adjustment: r } });
+    };
+
+    const menuItems = (r) => [
+        { label: 'View', onClick: () => navigate(`/stock-adjustment-view/${r._id}`) },
+        { label: 'Edit', tone: 'brand', onClick: () => handleEdit(r) },
+        { label: 'Delete', tone: 'danger', onClick: () => handleDelete(r._id) },
+    ];
 
     const filtered = rows.filter((r) => {
         if (filters.startDate || filters.endDate) {
@@ -188,197 +158,175 @@ const StockAdjustment = () => {
         { inn: 0, out: 0 }
     );
 
+    const activeCount = ['startDate', 'endDate', 'company', 'invoiceNo'].filter((k) => filters[k]).length;
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    {toast.message}
-                </div>
-            )}
-
-            <div className="max-w-[1600px] mx-auto space-y-6">
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1600px] mx-auto space-y-4">
+                {/* Header */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                            Stock Adjustment
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">Stock In / Out adjustment track korun</p>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Stock Adjustment</h1>
+                        <p className="text-sm text-slate-500 mt-0.5">Track stock In / Out adjustments</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-100 text-center">
-                            <div className="text-[10px] font-bold uppercase text-emerald-400">Total In (+)</div>
-                            <div className="text-lg font-extrabold text-emerald-700">{fmt(grand.inn)} pcs</div>
-                        </div>
-                        <div className="px-4 py-2 rounded-2xl bg-rose-50 border border-rose-100 text-center">
-                            <div className="text-[10px] font-bold uppercase text-rose-400">Total Out (−)</div>
-                            <div className="text-lg font-extrabold text-rose-700">{fmt(grand.out)} pcs</div>
-                        </div>
-                        <button
-                            onClick={() => (canAdd ? navigate('/stock-adjustment-form') : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
-                            className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
-                        >
-                            + New Adjustment
-                        </button>
+                    <button
+                        type="button"
+                        onClick={() => (canAdd ? navigate('/stock-adjustment-form') : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
+                        className="bg-brand-600 text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
+                    >
+                        <FaPlus size={12} /> New Adjustment
+                    </button>
+                </div>
+
+                {/* Summary */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-3 sm:px-4 py-2.5 sm:py-3">
+                        <div className="text-[10px] font-bold uppercase text-emerald-500">Total In (+)</div>
+                        <div className="text-base sm:text-lg font-extrabold text-emerald-700">{fmt(grand.inn)} pcs</div>
+                    </div>
+                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 sm:px-4 py-2.5 sm:py-3">
+                        <div className="text-[10px] font-bold uppercase text-rose-400">Total Out (−)</div>
+                        <div className="text-base sm:text-lg font-extrabold text-rose-700">{fmt(grand.out)} pcs</div>
                     </div>
                 </div>
 
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-4 md:p-5 border border-white space-y-4">
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-gray-800">Adjustment Directory</h3>
-                        <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full">
-                            {filtered.length} of {rows.length}
-                        </span>
+                {/* Filter */}
+                <FilterPanel activeCount={activeCount} onClear={handleClearFilters} cols="lg:grid-cols-4">
+                    <div>
+                        <span className={labelCls}>Start Date</span>
+                        <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
                     </div>
+                    <div>
+                        <span className={labelCls}>End Date</span>
+                        <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
+                    </div>
+                    <ComboField
+                        label="Company"
+                        value={filters.company}
+                        placeholder="Search company..."
+                        options={companyOptions}
+                        onType={(v) => {
+                            setFilters({ ...filters, company: v, companyContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onClear={() => {
+                            setFilters({ ...filters, company: '', companyContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onPick={(o) => {
+                            setFilters({ ...filters, company: o.raw.businessName, companyContact: o.raw.contactNumber || '' });
+                            setCurrentPage(1);
+                        }}
+                    />
+                    <div>
+                        <label className={labelCls}>Invoice Number</label>
+                        <input type="text" name="invoiceNo" placeholder="Search invoice..." value={filters.invoiceNo} onChange={handleFilterChange} className={inputCls} />
+                    </div>
+                </FilterPanel>
 
-                    <div className="bg-white shadow-lg rounded-2xl p-5 border border-indigo-100">
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                            </h3>
-                            <button onClick={handleClearFilters} className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg font-semibold cursor-pointer">
-                                <FaRedo size={11} /> Clear All Filters
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                                <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50" />
-                            </div>
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                                <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50" />
-                            </div>
-                            <div className="relative" ref={companyDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Company</label>
-                                <div
-                                    onClick={() => setIsCompanyOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select company..."
-                                        value={filters.company}
-                                        onChange={(e) => {
-                                            setFilters({ ...filters, company: e.target.value, companyContact: '' });
-                                            setCurrentPage(1);
-                                            setIsCompanyOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.company && (
-                                        <button type="button" onClick={handleClearCompany} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isCompanyOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredCompanies.length > 0 ? (
-                                            filteredCompanies.map((comp) => (
-                                                <div
-                                                    key={comp._id}
-                                                    onClick={() => handleSelectCompany(comp)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
-                                                >
-                                                    <p className="text-xs font-semibold text-gray-800">{comp.businessName}</p>
-                                                    {comp.contactNumber && (
-                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {comp.contactNumber}</p>
-                                                    )}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No company found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
-                                <input type="text" name="invoiceNo" placeholder="Search invoice..." value={filters.invoiceNo} onChange={handleFilterChange} className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 outline-none bg-gray-50/50" />
-                            </div>
-                        </div>
+                {/* List */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-1.5 sm:p-4 space-y-2 sm:space-y-3">
+                    <div className="flex items-center gap-2 px-1.5 pt-1 sm:p-0">
+                        <h3 className="text-base font-bold text-slate-800">Adjustment Directory</h3>
+                        <Pill tone="brand">{filtered.length} of {rows.length}</Pill>
                     </div>
 
                     {loading ? (
-                        <div className="text-center py-20 text-gray-500 font-medium">Loading adjustments...</div>
+                        <ListSkeleton />
                     ) : filtered.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400 font-medium">No adjustments found!</div>
+                        <Empty text="No adjustments found!" />
                     ) : (
-                        <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[11px] uppercase tracking-wide whitespace-nowrap">
-                                        <th className="py-3 px-3">Date</th>
-                                        <th className="py-3 px-3">Company</th>
-                                        <th className="py-3 px-3">Invoice No</th>
-                                        <th className="py-3 px-3">In (+)</th>
-                                        <th className="py-3 px-3">Out (−)</th>
-                                        <th className="py-3 px-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 text-[13px] text-gray-700">
-                                    {current.map((r) => {
-                                        const t = sumRow(r);
-                                        return (
-                                            <tr key={r._id} className="hover:bg-indigo-50/40 transition">
-                                                <td className="py-3 px-3 whitespace-nowrap text-gray-600 font-medium">{r.adjustmentDate || 'N/A'}</td>
-                                                <td className="py-3 px-3 whitespace-nowrap font-bold text-gray-800">
-                                                    <div>{r.company}</div>
-                                                    {getRowPhone(r) && (
-                                                        <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {getRowPhone(r)}</div>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-3 whitespace-nowrap text-gray-600 font-medium">#{r.invoiceNo}</td>
-                                                <td className="py-3 px-3 whitespace-nowrap font-bold text-emerald-600">{t.inn > 0 ? `+${fmt(t.inn)} pcs` : <span className="text-gray-300">—</span>}</td>
-                                                <td className="py-3 px-3 whitespace-nowrap font-bold text-rose-600">{t.out > 0 ? `−${fmt(t.out)} pcs` : <span className="text-gray-300">—</span>}</td>
-                                                <td className="py-3 px-3 text-center">
-                                                    <div className="relative inline-block action-dropdown-container">
-                                                        <button
-                                                            onClick={() => setOpenDropdownId(openDropdownId === r._id ? null : r._id)}
-                                                            className="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl font-semibold text-[11px] shadow-sm cursor-pointer"
-                                                        >
-                                                            Select ▾
-                                                        </button>
-                                                        {openDropdownId === r._id && (
-                                                            <div className="absolute right-0 bottom-full mb-2 w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left">
-                                                                <button onClick={() => navigate(`/stock-adjustment-view/${r._id}`)} className="w-full px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 text-left cursor-pointer">View</button>
-                                                                <button onClick={() => (canEdit ? navigate(`/stock-adjustment-form?edit=${r._id}`, { state: { adjustment: r } }) : showToast('আপনার Edit করার অনুমতি নেই!', 'error'))} className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 text-left cursor-pointer">Edit</button>
-                                                                <button onClick={() => handleDelete(r._id)} className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 text-left cursor-pointer">Delete</button>
-                                                            </div>
-                                                        )}
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden space-y-1.5">
+                                {current.map((r) => {
+                                    const t = sumRow(r);
+                                    return (
+                                        <div key={r._id} className="relative rounded-xl border border-slate-200 bg-white pl-3 pr-2 py-2 shadow-sm">
+                                            <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-brand-500" />
+                                            <div className="flex items-stretch gap-2">
+                                                {/* Left: info */}
+                                                <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <p className="font-bold text-[13px] text-brand-700 truncate leading-tight min-w-0">{r.company}</p>
+                                                        <span className="shrink-0 text-[10px] font-semibold text-slate-600 bg-slate-100 rounded-full px-1.5 py-px leading-tight">#{r.invoiceNo}</span>
                                                     </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                                    <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">Date: </span>
+                                                        {r.adjustmentDate || 'N/A'}
+                                                    </p>
+                                                    {getRowPhone(r) && <p className="text-[10.5px] text-slate-400 leading-snug truncate">📞 {getRowPhone(r)}</p>}
+                                                </div>
 
-                    {!loading && filtered.length > 0 && (
-                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-indigo-50 border border-gray-200 shadow-sm cursor-pointer'}`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
-                                </button>
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-indigo-50 border border-gray-200 shadow-sm cursor-pointer'}`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
+                                                {/* Right: menu, In, Out */}
+                                                <div className="shrink-0 w-[116px] flex flex-col items-end justify-between gap-1.5">
+                                                    <RowMenu compact items={menuItems(r)} />
+                                                    <div className="w-full space-y-px">
+                                                        <div className="flex items-center justify-between rounded-md bg-emerald-50 px-1.5 py-0.5">
+                                                            <span className="text-[9px] font-bold text-emerald-500">IN</span>
+                                                            <span className="text-[11px] font-bold text-emerald-700">{t.inn > 0 ? `+${fmt(t.inn)}` : '—'}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between rounded-md bg-rose-50 px-1.5 py-0.5">
+                                                            <span className="text-[9px] font-bold text-rose-400">OUT</span>
+                                                            <span className="text-[11px] font-bold text-rose-700">{t.out > 0 ? `−${fmt(t.out)}` : '—'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[760px] text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+                                        <tr>
+                                            <th className="px-3 py-3">Date</th>
+                                            <th className="px-3 py-3">Company</th>
+                                            <th className="px-3 py-3">Invoice No</th>
+                                            <th className="px-3 py-3">In (+)</th>
+                                            <th className="px-3 py-3">Out (−)</th>
+                                            <th className="px-3 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        {current.map((r) => {
+                                            const t = sumRow(r);
+                                            return (
+                                                <tr key={r._id} className="align-middle hover:bg-slate-50">
+                                                    <td className="px-3 py-3 whitespace-nowrap text-xs font-medium text-slate-600">{r.adjustmentDate || 'N/A'}</td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <div className="font-bold text-slate-800">{r.company}</div>
+                                                        {getRowPhone(r) && <div className="text-[11px] text-slate-400 mt-0.5">📞 {getRowPhone(r)}</div>}
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap font-medium">#{r.invoiceNo}</td>
+                                                    <td className="px-3 py-3 whitespace-nowrap font-bold text-emerald-600">
+                                                        {t.inn > 0 ? `+${fmt(t.inn)} pcs` : <span className="text-slate-300">—</span>}
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap font-bold text-rose-600">
+                                                        {t.out > 0 ? `−${fmt(t.out)} pcs` : <span className="text-slate-300">—</span>}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-center">
+                                                        <RowMenu items={menuItems(r)} />
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <Pager
+                                page={currentPage}
+                                totalPages={totalPages}
+                                onChange={handlePageChange}
+                                from={first + 1}
+                                to={Math.min(first + itemsPerPage, filtered.length)}
+                                total={filtered.length}
+                            />
+                        </>
                     )}
                 </div>
             </div>

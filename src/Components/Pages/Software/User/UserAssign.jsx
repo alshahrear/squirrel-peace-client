@@ -27,7 +27,7 @@ const TriCheck = ({ checked, indeterminate, onChange, disabled, title }) => {
             onChange={onChange}
             disabled={disabled}
             title={title}
-            className="h-4 w-4 accent-indigo-600 cursor-pointer disabled:cursor-not-allowed"
+            className="h-5 w-5 accent-brand-600 cursor-pointer disabled:cursor-not-allowed"
         />
     );
 };
@@ -44,6 +44,7 @@ const UserAssign = () => {
     const [saving, setSaving] = useState(false);
     const [pageSearch, setPageSearch] = useState("");
     const reqRef = useRef(0);
+    const permRef = useRef(null);
 
     const dirty = selected ? snap(perms) !== original : false;
 
@@ -120,6 +121,10 @@ const UserAssign = () => {
         setPerms({});
         setOriginal(snap({}));
         setLoadingPerm(true);
+        // mobile এ user বাছলে permission panel এ scroll
+        if (window.innerWidth < 1024) {
+            setTimeout(() => permRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+        }
         try {
             const res = await axiosClient.get(`/user-permission/${u._id}`);
             if (id !== reqRef.current) return;
@@ -234,10 +239,10 @@ const UserAssign = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4 md:p-8">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 border border-white flex items-center gap-3">
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex items-center gap-3">
                     <div className="p-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl shadow-lg shadow-indigo-200">
                         <FaUserShield size={22} />
                     </div>
@@ -251,7 +256,7 @@ const UserAssign = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Users list */}
-                    <div className="lg:col-span-4 bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-5 border border-white space-y-4 h-fit">
+                    <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-4 space-y-3 h-fit lg:sticky lg:top-20">
                         <div className="flex items-center gap-2">
                             <FaUsers className="text-indigo-600" />
                             <h3 className="font-bold text-gray-800">Users</h3>
@@ -272,9 +277,13 @@ const UserAssign = () => {
                             />
                         </div>
 
-                        <div className="max-h-[560px] overflow-y-auto space-y-2 pr-1">
+                        <div className="max-h-[240px] lg:max-h-[560px] overflow-y-auto space-y-2 pr-1">
                             {loadingUsers ? (
-                                <p className="text-center text-sm text-gray-400 py-10">Loading users...</p>
+                                <div className="space-y-2" aria-busy="true">
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={i} className="h-16 rounded-2xl bg-slate-100 animate-pulse" />
+                                    ))}
+                                </div>
                             ) : filteredUsers.length === 0 ? (
                                 <p className="text-center text-sm text-gray-400 py-10">No users found</p>
                             ) : (
@@ -313,7 +322,7 @@ const UserAssign = () => {
                     </div>
 
                     {/* Permissions */}
-                    <div className="lg:col-span-8 bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-5 md:p-6 border border-white space-y-5">
+                    <div ref={permRef} className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 md:p-6 space-y-5 scroll-mt-20">
                         {!selected ? (
                             <div className="text-center py-24 text-gray-400">
                                 <FaUserShield size={40} className="mx-auto mb-3 text-indigo-200" />
@@ -373,7 +382,11 @@ const UserAssign = () => {
                                 </div>
 
                                 {loadingPerm ? (
-                                    <p className="text-center text-sm text-gray-400 py-16">Loading permissions...</p>
+                                    <div className="space-y-3" aria-busy="true">
+                                        {[...Array(5)].map((_, i) => (
+                                            <div key={i} className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
+                                        ))}
+                                    </div>
                                 ) : (
                                     <div className="space-y-4">
                                         {visibleGroups.map((g) => {
@@ -381,7 +394,7 @@ const UserAssign = () => {
                                             const groupSome = g.mods.some((m) => (perms[m.key] || []).length > 0);
                                             return (
                                                 <div key={g.key} className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-                                                    <div className="grid grid-cols-[1fr_repeat(4,52px)] sm:grid-cols-[1fr_repeat(4,64px)] items-center gap-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_repeat(4,64px)] items-center gap-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white">
                                                         <label className="flex items-center gap-2.5 text-sm font-bold cursor-pointer">
                                                             <TriCheck
                                                                 checked={groupFull}
@@ -393,7 +406,7 @@ const UserAssign = () => {
                                                             {g.label}
                                                         </label>
                                                         {ACTIONS.map((a) => (
-                                                            <span key={a.key} className="text-[10px] sm:text-[11px] font-bold uppercase text-center">
+                                                            <span key={a.key} className="hidden sm:block text-[10px] sm:text-[11px] font-bold uppercase text-center">
                                                                 {a.label}
                                                             </span>
                                                         ))}
@@ -425,9 +438,9 @@ const UserAssign = () => {
                                                                             return (
                                                                                 <div
                                                                                     key={m.key}
-                                                                                    className={`grid grid-cols-[1fr_repeat(4,52px)] sm:grid-cols-[1fr_repeat(4,64px)] items-center gap-1 py-2.5 transition ${sg.label ? "pl-9 pr-4" : "px-4"} ${cur.length ? "bg-indigo-50/40" : "bg-white"}`}
+                                                                                    className={`grid grid-cols-1 sm:grid-cols-[1fr_repeat(4,64px)] items-center gap-2 sm:gap-1 py-3 sm:py-2.5 transition ${sg.label ? "pl-6 sm:pl-9 pr-4" : "px-4"} ${cur.length ? "bg-indigo-50/40" : "bg-white"}`}
                                                                                 >
-                                                                                    <label className="flex items-center gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer min-w-0">
+                                                                                    <label className="flex items-start gap-2.5 text-sm font-semibold text-gray-700 cursor-pointer min-w-0">
                                                                                         <TriCheck
                                                                                             checked={isFull(m.key)}
                                                                                             indeterminate={cur.length > 0}
@@ -435,18 +448,21 @@ const UserAssign = () => {
                                                                                             disabled={locked || !modAny(m.key)}
                                                                                             title="Full access to this page"
                                                                                         />
-                                                                                        <span className="truncate" title={m.label}>{m.label}</span>
+                                                                                        <span className="break-words leading-snug min-w-0">{m.label}</span>
                                                                                     </label>
-                                                                                    {ACTIONS.map((a) => (
-                                                                                        <div key={a.key} className="flex justify-center">
-                                                                                            <TriCheck
-                                                                                                checked={cur.includes(a.key)}
-                                                                                                onChange={() => toggleAction(m.key, a.key)}
-                                                                                                disabled={locked || !myCan(m.key, a.key)}
-                                                                                                title={a.label}
-                                                                                            />
-                                                                                        </div>
-                                                                                    ))}
+                                                                                    <div className="grid grid-cols-4 sm:contents gap-1 pl-8 sm:pl-0">
+                                                                                        {ACTIONS.map((a) => (
+                                                                                            <label key={a.key} className="flex sm:justify-center items-center gap-1.5 min-h-[36px] cursor-pointer">
+                                                                                                <TriCheck
+                                                                                                    checked={cur.includes(a.key)}
+                                                                                                    onChange={() => toggleAction(m.key, a.key)}
+                                                                                                    disabled={locked || !myCan(m.key, a.key)}
+                                                                                                    title={a.label}
+                                                                                                />
+                                                                                                <span className="sm:hidden text-[11px] font-semibold text-slate-500">{a.label}</span>
+                                                                                            </label>
+                                                                                        ))}
+                                                                                    </div>
                                                                                 </div>
                                                                             );
                                                                         })}
@@ -464,12 +480,12 @@ const UserAssign = () => {
                                     </div>
                                 )}
 
-                                <div className="flex justify-end pt-2">
+                                <div className="sticky bottom-0 z-20 -mx-4 sm:-mx-5 md:-mx-6 -mb-4 sm:-mb-5 md:-mb-6 px-4 sm:px-5 md:px-6 py-3 bg-white/95 border-t border-slate-200 rounded-b-2xl flex justify-end">
                                     <button
                                         type="button"
                                         onClick={handleSave}
                                         disabled={saving || loadingPerm || !dirty}
-                                        className="flex items-center gap-2 px-8 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white font-bold text-sm shadow-lg shadow-indigo-200 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                        className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-2.5 bg-brand-600 text-white font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                     >
                                         <FaSave /> {saving ? "Saving..." : "Save Permissions"}
                                     </button>

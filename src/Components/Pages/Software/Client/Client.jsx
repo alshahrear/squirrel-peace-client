@@ -1,79 +1,50 @@
 import React, { useState, useRef } from 'react';
-import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 import { FaEye, FaEyeSlash, FaUserPlus, FaTimes } from 'react-icons/fa';
 import ClientList from './ClientList';
 import useAxiosSecure from '../../../../hooks/useAxiosSecure';
 
+const inputCls =
+    'w-full px-3 py-2.5 text-sm rounded-xl border bg-white text-slate-800 placeholder-slate-400 outline-none transition focus:ring-2 disabled:bg-slate-100 disabled:text-slate-500';
+const okCls = 'border-slate-300 focus:border-brand-500 focus:ring-brand-100';
+const errCls = 'border-rose-400 bg-rose-50 focus:border-rose-500 focus:ring-rose-100';
+const labelCls = 'block mb-1.5 text-xs font-medium text-slate-600';
+
+const emptyForm = {
+    whatsapp: '',
+    userLimit: 10,
+    name: '',
+    slug: '',
+    phone: '',
+    email: '',
+    password: '',
+    address: '',
+    isActive: false,
+};
+
 const Client = () => {
     const axiosSecure = useAxiosSecure();
-    // ফরমের ডেটা ম্যানেজ করার জন্য স্টেট
-    const [formData, setFormData] = useState({
-        whatsapp: '',
-        userLimit: 10,
-        name: '',
-        slug: '',
-        phone: '',
-        email: '',
-        password: '',
-        address: '',
-        isActive: false
-    });
-
-    // এডিট করার সময় সিলেক্টেড ক্লায়েন্টের আইডি রাখার জন্য স্টেট
+    const [formData, setFormData] = useState(emptyForm);
     const [editingId, setEditingId] = useState(null);
     const [slugLocked, setSlugLocked] = useState(false);
-
-    // টেবিল রিফ্রেশ করার ট্রিগার স্টেট
     const [refreshTrigger, setRefreshTrigger] = useState(false);
-
-    // পাসওয়ার্ড দৃশ্যমান বা অদৃশ্য করার স্টেট
     const [showPassword, setShowPassword] = useState(false);
-
-    // ডুপ্লিকেট এরর ফিল্ড ট্র্যাক করার স্টেট
-    const [fieldErrors, setFieldErrors] = useState({ phone: '', email: '' });
-
-    // ফর্ম দৃশ্যমান বা অদৃশ্য (Collapse) করার স্টেট
+    const [fieldErrors, setFieldErrors] = useState({ phone: '', email: '', slug: '' });
     const [isFormOpen, setIsFormOpen] = useState(false);
-
-    // স্ক্রল করার জন্য রেফ (Ref)
+    const [saving, setSaving] = useState(false);
     const formRef = useRef(null);
 
-    // টোস্ট নোটিফিকেশন কনফিগারেশন (SweetAlert2 Mixin)
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-            toast.onmouseenter = Swal.stopTimer;
-            toast.onmouseleave = Swal.resumeTimer;
-        }
-    });
-
-    // ইনপুট পরিবর্তনের হ্যান্ডলার
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData({
-            ...formData,
-            [name]: type === 'checkbox' ? checked : value
-        });
+        setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
-    // শুধু সংখ্যা ইনপুট ও পেস্ট নিশ্চিত করার জন্য (এখানে বাগটি ঠিক করা হয়েছে)
     const handlePhoneChange = (e) => {
-        const value = e.target.value;
-        const numericValue = value.replace(/\D/g, '');
-
-        setFormData(prev => ({
-            ...prev,
-            phone: numericValue
-        }));
-
-        setFieldErrors(prev => ({ ...prev, phone: '' }));
+        const numericValue = e.target.value.replace(/\D/g, '');
+        setFormData((prev) => ({ ...prev, phone: numericValue }));
+        setFieldErrors((prev) => ({ ...prev, phone: '' }));
     };
 
-    // তালিকা থেকে Edit বাটনে ক্লিক করলে এই ফাংশন কল হবে
     const handleEditClick = (client) => {
         setEditingId(client._id);
         setSlugLocked(!!client.slug);
@@ -86,312 +57,200 @@ const Client = () => {
             address: client.address || '',
             isActive: client.isActive || false,
             whatsapp: client.whatsapp || '',
-            userLimit: client.userLimit ?? 10
+            userLimit: client.userLimit ?? 10,
         });
-        setIsFormOpen(true); // এডিট ক্লিক করলে ফর্ম ওপেন হয়ে যাবে
-
-        // ফর্মের দিকে স্মুথলি স্ক্রল করে নিয়ে যাবে
-        if (formRef.current) {
-            formRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
+        setIsFormOpen(true);
+        setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     };
 
-    // ফর্ম রিসেট বা এডিট মোড ক্যানসেল করার ফাংশন
     const resetForm = () => {
-        setFormData({
-            name: '',
-            slug: '',
-            phone: '',
-            email: '',
-            password: '',
-            address: '',
-            isActive: false
-        });
+        setFormData(emptyForm);
         setEditingId(null);
-        setFormData(prev => ({ ...prev, whatsapp: '', userLimit: 10 }));
         setSlugLocked(false);
-        setFieldErrors({ phone: '', email: '' });
-        setIsFormOpen(false); // ফর্ম বন্ধ হয়ে যাবে
+        setFieldErrors({ phone: '', email: '', slug: '' });
+        setShowPassword(false);
+        setIsFormOpen(false);
     };
 
-    // ফর্ম সাবমিট অথবা আপডেট হ্যান্ডলার
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setFieldErrors({ phone: '', email: '' });
-
+        if (saving) return;
+        setFieldErrors({ phone: '', email: '', slug: '' });
+        setSaving(true);
         try {
             if (editingId) {
                 await axiosSecure.put(`/client/${editingId}`, formData);
             } else {
                 await axiosSecure.post('/client', formData);
             }
-
-            Toast.fire({
-                icon: 'success',
-                title: editingId ? 'Client updated successfully!' : 'Client added successfully!'
-            });
-
+            toast.success(editingId ? 'Client updated successfully!' : 'Client added successfully!');
             resetForm();
-            setRefreshTrigger(prev => !prev);
+            setRefreshTrigger((prev) => !prev);
         } catch (error) {
             const data = error.response?.data;
             if (data?.error && data.field) {
-                setFieldErrors(prev => ({
-                    ...prev,
-                    [data.field]: data.message
-                }));
+                setFieldErrors((prev) => ({ ...prev, [data.field]: data.message }));
             }
-            Toast.fire({
-                icon: 'error',
-                title: data?.message || 'Something went wrong!'
-            });
+            toast.error(data?.message || 'Something went wrong!');
+        } finally {
+            setSaving(false);
         }
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8 bg-slate-50 min-h-screen" ref={formRef}>
-            {/* টগল বাটন (Add New Client) */}
-            <div className="flex justify-between items-center mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-2xl shadow-lg text-white">
-                <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight">Client Management</h1>
-                    <p className="text-indigo-100 text-sm mt-1">Manage your clients efficiently with secure access and live controls.</p>
-                </div>
-                <button
-                    onClick={() => {
-                        if (isFormOpen && editingId) {
-                            resetForm();
-                        } else {
-                            setIsFormOpen(!isFormOpen);
-                        }
-                    }}
-                    className="flex items-center gap-2 bg-white text-indigo-600 px-5 py-2.5 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition-all duration-300 transform hover:scale-105 cursor-pointer"
-                >
-                    {isFormOpen ? (
-                        <>
-                            <FaTimes /> Close Form
-                        </>
-                    ) : (
-                        <>
-                            <FaUserPlus /> Add New Client
-                        </>
-                    )}
-                </button>
-            </div>
-
-            {/* Collapsible Form Container */}
-            <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isFormOpen ? 'max-h-[1000px] opacity-100 mb-10' : 'max-h-0 opacity-0 mb-0'}`}>
-                <div className="bg-white rounded-2xl shadow-xl border border-indigo-50 p-8">
-                    <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-                        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                            <span className="w-3 h-8 bg-indigo-600 rounded-full inline-block"></span>
-                            {editingId ? 'Update Client Details' : 'Register New Client'}
-                        </h2>
-                        {editingId && (
-                            <button
-                                type="button"
-                                onClick={resetForm}
-                                className="text-sm text-rose-600 hover:text-rose-800 font-semibold bg-rose-50 px-3 py-1.5 rounded-lg transition-colors"
-                            >
-                                Cancel Edit
-                            </button>
-                        )}
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-7xl mx-auto space-y-4 sm:space-y-5">
+                {/* Header */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Client Management</h1>
+                        <p className="text-sm text-slate-500 mt-0.5">Dealers, user limit and live login control.</p>
                     </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* প্রতি লাইনে ৩টি ইনপুট ফিল্ড (Grid layout) */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {/* Name */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
-                                <input
-                                    type="text"
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    required
-                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                                    placeholder="Enter client name"
-                                />
-                            </div>
-
-                            {/* Subdomain */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Subdomain</label>
-                                <div className="flex items-center">
-                                    <input
-                                        type="text"
-                                        name="slug"
-                                        value={formData.slug}
-                                        onChange={(e) => {
-                                            const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                                            setFormData(prev => ({ ...prev, slug: v }));
-                                            setFieldErrors(prev => ({ ...prev, slug: '' }));
-                                        }}
-                                        required
-                                        disabled={slugLocked}
-                                        maxLength={30}
-                                        className={`w-full px-4 py-2.5 bg-gray-50 border ${fieldErrors.slug ? 'border-rose-500 bg-rose-50' : 'border-gray-300'} rounded-l-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all disabled:opacity-60`}
-                                        placeholder="client1"
-                                    />
-                                    <span className="px-3 py-2.5 bg-gray-100 border border-l-0 border-gray-300 rounded-r-xl text-xs text-gray-500 whitespace-nowrap">.bashaybazar.com</span>
-                                </div>
-                                {fieldErrors.slug && (
-                                    <p className="mt-1 text-xs text-rose-600 font-semibold">{fieldErrors.slug}</p>
-                                )}
-                                {slugLocked && (
-                                    <p className="mt-1 text-xs text-gray-500">Subdomain cannot be changed.</p>
-                                )}
-                            </div>
-
-                            {/* Phone */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Phone Number</label>
-                                <input
-                                    type="text"
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handlePhoneChange}
-                                    required
-                                    className={`w-full px-4 py-2.5 bg-gray-50 border ${fieldErrors.phone ? 'border-rose-500 focus:ring-rose-500 bg-rose-50' : 'border-gray-300 focus:ring-indigo-500'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:bg-white transition-all`}
-                                    placeholder="Enter phone number"
-                                />
-                                {fieldErrors.phone && (
-                                    <p className="mt-1 text-xs text-rose-600 font-semibold">{fieldErrors.phone}</p>
-                                )}
-                            </div>
-
-                            {/* Email */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={(e) => {
-                                        handleChange(e);
-                                        setFieldErrors(prev => ({ ...prev, email: '' }));
-                                    }}
-                                    required
-                                    className={`w-full px-4 py-2.5 bg-gray-50 border ${fieldErrors.email ? 'border-rose-500 focus:ring-rose-500 bg-rose-50' : 'border-gray-300 focus:ring-indigo-500'} rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:bg-white transition-all`}
-                                    placeholder="Enter email address"
-                                />
-                                {fieldErrors.email && (
-                                    <p className="mt-1 text-xs text-rose-600 font-semibold">{fieldErrors.email}</p>
-                                )}
-                            </div>
-
-                            {/* Password */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
-                                <div className="relative">
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        name="password"
-                                        value={formData.password}
-                                        onChange={handleChange}
-                                        required={!editingId}
-                                        maxLength={128}
-                                        pattern="(?=.*[A-Za-z])(?=.*\d).{8,128}"
-                                        title="8-128 characters, must include letters and numbers"
-                                        autoComplete="new-password"
-                                        className="w-full px-4 py-2.5 pr-12 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                                        placeholder={editingId ? 'Leave blank to keep current password' : 'Min 8 chars, letters & numbers'}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
-                                    >
-                                        {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Address */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Address</label>
-                                <input
-                                    type="text"
-                                    name="address"
-                                    value={formData.address}
-                                    onChange={handleChange}
-                                    required
-                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                                    placeholder="Enter address"
-                                />
-                            </div>
-
-                            {/* WhatsApp (optional) */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">WhatsApp Number <span className="text-gray-400 font-normal">(optional)</span></label>
-                                <input
-                                    type="text"
-                                    name="whatsapp"
-                                    value={formData.whatsapp}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, whatsapp: e.target.value.replace(/\D/g, '') }))}
-                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                                    placeholder="Enter WhatsApp number"
-                                />
-                            </div>
-
-                            {/* User Limit */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">User Limit <span className="text-gray-400 font-normal">(including dealer)</span></label>
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    name="userLimit"
-                                    value={formData.userLimit}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, userLimit: e.target.value.replace(/\D/g, '') }))}
-                                    required
-                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                                    placeholder="10"
-                                />
-                            </div>
-
-                            {/* Active Status Toggle / Checkbox */}
-                            <div className="flex items-center pt-7">
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        name="isActive"
-                                        checked={formData.isActive}
-                                        onChange={handleChange}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                                    <span className="ml-3 text-sm font-semibold text-gray-700">
-                                        {formData.isActive ? 'Active Status (On)' : 'Non-Active Status (Off)'}
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-
-                        {/* Submit / Update Button */}
-                        <div className="pt-4 flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={resetForm}
-                                className="px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className={`px-8 py-2.5 rounded-xl shadow-lg text-sm font-bold text-white transition-all transform hover:-translate-y-0.5 ${editingId
-                                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
-                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700'
-                                    }`}
-                            >
-                                {editingId ? 'Update Client Information' : 'Submit Client'}
-                            </button>
-                        </div>
-                    </form>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (isFormOpen) resetForm();
+                            else setIsFormOpen(true);
+                        }}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-5 py-2.5 shadow-sm cursor-pointer"
+                    >
+                        {isFormOpen ? (<><FaTimes /> Close Form</>) : (<><FaUserPlus /> Add New Client</>)}
+                    </button>
                 </div>
-            </div>
 
-            {/* Client List Component */}
-            <div>
+                {/* Form */}
+                {isFormOpen && (
+                    <div ref={formRef} className="scroll-mt-20 bg-white rounded-2xl border border-slate-200 p-4 sm:p-6">
+                        <div className="flex items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+                            <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                                {editingId ? 'Update Client Details' : 'Register New Client'}
+                            </h2>
+                            {editingId && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">Editing</span>
+                            )}
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                    <label htmlFor="c-name" className={labelCls}>Full Name</label>
+                                    <input id="c-name" type="text" name="name" value={formData.name} onChange={handleChange} required
+                                        className={`${inputCls} ${okCls}`} placeholder="Enter client name" />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="c-slug" className={labelCls}>Subdomain</label>
+                                    <div className="flex">
+                                        <input
+                                            id="c-slug"
+                                            type="text"
+                                            name="slug"
+                                            value={formData.slug}
+                                            onChange={(e) => {
+                                                const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                                                setFormData((prev) => ({ ...prev, slug: v }));
+                                                setFieldErrors((prev) => ({ ...prev, slug: '' }));
+                                            }}
+                                            required
+                                            disabled={slugLocked}
+                                            maxLength={30}
+                                            className={`${inputCls} ${fieldErrors.slug ? errCls : okCls} rounded-r-none min-w-0`}
+                                            placeholder="client1"
+                                        />
+                                        <span className="px-3 flex items-center bg-slate-100 border border-l-0 border-slate-300 rounded-r-xl text-xs text-slate-500 whitespace-nowrap">.bashaybazar.com</span>
+                                    </div>
+                                    {fieldErrors.slug && <p className="mt-1 text-xs text-rose-600 font-semibold">{fieldErrors.slug}</p>}
+                                    {slugLocked && <p className="mt-1 text-xs text-slate-500">Subdomain cannot be changed.</p>}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="c-phone" className={labelCls}>Phone Number</label>
+                                    <input id="c-phone" type="text" inputMode="numeric" name="phone" value={formData.phone} onChange={handlePhoneChange} required
+                                        className={`${inputCls} ${fieldErrors.phone ? errCls : okCls}`} placeholder="Enter phone number" />
+                                    {fieldErrors.phone && <p className="mt-1 text-xs text-rose-600 font-semibold">{fieldErrors.phone}</p>}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="c-email" className={labelCls}>Email Address</label>
+                                    <input id="c-email" type="email" name="email" value={formData.email}
+                                        onChange={(e) => { handleChange(e); setFieldErrors((prev) => ({ ...prev, email: '' })); }}
+                                        required className={`${inputCls} ${fieldErrors.email ? errCls : okCls}`} placeholder="Enter email address" />
+                                    {fieldErrors.email && <p className="mt-1 text-xs text-rose-600 font-semibold">{fieldErrors.email}</p>}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="c-pass" className={labelCls}>Password</label>
+                                    <div className="relative">
+                                        <input
+                                            id="c-pass"
+                                            type={showPassword ? 'text' : 'password'}
+                                            name="password"
+                                            value={formData.password}
+                                            onChange={handleChange}
+                                            required={!editingId}
+                                            maxLength={128}
+                                            pattern="(?=.*[A-Za-z])(?=.*\d).{8,128}"
+                                            title="8-128 characters, must include letters and numbers"
+                                            autoComplete="new-password"
+                                            className={`${inputCls} ${okCls} pr-11`}
+                                            placeholder={editingId ? 'Leave blank to keep current' : 'Min 8 chars, letters & numbers'}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                            className="absolute right-0 top-0 w-11 h-full flex items-center justify-center bg-transparent border-0 p-0 text-slate-400 hover:text-brand-600"
+                                        >
+                                            {showPassword ? <FaEyeSlash size={17} /> : <FaEye size={17} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="c-addr" className={labelCls}>Address</label>
+                                    <input id="c-addr" type="text" name="address" value={formData.address} onChange={handleChange} required
+                                        className={`${inputCls} ${okCls}`} placeholder="Enter address" />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="c-wa" className={labelCls}>WhatsApp Number <span className="text-slate-400 font-normal">(optional)</span></label>
+                                    <input id="c-wa" type="text" inputMode="numeric" name="whatsapp" value={formData.whatsapp}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, whatsapp: e.target.value.replace(/\D/g, '') }))}
+                                        className={`${inputCls} ${okCls}`} placeholder="Enter WhatsApp number" />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="c-limit" className={labelCls}>User Limit <span className="text-slate-400 font-normal">(including dealer)</span></label>
+                                    <input id="c-limit" type="text" inputMode="numeric" name="userLimit" value={formData.userLimit}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, userLimit: e.target.value.replace(/\D/g, '') }))}
+                                        required className={`${inputCls} ${okCls}`} placeholder="10" />
+                                </div>
+
+                                <div className="flex items-end">
+                                    <label className="flex items-center gap-3 min-h-[44px] cursor-pointer select-none">
+                                        <input type="checkbox" name="isActive" checked={formData.isActive} onChange={handleChange} className="sr-only peer" />
+                                        <span className="relative w-11 h-6 shrink-0 rounded-full bg-slate-300 peer-checked:bg-emerald-600 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"></span>
+                                        <span className="text-sm font-medium text-slate-700">
+                                            {formData.isActive ? 'Active' : 'Non-Active'}
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="pt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+                                <button type="button" onClick={resetForm}
+                                    className="px-6 py-2.5 rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={saving}
+                                    className="px-8 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-semibold cursor-pointer">
+                                    {saving ? 'Saving...' : editingId ? 'Update Client' : 'Submit Client'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
                 <ClientList onEdit={handleEditClick} refreshTrigger={refreshTrigger} />
             </div>
         </div>

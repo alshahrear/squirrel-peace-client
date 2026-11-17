@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useAxiosClient from '../../../../hooks/useAxiosClient';
 import useCan from '../../../../hooks/useCan';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
 import { FaPlus, FaSave, FaTimes, FaSearch, FaShieldAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { FiChevronDown, FiEdit3, FiTrash2 } from 'react-icons/fi';
+
+const inputCls =
+    'w-full px-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white text-slate-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition';
 
 const UserRole = () => {
     const axiosClient = useAxiosClient();
@@ -13,32 +16,55 @@ const UserRole = () => {
     const [roleInput, setRoleInput] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeDropdownId, setActiveDropdownId] = useState(null);
+    const [menu, setMenu] = useState(null); // { id, top, left }
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
+    const inputRef = useRef(null);
+
     const fetchRoles = async () => {
         try {
             const response = await axiosClient.get('/userRole');
             setRoles([...response.data].reverse());
         } catch (error) {
             toast.error('Failed to load roles');
+        } finally {
+            setFetching(false);
         }
     };
 
     useEffect(() => {
         fetchRoles();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.action-dropdown-container')) {
-                setActiveDropdownId(null);
-            }
+        const onDown = (e) => {
+            if (!e.target.closest('.action-menu-panel') && !e.target.closest('.action-menu-btn')) setMenu(null);
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        const close = () => setMenu(null);
+        document.addEventListener('mousedown', onDown);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            window.removeEventListener('scroll', close, true);
+            window.removeEventListener('resize', close);
+        };
     }, []);
+
+    const openMenu = (e, id) => {
+        if (menu?.id === id) {
+            setMenu(null);
+            return;
+        }
+        const r = e.currentTarget.getBoundingClientRect();
+        const h = 96;
+        const top = r.bottom + h + 8 > window.innerHeight ? r.top - h - 4 : r.bottom + 4;
+        const left = Math.max(8, Math.min(r.right - 144, window.innerWidth - 152));
+        setMenu({ id, top, left });
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -92,15 +118,15 @@ const UserRole = () => {
     };
 
     const handleEdit = (item) => {
+        setMenu(null);
         if (!canEdit) {
-            setActiveDropdownId(null);
             toast.error('আপনার Edit করার অনুমতি নেই!');
             return;
         }
-        setActiveDropdownId(null);
         setRoleInput(item.role);
         setEditingId(item._id);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => inputRef.current?.focus(), 250);
     };
 
     const handleCancel = () => {
@@ -109,21 +135,20 @@ const UserRole = () => {
     };
 
     const handleDelete = (id) => {
+        setMenu(null);
         if (!canDelete) {
-            setActiveDropdownId(null);
             toast.error('আপনার Delete করার অনুমতি নেই!');
             return;
         }
-        setActiveDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#4f46e5',
-            cancelButtonColor: '#f43f5e',
+            confirmButtonColor: '#4a58e6',
+            cancelButtonColor: '#e11d48',
             confirmButtonText: 'Yes, delete it!',
-            width: '350px'
+            width: '350px',
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
@@ -154,42 +179,71 @@ const UserRole = () => {
         }
     };
 
+    const menuItem = menu ? roles.find((r) => r._id === menu.id) : null;
+    const pgBtn =
+        'inline-flex items-center gap-1 px-3 h-9 rounded-xl text-xs font-semibold border border-slate-300 bg-slate-50 text-slate-700 hover:bg-brand-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer';
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
             {/* Toast দেখায় Main.jsx এর Toaster */}
 
-            <div className="max-w-5xl mx-auto space-y-8">
+            {menu && menuItem && (
+                <div
+                    role="menu"
+                    style={{ top: menu.top, left: menu.left }}
+                    className="action-menu-panel fixed z-[9999] w-36 bg-white rounded-xl border border-slate-200 shadow-lg py-1.5"
+                >
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleEdit(menuItem)}
+                        className="w-full px-4 min-h-[40px] text-xs font-semibold text-slate-700 hover:bg-brand-50 hover:text-brand-700 flex items-center gap-2 cursor-pointer"
+                    >
+                        <FiEdit3 className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleDelete(menuItem._id)}
+                        className="w-full px-4 min-h-[40px] text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                    >
+                        <FiTrash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                </div>
+            )}
 
-                {/* Feature 1: Role Creation & Input Card */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl shadow-lg shadow-indigo-200">
-                            <FaShieldAlt size={20} />
+            <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
+                {/* Create / Update */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6">
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="w-10 h-10 shrink-0 bg-brand-600 text-white rounded-xl flex items-center justify-center">
+                            <FaShieldAlt size={16} />
                         </div>
-                        <div>
-                            <h2 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
+                        <div className="min-w-0">
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-800">
                                 {editingId ? 'Update Role' : 'Create New Role'}
                             </h2>
-                            <p className="text-gray-500 text-sm mt-1">Add permissions or update existing roles for your system</p>
+                            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Add permissions or update existing roles for your system</p>
                         </div>
                     </div>
 
                     <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
                         <input
+                            ref={inputRef}
                             type="text"
                             value={roleInput}
                             onChange={(e) => setRoleInput(e.target.value)}
-                            placeholder="Enter role name (e.g. Moderator, Admin)"
-                            className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
+                            placeholder="Enter role name (e.g. SR, Manager)"
+                            className={`${inputCls} flex-1`}
                             disabled={loading}
                         />
                         <div className="flex gap-2">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition duration-300 shadow-lg cursor-pointer whitespace-nowrap ${editingId
-                                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-200'
-                                    : 'bg-gradient-to-r from-indigo-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white shadow-indigo-200'
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 min-h-[44px] text-sm font-semibold cursor-pointer whitespace-nowrap disabled:opacity-60 ${editingId
+                                    ? 'bg-amber-500 hover:bg-amber-600 text-white rounded-full'
+                                    : 'bg-brand-600 text-white'
                                     }`}
                             >
                                 {editingId ? <><FaSave /> Update</> : <><FaPlus /> Add Role</>}
@@ -198,8 +252,8 @@ const UserRole = () => {
                                 <button
                                     type="button"
                                     onClick={handleCancel}
-                                    className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl text-sm transition duration-200 cursor-pointer"
-                                    title="Cancel"
+                                    aria-label="Cancel edit"
+                                    className="w-11 min-h-[44px] bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full flex items-center justify-center cursor-pointer"
                                 >
                                     <FaTimes />
                                 </button>
@@ -208,159 +262,115 @@ const UserRole = () => {
                     </form>
                 </div>
 
-                {/* Feature 2: Table & Search Bar Component */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-6">
-
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <h3 className="text-xl font-bold text-gray-800">Assigned Roles</h3>
-                            <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                                Total {roles.length} roles found
+                {/* List */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="text-lg font-bold text-slate-800">Assigned Roles</h3>
+                            <span className="px-3 py-1 bg-brand-50 text-brand-700 font-semibold text-xs rounded-full">
+                                Total {roles.length} roles
                             </span>
                         </div>
 
                         <div className="relative w-full md:w-80">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400">
-                                <FaSearch size={14} />
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                                <FaSearch size={13} />
                             </span>
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                 placeholder="Search roles..."
-                                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition duration-200 bg-gray-50/50 text-sm text-gray-700"
+                                className={`${inputCls} pl-9`}
                             />
                         </div>
                     </div>
 
-                    {/* Table Container */}
-                    <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm p-1">
-                        <div className="rounded-xl">
-                            <table className="w-full text-left border-collapse">
+                    {fetching ? (
+                        <div className="space-y-2" aria-busy="true">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="h-12 rounded-xl bg-slate-100 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                            <table className="w-full min-w-[320px] text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-sm uppercase tracking-wider">
-                                        <th className="py-4 px-5 w-16">#</th>
-                                        <th className="py-4 px-5">Role Name</th>
-                                        <th className="py-4 px-5 text-center w-32">Actions</th>
+                                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+                                        <th className="py-3 px-4 w-14">#</th>
+                                        <th className="py-3 px-4">Role Name</th>
+                                        <th className="py-3 px-4 text-center w-36">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+                                <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
                                     {currentRoles.length > 0 ? (
-                                        currentRoles.map((item, index) => {
-                                            const isNearBottom = index >= currentRoles.length - 3;
-                                            return (
-                                                <tr
-                                                    key={item._id}
-                                                    className="hover:bg-indigo-50/40 transition duration-150"
-                                                    style={activeDropdownId === item._id ? { position: 'relative', zIndex: 50 } : undefined}
-                                                >
-                                                    <td className="py-4 px-5 font-medium text-gray-400">{indexOfFirstItem + index + 1}</td>
-                                                    <td className="py-4 px-5">
-                                                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-semibold text-xs">
-                                                            {item.role}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-4 px-5 text-center relative">
-                                                        <div className="relative inline-block action-dropdown-container">
-                                                            <button
-                                                                onClick={() => setActiveDropdownId(activeDropdownId === item._id ? null : item._id)}
-                                                                className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer mx-auto"
-                                                            >
-                                                                <span>Select</span>
-                                                                <FiChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdownId === item._id ? 'rotate-180' : ''}`} />
-                                                            </button>
-
-                                                            {activeDropdownId === item._id && (
-                                                                <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-2' : 'top-full mt-2'} w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150`}>
-                                                                    <button
-                                                                        onClick={() => handleEdit(item)}
-                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                    >
-                                                                        <FiEdit3 className="w-3.5 h-3.5 text-indigo-500" />
-                                                                        Edit
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDelete(item._id)}
-                                                                        className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                                    >
-                                                                        <FiTrash2 className="w-3.5 h-3.5 text-rose-500" />
-                                                                        Delete
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
+                                        currentRoles.map((item, index) => (
+                                            <tr key={item._id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="py-3 px-4 text-slate-400">{indexOfFirstItem + index + 1}</td>
+                                                <td className="py-3 px-4">
+                                                    <span className="px-3 py-1 bg-brand-50 text-brand-700 rounded-full font-semibold text-xs">
+                                                        {item.role}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => openMenu(e, item._id)}
+                                                        aria-haspopup="menu"
+                                                        aria-label="Actions"
+                                                        className="action-menu-btn inline-flex items-center gap-1.5 px-3 h-9 bg-slate-50 border border-slate-300 text-slate-700 hover:bg-brand-50 hover:text-brand-700 rounded-xl text-xs font-semibold cursor-pointer"
+                                                    >
+                                                        Actions
+                                                        <FiChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${menu?.id === item._id ? 'rotate-180' : ''}`} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="3" className="text-center py-20 text-gray-400 font-medium">
-                                                No matching roles found.
+                                            <td colSpan="3" className="text-center py-14 text-slate-400">
+                                                <FaShieldAlt size={30} className="mx-auto mb-2 text-slate-300" />
+                                                <p className="text-sm font-medium">No matching roles found.</p>
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    )}
 
-                    {filteredRoles.length > 0 && (
-                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
+                    {!fetching && filteredRoles.length > 0 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <span className="text-xs text-slate-500">
+                                Page <b className="text-slate-700">{currentPage}</b> of <b className="text-slate-700">{totalPages}</b>
                             </span>
-
                             <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
+                                <button type="button" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className={pgBtn}>
+                                    <FaChevronLeft size={10} /> Prev
                                 </button>
-
                                 <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                        ) {
+                                    {[...Array(totalPages)].map((_, i) => {
+                                        const n = i + 1;
+                                        if (n === 1 || n === totalPages || (n >= currentPage - 1 && n <= currentPage + 1)) {
                                             return (
                                                 <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                                    key={n}
+                                                    type="button"
+                                                    onClick={() => handlePageChange(n)}
+                                                    className={`w-9 h-9 rounded-xl text-xs font-bold cursor-pointer ${currentPage === n
+                                                        ? 'bg-brand-600 text-white'
+                                                        : 'bg-slate-50 text-slate-700 border border-slate-300 hover:bg-brand-50'
                                                         }`}
                                                 >
-                                                    {pageNum}
+                                                    {n}
                                                 </button>
                                             );
-                                        } else if (
-                                            pageNum === currentPage - 2 ||
-                                            pageNum === currentPage + 2
-                                        ) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
                                         }
+                                        if (n === currentPage - 2 || n === currentPage + 2) return <span key={n} className="text-slate-400 px-1">...</span>;
                                         return null;
                                     })}
                                 </div>
-
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
+                                <button type="button" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className={pgBtn}>
                                     Next <FaChevronRight size={10} />
                                 </button>
                             </div>

@@ -1,16 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import {
-    Printer,
-    Phone,
-    Mail,
-    MapPin,
-    Calendar,
-    FileText,
-    Building2,
-    ArrowLeft,
-    PackageX
-} from 'lucide-react';
+import { FileText, PackageX } from 'lucide-react';
+import { PrintPage, ActionBar, Paper, BusinessHeader, PartySection, InfoLine, InvTag, Toggle, TableBox, headCls, SectionHeading, LoadingState, NotFoundState, CardList, ItemCard, Qty, ReturnItemCards } from './PurchasePrintUi';
 
 const PurchaseDetails = () => {
     const { id } = useParams();
@@ -396,521 +387,465 @@ const PurchaseDetails = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-gray-500 font-medium text-sm">Loading invoice...</p>
-                </div>
-            </div>
+            <PrintPage>
+                <LoadingState text="Loading invoice..." />
+            </PrintPage>
         );
     }
 
     if (notFound || !selectedInvoice) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6">
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-10 border border-white text-center max-w-md w-full">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 flex items-center justify-center mb-4">
-                        <PackageX className="w-8 h-8 text-rose-500" />
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-800">Invoice Not Found</h2>
-                    <p className="text-gray-500 text-sm mt-2">This purchase record couldn't be found. It may have been deleted.</p>
-                    <button
-                        onClick={() => navigate('/purchase')}
-                        className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
-                    >
-                        <ArrowLeft className="w-4 h-4" /> Back to Purchases
-                    </button>
-                </div>
-            </div>
+            <PrintPage>
+                <NotFoundState
+                    title="Invoice Not Found"
+                    text="This purchase record couldn't be found. It may have been deleted."
+                    backLabel="Back to Purchases"
+                    onBack={() => navigate('/purchase')}
+                />
+            </PrintPage>
         );
     }
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 print:bg-white print:p-0">
-            <div className="max-w-7xl mx-auto space-y-6 print:space-y-0 print:max-w-full">
+    const totals = getTotals();
+    const bal = getBalanceInfo();
+    const th = 'py-3 px-3.5';
+    const td = 'py-4 px-3.5';
 
-                {/* Top action bar */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-5 border border-white flex flex-col sm:flex-row justify-between items-center gap-4 print:hidden">
-                    <button
-                        onClick={() => navigate('/purchase')}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-semibold text-sm hover:bg-indigo-100 transition cursor-pointer"
-                    >
-                        <ArrowLeft className="w-4 h-4" /> Back to Purchases
-                    </button>
-                    <button
-                        onClick={handlePrint}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
-                    >
-                        <Printer className="w-4 h-4" /> Print Invoice
-                    </button>
+    return (
+        <PrintPage>
+            <ActionBar backLabel="Back to Purchases" onBack={() => navigate('/purchase')} onPrint={handlePrint} printLabel="Print Invoice" />
+
+            <Paper>
+                <BusinessHeader />
+
+                <PartySection
+                    from={{ name: selectedInvoice.company, phone: selectedInvoice.phone, address: selectedInvoice.address }}
+                    shippingAddress={selectedInvoice.shippingAddress}
+                >
+                    <InfoLine>Purchase Date: {selectedInvoice.purchaseDate}</InfoLine>
+                    <InvTag no={selectedInvoice.invoiceNo} />
+                </PartySection>
+
+                {/* Toggles */}
+                {(hasReturn || hasOrderSnapshot) && (
+                    <div className="px-4 sm:px-6 pt-4 flex flex-wrap items-center justify-between gap-x-6 print:hidden">
+                        {hasReturn ? (
+                            <Toggle label="Remaining After Return" on={showRemaining} onClick={() => setShowRemaining((prev) => !prev)} />
+                        ) : (
+                            <span />
+                        )}
+                        {hasOrderSnapshot && (
+                            <Toggle
+                                label="Original Order View"
+                                on={showOrder}
+                                onClick={() => setShowOrder((prev) => !prev)}
+                                onCls="bg-amber-500"
+                                txtCls="text-amber-600"
+                            />
+                        )}
+                    </div>
+                )}
+
+                {/* Main products */}
+                <div className="px-2 sm:px-6 pb-3 sm:pb-5 pt-2 sm:pt-4">
+                    <CardList>
+                        {displayItems.map((item, index) => {
+                            const r = getRemainingInfo(item);
+                            const c = getCombinedQty(item);
+                            const qtyForCost = showRemaining ? r.remQty : Number(item.totalPcs);
+                            const rowGross = Number(item.buyPrice) * Number(item.totalPcs);
+                            const discountAmt = Number(
+                                item.discountAmount ??
+                                (item.discountType === 'percent'
+                                    ? (rowGross * Number(item.discount)) / 100
+                                    : Number(item.discount))
+                            );
+                            const remGross = showRemaining ? Number(item.buyPrice) * r.remQty : rowGross;
+                            const discountPct =
+                                item.discountType === 'percent' && !showRemaining
+                                    ? Number(item.discount) || 0
+                                    : remGross > 0 ? (discountAmt / remGross) * 100 : 0;
+                            return (
+                                <ItemCard
+                                    key={index}
+                                    index={index + 1}
+                                    title={item.productName}
+                                    sub={selectedInvoice.company}
+                                    total={`৳${(showRemaining ? r.remSubtotal : Number(item.itemTotal ?? item.subtotal)).toFixed(2)}`}
+                                    boxes={[
+                                        { label: 'Main', cls: 'text-orange-600', value: <Qty u={showRemaining ? r.remUnit : item.unitQty || 0} unit={item.unit} s={showRemaining ? r.remSub : item.subQty || 0} sub={item.subUnit} parent={item.parentMode} p={showRemaining ? r.remPcs : item.pcsQty || 0} total={showRemaining ? r.remQty : item.totalPcs || 0} /> },
+                                        { label: 'Free', cls: 'text-emerald-600', value: <Qty u={showRemaining ? r.remFreeUnit : item.freeUnitQty || 0} unit={item.unit} s={showRemaining ? r.remFreeSub : item.freeSubQty || 0} sub={item.subUnit} parent={item.parentMode} p={showRemaining ? r.remFreePcs : item.freePcsQty || 0} total={showRemaining ? r.remFree : item.freeTotalQty ?? item.freeQty ?? 0} /> },
+                                        { label: 'Total Qty', cls: 'text-brand-700', value: <Qty u={c.u} unit={item.unit} s={c.s} sub={item.subUnit} parent={item.parentMode} p={c.p} total={c.total} /> },
+                                        { label: 'Cost Price', side: 'right', value: `৳${(Number(item.buyPrice) * qtyForCost).toFixed(2)} (৳${Number(item.buyPrice).toFixed(2)})` },
+                                        { label: 'Sell Price', side: 'right', value: `৳${(Number(item.sellPrice) * qtyForCost).toFixed(2)} (৳${Number(item.sellPrice).toFixed(2)})` },
+                                        { label: 'Discount', side: 'right', cls: 'text-rose-600', value: `৳${discountAmt.toFixed(2)} (${discountPct.toFixed(2)}%)` },
+                                    ]}
+                                />
+                            );
+                        })}
+                    </CardList>
+                    <TableBox k="main">
+                        <thead>
+                            <tr className={headCls('brand')}>
+                                <th className={`${th} rounded-l-xl`}>SL</th>
+                                <th className={th}>Product Name</th>
+                                <th className={th}>Company</th>
+                                <th className={th}>Quantity</th>
+                                <th className={th}>Total Qty</th>
+                                <th className={`${th} text-right`}>Total Cost Price</th>
+                                <th className={`${th} text-right`}>Total Sell Price</th>
+                                <th className={`${th} text-right`}>Discount</th>
+                                <th className={`${th} text-right rounded-r-xl`}>Item Total</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
+                            {displayItems.map((item, index) => {
+                                const r = getRemainingInfo(item);
+                                const c = getCombinedQty(item);
+                                const mU = showRemaining ? r.remUnit : item.unitQty || 0;
+                                const mS = showRemaining ? r.remSub : item.subQty || 0;
+                                const mP = showRemaining ? r.remPcs : item.pcsQty || 0;
+                                const mT = showRemaining ? r.remQty : item.totalPcs || 0;
+                                const fU = showRemaining ? r.remFreeUnit : item.freeUnitQty || 0;
+                                const fS = showRemaining ? r.remFreeSub : item.freeSubQty || 0;
+                                const fP = showRemaining ? r.remFreePcs : item.freePcsQty || 0;
+                                const fT = showRemaining ? r.remFree : item.freeTotalQty ?? item.freeQty ?? 0;
+                                const qtyForCost = showRemaining ? r.remQty : Number(item.totalPcs);
+                                const rowGross = Number(item.buyPrice) * Number(item.totalPcs);
+                                const discountAmt = Number(
+                                    item.discountAmount ??
+                                    (item.discountType === 'percent'
+                                        ? (rowGross * Number(item.discount)) / 100
+                                        : Number(item.discount))
+                                );
+                                const remGross = showRemaining ? Number(item.buyPrice) * r.remQty : rowGross;
+                                const discountPct =
+                                    item.discountType === 'percent' && !showRemaining
+                                        ? Number(item.discount) || 0
+                                        : remGross > 0
+                                            ? (discountAmt / remGross) * 100
+                                            : 0;
+                                return (
+                                    <tr key={index} className="hover:bg-slate-50/70 transition-colors">
+                                        <td className={`${td} font-medium text-slate-400`}>{index + 1}</td>
+                                        <td className={`${td} font-semibold text-slate-800`}>{item.productName}</td>
+                                        <td className={`${td} text-slate-600`}>{selectedInvoice.company}</td>
+                                        <td className={td}>
+                                            <div className="space-y-0.5">
+                                                <div className="font-semibold text-orange-600">
+                                                    <span className="font-bold mr-1">Main:</span>
+                                                    {mU} {item.unit} {item.parentMode && <>{mS} {item.subUnit} </>}{mP} Pcs
+                                                    <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-brand-50 text-brand-700">({mT})</b>
+                                                </div>
+                                                <div className="font-semibold text-emerald-600">
+                                                    <span className="font-bold mr-1">Free:</span>
+                                                    {fU} {item.unit} {item.parentMode && <>{fS} {item.subUnit} </>}{fP} Pcs
+                                                    <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-brand-50 text-brand-700">({fT})</b>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className={`${td} font-semibold text-brand-700`}>
+                                            {c.u} {item.unit} {item.parentMode && <>{c.s} {item.subUnit} </>}{c.p} Pcs
+                                            <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-brand-50 text-brand-700">({c.total})</b>
+                                        </td>
+                                        <td className={`${td} text-right font-medium text-slate-600`}>
+                                            ৳{(Number(item.buyPrice) * qtyForCost).toFixed(2)}
+                                            <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.buyPrice).toFixed(2)})</span>
+                                        </td>
+                                        <td className={`${td} text-right font-medium text-slate-600`}>
+                                            ৳{(Number(item.sellPrice) * qtyForCost).toFixed(2)}
+                                            <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.sellPrice).toFixed(2)})</span>
+                                        </td>
+                                        <td className={`${td} text-right font-medium`}>
+                                            <span className={item.discountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                ৳{discountAmt.toFixed(2)}
+                                            </span>{' '}
+                                            <span className={item.discountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                ({discountPct.toFixed(2)}%)
+                                            </span>
+                                        </td>
+                                        <td className={`${td} text-right font-bold text-slate-900`}>
+                                            ৳{(showRemaining ? r.remSubtotal : Number(item.itemTotal ?? item.subtotal)).toFixed(2)}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </TableBox>
                 </div>
 
-                {/* Invoice Card */}
-                <div className="flex flex-col bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-white overflow-hidden print:shadow-none print:border-none print:rounded-none">
-
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-6 sm:p-10 print:bg-none print:text-black print:border-b-2 print:border-slate-200">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/25 shadow-inner print:border-slate-300 print:bg-slate-100">
-                                    <Building2 className="w-7 h-7 text-white print:text-slate-700" />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-extrabold tracking-tight text-white print:text-black">ইসরাইল এন্টারপ্রাইজ</h1>
-                                    <p className="text-indigo-50/90 text-xs sm:text-sm flex items-center gap-1.5 mt-1 print:text-slate-600">
-                                        <MapPin className="w-3.5 h-3.5 print:text-slate-500" /> শাহজী পাড়া, বড় বাজার, মেহেরপুর
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="text-xs sm:text-sm text-indigo-50/90 space-y-1.5 print:text-slate-600">
-                                <p className="flex items-center sm:justify-end gap-2">
-                                    <Phone className="w-3.5 h-3.5 print:hidden" />
-                                    <span>01997074920</span>
-                                </p>
-                                <p className="flex items-center sm:justify-end gap-2">
-                                    <Mail className="w-3.5 h-3.5 print:hidden" />
-                                    <span>jakoberjak2017@gmail.com</span>
-                                </p>
-                            </div>
-                        </div>
+                {/* Others Free */}
+                {selectedInvoice.freeItems && selectedInvoice.freeItems.length > 0 && (
+                    <div className="order-2 px-2 sm:px-6 pb-3 sm:pb-5 pt-2 sm:pt-4 print:pt-4">
+                        <SectionHeading tone="amber">
+                            <PackageX className="w-3.5 h-3.5" /> Others Free Products
+                        </SectionHeading>
+                        <CardList>
+                            {selectedInvoice.freeItems.map((item, index) => {
+                                const freeRem = getFreeItemRemaining(item);
+                                const dispTotal = showRemaining ? freeRem.remTotal : Number(item.totalQty) || 0;
+                                return (
+                                    <ItemCard
+                                        key={index}
+                                        index={index + 1}
+                                        title={item.productName}
+                                        sub={item.company}
+                                        total={`৳${(dispTotal * (Number(item.sellPricePcs) || 0)).toFixed(2)}`}
+                                        totalLabel="Sell Total"
+                                        boxes={[
+                                            { label: 'Quantity', cls: 'text-emerald-600', value: <Qty u={showRemaining ? freeRem.remUnit : Number(item.unitQty) || 0} unit={item.unit} s={showRemaining ? freeRem.remSub || 0 : Number(item.subQty) || 0} sub={item.subUnit} parent={item.parentMode} p={showRemaining ? freeRem.remPcs : Number(item.pcsQty) || 0} total={dispTotal} /> },
+                                            { label: 'Sell Price (PCS)', value: `৳${Number(item.sellPricePcs || 0).toFixed(2)}` },
+                                        ]}
+                                    />
+                                );
+                            })}
+                        </CardList>
+                        <TableBox k="free">
+                            <thead>
+                                <tr className={headCls('amber')}>
+                                    <th className={`${th} rounded-l-xl`}>SL</th>
+                                    <th className={th}>Product</th>
+                                    <th className={th}>Company</th>
+                                    <th className={th}>Quantity</th>
+                                    <th className={`${th} text-right rounded-r-xl`}>Sell Price (PCS)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
+                                {selectedInvoice.freeItems.map((item, index) => {
+                                    const freeRem = getFreeItemRemaining(item);
+                                    const dispUnit = showRemaining ? freeRem.remUnit : Number(item.unitQty) || 0;
+                                    const dispPcs = showRemaining ? freeRem.remPcs : Number(item.pcsQty) || 0;
+                                    const dispTotal = showRemaining ? freeRem.remTotal : Number(item.totalQty) || 0;
+                                    const dispSub = showRemaining ? freeRem.remSub || 0 : Number(item.subQty) || 0;
+                                    const pcsTotal = dispTotal * (Number(item.sellPricePcs) || 0);
+                                    return (
+                                        <tr key={index} className="hover:bg-amber-50/40 transition-colors">
+                                            <td className={`${td} font-medium text-slate-400`}>{index + 1}</td>
+                                            <td className={`${td} font-semibold text-slate-800`}>{item.productName}</td>
+                                            <td className={`${td} text-slate-600`}>{item.company}</td>
+                                            <td className={`${td} font-semibold text-emerald-600`}>
+                                                {dispUnit} {item.unit} {item.parentMode && <>{dispSub} {item.subUnit} </>}{dispPcs} Pcs
+                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {dispTotal})</span>
+                                            </td>
+                                            <td className={`${td} text-right font-medium text-slate-600`}>
+                                                ৳{pcsTotal.toFixed(2)}
+                                                <span className="text-[11px] text-slate-700 ml-1">
+                                                    (৳{Number(item.sellPricePcs || 0).toFixed(2)}/<span className="text-xs font-bold">pcs</span>)
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </TableBox>
                     </div>
+                )}
 
-                    {/* Bill From / To */}
-                    <div className="p-6 sm:p-8 bg-slate-50/60 border-b border-slate-200/70 print:bg-white">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm print:border-none print:p-0 print:shadow-none">
-                                <span className="inline-block text-[11px] font-bold tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mb-3 uppercase">Bill From</span>
-                                <p className="font-bold text-slate-800 text-base">{selectedInvoice.company}</p>
-                                <p className="text-xs sm:text-sm text-slate-600 mt-0.5">{selectedInvoice.phone}</p>
-                                <p className="text-xs sm:text-sm text-slate-600">{selectedInvoice.address}</p>
-                            </div>
-
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm print:border-none print:p-0 print:shadow-none flex flex-col justify-between">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <span className="inline-block text-[11px] font-bold tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mb-2 uppercase">Bill To</span>
-                                        <p className="font-bold text-slate-800 text-lg">Demo Enterprise</p>
-                                        <p className="text-xs text-slate-500 mt-1">01612002913</p>
-                                        <p className="text-xs text-slate-500">{selectedInvoice.shippingAddress || 'N/A'}</p>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                        <p className="text-xs text-slate-500 flex items-center justify-end gap-1">
-                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Purchase Date: {selectedInvoice.purchaseDate}
-                                        </p>
-                                        <p className="text-xs font-semibold text-slate-700 mt-1.5 bg-slate-100 px-2.5 py-1 rounded-lg inline-block">
-                                            Inv: <span className="text-indigo-600">{selectedInvoice.invoiceNo}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                {/* Bulk Return Products */}
+                {selectedInvoice.returnItems && selectedInvoice.returnItems.length > 0 && (
+                    <div className="order-2 px-2 sm:px-6 pb-3 sm:pb-5">
+                        <SectionHeading id="return-products-section" tone="violet">Bulk Return Products</SectionHeading>
+                        <ReturnItemCards items={selectedInvoice.returnItems} />
+                        <TableBox k="ret">
+                            <thead>
+                                <tr className={headCls('violet')}>
+                                    <th className={`${th} rounded-l-xl`}>SL</th>
+                                    <th className={th}>Product</th>
+                                    <th className={th}>Company</th>
+                                    <th className={th}>Quantity</th>
+                                    <th className={th}>Free Quantity</th>
+                                    <th className={`${th} text-right`}>Buy Price (PCS)</th>
+                                    <th className={`${th} text-right rounded-r-xl`}>Item Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-violet-100 text-xs sm:text-sm text-slate-700">
+                                {selectedInvoice.returnItems.map((item, index) => (
+                                    <tr key={index} className="hover:bg-violet-50/40 transition-colors">
+                                        <td className={`${td} font-medium text-slate-400`}>{index + 1}</td>
+                                        <td className={`${td} font-semibold text-slate-800`}>{item.productName}</td>
+                                        <td className={`${td} text-slate-600`}>{item.company}</td>
+                                        <td className={`${td} font-semibold text-orange-600`}>
+                                            {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
+                                            <span className="text-xs text-brand-700 ml-1 font-bold">(Total: {item.totalQty})</span>
+                                        </td>
+                                        <td className={`${td} font-semibold text-emerald-600`}>
+                                            {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
+                                            <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
+                                        </td>
+                                        <td className={`${td} text-right font-medium text-slate-600`}>৳{Number(item.buyPrice || 0).toFixed(2)}</td>
+                                        <td className={`${td} text-right font-bold text-slate-900`}>৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </TableBox>
                     </div>
+                )}
 
-                    {/* Remaining After Return Toggle */}
-                    <div className={`px-6 sm:px-8 pt-6 sm:pt-8 items-center justify-between gap-3 print:hidden ${(hasReturn || hasOrderSnapshot) ? 'flex' : 'hidden'}`}>
-                        <div className={`items-center gap-3 ${hasReturn ? 'flex' : 'invisible flex'}`}>
-                            <span className="text-sm font-bold text-slate-700">Remaining After Return</span>
-                            <button
-                                type="button"
-                                onClick={() => setShowRemaining((prev) => !prev)}
-                                title={showRemaining ? 'ON' : 'OFF'}
-                                className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
-                            >
-                                <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showRemaining ? 'bg-emerald-500' : 'bg-gray-300'}`}>
-                                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showRemaining ? 'translate-x-5' : ''}`} />
-                                </span>
-                                <span className={`text-xs font-bold ${showRemaining ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                    {showRemaining ? 'ON' : 'OFF'}
-                                </span>
-                            </button>
-                        </div>
+                {/* Damage Products */}
+                {selectedInvoice.damageItems && selectedInvoice.damageItems.length > 0 && (
+                    <div className="order-2 px-2 sm:px-6 pb-3 sm:pb-5">
+                        <SectionHeading id="damage-products-section" tone="red">Damage Products</SectionHeading>
+                        <ReturnItemCards items={selectedInvoice.damageItems} />
+                        <TableBox k="ret">
+                            <thead>
+                                <tr className={headCls('red')}>
+                                    <th className={`${th} rounded-l-xl`}>SL</th>
+                                    <th className={th}>Product</th>
+                                    <th className={th}>Company</th>
+                                    <th className={th}>Quantity</th>
+                                    <th className={th}>Free Quantity</th>
+                                    <th className={`${th} text-right`}>Buy Price (PCS)</th>
+                                    <th className={`${th} text-right rounded-r-xl`}>Item Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-red-100 text-xs sm:text-sm text-slate-700">
+                                {selectedInvoice.damageItems.map((item, index) => (
+                                    <tr key={index} className="hover:bg-red-50/40 transition-colors">
+                                        <td className={`${td} font-medium text-slate-400`}>{index + 1}</td>
+                                        <td className={`${td} font-semibold text-slate-800`}>{item.productName}</td>
+                                        <td className={`${td} text-slate-600`}>{item.company}</td>
+                                        <td className={`${td} font-semibold text-orange-600`}>
+                                            {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
+                                            <span className="text-xs text-brand-700 ml-1 font-bold">(Total: {item.totalQty})</span>
+                                        </td>
+                                        <td className={`${td} font-semibold text-emerald-600`}>
+                                            {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
+                                            <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
+                                        </td>
+                                        <td className={`${td} text-right font-medium text-slate-600`}>৳{Number(item.buyPrice || 0).toFixed(2)}</td>
+                                        <td className={`${td} text-right font-bold text-slate-900`}>৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </TableBox>
+                    </div>
+                )}
 
-                        {hasOrderSnapshot && (
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-bold text-slate-700">Original Order View</span>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowOrder((prev) => !prev)}
-                                    title={showOrder ? 'ON' : 'OFF'}
-                                    className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
-                                >
-                                    <span className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ${showOrder ? 'bg-amber-500' : 'bg-gray-300'}`}>
-                                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${showOrder ? 'translate-x-5' : ''}`} />
-                                    </span>
-                                    <span className={`text-xs font-bold ${showOrder ? 'text-amber-600' : 'text-gray-400'}`}>
-                                        {showOrder ? 'ON' : 'OFF'}
-                                    </span>
-                                </button>
+                {/* Totals + Note */}
+                <div className="order-1 p-4 sm:p-6 bg-slate-50/60 border-t border-slate-200 flex flex-col-reverse sm:flex-row justify-between items-start gap-4 print:bg-white">
+                    <div className="w-full sm:w-1/2">
+                        {selectedInvoice.orderNote && (
+                            <div className="bg-emerald-50/60 border border-emerald-200/70 p-4 rounded-xl">
+                                <h4 className="text-xs font-bold text-emerald-800 uppercase mb-1.5 flex items-center gap-1.5">
+                                    <FileText className="w-3.5 h-3.5 text-emerald-600" /> Order Note:
+                                </h4>
+                                <p className="text-xs sm:text-sm text-emerald-900/90 italic leading-relaxed">{selectedInvoice.orderNote}</p>
                             </div>
                         )}
                     </div>
 
-                    {/* Products Table */}
-                    <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-4 overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[11px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
-                                    <th className="py-3 px-3.5 rounded-l-xl">SL</th>
-                                    <th className="py-3 px-3.5">Product Name</th>
-                                    <th className="py-3 px-3.5">Company</th>
-                                    <th className="py-3 px-3.5">Quantity</th>
-                                    <th className="py-3 px-3.5">Total Quantity</th>
-                                    <th className="py-3 px-3.5 text-right">Total Cost Price</th>
-                                    <th className="py-3 px-3.5 text-right">Total Sell Price</th>
-                                    <th className="py-3 px-3.5 text-right">Discount</th>
-                                    <th className="py-3 px-3.5 text-right rounded-r-xl">Item Total</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
-                                {displayItems.map((item, index) => (
-                                    <tr key={index} className="hover:bg-indigo-50/40 transition-colors">
-                                        <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
-                                        <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                        <td className="py-4 px-3.5 text-slate-600">{selectedInvoice.company}</td>
-                                        <td className="py-4 px-3.5">
-                                            {(() => {
-                                                const r = getRemainingInfo(item);
-                                                const mU = showRemaining ? r.remUnit : (item.unitQty || 0);
-                                                const mS = showRemaining ? r.remSub : (item.subQty || 0);
-                                                const mP = showRemaining ? r.remPcs : (item.pcsQty || 0);
-                                                const mT = showRemaining ? r.remQty : (item.totalPcs || 0);
-                                                const fU = showRemaining ? r.remFreeUnit : (item.freeUnitQty || 0);
-                                                const fS = showRemaining ? r.remFreeSub : (item.freeSubQty || 0);
-                                                const fP = showRemaining ? r.remFreePcs : (item.freePcsQty || 0);
-                                                const fT = showRemaining ? r.remFree : (item.freeTotalQty ?? item.freeQty ?? 0);
-                                                return (
-                                                    <div className="space-y-0.5">
-                                                        <div className="font-semibold text-orange-600">
-                                                            <span className="font-bold mr-1">Main:</span>
-                                                            {mU} {item.unit} {item.parentMode && <>{mS} {item.subUnit} </>}{mP} Pcs
-                                                            <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({mT})</b>
-                                                        </div>
-                                                        <div className="font-semibold text-emerald-600">
-                                                            <span className="font-bold mr-1">Free:</span>
-                                                            {fU} {item.unit} {item.parentMode && <>{fS} {item.subUnit} </>}{fP} Pcs
-                                                            <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({fT})</b>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td className="py-4 px-3.5 font-semibold text-indigo-600">
-                                            {(() => {
-                                                const c = getCombinedQty(item);
-                                                return (
-                                                    <>
-                                                        {c.u} {item.unit} {item.parentMode && <>{c.s} {item.subUnit} </>}{c.p} Pcs
-                                                        <b className="ml-1 px-1.5 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-700">({c.total})</b>
-                                                    </>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                            ৳{(Number(item.buyPrice) * (showRemaining ? getRemainingInfo(item).remQty : Number(item.totalPcs))).toFixed(2)}
-                                            <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.buyPrice).toFixed(2)})</span>
-                                        </td>
-                                        <td className="py-4 px-3.5 text-center font-medium text-slate-600">
-                                            ৳{(Number(item.sellPrice) * (showRemaining ? getRemainingInfo(item).remQty : Number(item.totalPcs))).toFixed(2)}
-                                            <span className="text-[10px] text-slate-400 ml-1">(৳{Number(item.sellPrice).toFixed(2)})</span>
-                                        </td>
-                                        <td className="py-4 px-3.5 text-right font-medium">
-                                            {(() => {
-                                                const rowGrossTotal = Number(item.buyPrice) * Number(item.totalPcs);
-                                                const fullDiscountAmt = Number(
-                                                    item.discountAmount ??
-                                                    (item.discountType === 'percent'
-                                                        ? (rowGrossTotal * Number(item.discount)) / 100
-                                                        : Number(item.discount))
-                                                );
-                                                const discountAmt = fullDiscountAmt;
-                                                const remGross = showRemaining
-                                                    ? Number(item.buyPrice) * getRemainingInfo(item).remQty
-                                                    : rowGrossTotal;
-                                                const discountPct =
-                                                    item.discountType === 'percent' && !showRemaining
-                                                        ? Number(item.discount) || 0
-                                                        : (remGross > 0 ? (discountAmt / remGross) * 100 : 0);
-                                                return (
-                                                    <>
-                                                        <span className={item.discountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
-                                                            ৳{discountAmt.toFixed(2)}
-                                                        </span>
-                                                        {' '}
-                                                        <span className={item.discountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
-                                                            ({discountPct.toFixed(2)}%)
-                                                        </span>
-                                                    </>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td className="py-4 px-3.5 text-right font-bold text-slate-900">
-                                            ৳{(showRemaining ? getRemainingInfo(item).remSubtotal : Number(item.itemTotal ?? item.subtotal)).toFixed(2)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Others Free Products */}
-                    {selectedInvoice.freeItems && selectedInvoice.freeItems.length > 0 && (
-                        <div className="order-2 pt-8 print:pt-4 px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
-                            <h4 className="text-xs font-bold text-amber-700 uppercase mb-3 flex items-center gap-1.5">
-                                <PackageX className="w-3.5 h-3.5 text-amber-600" /> Others Free Products
-                            </h4>
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-amber-100/70 text-amber-800 text-[11px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
-                                        <th className="py-3 px-3.5 rounded-l-xl whitespace-nowrap">SL</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Product</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Company</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
-                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Sell Price (PCS)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
-                                    {selectedInvoice.freeItems.map((item, index) => {
-                                        const freeRem = getFreeItemRemaining(item);
-                                        const dispUnit = showRemaining ? freeRem.remUnit : (Number(item.unitQty) || 0);
-                                        const dispPcs = showRemaining ? freeRem.remPcs : (Number(item.pcsQty) || 0);
-                                        const dispTotal = showRemaining ? freeRem.remTotal : (Number(item.totalQty) || 0);
-                                        const dispSub = showRemaining ? (freeRem.remSub || 0) : (Number(item.subQty) || 0);
-                                        const pcsTotal = dispTotal * (Number(item.sellPricePcs) || 0);
-                                        return (
-                                            <tr key={index} className="hover:bg-amber-50/40 transition-colors">
-                                                <td className="py-4 px-3.5 font-medium text-slate-400 whitespace-nowrap">{index + 1}</td>
-                                                <td className="py-4 px-3.5 font-semibold text-slate-800 whitespace-nowrap">{item.productName}</td>
-                                                <td className="py-4 px-3.5 text-slate-600 whitespace-nowrap">{item.company}</td>
-                                                <td className="py-4 px-3.5 font-semibold text-emerald-600 whitespace-nowrap">
-                                                    {dispUnit} {item.unit} {item.parentMode && <>{dispSub} {item.subUnit} </>}{dispPcs} Pcs
-                                                    <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {dispTotal})</span>
-                                                </td>
-                                                <td className="py-4 px-3.5 text-right font-medium text-slate-600 whitespace-nowrap">
-                                                    ৳{pcsTotal.toFixed(2)}
-                                                    <span className="text-[11px] text-slate-700 ml-1">
-                                                        (৳{Number(item.sellPricePcs || 0).toFixed(2)}/<span className="text-xs font-bold">pcs</span>)
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                    <div className="w-full sm:w-80 bg-white p-4 sm:p-5 rounded-xl border border-slate-200 space-y-2.5 text-xs sm:text-sm">
+                        <div className="flex justify-between py-1 text-slate-600">
+                            <span>Subtotal:</span>
+                            <span className="font-semibold text-slate-800">৳{(showRemaining ? totals.grand : invSubTotal).toFixed(2)}</span>
                         </div>
-                    )}
-
-                    {/* Return Products */}
-                    {selectedInvoice.returnItems && selectedInvoice.returnItems.length > 0 && (
-                        <div className="order-2 px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
-                            <h4 id="return-products-section" className="scroll-mt-24 text-xs font-bold text-violet-700 uppercase mb-3">Bulk Return Products</h4>
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-violet-100/70 text-violet-800 text-[11px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
-                                        <th className="py-3 px-3.5 rounded-l-xl whitespace-nowrap">SL</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Product</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Company</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Free Quantity</th>
-                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Buy Price (PCS)</th>
-                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Item Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-violet-100 text-xs sm:text-sm text-slate-700">
-                                    {selectedInvoice.returnItems.map((item, index) => (
-                                        <tr key={index} className="hover:bg-violet-50/40 transition-colors">
-                                            <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
-                                            <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                            <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
-                                            <td className="py-4 px-3.5 font-semibold text-orange-600">
-                                                {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
-                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalQty})</span>
-                                            </td>
-                                            <td className="py-4 px-3.5 font-semibold text-emerald-600">
-                                                {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
-                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
-                                            </td>
-                                            <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.buyPrice || 0).toFixed(2)}</td>
-                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Damage Products */}
-                    {selectedInvoice.damageItems && selectedInvoice.damageItems.length > 0 && (
-                        <div className="order-2 px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
-                            <h4 id="damage-products-section" className="scroll-mt-24 text-xs font-bold text-red-700 uppercase mb-3">Damage Products</h4>
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-red-100/70 text-red-800 text-[11px] font-bold uppercase tracking-wider print:bg-slate-100 print:text-slate-600">
-                                        <th className="py-3 px-3.5 rounded-l-xl whitespace-nowrap">SL</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Product</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Company</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Quantity</th>
-                                        <th className="py-3 px-3.5 whitespace-nowrap">Free Quantity</th>
-                                        <th className="py-3 px-3.5 text-right whitespace-nowrap">Buy Price (PCS)</th>
-                                        <th className="py-3 px-3.5 text-right rounded-r-xl whitespace-nowrap">Item Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-red-100 text-xs sm:text-sm text-slate-700">
-                                    {selectedInvoice.damageItems.map((item, index) => (
-                                        <tr key={index} className="hover:bg-red-50/40 transition-colors">
-                                            <td className="py-4 px-3.5 font-medium text-slate-400">{index + 1}</td>
-                                            <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                            <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
-                                            <td className="py-4 px-3.5 font-semibold text-orange-600">
-                                                {item.unitQty || 0} {item.unit} {item.parentMode && <>{item.subQty || 0} {item.subUnit} </>}{item.pcsQty || 0} Pcs
-                                                <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {item.totalQty})</span>
-                                            </td>
-                                            <td className="py-4 px-3.5 font-semibold text-emerald-600">
-                                                {item.freeUnitQty || 0} {item.unit} {item.parentMode && <>{item.freeSubQty || 0} {item.subUnit} </>}{item.freePcsQty || 0} Pcs
-                                                <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {item.freeQty || 0})</span>
-                                            </td>
-                                            <td className="py-4 px-3.5 text-right font-medium text-slate-600">৳{Number(item.buyPrice || 0).toFixed(2)}</td>
-                                            <td className="py-4 px-3.5 text-right font-bold text-slate-900">৳{Number(item.itemTotal ?? item.subtotal ?? 0).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Totals + Note */}
-                    <div className="order-1 p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col sm:flex-row justify-between items-start gap-6 print:bg-white">
-                        <div className="w-full sm:w-1/2">
-                            {selectedInvoice.orderNote && (
-                                <div className="bg-emerald-50/60 border border-emerald-200/70 p-4 rounded-2xl shadow-sm">
-                                    <h4 className="text-xs font-bold text-emerald-800 uppercase mb-1.5 flex items-center gap-1.5">
-                                        <FileText className="w-3.5 h-3.5 text-emerald-600" /> Order Note:
-                                    </h4>
-                                    <p className="text-xs sm:text-sm text-emerald-900/90 italic leading-relaxed">{selectedInvoice.orderNote}</p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="w-full sm:w-80 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs sm:text-sm">
-                            <div className="flex justify-between py-1 text-slate-600">
-                                <span>Subtotal:</span>
-                                <span className="font-semibold text-slate-800">৳{(showRemaining ? getTotals().grand : invSubTotal).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between py-1 text-slate-600">
-                                <span>Product Wise Discount:</span>
-                                <span className="font-semibold text-rose-600">
-                                    - ৳{(showRemaining ? getTotals().pwd : Number(ovInv.productWiseDiscount)).toFixed(2)}
-                                    <span className="text-[10px] text-slate-400 ml-1">
-                                        ({(
-                                            (showRemaining ? getTotals().pwdPct : ovInv.productWiseDiscountPercent) ??
-                                            (invSubTotal > 0
-                                                ? (Number(ovInv.productWiseDiscount) / invSubTotal) * 100
-                                                : 0)
-                                        ).toFixed(2)}%)
-                                    </span>
+                        <div className="flex justify-between py-1 text-slate-600">
+                            <span>Product Wise Discount:</span>
+                            <span className="font-semibold text-rose-600">
+                                - ৳{(showRemaining ? totals.pwd : Number(ovInv.productWiseDiscount)).toFixed(2)}
+                                <span className="text-[10px] text-slate-400 ml-1">
+                                    ({(
+                                        (showRemaining ? totals.pwdPct : ovInv.productWiseDiscountPercent) ??
+                                        (invSubTotal > 0 ? (Number(ovInv.productWiseDiscount) / invSubTotal) * 100 : 0)
+                                    ).toFixed(2)}%)
                                 </span>
-                            </div>
-                            {Number(ovInv.overallDiscount) > 0 && (
-                                <div className="flex justify-between py-1 text-slate-600">
-                                    <span>Overall Discount:</span>
-                                    <span className="font-semibold">
-                                        {(() => {
-                                            const afterProductDiscount = showRemaining ? getTotals().afterProduct : invSubTotal - Number(ovInv.productWiseDiscount);
-                                            const overallAmt = showRemaining ? getTotals().overallAmt : Number(
+                            </span>
+                        </div>
+                        {Number(ovInv.overallDiscount) > 0 && (
+                            <div className="flex justify-between py-1 text-slate-600">
+                                <span>Overall Discount:</span>
+                                <span className="font-semibold">
+                                    {(() => {
+                                        const afterProductDiscount = showRemaining ? totals.afterProduct : invSubTotal - Number(ovInv.productWiseDiscount);
+                                        const overallAmt = showRemaining
+                                            ? totals.overallAmt
+                                            : Number(
                                                 ovInv.overallDiscountValue ??
                                                 (ovInv.overallDiscountType === 'percent'
                                                     ? (afterProductDiscount * Number(ovInv.overallDiscount)) / 100
                                                     : Number(ovInv.overallDiscount))
                                             );
-                                            const overallPct =
-                                                ovInv.overallDiscountType === 'percent'
-                                                    ? Number(ovInv.overallDiscount) || 0
-                                                    : (afterProductDiscount > 0 ? (overallAmt / afterProductDiscount) * 100 : 0);
-                                            return (
-                                                <>
-                                                    <span className={ovInv.overallDiscountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
-                                                        - ৳{overallAmt.toFixed(2)}
-                                                    </span>
-                                                    {' '}
-                                                    <span className={ovInv.overallDiscountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
-                                                        ({overallPct.toFixed(2)}%)
-                                                    </span>
-                                                </>
-                                            );
-                                        })()}
-                                    </span>
-                                </div>
-                            )}
-                            {selectedInvoice.adjustment && Number(selectedInvoice.adjustment.amount) > 0 && (
-                                <div className="flex justify-between py-1 text-slate-600">
-                                    <span className="truncate pr-2">
-                                        {selectedInvoice.adjustment.text || 'Adjustment'} ({selectedInvoice.adjustment.type}):
-                                    </span>
-                                    <span className={`font-semibold shrink-0 ${selectedInvoice.adjustment.type === '-' ? 'text-rose-600' : 'text-slate-800'}`}>
-                                        {selectedInvoice.adjustment.type === '-' ? '- ' : '+ '}৳{Number(selectedInvoice.adjustment.amount).toFixed(2)}
-                                        <span className="text-[10px] text-slate-400 ml-1">
-                                            ({(() => {
-                                                const base = showRemaining
-                                                    ? getTotals().afterProduct - getTotals().overallAmt
-                                                    : invSubTotal - Number(ovInv.productWiseDiscount) - Number(ovInv.overallDiscountValue ?? 0);
-                                                return base > 0
-                                                    ? ((Number(selectedInvoice.adjustment.amount) / base) * 100).toFixed(2)
-                                                    : '0.00';
-                                            })()}%)
-                                        </span>
-                                    </span>
-                                </div>
-                            )}
-                            {Number(selectedInvoice.damageAdjustmentAmount) > 0 && (
-                                <div className="flex justify-between py-1 text-slate-600">
-                                    <span>Damage Products Adjustment:</span>
-                                    <span className="font-semibold text-red-600">
-                                        - ৳{Number(selectedInvoice.damageAdjustmentAmount).toFixed(2)}
-                                    </span>
-                                </div>
-                            )}
-                            {Number(selectedInvoice.returnAdjustmentAmount) > 0 && (
-                                <div className="flex justify-between py-1 text-slate-600">
-                                    <span>Return Products Adjustment:</span>
-                                    <span className="font-semibold text-violet-600">
-                                        - ৳{Number(selectedInvoice.returnAdjustmentAmount).toFixed(2)}
-                                    </span>
-                                </div>
-                            )}
-                            {Number(selectedInvoice.previousBalanceAmount) > 0 && (
-                                <div className="flex justify-between py-1 text-slate-600">
-                                    <span>{selectedInvoice.previousBalanceType === 'Due' ? 'Previous Pay:' : 'Previous Get:'}</span>
-                                    <span className={`font-semibold ${selectedInvoice.previousBalanceType === 'Due' ? 'text-rose-600' : 'text-sky-600'}`}>
-                                        {selectedInvoice.previousBalanceType === 'Due' ? '+ ' : '- '}৳{Number(selectedInvoice.previousBalanceAmount).toFixed(2)}
-                                    </span>
-                                </div>
-                            )}
-                            <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
-                                <span>{getTotals().payable < 0 ? 'Receivable Amount:' : 'Payable Amount:'}</span>
-                                <span className="text-indigo-600">৳{Math.abs(getTotals().payable).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between py-1 text-slate-500 text-sm">
-                                <span>{getBalanceInfo().paidLabel}</span>
-                                <span>৳{Number(selectedInvoice.paidAmount || 0).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between py-2 text-sm font-bold text-slate-800 border-t border-dashed border-slate-300">
-                                <span>{getBalanceInfo().balanceLabel}</span>
-                                <span className={getBalanceInfo().balanceClass}>
-                                    ৳{getBalanceInfo().balance.toFixed(2)}
+                                        const overallPct =
+                                            ovInv.overallDiscountType === 'percent'
+                                                ? Number(ovInv.overallDiscount) || 0
+                                                : afterProductDiscount > 0
+                                                    ? (overallAmt / afterProductDiscount) * 100
+                                                    : 0;
+                                        return (
+                                            <>
+                                                <span className={ovInv.overallDiscountType === 'amount' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                    - ৳{overallAmt.toFixed(2)}
+                                                </span>{' '}
+                                                <span className={ovInv.overallDiscountType === 'percent' ? 'text-rose-600 font-bold' : 'text-slate-400 font-medium'}>
+                                                    ({overallPct.toFixed(2)}%)
+                                                </span>
+                                            </>
+                                        );
+                                    })()}
                                 </span>
                             </div>
-
-                            {selectedInvoice.paymentNote && (
-                                <div className="pt-2 mt-1 border-t border-slate-200">
-                                    <h4 className="text-[11px] font-bold text-slate-500 uppercase mb-1">Payment Note:</h4>
-                                    <p className="text-xs text-slate-600 italic leading-relaxed">{selectedInvoice.paymentNote}</p>
-                                </div>
-                            )}
+                        )}
+                        {selectedInvoice.adjustment && Number(selectedInvoice.adjustment.amount) > 0 && (
+                            <div className="flex justify-between py-1 text-slate-600">
+                                <span className="truncate pr-2">
+                                    {selectedInvoice.adjustment.text || 'Adjustment'} ({selectedInvoice.adjustment.type}):
+                                </span>
+                                <span className={`font-semibold shrink-0 ${selectedInvoice.adjustment.type === '-' ? 'text-rose-600' : 'text-slate-800'}`}>
+                                    {selectedInvoice.adjustment.type === '-' ? '- ' : '+ '}৳{Number(selectedInvoice.adjustment.amount).toFixed(2)}
+                                    <span className="text-[10px] text-slate-400 ml-1">
+                                        ({(() => {
+                                            const base = showRemaining
+                                                ? totals.afterProduct - totals.overallAmt
+                                                : invSubTotal - Number(ovInv.productWiseDiscount) - Number(ovInv.overallDiscountValue ?? 0);
+                                            return base > 0 ? ((Number(selectedInvoice.adjustment.amount) / base) * 100).toFixed(2) : '0.00';
+                                        })()}%)
+                                    </span>
+                                </span>
+                            </div>
+                        )}
+                        {Number(selectedInvoice.damageAdjustmentAmount) > 0 && (
+                            <div className="flex justify-between py-1 text-slate-600">
+                                <span>Damage Products Adjustment:</span>
+                                <span className="font-semibold text-red-600">- ৳{Number(selectedInvoice.damageAdjustmentAmount).toFixed(2)}</span>
+                            </div>
+                        )}
+                        {Number(selectedInvoice.returnAdjustmentAmount) > 0 && (
+                            <div className="flex justify-between py-1 text-slate-600">
+                                <span>Return Products Adjustment:</span>
+                                <span className="font-semibold text-violet-600">- ৳{Number(selectedInvoice.returnAdjustmentAmount).toFixed(2)}</span>
+                            </div>
+                        )}
+                        {Number(selectedInvoice.previousBalanceAmount) > 0 && (
+                            <div className="flex justify-between py-1 text-slate-600">
+                                <span>{selectedInvoice.previousBalanceType === 'Due' ? 'Previous Pay:' : 'Previous Get:'}</span>
+                                <span className={`font-semibold ${selectedInvoice.previousBalanceType === 'Due' ? 'text-rose-600' : 'text-sky-600'}`}>
+                                    {selectedInvoice.previousBalanceType === 'Due' ? '+ ' : '- '}৳{Number(selectedInvoice.previousBalanceAmount).toFixed(2)}
+                                </span>
+                            </div>
+                        )}
+                        <div className="flex justify-between py-2.5 text-sm sm:text-base font-bold text-slate-900 border-t border-slate-200">
+                            <span>{totals.payable < 0 ? 'Receivable Amount:' : 'Payable Amount:'}</span>
+                            <span className="text-brand-700">৳{Math.abs(totals.payable).toFixed(2)}</span>
                         </div>
+                        <div className="flex justify-between py-1 text-slate-500 text-sm">
+                            <span>{bal.paidLabel}</span>
+                            <span>৳{Number(selectedInvoice.paidAmount || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 text-sm font-bold text-slate-800 border-t border-dashed border-slate-300">
+                            <span>{bal.balanceLabel}</span>
+                            <span className={bal.balanceClass}>৳{bal.balance.toFixed(2)}</span>
+                        </div>
+
+                        {selectedInvoice.paymentNote && (
+                            <div className="pt-2 mt-1 border-t border-slate-200">
+                                <h4 className="text-[11px] font-bold text-slate-500 uppercase mb-1">Payment Note:</h4>
+                                <p className="text-xs text-slate-600 italic leading-relaxed">{selectedInvoice.paymentNote}</p>
+                            </div>
+                        )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </Paper>
+        </PrintPage>
     );
 };
 

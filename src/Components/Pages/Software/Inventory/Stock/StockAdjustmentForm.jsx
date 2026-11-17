@@ -1,6 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { FaTimes } from 'react-icons/fa';
 import useCan from '../../../../../hooks/useCan';
+import { DateInput } from '../../Product/ProductUi';
+import { inputCls, labelCls, ComboField } from '../../Purchase/PurchaseUi';
+import { Card, QtyField } from '../../Purchase/PurchaseFormUi';
+import { labelToISO } from '../../Purchase/purchaseDate';
 
 const getFormattedToday = () =>
     new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -16,17 +22,13 @@ const generateInvoiceNo = () => {
     return `${yy}${mm}${dd}${hh}${min}${ss}`;
 };
 
-// Light switch style toggle: In Stock + / Out Stock -
+// In Stock + / Out Stock - toggle
 const StockSwitch = ({ value, onChange }) => (
-    <button
-        type="button"
-        onClick={onChange}
-        className="pointer-events-auto ml-1.5 inline-flex items-center gap-1 align-middle cursor-pointer"
-    >
-        <span className={`relative inline-block w-8 h-4 rounded-full transition-colors duration-200 ${value === 'in' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
-            <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform duration-200 ${value === 'in' ? 'translate-x-4' : 'translate-x-0'}`} />
+    <button type="button" onClick={onChange} className="inline-flex items-center gap-1.5 h-8 cursor-pointer" aria-label="Toggle In / Out">
+        <span className={`relative inline-block w-9 h-5 rounded-full transition-colors duration-200 ${value === 'in' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${value === 'in' ? 'translate-x-4' : 'translate-x-0'}`} />
         </span>
-        <span className={`text-[9px] font-extrabold ${value === 'in' ? 'text-emerald-600' : 'text-rose-600'}`}>
+        <span className={`text-[11px] font-extrabold ${value === 'in' ? 'text-emerald-600' : 'text-rose-600'}`}>
             {value === 'in' ? 'In Stock +' : 'Out Stock −'}
         </span>
     </button>
@@ -58,24 +60,11 @@ const StockAdjustmentForm = () => {
     const [categorySearch, setCategorySearch] = useState(editingAdj?.category || '');
     const [productSearch, setProductSearch] = useState('');
 
-    const [isCompanyOpen, setIsCompanyOpen] = useState(false);
-    const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-    const [isProductOpen, setIsProductOpen] = useState(false);
-
     const [items, setItems] = useState([]);
     const [note, setNote] = useState(editingAdj?.note || '');
-    const [toast, setToast] = useState({ show: false, message: '', isError: false });
     const [isSaving, setIsSaving] = useState(false);
 
-    const companyRef = useRef(null);
-    const categoryRef = useRef(null);
-    const productRef = useRef(null);
-    const dateInputRef = useRef(null);
-
-    const showToast = (message, isError = false) => {
-        setToast({ show: true, message, isError });
-        setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
-    };
+    const showToast = (message, isError = false) => (isError ? toast.error(message) : toast.success(message));
 
     useEffect(() => {
         fetch('http://localhost:5000/company').then((r) => r.json()).then((d) => setCompanies(Array.isArray(d) ? d : [])).catch(console.error);
@@ -116,16 +105,6 @@ const StockAdjustmentForm = () => {
             );
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (companyRef.current && !companyRef.current.contains(e.target)) setIsCompanyOpen(false);
-            if (categoryRef.current && !categoryRef.current.contains(e.target)) setIsCategoryOpen(false);
-            if (productRef.current && !productRef.current.contains(e.target)) setIsProductOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
     }, []);
 
     const poolMap = useMemo(() => new Map((pools || []).map((p) => [String(p.batchId), p])), [pools]);
@@ -209,15 +188,12 @@ const StockAdjustmentForm = () => {
         setFormData((p) => ({ ...p, company: comp.businessName, companyContact: comp.contactNumber || '', companyAddress: comp.address || '' }));
         setCompanySearch(comp.businessName);
         setProductSearch('');
-        setIsCompanyOpen(false);
     };
-    const handleClearCompany = (e) => {
-        e.stopPropagation();
+    const handleClearCompany = () => {
         setCompanySearch('');
         setFormData((p) => ({ ...p, company: '', companyContact: '', companyAddress: '' }));
         setProductSearch('');
         setItems([]);
-        setIsCompanyOpen(false);
     };
 
     // ---------- Category ----------
@@ -226,14 +202,11 @@ const StockAdjustmentForm = () => {
         setFormData((p) => ({ ...p, category: cat.name }));
         setCategorySearch(cat.name);
         setProductSearch('');
-        setIsCategoryOpen(false);
     };
-    const handleClearCategory = (e) => {
-        e.stopPropagation();
+    const handleClearCategory = () => {
         setCategorySearch('');
         setFormData((p) => ({ ...p, category: '' }));
         setProductSearch('');
-        setIsCategoryOpen(false);
     };
 
     // ---------- Date ----------
@@ -287,7 +260,6 @@ const StockAdjustmentForm = () => {
             },
         ]);
         setProductSearch('');
-        setIsProductOpen(false);
     };
 
     const handleRemoveItem = (uniqueId) => setItems((prev) => prev.filter((i) => i.uniqueId !== uniqueId));
@@ -433,380 +405,217 @@ const StockAdjustmentForm = () => {
         }
     };
 
-    const inputCls =
-        'w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm text-slate-700 shadow-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
+    const companyInfo = [formData.companyContact, formData.companyAddress].filter(Boolean).join(' | ');
+
+    const qtyBox = (item, kind) => {
+        const isMain = kind === 'main';
+        const batch = poolMap.get(String(item.batchId));
+        const type = isMain ? item.mainType : item.freeType;
+        const total = Number(isMain ? item.totalQty : item.freeQty) || 0;
+        const disabled = isMain ? !item.batchId || batch?.isFreeProduct : !item.batchId;
+        const stock = batch ? (isMain ? batch.paid : batch.free) : null;
+        const stockText =
+            stock === null ? '...' : total > 0 ? `${stock} → ${stock + (type === 'in' ? total : -total)}` : `${stock}`;
+        const f = isMain ? ['unitQty', 'subQty', 'pcsQty'] : ['freeUnitQty', 'freeSubQty', 'freePcsQty'];
+        const tone = isMain ? 'border-brand-100 bg-brand-50/50' : 'border-emerald-100 bg-emerald-50/50';
+        const set = (field) => (v) => /^\d*$/.test(v) && handleItemChange(item.uniqueId, field, v);
+        return (
+            <div className={`rounded-xl border p-2.5 ${tone} ${disabled ? 'opacity-60' : ''}`}>
+                <div className="flex flex-wrap items-center justify-between gap-x-2">
+                    <span className={`text-xs font-bold ${isMain ? 'text-brand-700' : 'text-emerald-700'}`}>{isMain ? 'Main' : 'Free'}</span>
+                    <StockSwitch value={type} onChange={() => handleToggleType(item.uniqueId, isMain ? 'mainType' : 'freeType')} />
+                </div>
+                <div className={`mt-1 inline-block px-1.5 rounded text-[10px] font-bold ${total > 0 ? (type === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700') : 'bg-slate-100 text-slate-500'}`}>
+                    Total: {total} | Stock: {stockText}
+                </div>
+                <div className={`mt-2 grid gap-2 ${item.parentMode ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                    <QtyField label={item.unit || 'Pcs'} value={item[f[0]]} disabled={disabled} onChange={set(f[0])} />
+                    {item.parentMode && <QtyField label={item.subUnit || 'Sub'} value={item[f[1]] ?? ''} disabled={disabled} onChange={set(f[1])} />}
+                    <QtyField label="Pcs" value={item[f[2]]} disabled={disabled} onChange={set(f[2])} />
+                </div>
+            </div>
+        );
+    };
 
     return (
-        <div>
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-[200] px-5 py-3.5 rounded-2xl shadow-lg text-sm font-semibold text-white ${toast.isError ? 'bg-rose-600' : 'bg-gradient-to-br from-teal-600 to-emerald-500'}`}>
-                    {toast.message}
-                </div>
-            )}
-
-            {/* ---------------- Top Form ---------------- */}
-            <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 my-8 relative z-20">
-                <div className="bg-white rounded-3xl shadow-lg shadow-teal-900/5 p-6 md:p-8 border border-teal-100/70">
-                    <div className="mb-6 pb-4 border-b border-teal-100">
-                        <h3 className="text-xl font-bold text-slate-800">{isEditMode ? 'Edit Stock Adjustment' : 'Stock Adjustment'}</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Select company, product and invoice to adjust stock</p>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* Company */}
-                            <div className="relative" ref={companyRef}>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Company <span className="text-rose-500">*</span></label>
-                                <div
-                                    onClick={() => !isEditMode && setIsCompanyOpen(true)}
-                                    className={`w-full px-4 py-3.5 rounded-2xl border text-sm shadow-sm flex items-center justify-between ${isEditMode ? 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed opacity-75' : 'border-slate-200 bg-slate-50/70 cursor-pointer focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100'}`}
-                                >
-                                    <input
-                                        type="text"
-                                        disabled={isEditMode}
-                                        placeholder="Search or select company..."
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-6xl mx-auto space-y-4">
+                <div className="relative z-20">
+                    <Card
+                        title={isEditMode ? 'Edit Stock Adjustment' : 'Stock Adjustment'}
+                        subtitle="Select company, product and invoice to adjust stock"
+                    >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="min-w-0">
+                                {isEditMode ? (
+                                    <div>
+                                        <span className={labelCls}>Company *</span>
+                                        <input readOnly disabled value={companySearch} className={inputCls} />
+                                        <p className="text-[11px] text-slate-400 mt-1">Company can't be changed while editing</p>
+                                    </div>
+                                ) : (
+                                    <ComboField
+                                        label="Company *"
                                         value={companySearch}
-                                        onChange={(e) => { setCompanySearch(e.target.value); setIsCompanyOpen(true); }}
-                                        className="bg-transparent outline-none w-full text-sm"
+                                        placeholder="Search or select company..."
+                                        options={filteredCompanies.map((c) => ({
+                                            key: c._id,
+                                            title: c.businessName,
+                                            sub: [c.contactNumber, c.address].filter(Boolean).join(' | '),
+                                            raw: c,
+                                        }))}
+                                        onType={(v) => setCompanySearch(v)}
+                                        onClear={handleClearCompany}
+                                        onPick={(o) => handleSelectCompany(o.raw)}
                                     />
-                                    {companySearch && !isEditMode && (
-                                        <button type="button" onClick={handleClearCompany} className="text-slate-400 hover:text-rose-500 p-0.5">✕</button>
-                                    )}
-                                </div>
-                                {isCompanyOpen && !isEditMode && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-teal-100 max-h-60 overflow-y-auto">
-                                        {filteredCompanies.length > 0 ? (
-                                            filteredCompanies.map((comp) => (
-                                                <div key={comp._id} onClick={() => handleSelectCompany(comp)} className="px-4 py-3 hover:bg-teal-50 cursor-pointer border-b border-slate-50 last:border-none">
-                                                    <p className="text-sm font-semibold text-slate-800">{comp.businessName}</p>
-                                                    <p className="text-xs text-slate-500 mt-0.5">📞 {comp.contactNumber} | 📍 {comp.address}</p>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-4 py-3 text-sm text-slate-400 text-center">No company found</div>
-                                        )}
-                                    </div>
+                                )}
+                                {formData.company && companyInfo && !isEditMode && (
+                                    <p className="text-[11px] text-slate-500 mt-1 truncate" title={companyInfo}>{companyInfo}</p>
                                 )}
                             </div>
 
-                            {/* Category */}
-                            <div className="relative" ref={categoryRef}>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
-                                <div
-                                    onClick={() => setIsCategoryOpen(true)}
-                                    className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm shadow-sm cursor-pointer flex items-center justify-between focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select category..."
-                                        value={categorySearch}
-                                        onChange={(e) => {
-                                            setCategorySearch(e.target.value);
-                                            setFormData((p) => ({ ...p, category: e.target.value }));
-                                            setIsCategoryOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-sm"
-                                    />
-                                    {categorySearch && (
-                                        <button type="button" onClick={handleClearCategory} className="text-slate-400 hover:text-rose-500 p-0.5">✕</button>
-                                    )}
-                                </div>
-                                {isCategoryOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-teal-100 max-h-60 overflow-y-auto">
-                                        {filteredCategories.length > 0 ? (
-                                            filteredCategories.map((cat) => (
-                                                <div key={cat._id} onClick={() => handleSelectCategory(cat)} className="px-4 py-3 hover:bg-teal-50 cursor-pointer border-b border-slate-50 last:border-none">
-                                                    <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-4 py-3 text-sm text-slate-400 text-center">No active category found</div>
-                                        )}
-                                    </div>
-                                )}
+                            <div className="min-w-0">
+                                <ComboField
+                                    label="Category"
+                                    value={categorySearch}
+                                    placeholder="Search or select category..."
+                                    options={filteredCategories.map((c) => ({ key: c._id, title: c.name, raw: c }))}
+                                    onType={(v) => {
+                                        setCategorySearch(v);
+                                        setFormData((p) => ({ ...p, category: v }));
+                                    }}
+                                    onClear={handleClearCategory}
+                                    onPick={(o) => handleSelectCategory(o.raw)}
+                                />
                             </div>
 
-                            {/* Date */}
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Date <span className="text-rose-500">*</span></label>
-                                <div className="relative w-full cursor-pointer" onClick={() => dateInputRef.current?.showPicker?.() || dateInputRef.current?.click()}>
-                                    <input ref={dateInputRef} type="date" onChange={handleDateChange} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                                    <input type="text" readOnly value={formData.date} placeholder="Select date" className={`${inputCls} cursor-pointer pointer-events-none`} />
-                                </div>
+                            <div className="min-w-0">
+                                <span className={labelCls}>Date *</span>
+                                <DateInput name="date" value={labelToISO(formData.date)} onChange={handleDateChange} placeholder="Select date" />
                             </div>
                         </div>
 
-                        {/* Select Product */}
-                        <div className="relative" ref={productRef}>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Select Product <span className="text-rose-500">*</span>{' '}
-                                {!formData.company && <span className="text-xs text-amber-500 font-normal">(Please select a company first)</span>}
-                            </label>
-                            <div
-                                onClick={() => formData.company && setIsProductOpen(true)}
-                                className={`w-full px-4 py-3.5 rounded-2xl border text-sm shadow-sm flex items-center justify-between ${formData.company ? 'border-slate-200 bg-slate-50/70 cursor-pointer focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75'}`}
-                            >
-                                <input
-                                    type="text"
-                                    disabled={!formData.company}
-                                    placeholder={formData.company ? 'Search or select product...' : 'Select a company first...'}
+                        <div className="mt-5 rounded-2xl border border-brand-100 bg-brand-50/40 p-3 sm:p-4">
+                            {formData.company ? (
+                                <ComboField
+                                    label="Select Product *"
                                     value={productSearch}
-                                    onChange={(e) => { setProductSearch(e.target.value); setIsProductOpen(true); }}
-                                    className="bg-transparent outline-none w-full text-sm"
+                                    placeholder="Search by product name or SKU..."
+                                    options={filteredProducts.map((p) => ({
+                                        key: p._id,
+                                        title: p.productName,
+                                        sub: `Company: ${p.company}${p.category ? ` | Category: ${p.category}` : ''}${p.sku ? ` | SKU: ${p.sku}` : ''}`,
+                                        raw: p,
+                                    }))}
+                                    onType={(v) => setProductSearch(v)}
+                                    onClear={() => setProductSearch('')}
+                                    onPick={(o) => handleSelectProduct(o.raw)}
                                 />
-                                {productSearch && formData.company && (
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setProductSearch(''); }} className="text-slate-400 hover:text-rose-500 p-0.5">✕</button>
-                                )}
-                            </div>
-                            {isProductOpen && formData.company && (
-                                <div className="absolute z-[100] left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-teal-100 max-h-60 overflow-y-auto">
-                                    {filteredProducts.length > 0 ? (
-                                        filteredProducts.map((prod) => (
-                                            <div key={prod._id} onClick={() => handleSelectProduct(prod)} className="px-4 py-3 hover:bg-teal-50 cursor-pointer border-b border-slate-50 last:border-none flex justify-between items-center">
-                                                <div>
-                                                    <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
-                                                    <p className="text-xs text-slate-500 mt-0.5">Company: {prod.company}{prod.category ? ` | Category: ${prod.category}` : ''}</p>
-                                                </div>
-                                                {prod.sku && <span className="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg font-medium border border-amber-100">SKU: {prod.sku}</span>}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="px-4 py-3 text-sm text-slate-400 text-center">No matching product found for this company</div>
-                                    )}
+                            ) : (
+                                <div>
+                                    <span className={labelCls}>Select Product *</span>
+                                    <input disabled placeholder="Select a company first..." className={inputCls} />
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </Card>
                 </div>
-            </div>
 
-            {/* ---------------- Table + Summary ---------------- */}
-            <div className="w-full px-0 sm:px-1 my-6 relative z-0">
-                <div className="bg-white rounded-3xl shadow-xl shadow-teal-900/5 p-6 md:p-8 border border-teal-100/70">
-                    <form onSubmit={handleSubmit}>
-                        <div className="rounded-2xl border border-teal-100">
-                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
-                                <colgroup>
-                                    <col style={{ width: '12%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '17%' }} />
-                                    <col style={{ width: '18%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '18%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '4%' }} />
-                                </colgroup>
-                                <thead>
-                                    <tr className="bg-teal-50/60 border-b-2 border-teal-100 text-xs font-semibold text-teal-800">
-                                        <th className="py-3 px-3">Product Name</th>
-                                        <th className="py-3 px-3">Company</th>
-                                        <th className="py-3 px-3">Stock Invoice <span className="text-rose-500">*</span></th>
-                                        <th className="py-3 pl-4 pr-1">Unit Qty</th>
-                                        <th className="py-3 pl-3 pr-2">PCS Qty</th>
-                                        <th className="py-3 pl-4 pr-1">Free Unit</th>
-                                        <th className="py-3 pl-3 pr-2">Free PCS</th>
-                                        <th className="py-3 px-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 text-sm">
-                                    {items.length > 0 ? (
-                                        items.map((item) => {
-                                            const batch = poolMap.get(String(item.batchId));
-                                            const opts = getBatchOptions(item);
-                                            const total = Number(item.totalQty) || 0;
-                                            const free = Number(item.freeQty) || 0;
-                                            const mainStockText = batch
-                                                ? total > 0
-                                                    ? `${batch.paid} → ${batch.paid + (item.mainType === 'in' ? total : -total)}`
-                                                    : `${batch.paid}`
-                                                : '...';
-                                            const freeStockText = batch
-                                                ? free > 0
-                                                    ? `${batch.free} → ${batch.free + (item.freeType === 'in' ? free : -free)}`
-                                                    : `${batch.free}`
-                                                : '...';
-                                            const mainDisabled = !item.batchId || batch?.isFreeProduct;
-                                            const freeDisabled = !item.batchId;
-                                            return (
-                                                <tr key={item.uniqueId} className="hover:bg-teal-50/40 transition">
-                                                    <td className="py-3 px-3 font-semibold text-slate-800">{item.productName}</td>
-                                                    <td className="py-3 px-3 text-slate-600">{item.company}</td>
+                <form onSubmit={handleSubmit} className="space-y-4 relative z-0">
+                    <Card title="Products" subtitle={`${items.length} added`}>
+                        {items.length === 0 ? (
+                            <div className="text-center py-10 text-slate-400 text-sm">
+                                No products added yet. Please select a company and product above.
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {items.map((item, index) => {
+                                    const batch = poolMap.get(String(item.batchId));
+                                    const opts = getBatchOptions(item);
+                                    return (
+                                        <div key={item.uniqueId} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 flex gap-2.5">
+                                                    <span className="shrink-0 w-6 h-6 rounded-full bg-brand-50 text-brand-700 text-[11px] font-bold flex items-center justify-center">
+                                                        {index + 1}
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-slate-800 break-words leading-snug">{item.productName}</p>
+                                                        <p className="text-xs text-slate-500 break-words">{item.company}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Remove product"
+                                                    onClick={() => handleRemoveItem(item.uniqueId)}
+                                                    className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full text-rose-500 hover:bg-rose-50 cursor-pointer"
+                                                >
+                                                    <FaTimes size={13} />
+                                                </button>
+                                            </div>
 
-                                                    {/* Stock Invoice */}
-                                                    <td className="py-3 px-3">
-                                                        <select
-                                                            value={item.batchId}
-                                                            onChange={(e) => handleBatchChange(item.uniqueId, e.target.value)}
-                                                            className="w-full px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 cursor-pointer"
-                                                        >
-                                                            <option value="">Select invoice...</option>
-                                                            {opts.map((o) => (
-                                                                <option key={o.batchId} value={o.batchId}>
-                                                                    #{o.invoiceNo} | ৳{o.cost}{o.isFreeProduct ? ' (Others Free)' : ''} | Main {o.paid} / Free {o.free}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        {batch && (
-                                                            <div className="mt-1 text-[10px] font-semibold text-slate-400">
-                                                                Batch: {batch.batchNo} | Cost: ৳{batch.cost}
-                                                            </div>
-                                                        )}
-                                                    </td>
+                                            <div className="mt-3">
+                                                <label className={labelCls}>Stock Invoice <span className="text-rose-500">*</span></label>
+                                                <select
+                                                    value={item.batchId}
+                                                    onChange={(e) => handleBatchChange(item.uniqueId, e.target.value)}
+                                                    className={`${inputCls} cursor-pointer`}
+                                                >
+                                                    <option value="">Select invoice...</option>
+                                                    {opts.map((o) => (
+                                                        <option key={o.batchId} value={o.batchId}>
+                                                            #{o.invoiceNo} | ৳{o.cost}{o.isFreeProduct ? ' (Others Free)' : ''} | Main {o.paid} / Free {o.free}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {batch && (
+                                                    <p className="mt-1 text-[11px] font-semibold text-slate-400">Batch: {batch.batchNo} | Cost: ৳{batch.cost}</p>
+                                                )}
+                                            </div>
 
-                                                    {/* Unit Qty (Main) */}
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${total > 0 ? (item.mainType === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700') : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {total} | Stock: {mainStockText}
-                                                            <StockSwitch value={item.mainType} onChange={() => handleToggleType(item.uniqueId, 'mainType')} />
-                                                        </div>
-                                                        <div className={`p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl ${mainDisabled ? 'opacity-60' : ''}`}>
-                                                            <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                <input
-                                                                    type="number" min="0" step="1" placeholder="0"
-                                                                    disabled={mainDisabled}
-                                                                    value={item.unitQty}
-                                                                    onChange={(e) => /^\d*$/.test(e.target.value) && handleItemChange(item.uniqueId, 'unitQty', e.target.value)}
-                                                                    className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                                />
-                                                                <span className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate">
-                                                                    {item.unit || 'Pcs'}
-                                                                </span>
-                                                            </div>
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5 flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                    <input
-                                                                        type="number" min="0" step="1" placeholder="0"
-                                                                        disabled={mainDisabled}
-                                                                        value={item.subQty ?? ''}
-                                                                        onChange={(e) => /^\d*$/.test(e.target.value) && handleItemChange(item.uniqueId, 'subQty', e.target.value)}
-                                                                        className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                                    />
-                                                                    <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate">
-                                                                        {item.subUnit}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
+                                            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {qtyBox(item, 'main')}
+                                                {qtyBox(item, 'free')}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
 
-                                                    {/* PCS Qty */}
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className={`p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl ${mainDisabled ? 'opacity-60' : ''}`}>
-                                                            <input
-                                                                type="number" min="0" step="1" placeholder="0"
-                                                                disabled={mainDisabled}
-                                                                value={item.pcsQty}
-                                                                onChange={(e) => /^\d*$/.test(e.target.value) && handleItemChange(item.uniqueId, 'pcsQty', e.target.value)}
-                                                                className="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Free Unit */}
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${free > 0 ? (item.freeType === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700') : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {free} | Stock: {freeStockText}
-                                                            <StockSwitch value={item.freeType} onChange={() => handleToggleType(item.uniqueId, 'freeType')} />
-                                                        </div>
-                                                        <div className={`p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl ${freeDisabled ? 'opacity-60' : ''}`}>
-                                                            <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                <input
-                                                                    type="number" min="0" step="1" placeholder="0"
-                                                                    disabled={freeDisabled}
-                                                                    value={item.freeUnitQty}
-                                                                    onChange={(e) => /^\d*$/.test(e.target.value) && handleItemChange(item.uniqueId, 'freeUnitQty', e.target.value)}
-                                                                    className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                                />
-                                                                <span className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate">
-                                                                    {item.unit || 'Pcs'}
-                                                                </span>
-                                                            </div>
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5 flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                    <input
-                                                                        type="number" min="0" step="1" placeholder="0"
-                                                                        disabled={freeDisabled}
-                                                                        value={item.freeSubQty ?? ''}
-                                                                        onChange={(e) => /^\d*$/.test(e.target.value) && handleItemChange(item.uniqueId, 'freeSubQty', e.target.value)}
-                                                                        className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center"
-                                                                    />
-                                                                    <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate">
-                                                                        {item.subUnit}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Free PCS */}
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className={`p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl ${freeDisabled ? 'opacity-60' : ''}`}>
-                                                            <input
-                                                                type="number" min="0" step="1" placeholder="0"
-                                                                disabled={freeDisabled}
-                                                                value={item.freePcsQty}
-                                                                onChange={(e) => /^\d*$/.test(e.target.value) && handleItemChange(item.uniqueId, 'freePcsQty', e.target.value)}
-                                                                className="w-full px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="py-3 px-3 text-center">
-                                                        <button type="button" onClick={() => handleRemoveItem(item.uniqueId)} className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition cursor-pointer">
-                                                            ✕
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="8" className="text-center py-8 text-slate-400 text-sm">
-                                                No products added yet. Please select a company and product above.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Summary */}
-                        <div className="mt-6 flex justify-end">
-                            <div className="w-full md:w-[700px] space-y-2.5 bg-teal-50/40 border border-teal-100 rounded-2xl p-5">
-                                <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-bold text-emerald-700">Total In Stock (+)</label>
-                                    <input type="text" readOnly value={`${totalIn} pcs`} className="flex-1 px-3 py-2 border border-emerald-200 bg-white font-bold text-emerald-700 rounded-lg text-sm outline-none" />
-                                </div>
-                                <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-bold text-rose-700">Total Out Stock (−)</label>
-                                    <input type="text" readOnly value={`${totalOut} pcs`} className="flex-1 px-3 py-2 border border-rose-200 bg-white font-bold text-rose-700 rounded-lg text-sm outline-none" />
-                                </div>
+                        <div className="mt-5 grid grid-cols-2 gap-3 md:ml-auto md:max-w-md">
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                                <div className="text-[10px] font-bold uppercase text-emerald-500">Total In (+)</div>
+                                <div className="text-base font-extrabold text-emerald-700">{totalIn} pcs</div>
+                            </div>
+                            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5">
+                                <div className="text-[10px] font-bold uppercase text-rose-400">Total Out (−)</div>
+                                <div className="text-base font-extrabold text-rose-700">{totalOut} pcs</div>
                             </div>
                         </div>
 
-                        {/* Note */}
-                        <div className="mt-8">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Note</label>
+                        <div className="mt-5">
+                            <label className={labelCls}>Note</label>
                             <textarea
                                 rows="3"
                                 placeholder="Write any note about this adjustment..."
                                 value={note}
                                 onChange={(e) => setNote(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 resize-y shadow-sm"
+                                className={`${inputCls} resize-y`}
                             />
                         </div>
 
-                        <div className="mt-6 flex justify-end">
+                        <div className="mt-5 flex justify-end">
                             <button
                                 type="submit"
                                 disabled={isSaving}
-                                className="px-10 py-3 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 hover:from-teal-700 hover:to-emerald-600 text-sm font-semibold text-white shadow-md shadow-teal-200 transition cursor-pointer disabled:opacity-60"
+                                className="bg-brand-600 text-white text-sm font-semibold px-8 py-2.5 w-full sm:w-auto disabled:opacity-60 cursor-pointer"
                             >
-                                {isEditMode ? 'Update Adjustment' : 'Adjustment'}
+                                {isSaving ? 'Saving...' : isEditMode ? 'Update Adjustment' : 'Save Adjustment'}
                             </button>
                         </div>
-                    </form>
-                </div>
+                    </Card>
+                </form>
             </div>
         </div>
     );

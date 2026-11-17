@@ -8,9 +8,11 @@ import PurTopChartRepo from './PurTopChartRepo';
 import PurCompanyLedgerRepo from './PurCompanyLedgerRepo';
 import PurCompanyDueRepo from './PurCompanyDueRepo';
 import PurCompanyReturnRepo from './PurCompanyReturnRepo';
+import { useClientAuth } from '../../../../../hooks/ClientAuthContext';
+import { hasAction } from '../../../../../hooks/permissionConfig';
+import TabBar from '../../../../../hooks/TabBar';
 
-
-const TABS = [
+const ALL_TABS = [
     { key: 'purchase', label: 'Invoice Wise Purchase', icon: FaFileInvoice },
     { key: 'product', label: 'Product Wise Purchase', icon: FaBoxes },
     { key: 'purvsrec', label: 'Purchase & Receive Date Wise', icon: FaCalendarAlt },
@@ -21,9 +23,27 @@ const TABS = [
     { key: 'purreturn', label: 'Purchase Return Report', icon: FaUndoAlt },
 ];
 
+const TAB_MODULE = {
+    purchase: 'purchase_report_invoice',
+    product: 'purchase_report_product',
+    purvsrec: 'purchase_report_vs_rec_date',
+    purvsrecsum: 'purchase_report_vs_rec_sum',
+    topchart: 'purchase_report_top_chart',
+    ledger: 'purchase_report_ledger',
+    purdue: 'purchase_report_due',
+    purreturn: 'purchase_report_return',
+};
+
 const PurchaseReportAll = () => {
+    const { clientUser } = useClientAuth();
+    const TABS = ALL_TABS.filter(
+        (t) => !clientUser?.isStaff || hasAction(clientUser.permissions, TAB_MODULE[t.key], 'get')
+    );
     const [activeTab, setActiveTab] = useState(
-        () => sessionStorage.getItem('purchaseReportActiveTab') || 'purchase'
+        () => {
+            const s = sessionStorage.getItem('purchaseReportActiveTab');
+            return TABS.some((t) => t.key === s) ? s : TABS[0]?.key || 'purchase';
+        }
     );
 
     useEffect(() => {
@@ -39,40 +59,25 @@ const PurchaseReportAll = () => {
         const nav = performance.getEntriesByType('navigation')[0];
         const isReload = nav && nav.type === 'reload';
         if (!isReload && !sessionStorage.getItem('purchaseReportMounted')) {
-            sessionStorage.setItem('purchaseReportActiveTab', 'purchase');
-            setActiveTab('purchase');
+            sessionStorage.setItem('purchaseReportActiveTab', TABS[0]?.key || 'purchase');
+            setActiveTab(TABS[0]?.key || 'purchase');
         }
         sessionStorage.setItem('purchaseReportMounted', '1');
         return () => sessionStorage.removeItem('purchaseReportMounted');
     }, []);
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
-            {/* Tab Bar */}
-            <div className="max-w-[1700px] mx-auto px-4 md:px-6 pt-4 md:pt-6">
-                <div className="grid grid-cols-4 gap-1.5 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white p-1.5">
-                    {TABS.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.key;
-                        return (
-                            <button
-                                key={tab.key}
-                                type="button"
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${isActive
-                                    ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-md shadow-indigo-200'
-                                    : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-                                    }`}
-                            >
-                                <Icon size={12} />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+    const tabs = TABS.map((t) => ({
+        key: t.key,
+        label: t.label,
+        icon: t.icon,
+        active: activeTab === t.key,
+        onClick: () => setActiveTab(t.key),
+    }));
 
-            {/* Tab Content */}
+    return (
+        <div>
+            <TabBar tabs={tabs} wrap />
+
             {activeTab === 'purchase' && <PurchaseWiseRepo />}
             {activeTab === 'product' && <ProductWisePurchaseRepo />}
             {activeTab === 'purvsrec' && <PurVsRecDateRepo />}

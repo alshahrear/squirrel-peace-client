@@ -6,7 +6,8 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    host: true,  // এই লাইনটা যোগ করতে হবে
-    port: 5173,  // আপনার পোর্ট নাম্বার ঠিক থাকুক
+    host: true,
+    port: 5173,
+    allowedHosts: ['.nip.io', '.localhost'],
   },
 })

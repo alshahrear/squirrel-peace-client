@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { FaBars, FaSignOutAlt, FaEnvelope, FaUserCircle } from "react-icons/fa";
+import { FaBars, FaTimes, FaSignOutAlt, FaUserCircle, FaPlus } from "react-icons/fa";
 import { RiAdminFill } from "react-icons/ri";
+import Swal from "sweetalert2";
 import useAuth from "../../../../hooks/useAuth";
 import useAdmin from "../../../../hooks/useAdmin";
 import { isDraftEnabled, setDraftEnabled } from "../../../../hooks/useDraftState";
 import { useClientAuth } from "../../../../hooks/ClientAuthContext";
 import log from "../../../../assets/squirrel-peace-logo.png";
 import fav from "../../../../assets/squirrelpeacelogo.png";
-import Drawer from "./Drawer"; // ড্রয়ার কম্পোনেন্ট ইম্পোর্ট করা হলো
+import Drawer from "./Drawer";
+import MobileBottomNav from "./MobileBottomNav";
 import { canAccessPath } from "../../../../hooks/permissionConfig";
 
 // Draft Save Toggle (ডিফল্ট OFF)
@@ -26,77 +28,60 @@ const DraftToggle = ({ compact = false }) => {
       type="button"
       onClick={() => setDraftEnabled(!on)}
       title={on ? "Draft Save ON (৩ ঘণ্টা)" : "Draft Save OFF"}
-      className="flex items-center gap-1.5 cursor-pointer focus:outline-none"
+      className="flex items-center gap-2 cursor-pointer focus:outline-none"
     >
-      <span className={`relative inline-block w-9 h-5 rounded-full transition-colors duration-200 ${on ? "bg-[#2acb35]" : "bg-gray-300"}`}>
+      <span className={`relative inline-block w-9 h-5 rounded-full transition-colors duration-200 ${on ? "bg-brand-600" : "bg-slate-300"}`}>
         <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${on ? "translate-x-4" : ""}`} />
       </span>
-      {!compact && <span className="text-xs font-semibold text-gray-600">Save Draft</span>}
+      {!compact && <span className="text-xs font-medium text-slate-600">Save Draft</span>}
     </button>
   );
 };
 
-// Role অনুযায়ী রঙ
-const ROLE_STYLES = {
-  Admin: { grad: "from-rose-500 to-orange-500", badge: "bg-rose-100 text-rose-700 border-rose-200" },
-  Manager: { grad: "from-indigo-500 to-purple-600", badge: "bg-indigo-100 text-indigo-700 border-indigo-200" },
-  SR: { grad: "from-emerald-500 to-teal-600", badge: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  "Delivery Man": { grad: "from-amber-500 to-orange-600", badge: "bg-amber-100 text-amber-700 border-amber-200" },
-};
-const DEFAULT_ROLE_STYLE = { grad: "from-sky-500 to-blue-600", badge: "bg-sky-100 text-sky-700 border-sky-200" };
-
 const getInitials = (name = "") =>
   name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "U";
 
-// সুন্দর Profile Avatar (নামের অক্ষর + gradient + online dot)
-const ProfileAvatar = ({ name, role, size = "w-10 h-10", text = "text-sm" }) => {
-  const style = ROLE_STYLES[role] || DEFAULT_ROLE_STYLE;
-  return (
-    <span className="relative inline-block">
-      <span className={`${size} ${text} rounded-full bg-gradient-to-br ${style.grad} text-white font-bold flex items-center justify-center ring-2 ring-white shadow-md`}>
-        {getInitials(name)}
-      </span>
-      <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#2acb35] border-2 border-white rounded-full" />
+const ProfileAvatar = ({ name, size = "h-9 w-9", text = "text-sm" }) => (
+  <span className="relative inline-block">
+    <span className={`${size} ${text} rounded-full bg-brand-600 text-white font-semibold flex items-center justify-center`}>
+      {getInitials(name)}
     </span>
-  );
-};
+    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+  </span>
+);
 
-// Profile dropdown card (Name, Email, Role, Log Out)
 const ProfileCard = ({ clientUser, handleLogout }) => {
-  const style = ROLE_STYLES[clientUser.role] || DEFAULT_ROLE_STYLE;
   const navigate = useNavigate();
   return (
     <div
       tabIndex={0}
-      className="dropdown-content mt-3 z-[1] w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+      className="dropdown-content mt-3 z-[1] w-72 max-w-[90vw] bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden"
     >
-      <div className={`bg-gradient-to-br ${style.grad} px-5 pt-5 pb-8 flex flex-col items-center`}>
-        <ProfileAvatar name={clientUser.name} role={clientUser.role} size="w-16 h-16" text="text-2xl" />
+      <div className="flex items-center gap-3 p-4 border-b border-slate-100">
+        <ProfileAvatar name={clientUser.name} size="h-11 w-11" text="text-base" />
+        <div className="min-w-0">
+          <p className="font-semibold text-slate-800 text-sm truncate">{clientUser.name}</p>
+          <p className="text-slate-500 text-xs truncate">{clientUser.email}</p>
+          {clientUser.role && (
+            <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-brand-50 text-brand-700">
+              {clientUser.role}
+            </span>
+          )}
+        </div>
       </div>
-      <div className="-mt-4 mx-4 bg-white rounded-xl shadow-md border border-gray-100 px-4 py-3 text-center">
-        <p className="font-bold text-gray-800 text-base truncate">{clientUser.name}</p>
-        <p className="text-gray-500 text-xs flex items-center justify-center gap-1.5 mt-1 truncate">
-          <FaEnvelope className="shrink-0 text-gray-400" /> <span className="truncate">{clientUser.email}</span>
-        </p>
-        {clientUser.role && (
-          <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-[11px] font-bold border ${style.badge}`}>
-            {clientUser.role}
-          </span>
-        )}
-      </div>
-      <div className="p-4 space-y-2">
+      <div className="p-2">
         <button
           onClick={() => {
             if (document.activeElement) document.activeElement.blur();
             navigate("/client-profile");
           }}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 text-white font-semibold text-sm py-2 rounded-xl shadow-sm transition"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 transition cursor-pointer"
         >
-          <FaUserCircle /> Profile
+          <FaUserCircle className="text-slate-400" /> Profile
         </button>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 hover:opacity-90 text-white font-semibold text-sm py-2 rounded-xl shadow-sm transition"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50 transition cursor-pointer"
         >
           <FaSignOutAlt /> Log Out
         </button>
@@ -108,18 +93,15 @@ const ProfileCard = ({ clientUser, handleLogout }) => {
 const Navbar = () => {
   const { user } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Feature settings (database থেকে)
   const [draftFeatureOn, setDraftFeatureOn] = useState(false);
 
   useEffect(() => {
     const loadFeatures = () => {
-            fetch(`http://localhost:5000/feature`)
+      fetch(`http://localhost:5000/feature`)
         .then((res) => res.json())
         .then((data) => {
           const on = data?.saveDraft === true;
           setDraftFeatureOn(on);
-          // Feature বন্ধ হলে draft save ও বন্ধ + সব draft মুছে যাবে
           if (!on && isDraftEnabled()) setDraftEnabled(false);
         })
         .catch((error) => console.error("Error fetching features:", error));
@@ -129,204 +111,140 @@ const Navbar = () => {
     window.addEventListener("feature-change", loadFeatures);
     return () => window.removeEventListener("feature-change", loadFeatures);
   }, []);
+
   const [isAdmin] = useAdmin();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // পেজ স্ক্রল ট্র্যাক করার স্টেট
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 60) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  // সেন্ট্রাল কনটেক্সট থেকে ক্লায়েন্ট ডেটা ও লগআউট ফাংশন নেওয়া
   const { clientUser, clientLogout } = useClientAuth();
   const canCreateOrder = !clientUser?.isStaff || canAccessPath(clientUser?.permissions, "/create-order");
+  const onLoginPage = location.pathname === "/login-client";
 
-  const handleLogout = () => {
-    clientLogout();
-    navigate('/login-client');
+  const handleLogout = async () => {
+    if (document.activeElement) document.activeElement.blur();
+    const result = await Swal.fire({
+      title: "আপনি কি লগ আউট করতে চান?",
+      text: "লগ আউট করলে আবার লগইন করতে হবে।",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "হ্যাঁ",
+      cancelButtonText: "না",
+      confirmButtonColor: "#e11d48",
+      cancelButtonColor: "#64748b",
+      reverseButtons: true,
+      focusCancel: true,
+      width: 380,
+      customClass: {
+        popup: "!rounded-2xl",
+        title: "!text-lg !font-bold !text-slate-800",
+        htmlContainer: "!text-sm !text-slate-500",
+        confirmButton: "!rounded-full !px-6 !text-sm !font-semibold",
+        cancelButton: "!rounded-full !px-6 !text-sm !font-semibold",
+      },
+    });
+    if (!result.isConfirmed) return;
+    await clientLogout();
+    navigate("/login-client");
   };
 
   const navLinkStyle = ({ isActive }) =>
-    `text-lg font-semibold rounded block py-2 px-3 ${isActive ? "text-[#2acb35]" : "text-black"
-    } hover:bg-gray-100 transition`;
+    `px-3.5 py-1.5 rounded-full text-sm font-medium transition ${isActive ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100"}`;
 
   return (
     <>
-      <div className="bg-[#f7f7f7] relative z-50 shadow-xs">
-        <div className="navbar max-w-screen-xl mx-auto py-2 px-4 justify-between lg:justify-between">
+      <div className="bg-white relative z-50">
+        <div className="max-w-[1700px] mx-auto h-[60px] px-3 sm:px-5 flex items-center justify-between gap-3">
 
-          {/* Mobile Header */}
-          <div className="flex justify-between w-full lg:hidden items-center py-3">
-            <div className="flex items-center space-x-3">
-              <NavLink to="/" aria-label="Go to Home" className="flex items-center">
-                <img src={fav} alt="Favicon" className="h-7 w-7 object-cover rounded-md" />
-              </NavLink>
-
-              {/* মোবাইল ভিউতে লোগোর ডানপাশে মেনু বাটন (Drawer Trigger) */}
-              {clientUser && (
-                <button
-                  onClick={() => setDrawerOpen(!drawerOpen)}
-                  className="drawer-toggle-btn p-1 text-gray-700 hover:text-[#2acb35] focus:outline-none transition"
-                  aria-label="Toggle Menu"
-                >
-                  <FaBars className="text-2xl" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              {/* Draft Save Toggle (Create Order এর বামে) */}
-              {draftFeatureOn && clientUser && location.pathname !== '/login-client' && <DraftToggle compact />}
-
-              {/* ক্লায়েন্ট লগইন করা থাকলে Create Order বাটন দেখাবে */}
-              {clientUser && location.pathname !== '/login-client' && (
-                <NavLink
-                  to="/create-order"
-                  className={`bg-[#2acb35] hover:bg-green-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1 ${canCreateOrder ? "" : "hidden"}`}
-                >
-                  <span>Create Order</span>
-                </NavLink>
-              )}
-
-              {/* মোবাইল ভিউতে অ্যাডমিন আইকন */}
-              {user && isAdmin && (
-                <NavLink
-                  to="/admin-pages"
-                  title="Admin Dashboard"
-                  className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-full transition"
-                >
-                  <RiAdminFill className="text-2xl" />
-                </NavLink>
-              )}
-
-              {clientUser && location.pathname !== '/login-client' ? (
-                <div className="dropdown dropdown-end lg:hidden">
-                  <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar">
-                    <div className="w-10 rounded-full flex items-center justify-center bg-gray-200 text-gray-700">
-                      <ProfileAvatar name={clientUser.name} role={clientUser.role} size="w-10 h-10" />
-                    </div>
-                  </div>
-                  <ProfileCard clientUser={clientUser} handleLogout={handleLogout} />
-                </div>
-              ) : (
-                location.pathname !== '/login-client' && (
-                  <NavLink
-                    to="/login-client"
-                    className="bg-[#2acb35] hover:bg-green-600 text-white font-medium px-4 py-1.5 rounded-lg text-sm shadow-sm transition"
-                  >
-                    Login
-                  </NavLink>
-                )
-              )}
-            </div>
-          </div>
-
-          {/* Desktop Left Logo & Favicon + Menu Icon on the Right of Logo */}
-          <div className="navbar-start hidden lg:flex items-center space-x-4">
-            <NavLink to="/" aria-label="Go to Home" className="flex items-center space-x-3">
-              <img src={fav} alt="Favicon" className="h-7 w-7 object-cover rounded-md" />
-              <img src={log} alt="Logo" className="h-6 w-auto" />
+          {/* Left: menu + logo */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <NavLink to="/" aria-label="Go to Home" className="flex items-center gap-2">
+              <img src={fav} alt="Logo" className="h-7 w-7 object-cover rounded-md" />
+              <img src={log} alt="Bashay Bazar" className="h-5 w-auto hidden sm:block" />
             </NavLink>
 
-            {/* ডেস্কটপে লোগোর ডানপাশে মেনু বাটন (Drawer Trigger) */}
             {clientUser && (
               <button
+                type="button"
                 onClick={() => setDrawerOpen(!drawerOpen)}
-                className="drawer-toggle-btn p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-lg transition focus:outline-none flex items-center gap-2 font-medium"
-                aria-label="Toggle Menu"
+                aria-label={drawerOpen ? "Close Menu" : "Open Menu"}
+                aria-expanded={drawerOpen}
+                className={`drawer-toggle-btn hidden lg:flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 cursor-pointer ${drawerOpen
+                  ? "bg-brand-100 text-brand-700 shadow-inner"
+                  : "bg-brand-50 text-brand-700 hover:bg-brand-100 shadow-sm"
+                  }`}
               >
-                <FaBars className="text-xl" />
-                <span>Menu</span>
+                <span className={`inline-flex transition-transform duration-200 ${drawerOpen ? "rotate-90" : "rotate-0"}`}>
+                  {drawerOpen ? <FaTimes className="text-[15px]" /> : <FaBars className="text-[15px]" />}
+                </span>
               </button>
             )}
+
+            <nav className="hidden lg:flex items-center gap-1 ml-2">
+              {!clientUser && <NavLink to="/" className={navLinkStyle}>Home</NavLink>}
+            </nav>
           </div>
 
-          {/* Desktop Nav */}
-          <div className="navbar-center hidden lg:flex">
-            <ul className="menu menu-horizontal px-1 space-x-2">
-              {!clientUser && (
-                <li><NavLink to="/" className={navLinkStyle}>Home</NavLink></li>
-              )}
-              {clientUser && (
-                <li><NavLink to="/dashboard" className={navLinkStyle}>Dashboard</NavLink></li>
-              )}
-            </ul>
-          </div>
+          {/* Right */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {draftFeatureOn && clientUser && !onLoginPage && (
+              <>
+                <span className="sm:hidden"><DraftToggle compact /></span>
+                <span className="hidden sm:block"><DraftToggle /></span>
+              </>
+            )}
 
-          {/* Desktop Right Side: Profile or Login Button */}
-          <div className="navbar-end hidden lg:flex items-center space-x-3">
-            {/* Draft Save Toggle (Create Order এর বামে) */}
-            {draftFeatureOn && clientUser && location.pathname !== '/login-client' && <DraftToggle />}
-
-            {/* ক্লায়েন্ট লগইন করা থাকলে Create Order বাটন দেখাবে */}
-            {clientUser && location.pathname !== '/login-client' && (
+            {clientUser && !onLoginPage && (
               <NavLink
                 to="/create-order"
-                className={`bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-3.5 py-2 rounded-lg shadow-sm transition duration-200 text-sm flex items-center gap-1 ${canCreateOrder ? "" : "hidden"}`}
+                className={`h-9 px-3 sm:px-4 items-center gap-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition ${canCreateOrder ? "hidden lg:inline-flex" : "hidden"}`}
               >
-                <span>Create Order</span>
+                <FaPlus className="text-xs" />
+                <span className="hidden sm:inline">Create Order</span>
+                <span className="sm:hidden">Order</span>
               </NavLink>
             )}
 
-            {/* পিসি ভিউতে অ্যাডমিন আইকন */}
             {user && isAdmin && (
               <NavLink
                 to="/admin-pages"
                 title="Admin Dashboard"
-                className="p-2 text-gray-700 hover:text-[#2acb35] hover:bg-gray-200 rounded-lg transition flex items-center gap-1 font-medium"
+                className="h-9 w-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition"
               >
-                <RiAdminFill className="text-2xl" />
+                <RiAdminFill className="text-lg" />
               </NavLink>
             )}
 
-            {clientUser ? (
-              location.pathname !== '/login-client' && (
-                <div className="dropdown dropdown-end">
-                  <div tabIndex={0} role="button" className="flex items-center space-x-2 cursor-pointer p-1 rounded-lg hover:bg-gray-200">
-                    <ProfileAvatar name={clientUser.name} role={clientUser.role} size="w-10 h-10" />
-
+            {clientUser
+              ? !onLoginPage && (
+                <div className="dropdown dropdown-end hidden lg:block">
+                  <div tabIndex={0} role="button" className="cursor-pointer rounded-full">
+                    <ProfileAvatar name={clientUser.name} />
                   </div>
                   <ProfileCard clientUser={clientUser} handleLogout={handleLogout} />
                 </div>
               )
-            ) : (
-              location.pathname !== '/login-client' && (
+              : !onLoginPage && (
                 <NavLink
                   to="/login-client"
-                  className="bg-[#2acb35] hover:bg-green-600 text-white font-semibold px-5 py-2 rounded-lg shadow-sm transition duration-200"
+                  className="h-9 px-4 inline-flex items-center rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition"
                 >
                   Login
                 </NavLink>
-              )
-            )}
+              )}
           </div>
         </div>
       </div>
 
-      {/* --- আলাদা করা Drawer কম্পোনেন্ট এখানে কল করা হয়েছে --- */}
+      {clientUser && !onLoginPage && (
+        <MobileBottomNav
+          clientUser={clientUser}
+          drawerOpen={drawerOpen}
+          setDrawerOpen={setDrawerOpen}
+        />
+      )}
       <Drawer
         drawerOpen={drawerOpen}
         setDrawerOpen={setDrawerOpen}
-        scrolled={scrolled}
         clientUser={clientUser}
-        user={user}
-        isAdmin={isAdmin}
       />
     </>
   );
