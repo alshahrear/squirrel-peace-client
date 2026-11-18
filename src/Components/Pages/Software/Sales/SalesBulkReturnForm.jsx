@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 import useCan from '../../../../hooks/useCan';
+import { DateInput } from '../Product/ProductUi';
+import { inputCls, labelCls, ComboField } from '../Purchase/PurchaseUi';
+import { Card, QtyField, PaymentSection } from '../Purchase/PurchaseFormUi';
+import { labelToISO } from '../Purchase/purchaseDate';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -23,101 +28,6 @@ const matchesSearch = (searchText, fields) => {
     const q = (searchText || '').toLowerCase();
     return fields.some((f) => String(f || '').toLowerCase().includes(q));
 };
-
-// ---------- Local Search Select ----------
-const SearchSelect = ({
-    label, required = false, hint = '', placeholder, searchValue, onSearchChange,
-    onClear, onSelect, items, getKey, renderItem, emptyText = 'No data found', disabled = false,
-    isItemDisabled = null, onDisabledClick = null,
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    return (
-        <div className="relative" ref={ref}>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                {label} {required && <span className="text-rose-500">*</span>}{' '}
-                {hint && <span className="text-xs text-amber-500 font-normal">{hint}</span>}
-            </label>
-            <div
-                onClick={() => !disabled && setIsOpen(true)}
-                className={`w-full px-4 py-3.5 rounded-2xl border text-sm shadow-sm flex items-center justify-between ${disabled ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75' : 'border-slate-200 bg-slate-50/70 cursor-pointer focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100'}`}
-            >
-                <input
-                    type="text"
-                    disabled={disabled}
-                    placeholder={placeholder}
-                    value={searchValue}
-                    onChange={(e) => {
-                        onSearchChange(e.target.value);
-                        setIsOpen(true);
-                    }}
-                    className="bg-transparent outline-none w-full text-sm"
-                />
-                {searchValue && !disabled && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClear();
-                            setIsOpen(false);
-                        }}
-                        className="text-slate-400 hover:text-rose-500 p-0.5"
-                    >
-                        ✕
-                    </button>
-                )}
-            </div>
-            {isOpen && !disabled && (
-                <div className="absolute z-[100] left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-teal-100 max-h-60 overflow-y-auto">
-                    {items.length > 0 ? (
-                        items.map((item) => (
-                            <div
-                                key={getKey(item)}
-                                onClick={() => {
-                                    if (isItemDisabled && isItemDisabled(item)) {
-                                        if (onDisabledClick) onDisabledClick(item);
-                                        return;
-                                    }
-                                    onSelect(item);
-                                    setIsOpen(false);
-                                }}
-                                className={`px-4 py-3 border-b border-slate-50 last:border-none ${isItemDisabled && isItemDisabled(item) ? 'opacity-50 bg-slate-50 cursor-not-allowed' : 'hover:bg-teal-50 cursor-pointer'}`}
-                            >
-                                {renderItem(item)}
-                            </div>
-                        ))
-                    ) : (
-                        <div className="px-4 py-3 text-sm text-slate-400 text-center">{emptyText}</div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
-
-// ---------- Qty box (number + unit label) ----------
-const QtyBox = ({ value, onChange, label, grad, border }) => (
-    <div className={`flex items-center border ${border} rounded-xl bg-white overflow-hidden w-full shadow-sm`}>
-        <input
-            type="number" min="0" step="1" placeholder="0"
-            value={value ?? ''}
-            onChange={(e) => /^\d*$/.test(e.target.value) && onChange(e.target.value)}
-            className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-        />
-        <span className={`flex-1 bg-gradient-to-br ${grad} text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate`} title={label}>
-            {label}
-        </span>
-    </div>
-);
 
 // ---------- Item helpers ----------
 const buildItem = (product) => {
@@ -292,6 +202,35 @@ const getPcsTotal = (i) => (Number(i.pcsQty) || 0) * (Number(i.sellPricePcs) || 
 const getSubTotal = (i) => (Number(i.subQty) || 0) * (Number(i.sellPriceSub) || 0);
 const getRowGross = (i) => getUnitTotal(i) + getSubTotal(i) + getPcsTotal(i);
 
+const priceOk = (v) => /^\d*\.?\d{0,2}$/.test(v);
+
+// ---------- Small price field ----------
+const PriceField = ({ label, value, onChange, disabled, hint, tone = 'slate' }) => {
+    const tones = {
+        slate: 'text-slate-500',
+        brand: 'text-brand-700',
+        fuchsia: 'text-fuchsia-700',
+        teal: 'text-teal-700',
+    };
+    return (
+        <label className="block min-w-0">
+            <span className="flex items-center justify-between gap-2 text-[11px] font-medium text-slate-500 mb-1">
+                <span className="truncate">{label}</span>
+                <span className={`font-bold shrink-0 ${tones[tone]}`}>{hint}</span>
+            </span>
+            <input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                disabled={disabled}
+                value={value ?? ''}
+                onChange={(e) => priceOk(e.target.value) && onChange(e.target.value)}
+                className={inputCls}
+            />
+        </label>
+    );
+};
+
 const SalesBulkReturnForm = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -331,9 +270,7 @@ const SalesBulkReturnForm = () => {
 
     const [items, setItems] = useState([]);
     const [note, setNote] = useState(editingReturn?.note || '');
-    const [toast, setToast] = useState({ show: false, message: '', isError: false });
     const [isSaving, setIsSaving] = useState(false);
-    const dateInputRef = useRef(null);
 
     // ---------------- Payment (optional, default collapsed) ----------------
     const savedPay = editingReturn?.payment || null;
@@ -353,8 +290,7 @@ const SalesBulkReturnForm = () => {
     const [accAvailable, setAccAvailable] = useState(null);
 
     const showToast = (message, isError = false) => {
-        setToast({ show: true, message, isError });
-        setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
+        isError ? toast.error(message) : toast.success(message);
     };
 
     // ---------- Fetch ----------
@@ -382,9 +318,9 @@ const SalesBulkReturnForm = () => {
     }, []);
 
     // ---------- Customer ----------
-    const filteredCustomers = customers
-        .filter(() => true)
-        .filter((c) => matchesSearch(search.customer, [c.businessName, c.contactNumber, c.address, c.route]));
+    const filteredCustomers = customers.filter((c) =>
+        matchesSearch(search.customer, [c.businessName, c.contactNumber, c.address, c.route])
+    );
 
     const handleSelectCustomer = (c) => {
         updateForm({
@@ -402,7 +338,7 @@ const SalesBulkReturnForm = () => {
         setItems([]);
     };
 
-    // ---------- Collected By (Delivery Man, optional) ----------
+    // ---------- Collected By ----------
     const filteredDeliveryMen = deliveryMen
         .filter((u) => u.role === 'Delivery Man' && u.isActive === true)
         .filter((u) => matchesSearch(search.collectedBy, [u.name, u.phone]));
@@ -417,7 +353,7 @@ const SalesBulkReturnForm = () => {
         updateForm({ collectedById: '', collectedBy: '' });
     };
 
-    // ---------- Company (optional) ----------
+    // ---------- Company ----------
     const filteredCompanies = companies.filter((c) =>
         matchesSearch(search.company, [c.businessName, c.contactNumber, c.address])
     );
@@ -473,7 +409,6 @@ const SalesBulkReturnForm = () => {
         return matchesSearch(search.product, [prod.productName, prod.sku]);
     });
 
-    // StockPurchase এ এই product এর invoice (batch) আছে কিনা
     const hasStockInvoice = (prod) =>
         stockBatches.some(
             (b) => String(b.productId) === String(prod._id) || (b.productName && b.productName === prod.productName)
@@ -499,12 +434,8 @@ const SalesBulkReturnForm = () => {
     // ---------- Totals ----------
     const subTotal = roundTo2(items.reduce((t, i) => t + getRowGross(i), 0));
     const returnAmount = subTotal;
-    const uniqueUnits = [...new Set(items.map((i) => i.unit || 'Pcs'))];
-    const sellPriceUnitLabel = uniqueUnits.length === 1 ? uniqueUnits[0] : 'Unit';
 
     // ---------- Payment helpers ----------
-    const accountTypes = [...new Set(investments.map((inv) => inv.accountType).filter(Boolean))];
-
     const getAccountKey = (inv) => {
         if (inv.accountType === 'Bank') return `${inv.bankName}-${inv.accountNumber}-${inv.accountBranch}`;
         if (inv.accountType === 'Mobile Banking') return `${inv.accountName}-${inv.accountNumber}`;
@@ -529,7 +460,6 @@ const SalesBulkReturnForm = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [returnAmount, paymentAmountTouched]);
 
-    // Credit Limit check: return payment dile customer er Get amount creditLimit er beshi hobe kina
     // Selected account e ekhon koto tk ache (live, 5 sec por por refresh)
     useEffect(() => {
         if (!paymentOpen || !selectedAccountInfo) {
@@ -570,6 +500,15 @@ const SalesBulkReturnForm = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [paymentOpen, selectedAccountKey, paymentAccountType, investments]);
 
+    const handlePaymentAmount = (v) => {
+        if (accAvailable !== null && Number(v) > accAvailable) {
+            showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, true);
+            return;
+        }
+        setPaymentAmount(v);
+    };
+
+    // ---------- Credit limit ----------
     const checkCreditLimit = async (paidNow) => {
         try {
             const n = (v) => Number(v) || 0;
@@ -714,7 +653,7 @@ const SalesBulkReturnForm = () => {
         setIsSaving(true);
         let done = false;
         try {
-            done = (await handleSubmitInner(e)) === true;
+            done = (await handleSubmitInner()) === true;
         } finally {
             if (!done) {
                 submitLock.current = false;
@@ -723,9 +662,7 @@ const SalesBulkReturnForm = () => {
         }
     };
 
-    const handleSubmitInner = async (e) => {
-        e.preventDefault();
-        // lock wrapper (handleSubmit) e boshano ache
+    const handleSubmitInner = async () => {
         if (isEditMode ? !can.canEdit : !can.canAdd) {
             return showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', true);
         }
@@ -737,7 +674,7 @@ const SalesBulkReturnForm = () => {
             return showToast('Each product must have a valid quantity!', true);
         }
 
-        // ---------- Payment validation (shudhu Payment open thakle) ----------
+        // ---------- Payment validation ----------
         let paymentData = null;
         if (paymentOpen) {
             if (paymentAmount === '' || paymentAmount === null) {
@@ -766,7 +703,6 @@ const SalesBulkReturnForm = () => {
             }
             if (!(await checkCreditLimit(paymentAmount))) return;
 
-            // Account e tk ache kina check (edit hole nijer ager payment bad)
             const sameAcc = (a, b) =>
                 `${a?.accountName || a?.bankName || 'Cash'}||${a?.accountNumber || ''}||${a?.accountBranch || ''}` ===
                 `${b?.accountName || b?.bankName || 'Cash'}||${b?.accountNumber || ''}||${b?.accountBranch || ''}`;
@@ -850,501 +786,298 @@ const SalesBulkReturnForm = () => {
         }
     };
 
-    const inputCls =
-        'w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm text-slate-700 shadow-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100';
-
-    const trashIcon = (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-        </svg>
-    );
+    const stockHint = (p) => (hasStockInvoice(p) ? '' : ' | ❌ Stock এ নেই');
 
     return (
-        <div>
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-[200] px-5 py-3.5 rounded-2xl shadow-lg text-sm font-semibold text-white ${toast.isError ? 'bg-rose-600' : 'bg-gradient-to-br from-teal-600 to-emerald-500'}`}>
-                    {toast.message}
-                </div>
-            )}
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1400px] mx-auto space-y-4">
+                {/* ---------------- Top form ---------------- */}
+                <div className="relative z-20">
+                    <Card
+                        title={isEditMode ? 'Edit Sales Bulk Return' : 'Sales Bulk Return'}
+                        subtitle="Select customer and products to return in bulk"
+                    >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {isEditMode ? (
+                                <div>
+                                    <span className={labelCls}>Customer *</span>
+                                    <input readOnly disabled value={search.customer} className={inputCls} />
+                                </div>
+                            ) : (
+                                <ComboField
+                                    label="Customer *"
+                                    value={search.customer}
+                                    placeholder="Search or select customer..."
+                                    options={filteredCustomers.map((c) => ({
+                                        key: c._id,
+                                        title: c.businessName,
+                                        sub: `📞 ${c.contactNumber || ''} | 📍 ${c.address || ''}`,
+                                        raw: c,
+                                    }))}
+                                    onType={(v) => {
+                                        updateSearch('customer', v);
+                                        if (formData.customerId) {
+                                            updateForm({ customerId: '', customer: '', customerContact: '', customerAddress: '' });
+                                        }
+                                    }}
+                                    onClear={handleClearCustomer}
+                                    onPick={(o) => handleSelectCustomer(o.raw)}
+                                />
+                            )}
 
-            {/* ---------------- Top Form ---------------- */}
-            <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 my-8 relative z-20">
-                <div className="bg-white rounded-3xl shadow-lg shadow-teal-900/5 p-6 md:p-8 border border-teal-100/70">
-                    <div className="mb-6 pb-4 border-b border-teal-100">
-                        <h3 className="text-xl font-bold text-slate-800">
-                            {isEditMode ? 'Edit Sales Bulk Return' : 'Sales Bulk Return'}
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Select customer and products to return in bulk</p>
-                    </div>
-
-                    <div className="space-y-6">
-                        {/* Row 1 */}
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                            <SearchSelect
-                                label="Customer"
-                                required
-                                placeholder="Search or select customer..."
-                                searchValue={search.customer}
-                                onSearchChange={(text) => {
-                                    updateSearch('customer', text);
-                                    if (formData.customerId) {
-                                        updateForm({ customerId: '', customer: '', customerContact: '', customerAddress: '' });
-                                    }
-                                }}
-                                onClear={handleClearCustomer}
-                                onSelect={handleSelectCustomer}
-                                items={filteredCustomers}
-                                getKey={(c) => c._id}
-                                emptyText="No customer found"
-                                disabled={isEditMode}
-                                renderItem={(c) => (
-                                    <>
-                                        <p className="text-sm font-semibold text-slate-800">{c.businessName}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">📞 {c.contactNumber} | 📍 {c.address}</p>
-                                    </>
-                                )}
-                            />
-
-                            <SearchSelect
+                            <ComboField
                                 label="Company"
+                                value={search.company}
                                 placeholder="Search or select company (optional)..."
-                                searchValue={search.company}
-                                onSearchChange={(text) => {
-                                    updateSearch('company', text);
+                                options={filteredCompanies.map((c) => ({
+                                    key: c._id,
+                                    title: c.businessName,
+                                    sub: `📞 ${c.contactNumber || ''} | 📍 ${c.address || ''}`,
+                                    raw: c,
+                                }))}
+                                onType={(v) => {
+                                    updateSearch('company', v);
                                     updateForm({ company: '' });
                                 }}
                                 onClear={handleClearCompany}
-                                onSelect={handleSelectCompany}
-                                items={filteredCompanies}
-                                getKey={(c) => c._id}
-                                emptyText="No company found"
-                                renderItem={(c) => (
-                                    <>
-                                        <p className="text-sm font-semibold text-slate-800">{c.businessName}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">📞 {c.contactNumber} | 📍 {c.address}</p>
-                                    </>
-                                )}
+                                onPick={(o) => handleSelectCompany(o.raw)}
                             />
 
-                            {/* Date */}
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Date <span className="text-rose-500">*</span></label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => dateInputRef.current?.showPicker?.() || dateInputRef.current?.click()}
-                                >
-                                    <input ref={dateInputRef} type="date" onChange={handleDateChange} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                                    <input type="text" readOnly value={formData.date} placeholder="Select date" className={`${inputCls} cursor-pointer pointer-events-none`} />
-                                </div>
+                                <span className={labelCls}>Date *</span>
+                                <DateInput name="date" value={labelToISO(formData.date)} onChange={handleDateChange} placeholder="Select date" />
                             </div>
 
-                            <SearchSelect
-                                label="Collected By"
-                                hint="(Optional)"
+                            <ComboField
+                                label="Collected By (Optional)"
+                                value={search.collectedBy}
                                 placeholder="Search or select delivery man..."
-                                searchValue={search.collectedBy}
-                                onSearchChange={(text) => {
-                                    updateSearch('collectedBy', text);
+                                options={filteredDeliveryMen.map((u) => ({
+                                    key: u._id,
+                                    title: u.name,
+                                    sub: u.phone ? `📞 ${u.phone}` : '',
+                                    raw: u,
+                                }))}
+                                onType={(v) => {
+                                    updateSearch('collectedBy', v);
                                     updateForm({ collectedById: '', collectedBy: '' });
                                 }}
                                 onClear={handleClearCollectedBy}
-                                onSelect={handleSelectCollectedBy}
-                                items={filteredDeliveryMen}
-                                getKey={(u) => u._id}
-                                emptyText="No active delivery man found"
-                                renderItem={(u) => (
-                                    <>
-                                        <p className="text-sm font-semibold text-slate-800">{u.name}</p>
-                                        {u.phone && <p className="text-xs text-slate-500 mt-0.5">📞 {u.phone}</p>}
-                                    </>
-                                )}
+                                onPick={(o) => handleSelectCollectedBy(o.raw)}
                             />
 
-                            <SearchSelect
+                            <ComboField
                                 label="Filter by Category"
+                                value={search.category}
                                 placeholder="Search or select category..."
-                                searchValue={search.category}
-                                onSearchChange={(text) => {
-                                    updateSearch('category', text);
+                                options={filteredCategories.map((c) => ({ key: c._id, title: c.name, raw: c }))}
+                                onType={(v) => {
+                                    updateSearch('category', v);
                                     updateForm({ category: '' });
                                 }}
                                 onClear={handleClearCategory}
-                                onSelect={handleSelectCategory}
-                                items={filteredCategories}
-                                getKey={(c) => c._id}
-                                emptyText="No active category found"
-                                renderItem={(c) => <p className="text-sm font-semibold text-slate-800">{c.name}</p>}
+                                onPick={(o) => handleSelectCategory(o.raw)}
                             />
                         </div>
 
-                        {/* Row 2 : Select Product */}
-                        <SearchSelect
-                            label="Select Product"
-                            required
-                            hint={
-                                !isProductEnabled
-                                    ? '(Select first: Customer)'
-                                    : formData.company || formData.category
-                                        ? `(Filtered by ${[formData.company, formData.category].filter(Boolean).join(' • ')})`
-                                        : ''
-                            }
-                            placeholder={isProductEnabled ? 'Search or select product...' : 'Select a customer first...'}
-                            disabled={!isProductEnabled}
-                            searchValue={search.product}
-                            onSearchChange={(text) => updateSearch('product', text)}
-                            onClear={() => updateSearch('product', '')}
-                            onSelect={handleSelectProduct}
-                            items={filteredProducts}
-                            isItemDisabled={(p) => !hasStockInvoice(p)}
-                            onDisabledClick={() => showToast('এই product stock এ নেই!', true)}
-                            getKey={(p) => p._id}
-                            emptyText="No matching product found"
-                            renderItem={(prod) => (
-                                <div className="flex justify-between items-center gap-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">
-                                            Company: {prod.company}{prod.category ? ` | Category: ${prod.category}` : ''}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {prod.sellingPrice && (
-                                            <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg font-medium border border-emerald-100">৳{prod.sellingPrice}</span>
-                                        )}
-                                        {prod.sku && (
-                                            <span className="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg font-medium border border-amber-100">SKU: {prod.sku}</span>
-                                        )}
-                                        {!hasStockInvoice(prod) && (
-                                            <span className="text-xs bg-rose-50 text-rose-600 px-2.5 py-1 rounded-lg font-semibold border border-rose-100">Stock এ নেই</span>
-                                        )}
-                                    </div>
+                        <div className="mt-4">
+                            {isProductEnabled ? (
+                                <ComboField
+                                    label={`Select Product *${formData.company || formData.category ? `  (Filtered by ${[formData.company, formData.category].filter(Boolean).join(' • ')})` : ''}`}
+                                    value={search.product}
+                                    placeholder="Search or select product..."
+                                    options={filteredProducts.map((p) => ({
+                                        key: p._id,
+                                        title: p.productName,
+                                        sub: `Company: ${p.company}${p.category ? ` | Category: ${p.category}` : ''}${p.sellingPrice ? ` | ৳${p.sellingPrice}` : ''}${p.sku ? ` | SKU: ${p.sku}` : ''}${stockHint(p)}`,
+                                        raw: p,
+                                    }))}
+                                    onType={(v) => updateSearch('product', v)}
+                                    onClear={() => updateSearch('product', '')}
+                                    onPick={(o) => handleSelectProduct(o.raw)}
+                                />
+                            ) : (
+                                <div>
+                                    <span className={labelCls}>Select Product *</span>
+                                    <input disabled placeholder="Select a customer first..." className={inputCls} />
                                 </div>
                             )}
-                        />
-                    </div>
+                        </div>
+                    </Card>
                 </div>
-            </div>
 
-            {/* ---------------- Table + Summary ---------------- */}
-            <div className="w-full px-0 sm:px-1 my-6 relative z-0">
-                <div className="bg-white rounded-3xl shadow-xl shadow-teal-900/5 p-6 md:p-8 border border-teal-100/70">
-                    <form onSubmit={handleSubmit}>
-                        <div className="overflow-x-auto rounded-2xl border border-violet-200">
-                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
-                                <colgroup>
-                                    <col style={{ width: '13%' }} />
-                                    <col style={{ width: '8%' }} />
-                                    <col style={{ width: '12%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '12%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '11%' }} />
-                                    <col style={{ width: '10%' }} />
-                                    <col style={{ width: '5%' }} />
-                                </colgroup>
-                                <thead>
-                                    <tr className="bg-violet-100/70 border-b-2 border-violet-200 text-xs font-semibold text-violet-800">
-                                        <th className="py-3 px-3">Product Name</th>
-                                        <th className="py-3 px-3">Company</th>
-                                        <th className="py-3 pl-4 pr-1">Unit Qty</th>
-                                        <th className="py-3 pl-3 pr-2">PCS Qty</th>
-                                        <th className="py-3 pl-4 pr-1">Free Unit</th>
-                                        <th className="py-3 pl-3 pr-2">Free PCS</th>
-                                        <th className="py-3 px-3">Sell Price ({sellPriceUnitLabel})</th>
-                                        <th className="py-3 px-3">Sell Price (PCS)</th>
-                                        <th className="py-3 px-3">Item Total</th>
-                                        <th className="py-3 px-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-violet-100 text-sm">
-                                    {items.length > 0 ? (
-                                        items.map((item) => {
-                                            const rowGross = getRowGross(item);
-                                            const unitLabel = item.unit || 'Pcs';
-                                            const ch = (field) => (v) => handleItemChange(item.uniqueId, field, v);
-                                            return (
-                                                <tr key={item.uniqueId} className="hover:bg-violet-50/40 transition">
-                                                    <td className="py-3 px-2 leading-tight">
-                                                        <div className="font-semibold text-slate-800">{item.productName}</div>
-                                                    </td>
-                                                    <td className="py-3 px-2 text-slate-600 text-xs">{item.company}</td>
-
-                                                    {/* Unit Qty */}
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.totalQty}
-                                                        </div>
-                                                        <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
-                                                            <QtyBox value={item.unitQty} onChange={ch('unitQty')} label={unitLabel} grad="from-indigo-500 to-violet-500" border="border-indigo-200" />
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5">
-                                                                    <QtyBox value={item.subQty} onChange={ch('subQty')} label={item.subUnit} grad="from-fuchsia-500 to-pink-500" border="border-indigo-200" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    {/* PCS Qty */}
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
-                                                            <input
-                                                                type="number" min="0" step="1" placeholder="0"
-                                                                value={item.pcsQty}
-                                                                onChange={(e) => /^\d*$/.test(e.target.value) && ch('pcsQty')(e.target.value)}
-                                                                className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Free Unit */}
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.freeQty}
-                                                        </div>
-                                                        <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
-                                                            <QtyBox value={item.freeUnitQty} onChange={ch('freeUnitQty')} label={unitLabel} grad="from-emerald-500 to-teal-500" border="border-emerald-200" />
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5">
-                                                                    <QtyBox value={item.freeSubQty} onChange={ch('freeSubQty')} label={item.subUnit} grad="from-fuchsia-500 to-pink-500" border="border-emerald-200" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Free PCS */}
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                                            <input
-                                                                type="number" min="0" step="1" placeholder="0"
-                                                                value={item.freePcsQty}
-                                                                onChange={(e) => /^\d*$/.test(e.target.value) && ch('freePcsQty')(e.target.value)}
-                                                                className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Sell Price (Unit) */}
-                                                    <td className="relative py-3 px-2">
-                                                        <div className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            ৳{getUnitTotal(item).toFixed(2)}
-                                                        </div>
-                                                        <input
-                                                            type="number" min="0" step="0.01" placeholder="0"
-                                                            disabled={!(Number(item.unitQty) > 0)}
-                                                            value={item.sellPriceUnit}
-                                                            onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && ch('sellPriceUnit')(e.target.value)}
-                                                            className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
-                                                        />
-                                                        {item.parentMode && (
-                                                            <div className="relative mt-6">
-                                                                <div className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                                    {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
-                                                                </div>
-                                                                <input
-                                                                    type="number" min="0" step="0.01" placeholder="0"
-                                                                    disabled={!(Number(item.subQty) > 0)}
-                                                                    value={item.sellPriceSub}
-                                                                    onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && ch('sellPriceSub')(e.target.value)}
-                                                                    className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
-                                                                />
-                                                            </div>
-                                                        )}
-                                                    </td>
-
-                                                    {/* Sell Price (PCS) */}
-                                                    <td className="relative py-3 px-2">
-                                                        <div className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getPcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            ৳{getPcsTotal(item).toFixed(2)}
-                                                        </div>
-                                                        <input
-                                                            type="number" min="0" step="0.01"
-                                                            value={item.sellPricePcs}
-                                                            disabled={!(Number(item.pcsQty) > 0)}
-                                                            onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && ch('sellPricePcs')(e.target.value)}
-                                                            className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                                        />
-                                                    </td>
-
-                                                    <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">{rowGross.toFixed(2)}</td>
-
-                                                    <td className="py-3 px-1 text-center">
-                                                        <button type="button" onClick={() => handleRemoveItem(item.uniqueId)} className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition cursor-pointer">
-                                                            {trashIcon}
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="10" className="text-center py-8 text-slate-400 text-sm">
-                                                No products added yet. Please select a customer and product above.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* ---------------- Items ---------------- */}
+                    {items.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+                            No products added yet. Please select a customer and product above.
                         </div>
-
-                        {/* Summary */}
-                        <div className="mt-6 flex justify-end">
-                            <div className="w-full md:w-[700px] space-y-2.5 bg-teal-50/40 border border-teal-100 rounded-2xl p-5">
-                                <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-bold text-teal-800">Return Amount</label>
-                                    <input type="text" readOnly value={returnAmount.toFixed(2)} className="flex-1 px-3 py-2.5 border border-teal-200 bg-white font-bold text-emerald-700 text-base rounded-lg outline-none" />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Return Payment (Optional, default collapsed) */}
-                        <div className="mt-8">
-                            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
-                                <div className="flex items-center justify-between flex-wrap gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="text-base font-bold text-emerald-800">Return Payment</h3>
-                                        <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
-                                            Return Amount: ৳{returnAmount.toFixed(2)}
-                                        </span>
+                    ) : (
+                        items.map((item) => {
+                            const rowGross = getRowGross(item);
+                            const unitLabel = item.unit || 'Pcs';
+                            const num = (field) => (v) => /^\d*$/.test(v) && handleItemChange(item.uniqueId, field, v);
+                            const price = (field) => (v) => handleItemChange(item.uniqueId, field, v);
+                            const qtyCols = item.parentMode ? 'grid-cols-3' : 'grid-cols-2';
+                            return (
+                                <div key={item.uniqueId} className="bg-white rounded-2xl border border-slate-200 p-4">
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-slate-800 truncate">{item.productName}</p>
+                                            <p className="text-xs text-slate-500 truncate">
+                                                {item.company}{item.sku ? ` · SKU: ${item.sku}` : ''}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className="text-right">
+                                                <p className="text-[11px] text-slate-400">Item Total</p>
+                                                <p className="font-bold text-emerald-700">৳{rowGross.toFixed(2)}</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                aria-label="Remove product"
+                                                onClick={() => handleRemoveItem(item.uniqueId)}
+                                                className="w-10 h-10 flex items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentOpen((prev) => !prev)}
-                                        className="flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
-                                    >
-                                        {paymentOpen ? 'Enabled' : 'Disabled'}
-                                        <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                                            <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
-                                        </span>
-                                    </button>
-                                </div>
 
-                                {paymentOpen && (
-                                    <div className="mt-5">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                    Payment Amount <span className="text-rose-500">*</span>
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={paymentAmount}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                            if (accAvailable !== null && Number(value) > accAvailable) {
-                                                                showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, true);
-                                                                return;
-                                                            }
-                                                            setPaymentAmount(value);
-                                                            setPaymentAmountTouched(true);
-                                                        }
-                                                    }}
-                                                    className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                                        {/* Main qty */}
+                                        <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-3">
+                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                                <span className="text-xs font-bold text-brand-700">Return Qty</span>
+                                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(item.totalQty) > 0 ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-400'}`}>
+                                                    Total: {item.totalQty} pcs
+                                                </span>
+                                            </div>
+                                            <div className={`grid ${qtyCols} gap-2`}>
+                                                <QtyField label={unitLabel} value={item.unitQty} onChange={num('unitQty')} />
+                                                {item.parentMode && (
+                                                    <QtyField label={item.subUnit || 'Sub'} value={item.subQty ?? ''} onChange={num('subQty')} />
+                                                )}
+                                                <QtyField label="Pcs" value={item.pcsQty} onChange={num('pcsQty')} />
+                                            </div>
+                                        </div>
+
+                                        {/* Free qty */}
+                                        <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                                <span className="text-xs font-bold text-emerald-700">Free Qty</span>
+                                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                                                    Total: {item.freeQty} pcs
+                                                </span>
+                                            </div>
+                                            <div className={`grid ${qtyCols} gap-2`}>
+                                                <QtyField label={unitLabel} value={item.freeUnitQty} onChange={num('freeUnitQty')} />
+                                                {item.parentMode && (
+                                                    <QtyField label={item.subUnit || 'Sub'} value={item.freeSubQty ?? ''} onChange={num('freeSubQty')} />
+                                                )}
+                                                <QtyField label="Pcs" value={item.freePcsQty} onChange={num('freePcsQty')} />
+                                            </div>
+                                        </div>
+
+                                        {/* Prices */}
+                                        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                                <span className="text-xs font-bold text-slate-700">Sell Price</span>
+                                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-white border border-slate-200 text-emerald-700">
+                                                    ৳{rowGross.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <div className={`grid ${item.parentMode ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
+                                                <PriceField
+                                                    label={unitLabel}
+                                                    tone="brand"
+                                                    hint={`৳${getUnitTotal(item).toFixed(2)}`}
+                                                    value={item.sellPriceUnit}
+                                                    disabled={!(Number(item.unitQty) > 0)}
+                                                    onChange={price('sellPriceUnit')}
+                                                />
+                                                {item.parentMode && (
+                                                    <PriceField
+                                                        label={item.subUnit || 'Sub'}
+                                                        tone="fuchsia"
+                                                        hint={`৳${getSubTotal(item).toFixed(2)}`}
+                                                        value={item.sellPriceSub}
+                                                        disabled={!(Number(item.subQty) > 0)}
+                                                        onChange={price('sellPriceSub')}
+                                                    />
+                                                )}
+                                                <PriceField
+                                                    label="Pcs"
+                                                    tone="teal"
+                                                    hint={`৳${getPcsTotal(item).toFixed(2)}`}
+                                                    value={item.sellPricePcs}
+                                                    disabled={!(Number(item.pcsQty) > 0)}
+                                                    onChange={price('sellPricePcs')}
                                                 />
                                             </div>
-
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                    Payment Method <span className="text-rose-500">*</span>
-                                                </label>
-                                                <select
-                                                    value={paymentAccountType}
-                                                    onChange={(e) => {
-                                                        setPaymentAccountType(e.target.value);
-                                                        setSelectedAccountKey(
-                                                            e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
-                                                                ? 'cash'
-                                                                : ''
-                                                        );
-                                                    }}
-                                                    className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
-                                                >
-                                                    <option value="">Select method...</option>
-                                                    {accountTypes.map((type) => (
-                                                        <option key={type} value={type}>{type}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                    Account <span className="text-rose-500">*</span>
-                                                </label>
-                                                <select
-                                                    value={selectedAccountKey}
-                                                    onChange={(e) => setSelectedAccountKey(e.target.value)}
-                                                    disabled={!paymentAccountType}
-                                                    className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
-                                                        ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
-                                                        : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                        }`}
-                                                >
-                                                    <option value="">
-                                                        {paymentAccountType ? 'Select account...' : 'Select method first'}
-                                                    </option>
-                                                    {uniqueAccounts.map((inv) => {
-                                                        const key = getAccountKey(inv);
-                                                        const label =
-                                                            inv.accountType === 'Bank'
-                                                                ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
-                                                                : inv.accountType === 'Mobile Banking'
-                                                                    ? `${inv.accountName} - ${inv.accountNumber}`
-                                                                    : 'Cash';
-                                                        return <option key={key} value={key}>{label}</option>;
-                                                    })}
-                                                </select>
-                                                {accAvailable !== null && (
-                                                    <p className={`mt-1.5 text-xs font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                        Available: ৳{accAvailable.toFixed(2)}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-6">
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
-                                            </label>
-                                            <textarea
-                                                rows="2"
-                                                placeholder="Write any note about this payment..."
-                                                value={paymentNote}
-                                                onChange={(e) => setPaymentNote(e.target.value)}
-                                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
-                                            />
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        </div>
+                                </div>
+                            );
+                        })
+                    )}
 
-                        {/* Note */}
-                        <div className="mt-8">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Return Note</label>
-                            <textarea
-                                rows="3"
-                                placeholder="Write any note about this return..."
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 resize-y shadow-sm"
-                            />
+                    {/* ---------------- Return amount ---------------- */}
+                    <Card>
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-bold text-slate-700">Return Amount</span>
+                            <span className="text-xl font-bold text-emerald-700">৳{returnAmount.toFixed(2)}</span>
                         </div>
+                    </Card>
 
-                        {/* Button */}
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                type="submit"
-                                disabled={isSaving}
-                                className="px-10 py-3 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 hover:from-teal-700 hover:to-emerald-600 text-sm font-semibold text-white shadow-md shadow-teal-200 transition cursor-pointer disabled:opacity-60"
+                    {/* ---------------- Payment ---------------- */}
+                    <div>
+                        <PaymentSection
+                            returnAmount={returnAmount}
+                            open={paymentOpen}
+                            setOpen={setPaymentOpen}
+                            amount={paymentAmount}
+                            setAmount={handlePaymentAmount}
+                            setTouched={setPaymentAmountTouched}
+                            accountType={paymentAccountType}
+                            setAccountType={setPaymentAccountType}
+                            accountKey={selectedAccountKey}
+                            setAccountKey={setSelectedAccountKey}
+                            note={paymentNote}
+                            setNote={setPaymentNote}
+                            investments={investments}
+                        />
+                        {paymentOpen && accAvailable !== null && (
+                            <p
+                                className={`mt-2 px-1 text-xs font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}
                             >
-                                {isEditMode ? 'Update Bulk Return' : 'Bulk Return'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                                Available: ৳{accAvailable.toFixed(2)}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* ---------------- Note ---------------- */}
+                    <Card>
+                        <label className={labelCls}>Return Note</label>
+                        <textarea
+                            rows="3"
+                            placeholder="Write any note about this return..."
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            className={`${inputCls} resize-y`}
+                        />
+                    </Card>
+
+                    <div className="flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={isSaving}
+                            className="bg-brand-600 text-white text-sm font-semibold px-10 py-3 w-full sm:w-auto disabled:opacity-60 cursor-pointer"
+                        >
+                            {isSaving ? 'Saving...' : isEditMode ? 'Update Bulk Return' : 'Bulk Return'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

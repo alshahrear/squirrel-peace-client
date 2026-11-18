@@ -60,7 +60,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, clientUser }) => {
   const firstAllowed = (list, fallback) =>
     (clientUser?.isStaff ? list.find((p) => canAccessPath(clientUser.permissions, p)) : null) || fallback;
 
-  const SALES = ["/create-order", "/wholesale", "/sales-return", "/sales-bulk-return", "/sales-due-payment", "/sales-sr-target"];
+  const SALES = ["/wholesale", "/create-order", "/sales-return", "/sales-bulk-return", "/sales-due-payment", "/sales-sr-target"];
   const PURCHASE = ["/purchase", "/add-purchase", "/purchase-return", "/purchase-bulk-return", "/purchase-due-payment"];
   const PRODUCTS = ["/product", "/category", "/units"];
   const CONTACT = ["/company", "/company-account", "/customers", "/customer-account", "/routes"];
@@ -73,7 +73,7 @@ const Drawer = ({ drawerOpen, setDrawerOpen, clientUser }) => {
     { type: "link", key: "home", to: clientUser ? "/dashboard" : "/", label: clientUser ? "Dashboard" : "Home", match: [clientUser ? "/dashboard" : "/"] },
     clientUser && {
       type: "link", key: "sale", label: "Sale",
-      to: firstAllowed(SALES, "/create-order"),
+      to: firstAllowed(SALES, "/wholesale"),
       match: [...SALES, "/sales-details", "/sales-return-details", "/sales-return-view", "/sales-bulk-return-form", "/sales-bulk-return-view"],
     },
     {

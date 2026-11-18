@@ -1,59 +1,164 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { FaFilter, FaRedo, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaChevronDown } from 'react-icons/fa';
 import useCan from '../../../../hooks/useCan';
+import { DateInput } from '../Product/ProductUi';
+// NOTE: PurchaseUi er path tomar folder structure onujayi thik kore nio
+import { fmt, inputCls, labelCls, Pill, Pager, ComboField, FilterPanel, RowMenu, ListSkeleton, Empty } from '../Purchase/PurchaseUi';
+
+const parseToLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const datePart = dateStr.split(',')[0].trim();
+    if (datePart.includes('/')) {
+        const [d, m, y] = datePart.split('/');
+        if (!d || !m || !y) return null;
+        return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
+        const [y, m, d] = datePart.split('-');
+        return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    const parsed = new Date(datePart);
+    return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+};
+
+const formatLine = (ln) => {
+    const parts = [];
+    if (ln.unitQty > 0) parts.push(`${ln.unitQty} ${ln.unitLabel}`);
+    if (ln.isParent && ln.subQty > 0) parts.push(`${ln.subQty} ${ln.subLabel}`);
+    parts.push(`${ln.pcsQty} Pcs`);
+    return parts.join(' ');
+};
+
+const renderLines = (lines, totalValue, totalColor) => {
+    if (!lines || lines.length === 0) {
+        return (
+            <div>
+                0 Pcs <span className={`text-xs ml-1 font-bold ${totalColor}`}>(Total: {totalValue || 0})</span>
+            </div>
+        );
+    }
+    return lines.map((ln, i) => (
+        <div key={i}>
+            {formatLine(ln)} <span className={`text-xs ml-1 font-bold ${totalColor}`}>(Total: {ln.totalQty})</span>
+        </div>
+    ));
+};
+
+const buildQtyInfo = (rows, linesKey, totalKey) => {
+    const map = {};
+    let total = 0;
+    rows.forEach((r) => {
+        (r[linesKey] || []).forEach((ln) => {
+            const key = `${ln.unitLabel}|${ln.isParent ? ln.subLabel : ''}`;
+            if (!map[key]) map[key] = { ...ln, unitQty: 0, subQty: 0, pcsQty: 0, totalQty: 0 };
+            map[key].unitQty += ln.unitQty;
+            map[key].subQty += ln.subQty;
+            map[key].pcsQty += ln.pcsQty;
+            map[key].totalQty += ln.totalQty;
+        });
+        total += Number(r[totalKey]) || 0;
+    });
+    return { lines: Object.values(map), total };
+};
+
+const QtyBox = ({ title, titleCls, info, totalCls }) => (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+        <div className={`text-[10px] font-bold uppercase ${titleCls}`}>{title}</div>
+        <div className="text-sm font-bold text-slate-800 mt-0.5">
+            {info.lines.length === 0
+                ? '0 Pcs'
+                : info.lines.map((ln, i) => (
+                    <div key={i}>
+                        {formatLine(ln)} <span className={`text-xs font-bold ${totalCls}`}>(Total: {fmt(ln.totalQty)})</span>
+                    </div>
+                ))}
+            {info.lines.length > 1 && <div className={`text-xs font-bold mt-0.5 ${totalCls}`}>Grand Total: {fmt(info.total)}</div>}
+        </div>
+    </div>
+);
+
+// ekta product er line gulo ke group kore ekta (label + lines) row banay
+const buildLines = (list, unitKey, subKey, pcsKey, totalKey, sourceItems) => {
+    const lines = [];
+    list.forEach((it) => {
+        const src = (sourceItems || []).find((oi) => oi.productId === it.productId);
+        const u = Number(it[unitKey]) || 0;
+        const s = Number(it[subKey]) || 0;
+        const p = Number(it[pcsKey]) || 0;
+        const t = Number(it[totalKey]) || 0;
+        if (u <= 0 && s <= 0 && p <= 0 && t <= 0) return;
+        lines.push({
+            unitLabel: src?.unit || 'Unit',
+            subLabel: src?.subUnit || 'Sub',
+            isParent: src?.parentMode === true,
+            unitQty: u,
+            subQty: s,
+            pcsQty: p,
+            totalQty: t,
+        });
+    });
+    return lines;
+};
+
+const getTimestamp = (r) => {
+    if (r.createdAt) {
+        const c = new Date(r.createdAt).getTime();
+        if (!isNaN(c)) return c;
+    }
+    const idMatch = String(r.returnIdRaw || '').match(/\d{13}/);
+    if (idMatch) return Number(idMatch[0]);
+
+    const str = r.returnDate || '';
+    const [datePart, ...rest] = str.split(',');
+    const timePart = rest.join(',').trim();
+    let d = null;
+
+    if (datePart.includes('/')) {
+        const [dd, mm, yyyy] = datePart.trim().split('/').map(Number);
+        let h = 0, m = 0, s = 0;
+        const t = timePart.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?/i);
+        if (t) {
+            h = Number(t[1]);
+            m = Number(t[2]);
+            s = Number(t[3] || 0);
+            const ap = t[4]?.toLowerCase();
+            if (ap === 'pm' && h < 12) h += 12;
+            if (ap === 'am' && h === 12) h = 0;
+        }
+        d = new Date(yyyy, mm - 1, dd, h, m, s);
+    } else if (str) {
+        d = new Date(str);
+    }
+    return d && !isNaN(d) ? d.getTime() : 0;
+};
+
+const lblCls = 'block text-[10px] uppercase text-slate-400 font-bold mb-0.5';
 
 const SalesReturn = () => {
     const [returns, setReturns] = useState([]);
-    const can = useCan('sales_return');
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
     const navigate = useNavigate();
+    const can = useCan('sales_return');
 
-    // Pagination State
+    const showToast = (message, type = 'success') => (type === 'error' ? toast.error(message) : toast.success(message));
+    const denyMsg = (what) => showToast(`আপনার ${what} করার অনুমতি নেই!`, 'error');
+
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    // Separate Filter States
-    const [filters, setFilters] = useState({
-        startDate: '',
-        endDate: '',
-        customer: '',
-        customerContact: '',
-        orderNo: ''
-    });
-
-    // Refs for triggering date pickers
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
-
-    // Customer searchable-select state
-    const [isCustomerOpen, setIsCustomerOpen] = useState(false);
-    const customerDropdownRef = useRef(null);
-
-    // Action Dropdown state
-    const [openDropdownId, setOpenDropdownId] = useState(null);
-
-    // Checkbox selection ও Order selection state
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', customer: '', customerContact: '', orderNo: '' });
     const [selectedIds, setSelectedIds] = useState([]);
     const [selectedOrders, setSelectedOrders] = useState([]);
+    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
-    // Dropdown er baire click korle close hobe
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.action-dropdown-container')) {
-                setOpenDropdownId(null);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
+    const getCustomerName = (cust) => cust.name || cust.customerName || cust.businessName || '';
+    const getPhoneByName = (name) =>
+        customers.find((c) => getCustomerName(c).trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
 
-    // Fetch Customers data for filter dropdown
     const fetchCustomers = async () => {
         try {
             const res = await fetch('http://localhost:5000/customer');
@@ -64,7 +169,7 @@ const SalesReturn = () => {
         }
     };
 
-    // Fetch Sales -> proti order er returnHistory theke each entry ke alada row banaia flatten kora
+    // Sales -> proti order er returnHistory theke each entry ke alada row banano
     const fetchReturns = async () => {
         try {
             const response = await fetch('http://localhost:5000/sales');
@@ -74,53 +179,7 @@ const SalesReturn = () => {
             data.forEach((order) => {
                 (order.returnHistory || []).forEach((ret) => {
                     const retItems = ret.items || [];
-
-                    const sumUnitQty = retItems.reduce((s, it) => s + (Number(it.returnUnitQty) || 0), 0);
-                    const sumPcsQty = retItems.reduce((s, it) => s + (Number(it.returnPcsQty) || 0), 0);
-                    const sumSubQty = retItems.reduce((s, it) => s + (Number(it.returnSubQty) || 0), 0);
-                    const sumFreeUnitQty = retItems.reduce((s, it) => s + (Number(it.returnFreeUnitQty) || 0), 0);
-                    const sumFreePcsQty = retItems.reduce((s, it) => s + (Number(it.returnFreePcsQty) || 0), 0);
-                    const sumFreeSubQty = retItems.reduce((s, it) => s + (Number(it.returnFreeSubQty) || 0), 0);
-
-                    // Others Free Product return er sum
                     const retFreeItems = ret.freeItems || [];
-                    const sumOtherFreeUnitQty = retFreeItems.reduce((s, it) => s + (Number(it.returnUnitQty) || 0), 0);
-                    const sumOtherFreePcsQty = retFreeItems.reduce((s, it) => s + (Number(it.returnPcsQty) || 0), 0);
-                    const sumOtherFreeSubQty = retFreeItems.reduce((s, it) => s + (Number(it.returnSubQty) || 0), 0);
-                    const otherFreeFirst = retFreeItems[0];
-                    const matchedOtherFreeItem = otherFreeFirst
-                        ? (order.freeItems || []).find((fi) => fi.productId === otherFreeFirst.productId)
-                        : null;
-                    const otherFreeUnitLabel = matchedOtherFreeItem?.unit || 'Unit';
-                    const otherFreeIsParent = matchedOtherFreeItem?.parentMode === true;
-                    const otherFreeSubLabel = matchedOtherFreeItem?.subUnit || 'Sub';
-
-                    // Proti product er jonno alada line banano (unit, sub unit, pcs, total)
-                    const buildLines = (list, unitKey, subKey, pcsKey, totalKey, sourceItems) => {
-                        const lines = [];
-                        list.forEach((it) => {
-                            const src = (sourceItems || []).find((oi) => oi.productId === it.productId);
-                            const u = Number(it[unitKey]) || 0;
-                            const s = Number(it[subKey]) || 0;
-                            const p = Number(it[pcsKey]) || 0;
-                            const t = Number(it[totalKey]) || 0;
-                            if (u <= 0 && s <= 0 && p <= 0 && t <= 0) return;
-                            lines.push({
-                                unitLabel: src?.unit || 'Unit',
-                                subLabel: src?.subUnit || 'Sub',
-                                isParent: src?.parentMode === true,
-                                unitQty: u,
-                                subQty: s,
-                                pcsQty: p,
-                                totalQty: t,
-                            });
-                        });
-                        return lines;
-                    };
-
-                    const retLines = buildLines(retItems, 'returnUnitQty', 'returnSubQty', 'returnPcsQty', 'returnTotalQty', order.items);
-                    const freeLines = buildLines(retItems, 'returnFreeUnitQty', 'returnFreeSubQty', 'returnFreePcsQty', 'returnFreeTotalQty', order.items);
-                    const otherLines = buildLines(retFreeItems, 'returnUnitQty', 'returnSubQty', 'returnPcsQty', 'returnTotalQty', order.freeItems);
 
                     flattenedReturns.push({
                         seq: flattenedReturns.length,
@@ -136,72 +195,20 @@ const SalesReturn = () => {
                         totalReturnFreeQty: ret.totalReturnFreeQty,
                         totalReturnAmount: ret.totalReturnAmount,
                         totalReturnFreeItemsQty: ret.totalReturnFreeItemsQty,
-                        sumOtherFreeUnitQty,
-                        sumOtherFreePcsQty,
-                        otherFreeUnitLabel,
-                        sumUnitQty,
-                        sumPcsQty,
-                        sumFreeUnitQty,
-                        sumFreePcsQty,
-                        retLines,
-                        freeLines,
-                        otherLines,
-                        sumSubQty,
-                        sumFreeSubQty,
-                        sumOtherFreeSubQty,
-                        otherFreeIsParent,
-                        otherFreeSubLabel,
+                        retLines: buildLines(retItems, 'returnUnitQty', 'returnSubQty', 'returnPcsQty', 'returnTotalQty', order.items),
+                        freeLines: buildLines(retItems, 'returnFreeUnitQty', 'returnFreeSubQty', 'returnFreePcsQty', 'returnFreeTotalQty', order.items),
+                        otherLines: buildLines(retFreeItems, 'returnUnitQty', 'returnSubQty', 'returnPcsQty', 'returnTotalQty', order.freeItems),
                     });
                 });
             });
-
-            // Return create howar somoy onujayi sort (newest first)
-            const getTimestamp = (r) => {
-                // 1) Return create howar asol shomoy (shobcheye nirbhorjogyo)
-                if (r.createdAt) {
-                    const c = new Date(r.createdAt).getTime();
-                    if (!isNaN(c)) return c;
-                }
-                // 2) returnId te 13 digit timestamp thakle seta
-                const idMatch = String(r.returnIdRaw || '').match(/\d{13}/);
-                if (idMatch) return Number(idMatch[0]);
-
-                // 3) Fallback: returnDate theke
-                const str = r.returnDate || '';
-                const [datePart, ...rest] = str.split(',');
-                const timePart = rest.join(',').trim();
-                let d = null;
-
-                if (datePart.includes('/')) {
-                    const [dd, mm, yyyy] = datePart.trim().split('/').map(Number);
-                    let h = 0, m = 0, s = 0;
-                    const t = timePart.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?/i);
-                    if (t) {
-                        h = Number(t[1]);
-                        m = Number(t[2]);
-                        s = Number(t[3] || 0);
-                        const ap = t[4]?.toLowerCase();
-                        if (ap === 'pm' && h < 12) h += 12;
-                        if (ap === 'am' && h === 12) h = 0;
-                    }
-                    d = new Date(yyyy, mm - 1, dd, h, m, s);
-                } else if (str) {
-                    d = new Date(str);
-                }
-                return d && !isNaN(d) ? d.getTime() : 0;
-            };
 
             flattenedReturns.sort((a, b) => {
                 const tb = getTimestamp(b);
                 const ta = getTimestamp(a);
                 if (tb !== ta) return tb - ta;
-
-                // Same time hole returnId (number hole number diye) diye compare
                 const na = Number(a.returnId);
                 const nb = Number(b.returnId);
                 if (!isNaN(na) && !isNaN(nb) && na !== nb) return nb - na;
-
-                // Sheshe jeta pore fetch hoyeche seta age
                 return b.seq - a.seq;
             });
 
@@ -217,146 +224,54 @@ const SalesReturn = () => {
     useEffect(() => {
         fetchReturns();
         fetchCustomers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Close Customer dropdown on outside click
-    useEffect(() => {
-        const handleClickOutsideCustomer = (event) => {
-            if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target)) {
-                setIsCustomerOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutsideCustomer);
-        return () => document.removeEventListener('mousedown', handleClickOutsideCustomer);
-    }, []);
+    const customerOptions = customers
+        .filter((c) => {
+            const s = filters.customer.toLowerCase();
+            return getCustomerName(c).toLowerCase().includes(s) || c.contactNumber?.toLowerCase().includes(s);
+        })
+        .slice(0, 50)
+        .map((c) => ({ key: c._id, title: getCustomerName(c), sub: c.contactNumber ? `📞 ${c.contactNumber}` : '', raw: c }));
 
-    // Customer er nam ber korar helper (backend e field name alada hole ekhane change korben)
-    const getCustomerName = (cust) => cust.name || cust.customerName || cust.businessName || '';
-
-    // Filter customers based on search typing
-    const filteredCustomers = customers.filter((cust) => {
-        const s = filters.customer.toLowerCase();
-        return (
-            getCustomerName(cust).toLowerCase().includes(s) ||
-            cust.contactNumber?.toLowerCase().includes(s)
-        );
-    });
-
-    const getPhoneByName = (name) =>
-        customers.find((c) => getCustomerName(c).trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
-
-    const handleSelectCustomer = (cust) => {
-        setFilters({ ...filters, customer: getCustomerName(cust), customerContact: cust.contactNumber || '' });
-        setCurrentPage(1);
-        setIsCustomerOpen(false);
-    };
-
-    const handleClearCustomer = (e) => {
-        e.stopPropagation();
-        setFilters({ ...filters, customer: '', customerContact: '' });
-        setCurrentPage(1);
-        setIsCustomerOpen(false);
-    };
-
-    // Helper function to format ISO date (YYYY-MM-DD) to "05 Aug 2026"
-    const displayFormattedDate = (dateString) => {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        if (!year || !month || !day) return dateString;
-
-        const dateObj = new Date(year, month - 1, day);
-        const options = { day: '2-digit', month: 'short', year: 'numeric' };
-        return dateObj.toLocaleDateString('en-GB', options);
-    };
-
-    // Helper function to parse any date string into a timezone-safe LOCAL date (time stripped)
-    // Handles: DD/MM/YYYY (with optional ", time" suffix), YYYY-MM-DD (from <input type="date">), and ISO strings
-    const parseToLocalDate = (dateStr) => {
-        if (!dateStr) return null;
-        const datePart = dateStr.split(',')[0].trim();
-
-        if (datePart.includes('/')) {
-            const [d, m, y] = datePart.split('/');
-            if (!d || !m || !y) return null;
-            return new Date(Number(y), Number(m) - 1, Number(d));
-        }
-
-        if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
-            const [y, m, d] = datePart.split('-');
-            return new Date(Number(y), Number(m) - 1, Number(d));
-        }
-
-        const parsed = new Date(datePart);
-        return isNaN(parsed) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
-    };
-
-    // Handle Filter input change
     const handleFilterChange = (e) => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
         setCurrentPage(1);
     };
-
-    // Clear all filters
     const handleClearFilters = () => {
-        setFilters({
-            startDate: '',
-            endDate: '',
-            customer: '',
-            customerContact: '',
-            orderNo: ''
-        });
+        setFilters({ startDate: '', endDate: '', customer: '', customerContact: '', orderNo: '' });
         setCurrentPage(1);
     };
 
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => {
-            setToast({ show: false, message: '', type: '' });
-        }, 3500);
-    };
+    const handleViewReturn = (item) => navigate(`/sales-return-view/${item.orderId}?returnId=${item.returnId}`);
 
-    // View Return Details Handler -> read-only view page (specific return entry)
-    const handleViewReturn = (item) => {
-        setOpenDropdownId(null);
-        navigate(`/sales-return-view/${item.orderId}?returnId=${item.returnId}`);
-    };
-
-    // Edit Return Handler -> return form a existing value prefill kore edit kora jabe
     const handleEditReturn = (item) => {
-        setOpenDropdownId(null);
-        if (!can.canEdit) return showToast('আপনার Edit করার অনুমতি নেই!', 'error');
+        if (!can.canEdit) return denyMsg('Edit');
         navigate(`/sales-return-details/${item.orderId}?returnId=${item.returnId}`);
     };
 
-    // Delete Return Handler -> shudhu ei nirdishto return entry ta returnHistory theke muche jabe, order thakbe
     const handleDeleteReturn = async (item) => {
-        if (!can.canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
-        setOpenDropdownId(null);
+        if (!can.canDelete) return denyMsg('Delete');
         Swal.fire({
             title: 'Are you sure?',
-            text: "Ei return entry ta delete hoye jabe, kintu sales order thakbe!",
+            text: 'Ei return entry ta delete hoye jabe, kintu sales order thakbe!',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#4f46e5',
-            cancelButtonColor: '#f43f5e',
-            confirmButtonText: 'Yes, delete return!'
+            confirmButtonColor: '#4a58e6',
+            cancelButtonColor: '#e11d48',
+            confirmButtonText: 'Yes, delete return!',
         }).then(async (result) => {
             if (!result.isConfirmed) return;
-
             try {
                 const orderRes = await fetch(`http://localhost:5000/sales/${item.orderId}`);
                 const order = await orderRes.json();
-
-                const updatedHistory = (order.returnHistory || []).filter(
-                    (ret) => ret.returnId !== item.returnId
-                );
-
+                const updatedHistory = (order.returnHistory || []).filter((ret) => ret.returnId !== item.returnId);
                 const response = await fetch(`http://localhost:5000/sales/${item.orderId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ returnHistory: updatedHistory }),
                 });
-
                 if (response.ok) {
                     showToast('Return deleted successfully!', 'success');
                     setReturns((prev) => prev.filter((r) => r.returnId !== item.returnId));
@@ -370,45 +285,40 @@ const SalesReturn = () => {
         });
     };
 
-    // Advanced Multi-field & Date Range Filtering Logic
+    const menuItems = (item) => [
+        { label: 'View Return', onClick: () => handleViewReturn(item) },
+        { label: 'Edit Return', tone: 'brand', onClick: () => handleEditReturn(item) },
+        { label: 'Delete', tone: 'danger', onClick: () => handleDeleteReturn(item) },
+    ];
+
+    // ---------- filtering ----------
     const filteredReturns = returns.filter((item) => {
-        // Date Range Filter (returnDate)
         if (filters.startDate || filters.endDate) {
             const returnDateObj = parseToLocalDate(item.returnDate);
             if (!returnDateObj) return false;
-
             if (filters.startDate) {
-                const startDateObj = parseToLocalDate(filters.startDate);
-                if (startDateObj && returnDateObj < startDateObj) return false;
+                const s = parseToLocalDate(filters.startDate);
+                if (s && returnDateObj < s) return false;
             }
-
             if (filters.endDate) {
-                const endDateObj = parseToLocalDate(filters.endDate);
-                if (endDateObj && returnDateObj > endDateObj) return false;
+                const e = parseToLocalDate(filters.endDate);
+                if (e && returnDateObj > e) return false;
             }
         }
-
-        // Customer Filter
-        if (filters.customer && !item.customer?.toLowerCase().includes(filters.customer.toLowerCase())) {
-            return false;
-        }
+        if (filters.customer && !item.customer?.toLowerCase().includes(filters.customer.toLowerCase())) return false;
         if (filters.customerContact) {
             const phone = getPhoneByName(item.customer);
             if (phone && phone !== filters.customerContact) return false;
         }
-        // Order No Filter
-        if (filters.orderNo && !String(item.orderNo || '').toLowerCase().includes(filters.orderNo.toLowerCase())) {
-            return false;
-        }
-
+        if (filters.orderNo && !String(item.orderNo || '').toLowerCase().includes(filters.orderNo.toLowerCase())) return false;
         return true;
     });
 
-    // Pagination Calculations
     const totalPages = Math.ceil(filteredReturns.length / itemsPerPage) || 1;
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    // Order mark korle oi order-er shob row prothom row-er jaygay eksathe dekhabe
+
+    // Order mark korle oi order-er shob row eksathe dekhabe
     const orderedReturns = (() => {
         if (selectedOrders.length === 0) return filteredReturns;
         const placed = new Set();
@@ -420,53 +330,33 @@ const SalesReturn = () => {
             }
             if (placed.has(r.orderNo)) return;
             placed.add(r.orderNo);
-            filteredReturns
-                .filter((x) => x.orderNo === r.orderNo)
-                .forEach((x) => out.push(x));
+            filteredReturns.filter((x) => x.orderNo === r.orderNo).forEach((x) => out.push(x));
         });
         return out;
     })();
     const currentReturns = orderedReturns.slice(indexOfFirstItem, indexOfLastItem);
 
-    const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
-
-    // Checkbox handlers (Select All = বর্তমান পেজের সব row)
-    const isAllSelected =
-        currentReturns.length > 0 &&
-        currentReturns.every((i) => selectedIds.includes(i.returnId));
-
+    const isAllSelected = currentReturns.length > 0 && currentReturns.every((i) => selectedIds.includes(i.returnId));
     const handleSelectAll = () => {
         const ids = currentReturns.map((i) => i.returnId);
-        if (isAllSelected) {
-            setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
-        } else {
-            setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
-        }
+        if (isAllSelected) setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+        else setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
     };
+    const handleSelectRow = (id) =>
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-    const handleSelectRow = (id) => {
-        setSelectedIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        );
-    };
-
-    // Order click korle oi order-er shob return row mark hobe
     const handleSelectOrder = (orderNo) => {
         const ids = returns.filter((r) => r.orderNo === orderNo).map((r) => r.returnId);
-        const alreadyMarked = selectedOrders.includes(orderNo);
-
-        if (alreadyMarked) {
-            // Order unmark: order er shob row er checkbox o uthe jabe
+        if (selectedOrders.includes(orderNo)) {
             setSelectedOrders((prev) => prev.filter((x) => x !== orderNo));
             setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
         } else {
-            // Order mark: order er shob row er checkbox select hoye jabe
             setSelectedOrders((prev) => [...prev, orderNo]);
             setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
         }
     };
 
-    // Total shudhu checkbox select kora row gulor (order click korle oi order er shob row auto checked hoy)
+    // ---------- summary ----------
     const orderRows = filteredReturns.filter((i) => selectedOrders.includes(i.orderNo));
     const checkedRows = filteredReturns.filter((i) => selectedIds.includes(i.returnId));
     const isOrderMode = orderRows.length > 0;
@@ -474,554 +364,269 @@ const SalesReturn = () => {
     const hasSelection = isOrderMode || isCheckMode;
     const summaryRows = hasSelection ? checkedRows : filteredReturns;
 
-    // Table-এর মতোই "X Bundle Y Pcs (Total: N)" আকারে যোগফল
-    // Ekta line ke text e convert: "1 Dozon 2 Pcs" ba "1 Karton 1 Packet 2 Pcs"
-    const formatLine = (ln) => {
-        const parts = [];
-        if (ln.unitQty > 0) parts.push(`${ln.unitQty} ${ln.unitLabel}`);
-        if (ln.isParent && ln.subQty > 0) parts.push(`${ln.subQty} ${ln.subLabel}`);
-        parts.push(`${ln.pcsQty} Pcs`);
-        return parts.join(' ');
-    };
-
-    // Table cell e proti product er line alada alada dekhano
-    const renderLines = (lines, totalValue, totalColor) => {
-        if (!lines || lines.length === 0) {
-            return (
-                <div>
-                    0 Pcs
-                    <span className={`text-xs ml-1 font-bold ${totalColor}`}>(Total: {totalValue || 0})</span>
-                </div>
-            );
-        }
-        return lines.map((ln, i) => (
-            <div key={i}>
-                {formatLine(ln)}
-                <span className={`text-xs ml-1 font-bold ${totalColor}`}>(Total: {ln.totalQty})</span>
-            </div>
-        ));
-    };
-
-    // Summary: shob row er line gulo unit/sub label onujayi merge kore alada line banano
-    const buildQtyInfo = (rows, linesKey, totalKey) => {
-        const map = {};
-        let total = 0;
-        rows.forEach((r) => {
-            (r[linesKey] || []).forEach((ln) => {
-                const key = `${ln.unitLabel}|${ln.isParent ? ln.subLabel : ''}`;
-                if (!map[key]) {
-                    map[key] = { ...ln, unitQty: 0, subQty: 0, pcsQty: 0, totalQty: 0 };
-                }
-                map[key].unitQty += ln.unitQty;
-                map[key].subQty += ln.subQty;
-                map[key].pcsQty += ln.pcsQty;
-                map[key].totalQty += ln.totalQty;
-            });
-            total += Number(r[totalKey]) || 0;
-        });
-        return { lines: Object.values(map), total };
-    };
-
     const qtyInfo = buildQtyInfo(summaryRows, 'retLines', 'totalReturnPcs');
     const freeInfo = buildQtyInfo(summaryRows, 'freeLines', 'totalReturnFreeQty');
     const othersInfo = buildQtyInfo(summaryRows, 'otherLines', 'totalReturnFreeItemsQty');
     const sumAmount = summaryRows.reduce((s, i) => s + (Number(i.totalReturnAmount) || 0), 0);
 
-    // Handle page change
-    const handlePageChange = (pageNumber) => {
-        if (pageNumber >= 1 && pageNumber <= totalPages) {
-            setCurrentPage(pageNumber);
-        }
+    const handlePageChange = (n) => {
+        if (n >= 1 && n <= totalPages) setCurrentPage(n);
+    };
+
+    const activeCount = ['startDate', 'endDate', 'customer', 'orderNo'].filter((k) => filters[k]).length;
+
+    const OrderBtn = ({ item }) => (
+        <button
+            type="button"
+            onClick={() => handleSelectOrder(item.orderNo)}
+            title="Click to mark all returns of this order"
+            className={`font-bold px-2 py-1 rounded-lg text-sm cursor-pointer ${selectedOrders.includes(item.orderNo) ? 'bg-amber-500 text-white' : 'text-brand-700 hover:bg-brand-50'}`}
+        >
+            {item.orderNo}
+        </button>
+    );
+
+    const qtyRow = (label, lines, total, cls, totCls) => {
+        const has = (lines && lines.length > 0) || Number(total) > 0;
+        if (!has) return null;
+        return (
+            <div className={`flex gap-1 text-[10px] leading-snug font-semibold ${cls}`}>
+                <span className="uppercase text-slate-400 font-bold shrink-0">{label}:</span>
+                <div className="min-w-0">{renderLines(lines, total, totCls)}</div>
+            </div>
+        );
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
-
-            {/* Top Right Toast Notification */}
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    <span>{toast.message}</span>
-                </div>
-            )}
-
-            <div className="max-w-7xl mx-auto space-y-8">
-
-                {/* Top Section: Title */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1600px] mx-auto space-y-4">
+                {/* Header */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                            Sales Return
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">Manage and track all sales return records</p>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Sales Return</h1>
+                        <p className="text-sm text-slate-500 mt-0.5">Manage and track all sales return records</p>
                     </div>
                     <button
-                        onClick={() => (can.canAdd ? navigate('/wholesale') : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
+                        type="button"
+                        onClick={() => (can.canAdd ? navigate('/wholesale') : denyMsg('Add'))}
+                        className="bg-brand-600 text-white text-sm font-semibold px-5 py-2.5 w-full sm:w-auto cursor-pointer"
                     >
                         New Return
                     </button>
                 </div>
 
-                {/* Table Card Section */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white space-y-6">
-
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-gray-800">Return Directory</h3>
-                        <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full shadow-sm">
-                            Showing: {filteredReturns.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredReturns.length)}` : 0} of {filteredReturns.length} ({returns.length} total)
-                        </span>
+                {/* Filter */}
+                <FilterPanel activeCount={activeCount} onClear={handleClearFilters} cols="lg:grid-cols-4">
+                    <div>
+                        <span className={labelCls}>Start Date</span>
+                        <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
                     </div>
-
-                    {/* Filter & Search Panel */}
-                    <div className="bg-white shadow-lg rounded-2xl p-5 border border-indigo-100">
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                            </h3>
-                            <button
-                                onClick={handleClearFilters}
-                                className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
-                            >
-                                <FaRedo size={11} /> Clear All Filters
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                            {/* Start Date */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={startDateRef}
-                                        type="date"
-                                        name="startDate"
-                                        value={filters.startDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select start date"
-                                        value={displayFormattedDate(filters.startDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* End Date */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={endDateRef}
-                                        type="date"
-                                        name="endDate"
-                                        value={filters.endDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select end date"
-                                        value={displayFormattedDate(filters.endDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Customer Searchable Dropdown */}
-                            <div className="relative" ref={customerDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer</label>
-                                <div
-                                    onClick={() => setIsCustomerOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select customer..."
-                                        value={filters.customer}
-                                        onChange={(e) => {
-                                            setFilters({ ...filters, customer: e.target.value, customerContact: '' });
-                                            setCurrentPage(1);
-                                            setIsCustomerOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.customer && (
-                                        <button type="button" onClick={handleClearCustomer} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isCustomerOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredCustomers.length > 0 ? (
-                                            filteredCustomers.map((cust) => (
-                                                <div
-                                                    key={cust._id}
-                                                    onClick={() => handleSelectCustomer(cust)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
-                                                >
-                                                    <p className="text-xs font-semibold text-gray-800">{getCustomerName(cust)}</p>
-                                                    {cust.contactNumber && (
-                                                        <p className="text-[11px] text-gray-500 mt-0.5">📞 {cust.contactNumber}</p>
-                                                    )}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Order Number Search */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Order Number</label>
-                                <input
-                                    type="text"
-                                    name="orderNo"
-                                    placeholder="Search order..."
-                                    value={filters.orderNo}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                            </div>
-                        </div>
+                    <div>
+                        <span className={labelCls}>End Date</span>
+                        <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
                     </div>
+                    <ComboField
+                        label="Customer"
+                        value={filters.customer}
+                        placeholder="Search customer..."
+                        options={customerOptions}
+                        onType={(v) => {
+                            setFilters({ ...filters, customer: v, customerContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onClear={() => {
+                            setFilters({ ...filters, customer: '', customerContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onPick={(o) => {
+                            setFilters({ ...filters, customer: getCustomerName(o.raw), customerContact: o.raw.contactNumber || '' });
+                            setCurrentPage(1);
+                        }}
+                    />
+                    <div>
+                        <label className={labelCls}>Order Number</label>
+                        <input type="text" name="orderNo" placeholder="Search order..." value={filters.orderNo} onChange={handleFilterChange} className={inputCls} />
+                    </div>
+                </FilterPanel>
 
-                    {/* Summary Bar */}
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs bg-indigo-50/60 border border-indigo-100 rounded-xl px-4 py-3">
-                        <div className="flex flex-col items-start gap-1.5">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full font-bold ${isOrderMode ? 'bg-amber-100 text-amber-700' : isCheckMode ? 'bg-pink-100 text-pink-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                {/* Summary */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <Pill tone={isOrderMode ? 'amber' : isCheckMode ? 'rose' : 'brand'}>
                                 {isOrderMode ? 'Order Selected' : isCheckMode ? 'Selected' : 'Showing'}
-                            </span>
-                            <span className="font-semibold text-gray-600">
-                                Rows: <b className="text-gray-800">{summaryRows.length}</b>
+                            </Pill>
+                            <span className="text-sm text-slate-600">
+                                Rows: <b className="text-slate-800">{summaryRows.length}</b>
                                 {isOrderMode && (
-                                    <> | Order: <b className="text-gray-800">{selectedOrders.length}</b></>
+                                    <> · Order: <b className="text-slate-800">{selectedOrders.length}</b></>
                                 )}
                             </span>
                         </div>
-
-                        <div className="w-px self-stretch bg-indigo-200" />
-
-                        <div className="px-3 py-2 rounded-xl bg-white border border-orange-200 shadow-sm">
-                            <div className="text-[9px] font-bold uppercase text-orange-500">Return Quantity</div>
-                            <div className="text-sm font-extrabold text-orange-600">
-                                {qtyInfo.lines.length === 0 ? '0 Pcs' : qtyInfo.lines.map((ln, i) => (
-                                    <div key={i}>
-                                        {formatLine(ln)}
-                                        <span className="text-xs text-indigo-600 ml-1 font-bold">(Total: {fmt(ln.totalQty)})</span>
-                                    </div>
-                                ))}
-                                {qtyInfo.lines.length > 1 && (
-                                    <div className="text-xs text-indigo-600 font-bold mt-0.5">Grand Total: {fmt(qtyInfo.total)}</div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="px-3 py-2 rounded-xl bg-white border border-emerald-200 shadow-sm">
-                            <div className="text-[9px] font-bold uppercase text-emerald-500">Return Free Quantity</div>
-                            <div className="text-sm font-extrabold text-emerald-600">
-                                {freeInfo.lines.length === 0 ? '0 Pcs' : freeInfo.lines.map((ln, i) => (
-                                    <div key={i}>
-                                        {formatLine(ln)}
-                                        <span className="text-xs text-emerald-700 ml-1 font-bold">(Total: {fmt(ln.totalQty)})</span>
-                                    </div>
-                                ))}
-                                {freeInfo.lines.length > 1 && (
-                                    <div className="text-xs text-emerald-700 font-bold mt-0.5">Grand Total: {fmt(freeInfo.total)}</div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="px-3 py-2 rounded-xl bg-white border border-amber-200 shadow-sm">
-                            <div className="text-[9px] font-bold uppercase text-amber-500">Others Free Product</div>
-                            <div className="text-sm font-extrabold text-amber-600">
-                                {othersInfo.lines.length === 0 ? '0 Pcs' : othersInfo.lines.map((ln, i) => (
-                                    <div key={i}>
-                                        {formatLine(ln)}
-                                        <span className="text-xs text-amber-700 ml-1 font-bold">(Total: {fmt(ln.totalQty)})</span>
-                                    </div>
-                                ))}
-                                {othersInfo.lines.length > 1 && (
-                                    <div className="text-xs text-amber-700 font-bold mt-0.5">Grand Total: {fmt(othersInfo.total)}</div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="px-3 py-2 rounded-xl bg-white border border-rose-200 shadow-sm">
-                            <div className="text-[9px] font-bold uppercase text-rose-500">Return Amount</div>
-                            <div className="text-sm font-extrabold text-rose-600">৳{fmt(sumAmount)}</div>
-                        </div>
-
-                        {(isOrderMode || isCheckMode || selectedIds.length > 0) && (
+                        <div className="flex items-center gap-2">
+                            {(isOrderMode || isCheckMode || selectedIds.length > 0) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedIds([]);
+                                        setSelectedOrders([]);
+                                    }}
+                                    className="h-9 px-3 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                                >
+                                    Clear Selection
+                                </button>
+                            )}
                             <button
-                                onClick={() => {
-                                    setSelectedIds([]);
-                                    setSelectedOrders([]);
-                                }}
-                                className="ml-auto text-[11px] bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 text-gray-600 px-2.5 py-1 rounded-lg font-semibold cursor-pointer"
+                                type="button"
+                                onClick={() => setIsSummaryOpen((p) => !p)}
+                                className="h-9 px-3 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer"
                             >
-                                Clear Selection
+                                {isSummaryOpen ? 'Hide Details' : 'Show Details'}
+                                <FaChevronDown size={10} className={`transition-transform ${isSummaryOpen ? 'rotate-180' : ''}`} />
                             </button>
-                        )}
+                        </div>
                     </div>
+                    <div className={`${isSummaryOpen ? 'grid' : 'hidden'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3`}>
+                        <QtyBox title="Return Quantity" titleCls="text-orange-600" totalCls="text-brand-700" info={qtyInfo} />
+                        <QtyBox title="Return Free Quantity" titleCls="text-emerald-600" totalCls="text-emerald-700" info={freeInfo} />
+                        <QtyBox title="Others Free Product" titleCls="text-amber-600" totalCls="text-amber-700" info={othersInfo} />
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                            <div className="text-[10px] font-bold uppercase text-rose-600">Return Amount</div>
+                            <div className="text-lg font-bold text-rose-600 mt-0.5">৳{fmt(sumAmount)}</div>
+                        </div>
+                    </div>
+                </div>
 
-                    {/* Table Container */}
+                {/* List */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-1.5 sm:p-4 space-y-2 sm:space-y-3">
                     {loading ? (
-                        <div className="text-center py-20 text-gray-500 font-medium">Loading returns...</div>
+                        <ListSkeleton />
                     ) : filteredReturns.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400 font-medium">No returns found!</div>
+                        <Empty text="No returns found!" />
                     ) : (
-                        <div className="overflow-visible rounded-2xl border border-gray-100 shadow-sm">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-xs uppercase tracking-wide">
-                                        <th className="w-10 text-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={isAllSelected}
-                                                onChange={handleSelectAll}
-                                                className="w-4 h-4 accent-pink-500 cursor-pointer"
-                                            />
-                                        </th>
-                                        <th className="py-4 px-4">Date</th>
-                                        <th className="py-4 px-4">Order No</th>
-                                        <th className="py-4 px-4">Customer</th>
-                                        <th className="py-4 px-4">Collected By</th>
-                                        <th className="py-4 px-4">Return Quantity</th>
-                                        <th className="py-4 px-4">Return Free Quantity</th>
-                                        <th className="py-4 px-4">Others Free Product</th>
-                                        <th className="py-4 px-4">Return Amount</th>
-                                        <th className="py-4 px-4 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
-                                    {currentReturns.map((item, index) => (
-                                        <tr
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden space-y-1.5">
+                                {currentReturns.map((item, index) => {
+                                    const sel = selectedIds.includes(item.returnId);
+                                    const ordSel = selectedOrders.includes(item.orderNo);
+                                    const phone = getPhoneByName(item.customer);
+                                    return (
+                                        <div
                                             key={item.returnId || index}
-                                            className={`transition duration-150 ${selectedIds.includes(item.returnId)
-                                                ? 'bg-pink-50/70'
-                                                : selectedOrders.includes(item.orderNo)
-                                                    ? 'bg-amber-50/60'
-                                                    : 'hover:bg-indigo-50/40'
-                                                }`}
+                                            className={`relative rounded-xl border pl-3 pr-2 py-2 shadow-sm ${sel ? 'border-brand-300 bg-brand-50/60' : ordSel ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200 bg-white'}`}
                                         >
-                                            <td className="text-center px-2">
+                                            <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-orange-400" />
+                                            <div className="flex items-center gap-2 min-w-0 mb-1">
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedIds.includes(item.returnId)}
+                                                    checked={sel}
                                                     onChange={() => handleSelectRow(item.returnId)}
-                                                    className="w-4 h-4 accent-pink-500 cursor-pointer"
+                                                    aria-label="Select row"
+                                                    className="shrink-0 w-4 h-4 accent-brand-600 cursor-pointer"
                                                 />
-                                            </td>
-                                            <td className="py-4 px-4 text-gray-600 font-medium">{item.returnDate || 'N/A'}</td>
-                                            <td className="py-4 px-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleSelectOrder(item.orderNo)}
-                                                    title="Click to mark all returns of this order"
-                                                    className={`font-bold px-2 py-0.5 rounded-lg transition cursor-pointer ${selectedOrders.includes(item.orderNo)
-                                                        ? 'bg-amber-500 text-white'
-                                                        : 'text-indigo-600 hover:bg-indigo-50 hover:underline'
-                                                        }`}
-                                                >
-                                                    {item.orderNo}
-                                                </button>
-                                            </td>
-                                            <td className="py-4 px-4 font-bold text-gray-800">
-                                                <div>{item.customer}</div>
-                                                {getPhoneByName(item.customer) && (
-                                                    <div className="text-[11px] font-medium text-gray-400 mt-0.5">📞 {getPhoneByName(item.customer)}</div>
-                                                )}
-                                            </td>
-                                            <td className="py-4 px-4 font-semibold text-gray-700">
-                                                {item.collectedBy || 'N/A'}
-                                            </td>
-                                            <td className="py-4 px-4 font-semibold text-orange-600">
-                                                {renderLines(item.retLines, item.totalReturnPcs, 'text-indigo-600')}
-                                            </td>
-                                            <td className="py-4 px-4 font-semibold text-emerald-600">
-                                                {renderLines(item.freeLines, item.totalReturnFreeQty, 'text-emerald-700')}
-                                            </td>
-                                            <td className="py-4 px-4 font-semibold text-amber-600">
-                                                {renderLines(item.otherLines, item.totalReturnFreeItemsQty, 'text-amber-700')}
-                                            </td>
-                                            <td className="py-4 px-4 font-bold text-orange-600">৳{Number(item.totalReturnAmount).toFixed(2)}</td>
-                                            <td className="py-3 px-2.5 text-center relative">
-                                                <div className="relative inline-block action-dropdown-container">
-
-                                                    <button
-                                                        onClick={() =>
-                                                            setOpenDropdownId(
-                                                                openDropdownId === item.returnId ? null : item.returnId
-                                                            )
-                                                        }
-                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-                                                    >
-                                                        <span>Select</span>
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={2}
-                                                            stroke="currentColor"
-                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === item.returnId ? 'rotate-180' : ''}`}
+                                                <p className="min-w-0 font-bold text-[13px] text-brand-700 truncate leading-tight">{item.customer}</p>
+                                                <span className="ml-auto" />
+                                                <RowMenu compact items={menuItems(item)} />
+                                            </div>
+                                            <div className="flex items-stretch gap-2">
+                                                {/* Left: info */}
+                                                <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleSelectOrder(item.orderNo)}
+                                                            title="Click to mark all returns of this order"
+                                                            className={`shrink-0 px-1.5 py-px rounded-full text-[10px] font-bold leading-tight cursor-pointer ${ordSel ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}
                                                         >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                        </svg>
-                                                    </button>
-
-                                                    {openDropdownId === item.returnId && (
-                                                        <div className="absolute right-0 bottom-full mb-2 w-40 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left animate-in fade-in zoom-in-95 duration-150">
-
-                                                            <button
-                                                                onClick={() => handleViewReturn(item)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <svg
-                                                                    xmlns="http://www.w3.org/2000/svg"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    strokeWidth={1.8}
-                                                                    stroke="currentColor"
-                                                                    className="w-3.5 h-3.5 text-slate-500"
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                                                                    />
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                                                    />
-                                                                </svg>
-                                                                View Return
-                                                            </button>
-
-                                                            <button
-                                                                onClick={() => handleEditReturn(item)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <svg
-                                                                    xmlns="http://www.w3.org/2000/svg"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    strokeWidth={1.8}
-                                                                    stroke="currentColor"
-                                                                    className="w-3.5 h-3.5 text-indigo-500"
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
-                                                                    />
-                                                                </svg>
-                                                                Edit Return
-                                                            </button>
-
-                                                            <button
-                                                                onClick={() => handleDeleteReturn(item)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <svg
-                                                                    xmlns="http://www.w3.org/2000/svg"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    strokeWidth={1.8}
-                                                                    stroke="currentColor"
-                                                                    className="w-3.5 h-3.5 text-rose-500"
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                                                                    />
-                                                                </svg>
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                            #{item.orderNo}
+                                                        </button>
+                                                        <span className="text-[10px] text-slate-500 leading-tight truncate min-w-0">{item.returnDate || 'N/A'}</span>
+                                                    </div>
+                                                    {phone && <p className="text-[10.5px] text-slate-500 leading-snug truncate">📞 {phone}</p>}
+                                                    <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">Collected By: </span>
+                                                        {item.collectedBy || 'N/A'}
+                                                    </p>
+                                                    {qtyRow('Return', item.retLines, item.totalReturnPcs, 'text-orange-600', 'text-brand-700')}
+                                                    {qtyRow('Free', item.freeLines, item.totalReturnFreeQty, 'text-emerald-600', 'text-emerald-700')}
+                                                    {qtyRow('Others Free', item.otherLines, item.totalReturnFreeItemsQty, 'text-amber-600', 'text-amber-700')}
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
 
-                    {/* Pagination Footer */}
-                    {!loading && filteredReturns.length > 0 && (
-                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
-                            </span>
-
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
-                                </button>
-
-                                <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                        }`}
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        } else if (
-                                            pageNum === currentPage - 2 ||
-                                            pageNum === currentPage + 2
-                                        ) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                        }
-                                        return null;
-                                    })}
-                                </div>
-
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
+                                                {/* Right: amount */}
+                                                <div className="shrink-0 w-[100px] flex flex-col items-end justify-end gap-1.5">
+                                                    <div className="w-full rounded-lg bg-orange-50 px-2 py-1.5 text-right">
+                                                        <p className="text-[9px] uppercase font-bold leading-none text-slate-400">Return Amount</p>
+                                                        <p className="text-[12.5px] font-extrabold leading-tight mt-1 text-orange-600 whitespace-nowrap">
+                                                            ৳{Number(item.totalReturnAmount || 0).toFixed(2)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[1100px] text-left text-xs">
+                                    <thead className="bg-slate-50 text-slate-600 uppercase tracking-wide">
+                                        <tr>
+                                            <th className="w-10 px-3 py-3 text-center">
+                                                <input type="checkbox" checked={isAllSelected} onChange={handleSelectAll} aria-label="Select all" className="w-4 h-4 accent-brand-600 cursor-pointer" />
+                                            </th>
+                                            <th className="px-3 py-3">Date</th>
+                                            <th className="px-3 py-3">Order No</th>
+                                            <th className="px-3 py-3">Customer</th>
+                                            <th className="px-3 py-3">Collected By</th>
+                                            <th className="px-3 py-3">Return Qty</th>
+                                            <th className="px-3 py-3">Return Free Qty</th>
+                                            <th className="px-3 py-3">Others Free</th>
+                                            <th className="px-3 py-3">Amount</th>
+                                            <th className="px-3 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        {currentReturns.map((item, index) => {
+                                            const sel = selectedIds.includes(item.returnId);
+                                            const phone = getPhoneByName(item.customer);
+                                            return (
+                                                <tr
+                                                    key={item.returnId || index}
+                                                    className={`align-middle ${sel ? 'bg-brand-50/60' : selectedOrders.includes(item.orderNo) ? 'bg-amber-50/50' : 'hover:bg-slate-50'}`}
+                                                >
+                                                    <td className="px-3 py-3 text-center">
+                                                        <input type="checkbox" checked={sel} onChange={() => handleSelectRow(item.returnId)} aria-label="Select row" className="w-4 h-4 accent-brand-600 cursor-pointer" />
+                                                    </td>
+                                                    <td className="px-3 py-3 font-medium text-slate-600">{item.returnDate || 'N/A'}</td>
+                                                    <td className="px-3 py-3"><OrderBtn item={item} /></td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <div className="font-bold text-slate-800">{item.customer}</div>
+                                                        {phone && <div className="text-[11px] font-medium text-slate-400 mt-0.5">📞 {phone}</div>}
+                                                    </td>
+                                                    <td className="px-3 py-3 font-semibold text-slate-700 whitespace-nowrap">{item.collectedBy || 'N/A'}</td>
+                                                    <td className="px-3 py-3 font-semibold text-orange-600">{renderLines(item.retLines, item.totalReturnPcs, 'text-brand-700')}</td>
+                                                    <td className="px-3 py-3 font-semibold text-emerald-600">{renderLines(item.freeLines, item.totalReturnFreeQty, 'text-emerald-700')}</td>
+                                                    <td className="px-3 py-3 font-semibold text-amber-600">{renderLines(item.otherLines, item.totalReturnFreeItemsQty, 'text-amber-700')}</td>
+                                                    <td className="px-3 py-3 font-bold text-orange-600 whitespace-nowrap">৳{Number(item.totalReturnAmount || 0).toFixed(2)}</td>
+                                                    <td className="px-3 py-3 text-center"><RowMenu items={menuItems(item)} /></td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <Pager
+                                page={currentPage}
+                                totalPages={totalPages}
+                                onChange={handlePageChange}
+                                from={indexOfFirstItem + 1}
+                                to={Math.min(indexOfLastItem, filteredReturns.length)}
+                                total={filteredReturns.length}
+                            />
+                        </>
                     )}
                 </div>
             </div>

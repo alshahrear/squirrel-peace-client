@@ -1,18 +1,49 @@
 import React, { useEffect, useState, useRef } from 'react';
+import toast from 'react-hot-toast';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Phone, Mail, MapPin, Calendar, Building2, ArrowLeft, PackageX, RotateCcw } from 'lucide-react';
 import { getSaleItemNetPricePerPcs } from '../../Software/Inventory/Stock/StockPurchase';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 import useCan from '../../../../hooks/useCan';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-    Phone,
-    Mail,
-    MapPin,
-    Calendar,
-    Building2,
-    ArrowLeft,
-    PackageX,
-    RotateCcw
-} from 'lucide-react';
+import { DateInput } from '../Product/ProductUi';
+// NOTE: Purchase folder er file gulor path tomar folder structure onujayi thik kore nio
+import { inputCls, labelCls, ComboField } from '../Purchase/PurchaseUi';
+import { Card, QtyField, PaymentSection } from '../Purchase/PurchaseFormUi';
+import { labelToISO } from '../Purchase/purchaseDate';
+
+const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
+const v = (x) => (x === 0 || x === undefined || x === null ? '' : x);
+
+const KEYS = {
+    main: { u: 'rtUnitQty', s: 'rtSubQty', p: 'rtPcsQty' },
+    free: { u: 'rtFreeUnitQty', s: 'rtFreeSubQty', p: 'rtFreePcsQty' },
+    other: { u: 'rtUnitQty', s: 'rtSubQty', p: 'rtPcsQty' },
+};
+
+// Input value ke remaining stock/qty er moddhe clamp kore
+const clampQty = (field, value, cur, perUnit, perSub, remaining) => {
+    if (value !== '' && !/^\d*$/.test(value)) return null; // শুধু পূর্ণসংখ্যা
+    let val = value === '' ? 0 : Number(value);
+    if (isNaN(val) || val < 0) val = 0;
+    const u = Number(cur.u) || 0;
+    const s = Number(cur.s) || 0;
+    const p = Number(cur.p) || 0;
+
+    if (field === 'u') {
+        const other = s * perSub + p;
+        if (val * perUnit + other > remaining) {
+            val = Math.max(0, perUnit > 0 ? Math.floor((remaining - other) / perUnit) : 0);
+        }
+    } else if (field === 's') {
+        const others = u * perUnit + p;
+        const max = perSub > 0 ? Math.floor(Math.max(0, remaining - others) / perSub) : 0;
+        if (val > max) val = max;
+    } else {
+        const max = Math.max(0, remaining - (u * perUnit + s * perSub));
+        if (val > max) val = max;
+    }
+    return val;
+};
 
 const SalesReturnDetails = () => {
     const { id } = useParams();
@@ -21,28 +52,35 @@ const SalesReturnDetails = () => {
     const editReturnId = searchParams.get('returnId');
     const isEditMode = !!editReturnId;
     const can = useCan('sales_return');
+
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [notFound, setNotFound] = useState(false);
-    const [returnInputs, setReturnInputs] = useState([]); // [{ rtUnitQty, rtPcsQty, rtFreeUnitQty, rtFreePcsQty }, ...]
-    const [freeReturnInputs, setFreeReturnInputs] = useState([]); // Others Free Product return: [{ rtUnitQty, rtPcsQty }, ...]
-    const [returnPricesUnit, setReturnPricesUnit] = useState([]); // Unit er return price, editable
-    const [returnPricesPcs, setReturnPricesPcs] = useState([]); // PCS er return price, editable
-    const [returnPricesSub, setReturnPricesSub] = useState([]); // Sub Unit er return price, editable
+    const [returnInputs, setReturnInputs] = useState([]);
+    const [freeReturnInputs, setFreeReturnInputs] = useState([]);
+    const [returnPricesPcs, setReturnPricesPcs] = useState([]);
     const [returnNote, setReturnNote] = useState('');
 
-    // Return Date (default: আজকের তারিখ, চাইলে পরিবর্তন করা যাবে)
+    const showToast = (message, type = 'success') => (type === 'error' ? toast.error(message) : toast.success(message));
+
+    // Return Date
     const getFormattedToday = () =>
         new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const [returnDate, setReturnDate] = useState(getFormattedToday());
-    const returnDateInputRef = useRef(null);
+    const handleReturnDateChange = (e) => {
+        const rawDate = e.target.value;
+        if (rawDate) {
+            const [year, month, day] = rawDate.split('-');
+            setReturnDate(
+                new Date(year, month - 1, day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            );
+        }
+    };
 
     // Collected By (optional, Delivery Man)
     const [deliveryMen, setDeliveryMen] = useState([]);
     const [collectedBy, setCollectedBy] = useState({ id: '', name: '' });
     const [collectedSearch, setCollectedSearch] = useState('');
-    const [isCollectedOpen, setIsCollectedOpen] = useState(false);
-    const collectedRef = useRef(null);
 
     useEffect(() => {
         fetch('http://localhost:5000/user')
@@ -51,28 +89,14 @@ const SalesReturnDetails = () => {
             .catch((error) => console.error('Error fetching users:', error));
     }, []);
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (collectedRef.current && !collectedRef.current.contains(event.target)) {
-                setIsCollectedOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleReturnDateChange = (e) => {
-        const rawDate = e.target.value;
-        if (rawDate) {
-            const [year, month, day] = rawDate.split('-');
-            const formatted = new Date(year, month - 1, day).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-            });
-            setReturnDate(formatted);
-        }
-    };
+    const collectedOptions = deliveryMen
+        .filter(
+            (u) =>
+                u.role === 'Delivery Man' &&
+                u.isActive === true &&
+                (u.name || '').toLowerCase().includes(collectedSearch.toLowerCase())
+        )
+        .map((u) => ({ key: u._id, title: u.name, sub: u.phone ? `📞 ${u.phone}` : '', raw: u }));
 
     // ---------------- Payment (optional, default collapsed) ----------------
     const [investments, setInvestments] = useState([]);
@@ -83,21 +107,7 @@ const SalesReturnDetails = () => {
     const [selectedAccountKey, setSelectedAccountKey] = useState('');
     const [paymentNote, setPaymentNote] = useState('');
     const [accAvailable, setAccAvailable] = useState(null);
-
     const [submitting, setSubmitting] = useState(false);
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
-
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => {
-            setToast({ show: false, message: '', type: '' });
-        }, 3500);
-    };
-
-    // --------------------------------------------------
-    // Number ke sobsomoy 2 digit porjonto Round korar Helper
-    // --------------------------------------------------
-    const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
     useEffect(() => {
         setLoading(true);
@@ -108,19 +118,14 @@ const SalesReturnDetails = () => {
                 if (data && data._id) {
                     setSelectedOrder(data);
 
-                    // Edit Mode hole matching return entry theke value prefill korbe
                     const editingEntry = editReturnId
                         ? (data.returnHistory || []).find((ret) => ret.returnId === editReturnId)
                         : null;
                     setReturnNote(editingEntry?.returnNote || '');
                     setReturnDate(editingEntry?.returnDate || getFormattedToday());
-                    setCollectedBy({
-                        id: editingEntry?.collectedById || '',
-                        name: editingEntry?.collectedBy || '',
-                    });
+                    setCollectedBy({ id: editingEntry?.collectedById || '', name: editingEntry?.collectedBy || '' });
                     setCollectedSearch(editingEntry?.collectedBy || '');
 
-                    // Edit mode e age payment thakle prefill + open
                     const savedPay = editingEntry?.payment;
                     if (savedPay) {
                         setPaymentOpen(true);
@@ -147,18 +152,16 @@ const SalesReturnDetails = () => {
 
                     setReturnInputs(
                         (data.items || []).map((item) => {
-                            if (editingEntry) {
-                                const found = editingEntry.items?.find((it) => it.productId === item.productId);
-                                if (found) {
-                                    return {
-                                        rtUnitQty: Number(found.returnUnitQty) || 0,
-                                        rtSubQty: Number(found.returnSubQty) || 0,
-                                        rtPcsQty: Number(found.returnPcsQty) || 0,
-                                        rtFreeUnitQty: Number(found.returnFreeUnitQty) || 0,
-                                        rtFreeSubQty: Number(found.returnFreeSubQty) || 0,
-                                        rtFreePcsQty: Number(found.returnFreePcsQty) || 0,
-                                    };
-                                }
+                            const found = editingEntry?.items?.find((it) => it.productId === item.productId);
+                            if (found) {
+                                return {
+                                    rtUnitQty: Number(found.returnUnitQty) || 0,
+                                    rtSubQty: Number(found.returnSubQty) || 0,
+                                    rtPcsQty: Number(found.returnPcsQty) || 0,
+                                    rtFreeUnitQty: Number(found.returnFreeUnitQty) || 0,
+                                    rtFreeSubQty: Number(found.returnFreeSubQty) || 0,
+                                    rtFreePcsQty: Number(found.returnFreePcsQty) || 0,
+                                };
                             }
                             return { rtUnitQty: 0, rtSubQty: 0, rtPcsQty: 0, rtFreeUnitQty: 0, rtFreeSubQty: 0, rtFreePcsQty: 0 };
                         })
@@ -166,31 +169,20 @@ const SalesReturnDetails = () => {
 
                     setFreeReturnInputs(
                         (data.freeItems || []).map((item) => {
-                            if (editingEntry) {
-                                const found = editingEntry.freeItems?.find((it) => it.productId === item.productId);
-                                if (found) {
-                                    return {
-                                        rtUnitQty: Number(found.returnUnitQty) || 0,
-                                        rtSubQty: Number(found.returnSubQty) || 0,
-                                        rtPcsQty: Number(found.returnPcsQty) || 0,
-                                    };
-                                }
+                            const found = editingEntry?.freeItems?.find((it) => it.productId === item.productId);
+                            if (found) {
+                                return {
+                                    rtUnitQty: Number(found.returnUnitQty) || 0,
+                                    rtSubQty: Number(found.returnSubQty) || 0,
+                                    rtPcsQty: Number(found.returnPcsQty) || 0,
+                                };
                             }
                             return { rtUnitQty: 0, rtSubQty: 0, rtPcsQty: 0 };
                         })
                     );
 
-                    setReturnPricesUnit(
-                        (data.items || []).map((item) => Number(item.sellPriceUnit) || 0)
-                    );
                     // Sell price StockPurchase.jsx er central function theke ashche
-                    setReturnPricesPcs(
-                        (data.items || []).map((item) => getSaleItemNetPricePerPcs(data, item))
-                    );
-                    setReturnPricesSub(
-                        (data.items || []).map((item) => Number(item.sellPriceSub) || 0)
-                    );
-
+                    setReturnPricesPcs((data.items || []).map((item) => getSaleItemNetPricePerPcs(data, item)));
                 } else {
                     setNotFound(true);
                 }
@@ -203,9 +195,7 @@ const SalesReturnDetails = () => {
             });
     }, [id, editReturnId]);
 
-    // --------------------------------------------------
-    // 1 Unit = koto PCS, item er original order data theke ber kora
-    // --------------------------------------------------
+    // ---------------- Unit / Sub / Pcs helpers ----------------
     const getPcsPerSub = (item) => (item.parentMode === true ? Number(item.pcsPerSub) || 0 : 0);
 
     const getPcsPerUnit = (item) => {
@@ -220,9 +210,6 @@ const SalesReturnDetails = () => {
         return 0;
     };
 
-    // --------------------------------------------------
-    // Main Item er Free Qty — 1 Free Unit = koto Free PCS
-    // --------------------------------------------------
     const getItemFreePcsPerUnit = (item) => {
         if (Number(item.pcsPerUnit) > 0) return Number(item.pcsPerUnit);
         const freeUnitQtyNum = Number(item.freeUnitQty) || 0;
@@ -235,9 +222,7 @@ const SalesReturnDetails = () => {
         return 0;
     };
 
-    // --------------------------------------------------
     // Others Free Product — 1 Unit = koto PCS
-    // --------------------------------------------------
     const getFreePcsPerUnit = (item) => {
         if (Number(item.pcsPerUnit) > 0) return Number(item.pcsPerUnit);
         const unitQtyNum = Number(item.unitQty) || 0;
@@ -250,336 +235,54 @@ const SalesReturnDetails = () => {
         return 0;
     };
 
-    // --------------------------------------------------
-    // Others Free Product — Age koto Total RT Qty return kora hoyeche
-    // --------------------------------------------------
-    const getReturnedFreeItemQtyForProduct = (productId) => {
+    // ---------------- Age koto return hoyeche ----------------
+    const sumReturned = (listKey, productId, field) => {
         if (!selectedOrder?.returnHistory) return 0;
         return selectedOrder.returnHistory.reduce((sum, ret) => {
-            if (isEditMode && ret.returnId === editReturnId) return sum;
-            const found = ret.freeItems?.find((it) => it.productId === productId);
-            return sum + (found ? Number(found.returnTotalQty) || 0 : 0);
+            if (isEditMode && ret.returnId === editReturnId) return sum; // nijer entry bad
+            const found = ret[listKey]?.find((it) => it.productId === productId);
+            return sum + (found ? Number(found[field]) || 0 : 0);
         }, 0);
     };
 
-    const getFreeItemRemainingQty = (item) => {
-        const returned = getReturnedFreeItemQtyForProduct(item.productId);
-        return Math.max(Number(item.totalQty || 0) - returned, 0);
-    };
-
-    const getFreeItemTotalRtQty = (index, item) => {
-        const pcsPerUnit = getFreePcsPerUnit(item);
-        const rtUnitQty = Number(freeReturnInputs[index]?.rtUnitQty) || 0;
-        const rtSubQty = Number(freeReturnInputs[index]?.rtSubQty) || 0;
-        const rtPcsQty = Number(freeReturnInputs[index]?.rtPcsQty) || 0;
-        return rtUnitQty * pcsPerUnit + rtSubQty * getPcsPerSub(item) + rtPcsQty;
-    };
-
-    // --------------------------------------------------
-    // Age koto Total RT Qty return kora hoyeche (returnHistory theke)
-    // --------------------------------------------------
-    const getReturnedQtyForProduct = (productId) => {
-        if (!selectedOrder?.returnHistory) return 0;
-        return selectedOrder.returnHistory.reduce((sum, ret) => {
-            if (isEditMode && ret.returnId === editReturnId) return sum; // nijer entry bad diye hisab hobe
-            const found = ret.items?.find((it) => it.productId === productId);
-            return sum + (found ? Number(found.returnTotalQty) || 0 : 0);
-        }, 0);
-    };
-
-    // --------------------------------------------------
-    // Age koto Free Qty return kora hoyeche (returnHistory theke)
-    // --------------------------------------------------
-    const getReturnedFreeQtyForProduct = (productId) => {
-        if (!selectedOrder?.returnHistory) return 0;
-        return selectedOrder.returnHistory.reduce((sum, ret) => {
-            if (isEditMode && ret.returnId === editReturnId) return sum; // nijer entry bad diye hisab hobe
-            const found = ret.items?.find((it) => it.productId === productId);
-            return sum + (found ? Number(found.returnFreeTotalQty) || 0 : 0);
-        }, 0);
-    };
-
-    const getRemainingQty = (item) => {
-        const returned = getReturnedQtyForProduct(item.productId);
-        return Math.max(Number(item.totalPcs || 0) - returned, 0);
-    };
-
-    const getFreeRemainingQty = (item) => {
-        const returned = getReturnedFreeQtyForProduct(item.productId);
-        return Math.max(Number(item.freeQty || 0) - returned, 0);
-    };
+    const getRemainingQty = (item) =>
+        Math.max(Number(item.totalPcs || 0) - sumReturned('items', item.productId, 'returnTotalQty'), 0);
+    const getFreeRemainingQty = (item) =>
+        Math.max(Number(item.freeQty || 0) - sumReturned('items', item.productId, 'returnFreeTotalQty'), 0);
+    const getFreeItemRemainingQty = (item) =>
+        Math.max(Number(item.totalQty || 0) - sumReturned('freeItems', item.productId, 'returnTotalQty'), 0);
 
     const getTotalRtQty = (index, item) => {
-        const pcsPerUnit = getPcsPerUnit(item);
-        const rtUnitQty = Number(returnInputs[index]?.rtUnitQty) || 0;
-        const rtSubQty = Number(returnInputs[index]?.rtSubQty) || 0;
-        const rtPcsQty = Number(returnInputs[index]?.rtPcsQty) || 0;
-        return rtUnitQty * pcsPerUnit + rtSubQty * getPcsPerSub(item) + rtPcsQty;
+        const r = returnInputs[index] || {};
+        return (Number(r.rtUnitQty) || 0) * getPcsPerUnit(item) + (Number(r.rtSubQty) || 0) * getPcsPerSub(item) + (Number(r.rtPcsQty) || 0);
     };
-
     const getItemFreeTotalRtQty = (index, item) => {
-        const freePcsPerUnit = getItemFreePcsPerUnit(item);
-        const rtFreeUnitQty = Number(returnInputs[index]?.rtFreeUnitQty) || 0;
-        const rtFreeSubQty = Number(returnInputs[index]?.rtFreeSubQty) || 0;
-        const rtFreePcsQty = Number(returnInputs[index]?.rtFreePcsQty) || 0;
-        return rtFreeUnitQty * freePcsPerUnit + rtFreeSubQty * getPcsPerSub(item) + rtFreePcsQty;
+        const r = returnInputs[index] || {};
+        return (Number(r.rtFreeUnitQty) || 0) * getItemFreePcsPerUnit(item) + (Number(r.rtFreeSubQty) || 0) * getPcsPerSub(item) + (Number(r.rtFreePcsQty) || 0);
     };
-
-    // Unit ongsher return amount
-    const getReturnUnitAmount = (index, item) => {
-        const rtUnitQty = Number(returnInputs[index]?.rtUnitQty) || 0;
-        const priceUnit = returnPricesUnit[index] !== undefined ? Number(returnPricesUnit[index]) || 0 : (Number(item.sellPriceUnit) || 0);
-        return rtUnitQty * priceUnit;
-    };
-
-    // PCS ongsher return amount
-    const getReturnPcsAmount = (index, item) => {
-        const rtPcsQty = Number(returnInputs[index]?.rtPcsQty) || 0;
-        const pricePcs = returnPricesPcs[index] !== undefined ? Number(returnPricesPcs[index]) || 0 : (Number(item.sellPricePcs) || 0);
-        return rtPcsQty * pricePcs;
-    };
-
-    // Sub Unit ongsher return amount
-    const getReturnSubAmount = (index, item) => {
-        const rtSubQty = Number(returnInputs[index]?.rtSubQty) || 0;
-        const priceSub = returnPricesSub[index] !== undefined ? Number(returnPricesSub[index]) || 0 : (Number(item.sellPriceSub) || 0);
-        return rtSubQty * priceSub;
+    const getFreeItemTotalRtQty = (index, item) => {
+        const r = freeReturnInputs[index] || {};
+        return (Number(r.rtUnitQty) || 0) * getFreePcsPerUnit(item) + (Number(r.rtSubQty) || 0) * getPcsPerSub(item) + (Number(r.rtPcsQty) || 0);
     };
 
     const getReturnAmount = (index, item) => {
-        const pricePcs = returnPricesPcs[index] !== undefined ? Number(returnPricesPcs[index]) || 0 : (Number(item.sellPricePcs) || 0);
+        const pricePcs =
+            returnPricesPcs[index] !== undefined ? Number(returnPricesPcs[index]) || 0 : Number(item.sellPricePcs) || 0;
         return getTotalRtQty(index, item) * pricePcs;
     };
 
-
-    // --------------------------------------------------
-    // RT Qty (Unit) Change
-    // --------------------------------------------------
-    const handleRtUnitQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return; // ঘরে শুধু পূর্ণসংখ্যা, দশমিক নেওয়া হবে না
-        const pcsPerUnit = getPcsPerUnit(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const remaining = getRemainingQty(item);
-        const currentPcsQty = (Number(returnInputs[index]?.rtPcsQty) || 0) + (Number(returnInputs[index]?.rtSubQty) || 0) * getPcsPerSub(item);
-        const total = val * pcsPerUnit + currentPcsQty;
-
-        if (total > remaining) {
-            const maxVal = pcsPerUnit > 0 ? Math.floor((remaining - currentPcsQty) / pcsPerUnit) : 0;
-            val = Math.max(0, maxVal);
-        }
-
-        setReturnInputs((prev) => {
+    // kind: main | free | other   field: u | s | p
+    const handleQty = (kind, index, field, value, item) => {
+        const keys = KEYS[kind];
+        const cur = (kind === 'other' ? freeReturnInputs : returnInputs)[index] || {};
+        const perUnit = kind === 'main' ? getPcsPerUnit(item) : kind === 'free' ? getItemFreePcsPerUnit(item) : getFreePcsPerUnit(item);
+        const remaining = kind === 'main' ? getRemainingQty(item) : kind === 'free' ? getFreeRemainingQty(item) : getFreeItemRemainingQty(item);
+        const val = clampQty(field, value, { u: cur[keys.u], s: cur[keys.s], p: cur[keys.p] }, perUnit, getPcsPerSub(item), remaining);
+        if (val === null) return;
+        const setter = kind === 'other' ? setFreeReturnInputs : setReturnInputs;
+        setter((prev) => {
             const updated = [...prev];
-            updated[index] = { ...updated[index], rtUnitQty: val };
-            return updated;
-        });
-    };
-
-    // --------------------------------------------------
-    // PCS Qty Change
-    // --------------------------------------------------
-    const handleRtSubQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return;
-        const pcsPerSub = getPcsPerSub(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const remaining = getRemainingQty(item);
-        const others =
-            (Number(returnInputs[index]?.rtUnitQty) || 0) * getPcsPerUnit(item) +
-            (Number(returnInputs[index]?.rtPcsQty) || 0);
-        const maxVal = pcsPerSub > 0 ? Math.floor(Math.max(0, remaining - others) / pcsPerSub) : 0;
-        if (val > maxVal) val = maxVal;
-
-        setReturnInputs((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], rtSubQty: val };
-            return updated;
-        });
-    };
-
-    const handleRtPcsQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return; // ঘরে শুধু পূর্ণসংখ্যা, দশমিক নেওয়া হবে না
-        const pcsPerUnit = getPcsPerUnit(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const remaining = getRemainingQty(item);
-        const currentUnitQty = Number(returnInputs[index]?.rtUnitQty) || 0;
-        const unitPortion = currentUnitQty * pcsPerUnit + (Number(returnInputs[index]?.rtSubQty) || 0) * getPcsPerSub(item);
-        const maxPcs = Math.max(0, remaining - unitPortion);
-
-        if (val > maxPcs) val = maxPcs;
-
-        setReturnInputs((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], rtPcsQty: val };
-            return updated;
-        });
-    };
-
-    // --------------------------------------------------
-    // RT Free Qty (Unit) Change
-    // --------------------------------------------------
-    const handleRtFreeUnitQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return; // ঘরে শুধু পূর্ণসংখ্যা, দশমিক নেওয়া হবে না
-        const freePcsPerUnit = getItemFreePcsPerUnit(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const freeRemaining = getFreeRemainingQty(item);
-        const currentFreePcsQty = (Number(returnInputs[index]?.rtFreePcsQty) || 0) + (Number(returnInputs[index]?.rtFreeSubQty) || 0) * getPcsPerSub(item);
-        const total = val * freePcsPerUnit + currentFreePcsQty;
-
-        if (total > freeRemaining) {
-            const maxVal = freePcsPerUnit > 0 ? Math.floor((freeRemaining - currentFreePcsQty) / freePcsPerUnit) : 0;
-            val = Math.max(0, maxVal);
-        }
-
-        setReturnInputs((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], rtFreeUnitQty: val };
-            return updated;
-        });
-    };
-
-    // --------------------------------------------------
-    // RT Free Qty (PCS) Change
-    // --------------------------------------------------
-    const handleRtFreeSubQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return;
-        const pcsPerSub = getPcsPerSub(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const freeRemaining = getFreeRemainingQty(item);
-        const others =
-            (Number(returnInputs[index]?.rtFreeUnitQty) || 0) * getItemFreePcsPerUnit(item) +
-            (Number(returnInputs[index]?.rtFreePcsQty) || 0);
-        const maxVal = pcsPerSub > 0 ? Math.floor(Math.max(0, freeRemaining - others) / pcsPerSub) : 0;
-        if (val > maxVal) val = maxVal;
-
-        setReturnInputs((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], rtFreeSubQty: val };
-            return updated;
-        });
-    };
-
-    const handleRtFreePcsQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return; // ঘরে শুধু পূর্ণসংখ্যা, দশমিক নেওয়া হবে না
-        const freePcsPerUnit = getItemFreePcsPerUnit(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const freeRemaining = getFreeRemainingQty(item);
-        const currentFreeUnitQty = Number(returnInputs[index]?.rtFreeUnitQty) || 0;
-        const unitPortion = currentFreeUnitQty * freePcsPerUnit + (Number(returnInputs[index]?.rtFreeSubQty) || 0) * getPcsPerSub(item);
-        const maxPcs = Math.max(0, freeRemaining - unitPortion);
-
-        if (val > maxPcs) val = maxPcs;
-
-        setReturnInputs((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], rtFreePcsQty: val };
-            return updated;
-        });
-    };
-
-
-    // --------------------------------------------------
-    // Others Free Product — RT Qty (Unit) Change
-    // --------------------------------------------------
-    const handleFreeRtUnitQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return;
-        const pcsPerUnit = getFreePcsPerUnit(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const remaining = getFreeItemRemainingQty(item);
-        const currentPcsQty = (Number(freeReturnInputs[index]?.rtPcsQty) || 0) + (Number(freeReturnInputs[index]?.rtSubQty) || 0) * getPcsPerSub(item);
-        const total = val * pcsPerUnit + currentPcsQty;
-
-        if (total > remaining) {
-            const maxVal = pcsPerUnit > 0 ? Math.floor((remaining - currentPcsQty) / pcsPerUnit) : 0;
-            val = Math.max(0, maxVal);
-        }
-
-        setFreeReturnInputs((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], rtUnitQty: val };
-            return updated;
-        });
-    };
-
-    // --------------------------------------------------
-    // Others Free Product — RT PCS Qty Change
-    // --------------------------------------------------
-    const handleFreeRtSubQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return;
-        const pcsPerSub = getPcsPerSub(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const remaining = getFreeItemRemainingQty(item);
-        const others =
-            (Number(freeReturnInputs[index]?.rtUnitQty) || 0) * getFreePcsPerUnit(item) +
-            (Number(freeReturnInputs[index]?.rtPcsQty) || 0);
-        const maxVal = pcsPerSub > 0 ? Math.floor(Math.max(0, remaining - others) / pcsPerSub) : 0;
-        if (val > maxVal) val = maxVal;
-
-        setFreeReturnInputs((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], rtSubQty: val };
-            return updated;
-        });
-    };
-
-    const handleFreeRtPcsQtyChange = (index, value, item) => {
-        if (value !== '' && !/^\d*$/.test(value)) return;
-        const pcsPerUnit = getFreePcsPerUnit(item);
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        const remaining = getFreeItemRemainingQty(item);
-        const currentUnitQty = Number(freeReturnInputs[index]?.rtUnitQty) || 0;
-        const unitPortion = currentUnitQty * pcsPerUnit + (Number(freeReturnInputs[index]?.rtSubQty) || 0) * getPcsPerSub(item);
-        const maxPcs = Math.max(0, remaining - unitPortion);
-
-        if (val > maxPcs) val = maxPcs;
-
-        setFreeReturnInputs((prev) => {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], rtPcsQty: val };
-            return updated;
-        });
-    };
-
-    // --------------------------------------------------
-    // Return Price (Unit / PCS) Change
-    // --------------------------------------------------
-    const handleReturnPriceUnitChange = (index, value) => {
-        if (value !== '' && !/^\d*\.?\d{0,2}$/.test(value)) return;
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        setReturnPricesUnit((prev) => {
-            const updated = [...prev];
-            updated[index] = val;
-            return updated;
-        });
-    };
-
-    const handleReturnPriceSubChange = (index, value) => {
-        if (value !== '' && !/^\d*\.?\d{0,2}$/.test(value)) return;
-        let val = value === '' ? 0 : Number(value);
-        if (isNaN(val) || val < 0) val = 0;
-
-        setReturnPricesSub((prev) => {
-            const updated = [...prev];
-            updated[index] = val;
+            updated[index] = { ...updated[index], [keys[field]]: val };
             return updated;
         });
     };
@@ -588,7 +291,6 @@ const SalesReturnDetails = () => {
         if (value !== '' && !/^\d*\.?\d{0,2}$/.test(value)) return;
         let val = value === '' ? 0 : Number(value);
         if (isNaN(val) || val < 0) val = 0;
-
         setReturnPricesPcs((prev) => {
             const updated = [...prev];
             updated[index] = val;
@@ -596,23 +298,14 @@ const SalesReturnDetails = () => {
         });
     };
 
-    const totalReturnPcs = selectedOrder
-        ? selectedOrder.items.reduce((sum, item, index) => sum + getTotalRtQty(index, item), 0)
-        : 0;
-
-    const totalReturnFreeQty = selectedOrder
-        ? selectedOrder.items.reduce((sum, item, index) => sum + getItemFreeTotalRtQty(index, item), 0)
-        : 0;
-
+    const totalReturnPcs = selectedOrder ? selectedOrder.items.reduce((s, it, i) => s + getTotalRtQty(i, it), 0) : 0;
+    const totalReturnFreeQty = selectedOrder ? selectedOrder.items.reduce((s, it, i) => s + getItemFreeTotalRtQty(i, it), 0) : 0;
     const totalReturnFreeItemsQty = selectedOrder
-        ? (selectedOrder.freeItems || []).reduce((sum, item, index) => sum + getFreeItemTotalRtQty(index, item), 0)
+        ? (selectedOrder.freeItems || []).reduce((s, it, i) => s + getFreeItemTotalRtQty(i, it), 0)
         : 0;
+    const totalReturnAmount = selectedOrder ? selectedOrder.items.reduce((s, it, i) => s + getReturnAmount(i, it), 0) : 0;
 
-    const totalReturnAmount = selectedOrder
-        ? selectedOrder.items.reduce((sum, item, index) => sum + getReturnAmount(index, item), 0)
-        : 0;
-
-    // Investment accounts (Payment section er jonno)
+    // ---------------- Payment helpers ----------------
     useEffect(() => {
         fetch('http://localhost:5000/investment')
             .then((res) => res.json())
@@ -620,15 +313,9 @@ const SalesReturnDetails = () => {
             .catch((error) => console.error('Error fetching investments:', error));
     }, []);
 
-    const accountTypes = [...new Set(investments.map((inv) => inv.accountType).filter(Boolean))];
-
     const getAccountKey = (inv) => {
-        if (inv.accountType === 'Bank') {
-            return `${inv.bankName}-${inv.accountNumber}-${inv.accountBranch}`;
-        }
-        if (inv.accountType === 'Mobile Banking') {
-            return `${inv.accountName}-${inv.accountNumber}`;
-        }
+        if (inv.accountType === 'Bank') return `${inv.bankName}-${inv.accountNumber}-${inv.accountBranch}`;
+        if (inv.accountType === 'Mobile Banking') return `${inv.accountName}-${inv.accountNumber}`;
         return 'cash';
     };
 
@@ -642,6 +329,23 @@ const SalesReturnDetails = () => {
     const uniqueAccounts = Array.from(uniqueAccountsMap.values());
     const selectedAccountInfo = uniqueAccounts.find((inv) => getAccountKey(inv) === selectedAccountKey);
 
+    const buildAccInfo = () => {
+        if (paymentAccountType === 'Bank') {
+            return {
+                bankName: selectedAccountInfo.bankName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+                accountBranch: selectedAccountInfo.accountBranch || '',
+            };
+        }
+        if (paymentAccountType === 'Mobile Banking') {
+            return {
+                accountName: selectedAccountInfo.accountName || '',
+                accountNumber: selectedAccountInfo.accountNumber || '',
+            };
+        }
+        return { accountName: 'Cash' };
+    };
+
     // Selected account e ekhon koto tk ache (live)
     useEffect(() => {
         if (!paymentOpen || !selectedAccountInfo || !selectedOrder) {
@@ -649,19 +353,7 @@ const SalesReturnDetails = () => {
             return;
         }
         let cancelled = false;
-        let acc = { accountName: 'Cash' };
-        if (paymentAccountType === 'Bank') {
-            acc = {
-                bankName: selectedAccountInfo.bankName || '',
-                accountNumber: selectedAccountInfo.accountNumber || '',
-                accountBranch: selectedAccountInfo.accountBranch || '',
-            };
-        } else if (paymentAccountType === 'Mobile Banking') {
-            acc = {
-                accountName: selectedAccountInfo.accountName || '',
-                accountNumber: selectedAccountInfo.accountNumber || '',
-            };
-        }
+        const acc = buildAccInfo();
         const keyOf = (a) => `${a?.accountName || a?.bankName || 'Cash'}||${a?.accountNumber || ''}||${a?.accountBranch || ''}`;
         const loadBal = () =>
             fetchAccountBalance(acc).then((bal) => {
@@ -686,21 +378,28 @@ const SalesReturnDetails = () => {
 
     // User nijer hate change na korle Payment Amount = Total Return Amount auto sync
     useEffect(() => {
-        if (!paymentAmountTouched) {
-            setPaymentAmount(roundTo2(totalReturnAmount));
-        }
+        if (!paymentAmountTouched) setPaymentAmount(roundTo2(totalReturnAmount));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [totalReturnAmount, paymentAmountTouched]);
+
+    // Payment amount account balance er beshi hole block
+    const handlePaymentAmountChange = (value) => {
+        if (accAvailable !== null && Number(value) > accAvailable) {
+            showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, 'error');
+            return;
+        }
+        setPaymentAmount(value);
+    };
 
     // Credit Limit check: return payment dile customer er Get amount creditLimit er beshi hobe kina
     const checkCreditLimit = async (paidNow) => {
         try {
-            const n = (v) => Number(v) || 0;
-            const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+            const n = (x) => Number(x) || 0;
+            const r2 = (x) => Math.round((Number(x) || 0) * 100) / 100;
             const name = String(selectedOrder.customer || '').trim().toLowerCase();
             const same = (a) => String(a || '').trim().toLowerCase() === name;
             const itemAmt = (it) =>
-                Number(it.itemTotal ?? it.subtotal ?? (n(it.sellPricePcs ?? it.sellPrice) * n(it.totalQty))) || 0;
+                Number(it.itemTotal ?? it.subtotal ?? n(it.sellPricePcs ?? it.sellPrice) * n(it.totalQty)) || 0;
             const sumItems = (items) => (items || []).reduce((s, it) => s + itemAmt(it), 0);
             const safe = (url) =>
                 fetch(url).then((r) => r.json()).then((d) => (Array.isArray(d) ? d : [])).catch(() => []);
@@ -828,6 +527,7 @@ const SalesReturnDetails = () => {
         }
     };
 
+    // ---------------- Submit ----------------
     const submitLock = useRef(false);
     const handleConfirmReturn = async () => {
         if (submitLock.current) return;
@@ -854,7 +554,6 @@ const SalesReturnDetails = () => {
             return;
         }
 
-        // ---------------- Payment validation (shudhu Payment open thakle) ----------------
         let paymentData = null;
         if (paymentOpen) {
             if (paymentAmount === '' || paymentAmount === null) {
@@ -869,21 +568,7 @@ const SalesReturnDetails = () => {
                 showToast('Please select an account! (or close Payment)', 'error');
                 return;
             }
-            let accInfo = {};
-            if (paymentAccountType === 'Bank') {
-                accInfo = {
-                    bankName: selectedAccountInfo.bankName || '',
-                    accountNumber: selectedAccountInfo.accountNumber || '',
-                    accountBranch: selectedAccountInfo.accountBranch || '',
-                };
-            } else if (paymentAccountType === 'Mobile Banking') {
-                accInfo = {
-                    accountName: selectedAccountInfo.accountName || '',
-                    accountNumber: selectedAccountInfo.accountNumber || '',
-                };
-            } else {
-                accInfo = { accountName: 'Cash' };
-            }
+            const accInfo = buildAccInfo();
             if (!(await checkCreditLimit(paymentAmount))) return;
 
             // Customer ke return payment dile account e tk ache kina check (edit hole nijer ager payment bad)
@@ -917,19 +602,18 @@ const SalesReturnDetails = () => {
 
             const returnedItems = selectedOrder.items
                 .map((item, index) => {
-                    const totalRtQty = getTotalRtQty(index, item);
-                    const totalRtFreeQty = getItemFreeTotalRtQty(index, item);
+                    const r = returnInputs[index] || {};
                     return {
                         productId: item.productId,
                         productName: item.productName,
-                        returnUnitQty: Number(returnInputs[index]?.rtUnitQty) || 0,
-                        returnSubQty: Number(returnInputs[index]?.rtSubQty) || 0,
-                        returnPcsQty: Number(returnInputs[index]?.rtPcsQty) || 0,
-                        returnTotalQty: totalRtQty,
-                        returnFreeUnitQty: Number(returnInputs[index]?.rtFreeUnitQty) || 0,
-                        returnFreeSubQty: Number(returnInputs[index]?.rtFreeSubQty) || 0,
-                        returnFreePcsQty: Number(returnInputs[index]?.rtFreePcsQty) || 0,
-                        returnFreeTotalQty: totalRtFreeQty,
+                        returnUnitQty: Number(r.rtUnitQty) || 0,
+                        returnSubQty: Number(r.rtSubQty) || 0,
+                        returnPcsQty: Number(r.rtPcsQty) || 0,
+                        returnTotalQty: getTotalRtQty(index, item),
+                        returnFreeUnitQty: Number(r.rtFreeUnitQty) || 0,
+                        returnFreeSubQty: Number(r.rtFreeSubQty) || 0,
+                        returnFreePcsQty: Number(r.rtFreePcsQty) || 0,
+                        returnFreeTotalQty: getItemFreeTotalRtQty(index, item),
                         returnAmount: getReturnAmount(index, item),
                     };
                 })
@@ -937,24 +621,21 @@ const SalesReturnDetails = () => {
 
             const freeReturnedItems = (selectedOrder.freeItems || [])
                 .map((item, index) => {
-                    const totalRtQty = getFreeItemTotalRtQty(index, item);
+                    const r = freeReturnInputs[index] || {};
                     return {
                         productId: item.productId,
                         productName: item.productName,
-                        returnUnitQty: Number(freeReturnInputs[index]?.rtUnitQty) || 0,
-                        returnSubQty: Number(freeReturnInputs[index]?.rtSubQty) || 0,
-                        returnPcsQty: Number(freeReturnInputs[index]?.rtPcsQty) || 0,
-                        returnTotalQty: totalRtQty,
+                        returnUnitQty: Number(r.rtUnitQty) || 0,
+                        returnSubQty: Number(r.rtSubQty) || 0,
+                        returnPcsQty: Number(r.rtPcsQty) || 0,
+                        returnTotalQty: getFreeItemTotalRtQty(index, item),
                     };
                 })
                 .filter((it) => it.returnTotalQty > 0);
 
-
-
             let updatedReturnHistory;
 
             if (isEditMode) {
-                // Existing return entry ke update korbe, ID o original date thakbe
                 updatedReturnHistory = (selectedOrder.returnHistory || []).map((ret) => {
                     if (ret.returnId !== editReturnId) return ret;
                     const {
@@ -997,10 +678,7 @@ const SalesReturnDetails = () => {
                     totalReturnFreeItemsQty,
                     totalReturnAmount,
                 };
-                updatedReturnHistory = [
-                    ...(selectedOrder.returnHistory || []),
-                    newReturnEntry,
-                ];
+                updatedReturnHistory = [...(selectedOrder.returnHistory || []), newReturnEntry];
             }
 
             const updatedData = {
@@ -1019,29 +697,25 @@ const SalesReturnDetails = () => {
             });
 
             if (response.ok) {
-                showToast(
-                    isEditMode ? 'Sales return successfully updated!' : 'Sales return successfully added!',
-                    'success'
-                );
+                showToast(isEditMode ? 'Sales return successfully updated!' : 'Sales return successfully added!', 'success');
                 setTimeout(() => navigate('/sales-return'), 900);
                 return true;
-            } else {
-                showToast('Failed to update return!', 'error');
             }
+            showToast('Failed to update return!', 'error');
         } catch (error) {
             console.error('Error updating return:', error);
             showToast('Server error while updating return!', 'error');
-        } finally {
-            // submitting reset wrapper (handleConfirmReturn) e hoy
         }
     };
 
+    // ---------------- Render ----------------
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-gray-500 font-medium text-sm">Loading invoice...</p>
+            <div className="min-h-screen p-3 sm:p-5 md:p-8">
+                <div className="max-w-[1400px] mx-auto space-y-3">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-28 rounded-2xl bg-slate-100 animate-pulse" />
+                    ))}
                 </div>
             </div>
         );
@@ -1049,17 +723,14 @@ const SalesReturnDetails = () => {
 
     if (notFound || !selectedOrder) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6">
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-10 border border-white text-center max-w-md w-full">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 flex items-center justify-center mb-4">
-                        <PackageX className="w-8 h-8 text-rose-500" />
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center max-w-md w-full">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 flex items-center justify-center mb-4">
+                        <PackageX className="w-7 h-7 text-rose-500" />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-800">Order Not Found</h2>
-                    <p className="text-gray-500 text-sm mt-2">This order record couldn't be found. It may have been deleted.</p>
-                    <button
-                        onClick={() => navigate('/wholesale')}
-                        className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-md hover:opacity-90 transition cursor-pointer"
-                    >
+                    <h2 className="text-lg font-bold text-slate-800">Order Not Found</h2>
+                    <p className="text-slate-500 text-sm mt-2">This order record couldn't be found. It may have been deleted.</p>
+                    <button onClick={() => navigate('/wholesale')} className="mt-5 bg-brand-600 text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center gap-2 cursor-pointer">
                         <ArrowLeft className="w-4 h-4" /> Back to Wholesale
                     </button>
                 </div>
@@ -1068,618 +739,246 @@ const SalesReturnDetails = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8 relative">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1400px] mx-auto space-y-4">
+                <button
+                    type="button"
+                    onClick={() => navigate('/wholesale')}
+                    className="h-10 px-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Back to Wholesale
+                </button>
 
-            {/* Top Right Toast Notification */}
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 transform translate-y-0 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    <span>{toast.message}</span>
-                </div>
-            )}
+                {/* Invoice info */}
+                <Card>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+                                <Building2 className="w-6 h-6 text-brand-600" />
+                            </div>
+                            <div>
+                                <span className="inline-block text-[11px] font-bold tracking-widest text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md mb-1 uppercase">Sales Return</span>
+                                <h1 className="text-lg font-bold text-slate-800">ইসরাইল এন্টারপ্রাইজ</h1>
+                                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                    <MapPin className="w-3.5 h-3.5" /> শাহজী পাড়া, বড় বাজার, মেহেরপুর
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-xs text-slate-500 space-y-1">
+                            <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> 01997074920</p>
+                            <p className="flex items-center gap-2 break-all"><Mail className="w-3.5 h-3.5" /> jakoberjak2017@gmail.com</p>
+                        </div>
+                    </div>
 
-            <div className="max-w-7xl mx-auto space-y-6">
-
-                {/* Top action bar */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-5 border border-white flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <button
-                        onClick={() => navigate('/wholesale')}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-semibold text-sm hover:bg-indigo-100 transition cursor-pointer"
-                    >
-                        <ArrowLeft className="w-4 h-4" /> Back to Wholesale
-                    </button>
-                </div>
-
-                {/* Invoice Card */}
-                <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100 border border-white overflow-hidden">
-
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-6 sm:p-10">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/25 shadow-inner">
-                                    <Building2 className="w-7 h-7 text-white" />
-                                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                        <div className="rounded-xl border border-slate-200 p-4">
+                            <span className="inline-block text-[11px] font-bold tracking-widest text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md mb-2 uppercase">Bill From</span>
+                            <p className="font-bold text-slate-800">ইসরাইল এন্টারপ্রাইজ</p>
+                            <p className="text-xs text-slate-600 mt-0.5">01997074920</p>
+                            <p className="text-xs text-slate-600">শাহজী পাড়া, বড় বাজার, মেহেরপুর</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 p-4">
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                                 <div>
-                                    <span className="inline-block text-[11px] font-bold tracking-widest text-white bg-white/20 px-2.5 py-1 rounded-md mb-1.5 uppercase">
-                                        Sales Return
-                                    </span>
-                                    <h1 className="text-2xl font-extrabold tracking-tight text-white">ইসরাইল এন্টারপ্রাইজ</h1>
-                                    <p className="text-indigo-50/90 text-xs sm:text-sm flex items-center gap-1.5 mt-1">
-                                        <MapPin className="w-3.5 h-3.5" /> শাহজী পাড়া, বড় বাজার, মেহেরপুর
+                                    <span className="inline-block text-[11px] font-bold tracking-widest text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md mb-2 uppercase">Bill To</span>
+                                    <p className="font-bold text-slate-800">{selectedOrder.customer}</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">{selectedOrder.phone}</p>
+                                    <p className="text-xs text-slate-500">{selectedOrder.shippingAddress || selectedOrder.address || 'N/A'}</p>
+                                </div>
+                                <div className="sm:text-right">
+                                    <p className="text-xs text-slate-500 flex items-center sm:justify-end gap-1">
+                                        <Calendar className="w-3.5 h-3.5 text-brand-500" /> Order Date: {selectedOrder.orderDate}
+                                    </p>
+                                    <p className="text-xs font-semibold text-slate-700 mt-1.5 bg-slate-100 px-2.5 py-1 rounded-lg inline-block">
+                                        Order No: <span className="text-brand-700">{selectedOrder.orderNo}</span>
                                     </p>
                                 </div>
                             </div>
-
-                            <div className="text-xs sm:text-sm text-indigo-50/90 space-y-1.5">
-                                <p className="flex items-center sm:justify-end gap-2">
-                                    <Phone className="w-3.5 h-3.5" />
-                                    <span>01997074920</span>
-                                </p>
-                                <p className="flex items-center sm:justify-end gap-2">
-                                    <Mail className="w-3.5 h-3.5" />
-                                    <span>jakoberjak2017@gmail.com</span>
-                                </p>
-                            </div>
                         </div>
                     </div>
 
-                    {/* Bill From / To */}
-                    <div className="p-6 sm:p-8 bg-slate-50/60 border-b border-slate-200/70">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm">
-                                <span className="inline-block text-[11px] font-bold tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mb-3 uppercase">Bill From</span>
-                                <p className="font-bold text-slate-800 text-base">ইসরাইল এন্টারপ্রাইজ</p>
-                                <p className="text-xs sm:text-sm text-slate-600 mt-0.5">01997074920</p>
-                                <p className="text-xs sm:text-sm text-slate-600">শাহজী পাড়া, বড় বাজার, মেহেরপুর</p>
-                            </div>
-
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-col justify-between">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <span className="inline-block text-[11px] font-bold tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mb-2 uppercase">Bill To</span>
-                                        <p className="font-bold text-slate-800 text-lg">{selectedOrder.customer}</p>
-                                        <p className="text-xs text-slate-500 mt-1">{selectedOrder.phone}</p>
-                                        <p className="text-xs text-slate-500">{selectedOrder.shippingAddress || selectedOrder.address || 'N/A'}</p>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                        <p className="text-xs text-slate-500 flex items-center justify-end gap-1">
-                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Order Date: {selectedOrder.orderDate}
-                                        </p>
-                                        <p className="text-xs font-semibold text-slate-700 mt-1.5 bg-slate-100 px-2.5 py-1 rounded-lg inline-block">
-                                            Order No: <span className="text-indigo-600">{selectedOrder.orderNo}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
+                        <div>
+                            <span className={labelCls}>Return Date *</span>
+                            <DateInput name="returnDate" value={labelToISO(returnDate)} onChange={handleReturnDateChange} placeholder="Select date" />
                         </div>
-                    </div>
-
-                    {/* Return Date + Collected By */}
-                    <div className="px-6 sm:px-8 pt-6 sm:pt-8 flex flex-wrap gap-6">
-                        <div className="w-full max-w-xs">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Return Date <span className="text-rose-500">*</span>
-                            </label>
-                            <div
-                                className="relative w-full max-w-xs cursor-pointer"
-                                onClick={() => returnDateInputRef.current?.showPicker?.() || returnDateInputRef.current?.click()}
-                            >
-                                <input
-                                    ref={returnDateInputRef}
-                                    type="date"
-                                    onChange={handleReturnDateChange}
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                />
-                                <input
-                                    type="text"
-                                    readOnly
-                                    value={returnDate}
-                                    placeholder="Select date"
-                                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none shadow-sm cursor-pointer pointer-events-none"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Collected By */}
-                        <div className="w-full max-w-xs relative" ref={collectedRef}>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Collected By <span className="text-slate-400 font-normal">(Optional)</span>
-                            </label>
-                            <div
-                                onClick={() => setIsCollectedOpen(true)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm shadow-sm cursor-pointer flex items-center justify-between focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-100"
-                            >
-                                <input
-                                    type="text"
-                                    placeholder="Search or select delivery man..."
-                                    value={collectedSearch}
-                                    onChange={(e) => {
-                                        setCollectedSearch(e.target.value);
-                                        setCollectedBy({ id: '', name: '' });
-                                        setIsCollectedOpen(true);
-                                    }}
-                                    className="bg-transparent outline-none w-full text-sm text-slate-700"
-                                />
-                                {collectedSearch && (
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setCollectedSearch('');
-                                            setCollectedBy({ id: '', name: '' });
-                                            setIsCollectedOpen(false);
-                                        }}
-                                        className="text-slate-400 hover:text-rose-500 pl-1 cursor-pointer"
-                                    >
-                                        ✕
-                                    </button>
-                                )}
-                            </div>
-
-                            {isCollectedOpen && (
-                                <div className="absolute z-50 left-0 right-0 mt-1 bg-white rounded-2xl shadow-2xl border border-indigo-100 max-h-60 overflow-y-auto">
-                                    {(() => {
-                                        const list = deliveryMen.filter(
-                                            (u) =>
-                                                u.role === 'Delivery Man' &&
-                                                u.isActive === true &&
-                                                (u.name || '').toLowerCase().includes(collectedSearch.toLowerCase())
-                                        );
-                                        if (list.length === 0) {
-                                            return <div className="px-4 py-3 text-sm text-slate-400 text-center">No active delivery man found</div>;
-                                        }
-                                        return list.map((u) => (
-                                            <div
-                                                key={u._id}
-                                                onClick={() => {
-                                                    setCollectedBy({ id: u._id, name: u.name });
-                                                    setCollectedSearch(u.name);
-                                                    setIsCollectedOpen(false);
-                                                }}
-                                                className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-slate-50 last:border-none"
-                                            >
-                                                <p className="text-sm font-semibold text-slate-800">{u.name}</p>
-                                                {u.phone && <p className="text-xs text-slate-500 mt-0.5">📞 {u.phone}</p>}
-                                            </div>
-                                        ));
-                                    })()}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Products Table */}
-                    <div className="p-6 sm:p-8 overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-[11px] font-bold uppercase tracking-wider">
-                                    <th className="py-3 px-3.5 rounded-l-xl">Product Name</th>
-                                    <th className="py-3 px-3.5">Company</th>
-                                    <th className="py-3 px-3.5 text-center">RT Qty</th>
-                                    <th className="py-3 px-3.5 text-center">PCS Qty</th>
-                                    <th className="py-3 px-3.5 text-center">Remaining Quantity</th>
-                                    <th className="py-3 px-3.5 text-center">RT Free Unit</th>
-                                    <th className="py-3 px-3.5 text-center">RT Free PCS</th>
-                                    <th className="py-3 px-3.5 text-center">Remaining Free Qty</th>
-                                    <th className="py-3 px-3.5 text-right">Sell Price (PCS)</th>
-                                    <th className="py-3 px-3.5 text-right rounded-r-xl">Return Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
-                                {selectedOrder.items.map((item, index) => {
-                                    const pcsPerUnit = getPcsPerUnit(item);
-                                    const freePcsPerUnit = getItemFreePcsPerUnit(item);
-                                    const remainingQty = getRemainingQty(item);
-                                    const freeRemainingQty = getFreeRemainingQty(item);
-                                    const totalRtQty = getTotalRtQty(index, item);
-                                    const totalRtFreeQtyItem = getItemFreeTotalRtQty(index, item);
-                                    const rtUnitDisabled = pcsPerUnit <= 0 || remainingQty <= 0;
-                                    const rtPcsDisabled = remainingQty <= 0;
-                                    const rtFreeUnitDisabled = freePcsPerUnit <= 0 || freeRemainingQty <= 0;
-                                    const rtFreePcsDisabled = freeRemainingQty <= 0;
-
-                                    return (
-                                        <tr key={index} className="hover:bg-indigo-50/40 transition-colors">
-                                            <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                            <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
-
-                                            {/* RT Qty (Unit) */}
-                                            <td className="relative py-4 pl-3.5 pr-0">
-                                                <div
-                                                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${totalRtQty > 0 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-400'}`}
-                                                >
-                                                    Total: {totalRtQty}
-                                                </div>
-                                                <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
-                                                    {item.parentMode && (
-                                                        <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0}
-                                                                value={returnInputs[index]?.rtSubQty === 0 ? '' : returnInputs[index]?.rtSubQty ?? ''}
-                                                                onChange={(e) => handleRtSubQtyChange(index, e.target.value, item)}
-                                                                className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                            />
-                                                            <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
-                                                                {item.subUnit}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center border border-indigo-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            disabled={rtUnitDisabled}
-                                                            value={returnInputs[index]?.rtUnitQty === 0 ? '' : returnInputs[index]?.rtUnitQty ?? ''}
-                                                            onChange={(e) => handleRtUnitQtyChange(index, e.target.value, item)}
-                                                            className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                        />
-
-                                                        <span
-                                                            className="flex-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                            title="Unit"
-                                                        >
-                                                            {item.unit || 'Pcs'}
-                                                        </span>
-
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            {/* PCS Qty */}
-                                            <td className="py-4 pl-0 pr-3.5 min-w-[100px]">
-                                                <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        disabled={rtPcsDisabled}
-                                                        value={returnInputs[index]?.rtPcsQty === 0 ? '' : returnInputs[index]?.rtPcsQty ?? ''}
-                                                        onChange={(e) => handleRtPcsQtyChange(index, e.target.value, item)}
-                                                        className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                    />
-                                                </div>
-                                            </td>
-
-                                            {/* Remaining Quantity */}
-                                            <td className="py-4 px-3.5 text-center font-semibold text-indigo-600">{remainingQty}</td>
-
-                                            {/* RT Free Unit Qty */}
-                                            <td className="relative py-4 pl-3.5 pr-0">
-                                                <div
-                                                    className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${totalRtFreeQtyItem > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}
-                                                >
-                                                    Total: {totalRtFreeQtyItem}
-                                                </div>
-                                                <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
-                                                    {item.parentMode && (
-                                                        <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                disabled={freeRemainingQty <= 0 || getPcsPerSub(item) <= 0}
-                                                                value={returnInputs[index]?.rtFreeSubQty === 0 ? '' : returnInputs[index]?.rtFreeSubQty ?? ''}
-                                                                onChange={(e) => handleRtFreeSubQtyChange(index, e.target.value, item)}
-                                                                className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                            />
-                                                            <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
-                                                                {item.subUnit}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center border border-emerald-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            disabled={rtFreeUnitDisabled}
-                                                            value={returnInputs[index]?.rtFreeUnitQty === 0 ? '' : returnInputs[index]?.rtFreeUnitQty ?? ''}
-                                                            onChange={(e) => handleRtFreeUnitQtyChange(index, e.target.value, item)}
-                                                            className="w-14 px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                        />
-
-                                                        <span
-                                                            className="flex-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                            title="Unit"
-                                                        >
-                                                            {item.unit || 'Pcs'}
-                                                        </span>
-
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            {/* RT Free PCS Qty */}
-                                            <td className="py-4 pl-0 pr-3.5 min-w-[100px]">
-                                                <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        disabled={rtFreePcsDisabled}
-                                                        value={returnInputs[index]?.rtFreePcsQty === 0 ? '' : returnInputs[index]?.rtFreePcsQty ?? ''}
-                                                        onChange={(e) => handleRtFreePcsQtyChange(index, e.target.value, item)}
-                                                        className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                    />
-                                                </div>
-                                            </td>
-
-                                            {/* Remaining Free Qty */}
-                                            <td className="py-4 px-3.5 text-center font-medium text-emerald-600">
-                                                {freeRemainingQty}
-                                            </td>
-
-                                            {/* Sell Price (PCS) */}
-                                            <td className="py-4 px-3.5 text-right">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    disabled={rtPcsDisabled}
-                                                    value={returnPricesPcs[index] === 0 ? '' : returnPricesPcs[index] ?? ''}
-                                                    onChange={(e) => handleReturnPricePcsChange(index, e.target.value)}
-                                                    className="w-20 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                />
-                                            </td>
-
-                                            {/* Return Amount */}
-                                            <td className="py-4 px-3.5 text-right font-bold text-orange-600">
-                                                ৳{getReturnAmount(index, item).toFixed(2)}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Others Free Product Return Table */}
-                    {selectedOrder.freeItems && selectedOrder.freeItems.length > 0 && (
-                        <div className="px-6 sm:px-8 pb-6 sm:pb-8 overflow-x-auto">
-                            <h4 className="text-xs font-bold text-amber-700 uppercase mb-3">Others Free Product Return</h4>
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-amber-100/70 text-amber-800 text-[11px] font-bold uppercase tracking-wider">
-                                        <th className="py-3 px-3.5 rounded-l-xl">Product Name</th>
-                                        <th className="py-3 px-3.5">Company</th>
-                                        <th className="py-3 px-3.5 text-center">RT Qty</th>
-                                        <th className="py-3 px-3.5 text-center">PCS Qty</th>
-                                        <th className="py-3 px-3.5 text-center">Total RT Qty</th>
-                                        <th className="py-3 px-3.5 text-center rounded-r-xl">Remaining Quantity</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-amber-100 text-xs sm:text-sm text-slate-700">
-                                    {selectedOrder.freeItems.map((item, index) => {
-                                        const pcsPerUnit = getFreePcsPerUnit(item);
-                                        const remainingQty = getFreeItemRemainingQty(item);
-                                        const totalRtQty = getFreeItemTotalRtQty(index, item);
-                                        const rtUnitDisabled = pcsPerUnit <= 0 || remainingQty <= 0;
-                                        const rtPcsDisabled = remainingQty <= 0;
-
-                                        return (
-                                            <tr key={index} className="hover:bg-amber-50/40 transition-colors">
-                                                <td className="py-4 px-3.5 font-semibold text-slate-800">{item.productName}</td>
-                                                <td className="py-4 px-3.5 text-slate-600">{item.company}</td>
-
-                                                {/* RT Qty (Unit) */}
-                                                <td className="py-4 pl-3.5 pr-0 min-w-[110px]">
-                                                    <div className="p-1.5 bg-amber-50 border border-r-0 border-amber-200 rounded-l-2xl flex flex-col-reverse gap-1.5">
-                                                        {item.parentMode && (
-                                                            <div className="flex items-center border border-amber-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0}
-                                                                    value={freeReturnInputs[index]?.rtSubQty === 0 ? '' : freeReturnInputs[index]?.rtSubQty ?? ''}
-                                                                    onChange={(e) => handleFreeRtSubQtyChange(index, e.target.value, item)}
-                                                                    className="w-14 min-w-[3.5rem] px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                                />
-                                                                <span className="flex-1 bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate" title="Sub Unit">
-                                                                    {item.subUnit}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center border border-amber-200 rounded-xl bg-white overflow-hidden w-full shadow-sm">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                disabled={rtUnitDisabled}
-                                                                value={freeReturnInputs[index]?.rtUnitQty === 0 ? '' : freeReturnInputs[index]?.rtUnitQty ?? ''}
-                                                                onChange={(e) => handleFreeRtUnitQtyChange(index, e.target.value, item)}
-                                                                className="w-14 min-w-[3.5rem] px-2 py-2 bg-transparent text-sm outline-none text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                            />
-                                                            <span
-                                                                className="flex-1 bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate"
-                                                                title="Unit"
-                                                            >
-                                                                {item.unit || 'Pcs'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                {/* PCS Qty */}
-                                                <td className="py-4 pl-0 pr-3.5 min-w-[90px]">
-                                                    <div className="p-1.5 bg-amber-50 border border-l-0 border-amber-200 rounded-r-2xl">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            disabled={rtPcsDisabled}
-                                                            value={freeReturnInputs[index]?.rtPcsQty === 0 ? '' : freeReturnInputs[index]?.rtPcsQty ?? ''}
-                                                            onChange={(e) => handleFreeRtPcsQtyChange(index, e.target.value, item)}
-                                                            className="w-full min-w-[70px] px-3 py-2 rounded-xl border border-amber-200 bg-white text-sm outline-none shadow-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-100 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                                        />
-                                                    </div>
-                                                </td>
-
-                                                {/* Total RT Qty */}
-                                                <td className="py-4 px-3.5 text-center font-semibold text-orange-600">{totalRtQty}</td>
-
-                                                {/* Remaining Quantity */}
-                                                <td className="py-4 px-3.5 text-center font-semibold text-indigo-600">{remainingQty}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Return Note */}
-                    <div className="px-6 sm:px-8 pb-6 sm:pb-8">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Return Note <span className="text-slate-400 font-normal">(Optional)</span>
-                        </label>
-                        <textarea
-                            rows="3"
-                            placeholder="Write any note about this return..."
-                            value={returnNote}
-                            onChange={(e) => setReturnNote(e.target.value)}
-                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 resize-y shadow-sm"
+                        <ComboField
+                            label="Collected By (Optional)"
+                            value={collectedSearch}
+                            placeholder="Search delivery man..."
+                            options={collectedOptions}
+                            onType={(val) => {
+                                setCollectedSearch(val);
+                                setCollectedBy({ id: '', name: '' });
+                            }}
+                            onClear={() => {
+                                setCollectedSearch('');
+                                setCollectedBy({ id: '', name: '' });
+                            }}
+                            onPick={(o) => {
+                                setCollectedBy({ id: o.raw._id, name: o.raw.name });
+                                setCollectedSearch(o.raw.name);
+                            }}
                         />
                     </div>
+                </Card>
 
-                    {/* Return Payment (Optional, default collapsed) */}
-                    <div className="px-6 sm:px-8 pb-6 sm:pb-8">
-                        <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
-                            <div className="flex items-center justify-between flex-wrap gap-3">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                    <h3 className="text-base font-bold text-emerald-800">Return Payment</h3>
-                                    <span className="text-[11px] text-emerald-700/80 font-medium">
-                                        Return er taka customer ke dile ekhane payment din
-                                    </span>
-                                    <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
-                                        Customer Pabe: ৳{totalReturnAmount.toFixed(2)}
-                                    </span>
+                {/* Items */}
+                {selectedOrder.items.map((item, index) => {
+                    const pcsPerUnit = getPcsPerUnit(item);
+                    const freePcsPerUnit = getItemFreePcsPerUnit(item);
+                    const remainingQty = getRemainingQty(item);
+                    const freeRemainingQty = getFreeRemainingQty(item);
+                    const totalRtQty = getTotalRtQty(index, item);
+                    const totalRtFreeQty = getItemFreeTotalRtQty(index, item);
+                    const ri = returnInputs[index] || {};
+                    return (
+                        <div key={index} className="bg-white rounded-2xl border border-slate-200 p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="min-w-0">
+                                    <p className="font-bold text-slate-800">{item.productName}</p>
+                                    <p className="text-xs text-slate-500">{item.company}</p>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setPaymentOpen((prev) => !prev)}
-                                    className="flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
-                                >
-                                    {paymentOpen ? 'Enabled' : 'Disabled'}
-                                    <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                                        <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </span>
-                                </button>
+                                <div className="text-right shrink-0">
+                                    <p className="text-[11px] text-slate-400">Return Amount</p>
+                                    <p className="font-bold text-orange-600">৳{getReturnAmount(index, item).toFixed(2)}</p>
+                                </div>
                             </div>
 
-                            {paymentOpen && (
-                                <div className="mt-5">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Payment Amount <span className="text-rose-500">*</span>
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={paymentAmount}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                        if (accAvailable !== null && Number(value) > accAvailable) {
-                                                            showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, 'error');
-                                                            return;
-                                                        }
-                                                        setPaymentAmount(value);
-                                                        setPaymentAmountTouched(true);
-                                                    }
-                                                }}
-                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Payment Method <span className="text-rose-500">*</span>
-                                            </label>
-                                            <select
-                                                value={paymentAccountType}
-                                                onChange={(e) => {
-                                                    setPaymentAccountType(e.target.value);
-                                                    setSelectedAccountKey(
-                                                        e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
-                                                            ? 'cash'
-                                                            : ''
-                                                    );
-                                                }}
-                                                className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
-                                            >
-                                                <option value="">Select method...</option>
-                                                {accountTypes.map((type) => (
-                                                    <option key={type} value={type}>{type}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Account <span className="text-rose-500">*</span>
-                                            </label>
-                                            <select
-                                                value={selectedAccountKey}
-                                                onChange={(e) => setSelectedAccountKey(e.target.value)}
-                                                disabled={!paymentAccountType}
-                                                className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
-                                                    ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
-                                                    : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                    }`}
-                                            >
-                                                <option value="">
-                                                    {paymentAccountType ? 'Select account...' : 'Select method first'}
-                                                </option>
-                                                {uniqueAccounts.map((inv) => {
-                                                    const key = getAccountKey(inv);
-                                                    const label =
-                                                        inv.accountType === 'Bank'
-                                                            ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
-                                                            : inv.accountType === 'Mobile Banking'
-                                                                ? `${inv.accountName} - ${inv.accountNumber}`
-                                                                : 'Cash';
-                                                    return <option key={key} value={key}>{label}</option>;
-                                                })}
-                                            </select>
-                                            {accAvailable !== null && (
-                                                <p className={`mt-1.5 text-xs font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                    Available: ৳{accAvailable.toFixed(2)}
-                                                </p>
-                                            )}
-                                        </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_150px] gap-3">
+                                {/* Main RT */}
+                                <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-3">
+                                    <div className="flex flex-wrap justify-between gap-1 text-xs mb-2">
+                                        <span className="font-bold text-brand-700">RT Qty</span>
+                                        <span className="text-slate-600">Total <b className="text-orange-600">{totalRtQty}</b> · Remaining <b className="text-brand-700">{remainingQty}</b></span>
                                     </div>
-
-                                    <div className="mt-6">
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
-                                        </label>
-                                        <textarea
-                                            rows="2"
-                                            placeholder="Write any note about this payment..."
-                                            value={paymentNote}
-                                            onChange={(e) => setPaymentNote(e.target.value)}
-                                            className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
-                                        />
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        <QtyField label={item.unit || 'Pcs'} value={v(ri.rtUnitQty)} disabled={pcsPerUnit <= 0 || remainingQty <= 0} onChange={(val) => handleQty('main', index, 'u', val, item)} />
+                                        {item.parentMode && (
+                                            <QtyField label={item.subUnit || 'Sub'} value={v(ri.rtSubQty)} disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0} onChange={(val) => handleQty('main', index, 's', val, item)} />
+                                        )}
+                                        <QtyField label="Pcs" value={v(ri.rtPcsQty)} disabled={remainingQty <= 0} onChange={(val) => handleQty('main', index, 'p', val, item)} />
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Totals + Confirm Return */}
-                    <div className="p-6 sm:p-8 bg-slate-50/60 border-t border-slate-200/70 flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6">
-                        <div className="flex flex-wrap items-start gap-6 flex-1 w-full [&>div]:flex-1 [&>div]:basis-0 [&>div]:min-w-[150px] [&>div>p:first-child]:min-h-[2rem]">
-                            {(selectedOrder.items || []).length > 0 && (
+                                {/* Free RT */}
+                                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                                    <div className="flex flex-wrap justify-between gap-1 text-xs mb-2">
+                                        <span className="font-bold text-emerald-700">RT Free</span>
+                                        <span className="text-slate-600">Total <b className="text-emerald-700">{totalRtFreeQty}</b> · Remaining <b className="text-emerald-700">{freeRemainingQty}</b></span>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        <QtyField label={item.unit || 'Pcs'} value={v(ri.rtFreeUnitQty)} disabled={freePcsPerUnit <= 0 || freeRemainingQty <= 0} onChange={(val) => handleQty('free', index, 'u', val, item)} />
+                                        {item.parentMode && (
+                                            <QtyField label={item.subUnit || 'Sub'} value={v(ri.rtFreeSubQty)} disabled={freeRemainingQty <= 0 || getPcsPerSub(item) <= 0} onChange={(val) => handleQty('free', index, 's', val, item)} />
+                                        )}
+                                        <QtyField label="Pcs" value={v(ri.rtFreePcsQty)} disabled={freeRemainingQty <= 0} onChange={(val) => handleQty('free', index, 'p', val, item)} />
+                                    </div>
+                                </div>
+
+                                {/* Price */}
                                 <div>
-                                    <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Qty</p>
-                                    <p className="text-lg font-bold text-slate-800">{totalReturnPcs}</p>
-                                    <p className="text-[11px] font-semibold text-emerald-600">Free: {totalReturnFreeQty}</p>
-                                    <p className="text-[11px] font-semibold text-orange-600">৳{totalReturnAmount.toFixed(2)}</p>
+                                    <label className={labelCls}>Sell Price (PCS)</label>
+                                    <input
+                                        type="number"
+                                        inputMode="decimal"
+                                        min="0"
+                                        step="0.01"
+                                        disabled={remainingQty <= 0}
+                                        value={returnPricesPcs[index] === 0 ? '' : returnPricesPcs[index] ?? ''}
+                                        onChange={(e) => handleReturnPricePcsChange(index, e.target.value)}
+                                        className={`${inputCls} text-right`}
+                                    />
                                 </div>
-                            )}
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {/* Others Free */}
+                {selectedOrder.freeItems && selectedOrder.freeItems.length > 0 && (
+                    <Card title="Others Free Product Return">
+                        <div className="space-y-3">
+                            {selectedOrder.freeItems.map((item, index) => {
+                                const pcsPerUnit = getFreePcsPerUnit(item);
+                                const remainingQty = getFreeItemRemainingQty(item);
+                                const totalRtQty = getFreeItemTotalRtQty(index, item);
+                                const fi = freeReturnInputs[index] || {};
+                                return (
+                                    <div key={index} className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+                                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                                            <div>
+                                                <p className="font-bold text-slate-800">{item.productName}</p>
+                                                <p className="text-xs text-slate-500">{item.company}</p>
+                                            </div>
+                                            <span className="text-xs text-slate-600">Total RT <b className="text-orange-600">{totalRtQty}</b> · Remaining <b className="text-brand-700">{remainingQty}</b></span>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-w-xl">
+                                            <QtyField label={item.unit || 'Pcs'} value={v(fi.rtUnitQty)} disabled={pcsPerUnit <= 0 || remainingQty <= 0} onChange={(val) => handleQty('other', index, 'u', val, item)} />
+                                            {item.parentMode && (
+                                                <QtyField label={item.subUnit || 'Sub'} value={v(fi.rtSubQty)} disabled={remainingQty <= 0 || getPcsPerSub(item) <= 0} onChange={(val) => handleQty('other', index, 's', val, item)} />
+                                            )}
+                                            <QtyField label="Pcs" value={v(fi.rtPcsQty)} disabled={remainingQty <= 0} onChange={(val) => handleQty('other', index, 'p', val, item)} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Card>
+                )}
+
+                {/* Note */}
+                <Card>
+                    <label className={labelCls}>Return Note (Optional)</label>
+                    <textarea
+                        rows="3"
+                        placeholder="Write any note about this return..."
+                        value={returnNote}
+                        onChange={(e) => setReturnNote(e.target.value)}
+                        className={`${inputCls} resize-y`}
+                    />
+                </Card>
+
+                {/* Payment */}
+                <div>
+                    <PaymentSection
+                        returnAmount={totalReturnAmount}
+                        open={paymentOpen}
+                        setOpen={setPaymentOpen}
+                        amount={paymentAmount}
+                        setAmount={handlePaymentAmountChange}
+                        setTouched={setPaymentAmountTouched}
+                        accountType={paymentAccountType}
+                        setAccountType={setPaymentAccountType}
+                        accountKey={selectedAccountKey}
+                        setAccountKey={setSelectedAccountKey}
+                        note={paymentNote}
+                        setNote={setPaymentNote}
+                        investments={investments}
+                    />
+                    {paymentOpen && accAvailable !== null && (
+                        <p className={`mt-2 px-1 text-xs font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            Available: ৳{accAvailable.toFixed(2)}
+                        </p>
+                    )}
+                </div>
+
+                {/* Totals + confirm */}
+                <Card>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 flex-1">
+                            <div>
+                                <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Qty</p>
+                                <p className="text-lg font-bold text-slate-800">{totalReturnPcs}</p>
+                                <p className="text-[11px] font-semibold text-emerald-600">Free: {totalReturnFreeQty}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500 uppercase font-semibold">Return Amount</p>
+                                <p className="text-lg font-bold text-orange-600">৳{totalReturnAmount.toFixed(2)}</p>
+                            </div>
                             {(selectedOrder.freeItems || []).length > 0 && (
                                 <div>
-                                    <p className="text-xs text-slate-500 uppercase font-semibold">Total RT Others Free Qty</p>
+                                    <p className="text-xs text-slate-500 uppercase font-semibold">RT Others Free</p>
                                     <p className="text-lg font-bold text-amber-600">{totalReturnFreeItemsQty}</p>
                                 </div>
                             )}
@@ -1687,13 +986,13 @@ const SalesReturnDetails = () => {
                         <button
                             onClick={handleConfirmReturn}
                             disabled={submitting}
-                            className="shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-2xl font-semibold text-sm shadow-md hover:opacity-90 transition duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-brand-600 text-white text-sm font-semibold px-6 py-3 inline-flex items-center justify-center gap-2 w-full lg:w-auto disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                             <RotateCcw className="w-4 h-4" />
                             {submitting ? 'Processing...' : isEditMode ? 'Update Return' : 'Confirm Return'}
                         </button>
                     </div>
-                </div>
+                </Card>
             </div>
         </div>
     );

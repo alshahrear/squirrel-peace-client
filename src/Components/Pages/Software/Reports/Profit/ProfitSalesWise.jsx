@@ -1,26 +1,29 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaTimes, FaSyncAlt } from 'react-icons/fa';
+import { FaFilter, FaRedo, FaSyncAlt, FaChevronDown, FaChartLine } from 'react-icons/fa';
+import { inputCls, labelCls, Pager, ComboBox, DateInput } from '../../Product/ProductUi';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const num = (v) => Number(v) || 0;
 const RATE_OPTIONS = ['Over Rate', 'Under Rate', 'Level Rate'];
 
-// ===== Cost / price helpers (StockPurchase er moto same hisab) =====
-const getPurchaseItemNetCost = (purchase, item) => {
-    const pItems = purchase?.items || [];
-    const sumSub = pItems.reduce((s, x) => s + (num(x.itemTotal ?? x.subtotal)), 0);
-    if (!item || sumSub <= 0) return null;
+// ===== Cost / price helpers =====
+const adjustedPay = (doc, sumSub) => {
     const ov =
-        purchase.overallDiscountValue !== undefined && purchase.overallDiscountValue !== null && purchase.overallDiscountValue !== ''
-            ? num(purchase.overallDiscountValue)
-            : purchase.overallDiscountType === 'percent'
-                ? (sumSub * num(purchase.overallDiscount)) / 100
-                : num(purchase.overallDiscount);
-    const adj = num(purchase.adjustment?.amount);
-    const pay = Math.max(sumSub - ov + (purchase.adjustment?.type === '-' ? -adj : adj), 0);
-    return r2((pay * num(item.itemTotal ?? item.subtotal)) / sumSub);
+        doc.overallDiscountValue !== undefined && doc.overallDiscountValue !== null && doc.overallDiscountValue !== ''
+            ? num(doc.overallDiscountValue)
+            : doc.overallDiscountType === 'percent'
+                ? (sumSub * num(doc.overallDiscount)) / 100
+                : num(doc.overallDiscount);
+    const adj = num(doc.adjustment?.amount);
+    return Math.max(sumSub - ov + (doc.adjustment?.type === '-' ? -adj : adj), 0);
+};
+
+const getPurchaseItemNetCost = (purchase, item) => {
+    const sumSub = (purchase?.items || []).reduce((s, x) => s + num(x.itemTotal ?? x.subtotal), 0);
+    if (!item || sumSub <= 0) return null;
+    return r2((adjustedPay(purchase, sumSub) * num(item.itemTotal ?? item.subtotal)) / sumSub);
 };
 
 const getBatchCostPerPcs = (batch, purchase) => {
@@ -36,19 +39,10 @@ const getBatchCostPerPcs = (batch, purchase) => {
 };
 
 const getSaleItemNetPricePerPcs = (sale, item) => {
-    const sItems = sale?.items || [];
-    const sumSub = sItems.reduce((s, x) => s + num(x.itemTotal ?? x.subtotal), 0);
+    const sumSub = (sale?.items || []).reduce((s, x) => s + num(x.itemTotal ?? x.subtotal), 0);
     const paidQty = num(item?.totalPcs);
     if (!item || sumSub <= 0 || paidQty <= 0) return num(item?.sellPricePcs ?? item?.sellPrice);
-    const ov =
-        sale.overallDiscountValue !== undefined && sale.overallDiscountValue !== null && sale.overallDiscountValue !== ''
-            ? num(sale.overallDiscountValue)
-            : sale.overallDiscountType === 'percent'
-                ? (sumSub * num(sale.overallDiscount)) / 100
-                : num(sale.overallDiscount);
-    const adj = num(sale.adjustment?.amount);
-    const pay = Math.max(sumSub - ov + (sale.adjustment?.type === '-' ? -adj : adj), 0);
-    const net = (pay * num(item.itemTotal ?? item.subtotal)) / sumSub;
+    const net = (adjustedPay(sale, sumSub) * num(item.itemTotal ?? item.subtotal)) / sumSub;
     return r2(net / paidQty);
 };
 
@@ -57,9 +51,12 @@ const getPool = (a) => a.pool || ((a.kind || 'main') === 'main' ? 'paid' : 'free
 // ===== Date helpers =====
 const parseDate = (d) => {
     if (!d) return 0;
-    const m = String(d).trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+    const s = String(d).trim();
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]).getTime();
+    const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
     if (m) return new Date(+m[3], +m[2] - 1, +m[1]).getTime();
-    const t = Date.parse(d);
+    const t = Date.parse(s);
     return !isNaN(t) ? t : 0;
 };
 const dayOnly = (ts) => {
@@ -67,16 +64,21 @@ const dayOnly = (ts) => {
     const dt = new Date(ts);
     return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
 };
-const displayFormattedDate = (dateString) => {
-    if (!dateString) return '';
-    const [y, m, d] = dateString.split('-');
-    if (!y || !m || !d) return dateString;
-    return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
 const showDate = (ts, raw) => {
     if (!ts) return raw || 'N/A';
     return new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
+
+const EMPTY_FILTERS = { startDate: '', endDate: '', invoiceNo: '', customer: '', sr: '', deliveredBy: '', result: '' };
+
+const profitColor = (v) => (v >= 0 ? 'text-emerald-600' : 'text-rose-600');
+const money = (v) => `${v < 0 ? '-' : ''}৳${fmt(Math.abs(v))}`;
+
+const DirectPill = () => (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[10px] font-bold whitespace-nowrap">
+        Direct Sales
+    </span>
+);
 
 const ProfitSalesWise = () => {
     const navigate = useNavigate();
@@ -84,50 +86,32 @@ const ProfitSalesWise = () => {
     const [batches, setBatches] = useState([]);
     const [purchases, setPurchases] = useState([]);
     const [customers, setCustomers] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openRows, setOpenRows] = useState({});
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    const [filters, setFilters] = useState({
-        startDate: '',
-        endDate: '',
-        invoiceNo: '',
-        customer: '',
-        sr: '',
-        deliveredBy: '',
-        result: '',
-    });
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
-    const [isCustomerOpen, setIsCustomerOpen] = useState(false);
-    const customerDropdownRef = useRef(null);
-
-    // SR, Delivery Man, Direct Sales, Rate filter
-    const [users, setUsers] = useState([]);
-    const [isSrOpen, setIsSrOpen] = useState(false);
-    const srDropdownRef = useRef(null);
-    const [isDeliveryOpen, setIsDeliveryOpen] = useState(false);
-    const deliveryDropdownRef = useRef(null);
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [showFilters, setShowFilters] = useState(false);
     const [directOnly, setDirectOnly] = useState(false);
     const [rateFilter, setRateFilter] = useState([...RATE_OPTIONS]);
     const [isRateOpen, setIsRateOpen] = useState(false);
-    const rateDropdownRef = useRef(null);
+    const rateRef = useRef(null);
 
     const fetchAll = useCallback(async () => {
         try {
             setLoading(true);
-            const [sRes, bRes, pRes, cRes] = await Promise.all([
-                fetch('http://localhost:5000/sales'),
-                fetch('http://localhost:5000/stock-purchase'),
-                fetch('http://localhost:5000/purchase'),
-                fetch('http://localhost:5000/customer'),
-            ]);
-            const [sData, bData, pData, cData] = await Promise.all([sRes.json(), bRes.json(), pRes.json(), cRes.json()]);
-            setSales(Array.isArray(sData) ? sData : []);
-            setBatches(Array.isArray(bData) ? bData : []);
-            setPurchases(Array.isArray(pData) ? pData : []);
-            setCustomers(Array.isArray(cData) ? cData : []);
+            const get = (u) =>
+                fetch(`http://localhost:5000/${u}`)
+                    .then((r) => r.json())
+                    .then((d) => (Array.isArray(d) ? d : []))
+                    .catch(() => []);
+            const [s, b, p, c] = await Promise.all([get('sales'), get('stock-purchase'), get('purchase'), get('customer')]);
+            setSales(s);
+            setBatches(b);
+            setPurchases(p);
+            setCustomers(c);
         } catch (error) {
             console.error('Error fetching profit data:', error);
         } finally {
@@ -147,22 +131,11 @@ const ProfitSalesWise = () => {
     }, []);
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target)) {
-                setIsCustomerOpen(false);
-            }
-            if (srDropdownRef.current && !srDropdownRef.current.contains(event.target)) {
-                setIsSrOpen(false);
-            }
-            if (deliveryDropdownRef.current && !deliveryDropdownRef.current.contains(event.target)) {
-                setIsDeliveryOpen(false);
-            }
-            if (rateDropdownRef.current && !rateDropdownRef.current.contains(event.target)) {
-                setIsRateOpen(false);
-            }
+        const h = (e) => {
+            if (rateRef.current && !rateRef.current.contains(e.target)) setIsRateOpen(false);
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
     }, []);
 
     // ===== Sales wise profit hisab =====
@@ -182,7 +155,6 @@ const ProfitSalesWise = () => {
             let pcs = 0;
             let revenue = 0;
             let cost = 0;
-            let sellPcs = 0;
             let overAcc = 0;
             let underAcc = 0;
             const prodMap = new Map();
@@ -205,9 +177,7 @@ const ProfitSalesWise = () => {
                 revenue += r;
                 cost += c;
                 if (r > 0) {
-                    sellPcs += net;
-                    const sp = num(b?.sellPrice);
-                    const diff = r2(r - sp * net);
+                    const diff = r2(r - num(b?.sellPrice) * net);
                     overAcc += diff > 0 ? diff : 0;
                     underAcc += diff < 0 ? -diff : 0;
                 }
@@ -281,14 +251,16 @@ const ProfitSalesWise = () => {
         const en = filters.endDate ? dayOnly(parseDate(filters.endDate)) : 0;
         const inv = filters.invoiceNo.trim().toLowerCase();
         const cu = filters.customer.trim().toLowerCase();
+        const sr = filters.sr.trim().toLowerCase();
+        const dl = filters.deliveredBy.trim().toLowerCase();
         return rows.filter((r) => {
             if (st && r.dayTs < st) return false;
             if (en && r.dayTs > en) return false;
             if (inv && !String(r.orderNo || '').toLowerCase().includes(inv)) return false;
             if (cu && !String(r.customer || '').toLowerCase().includes(cu)) return false;
             if (directOnly && !r.directSales) return false;
-            if (filters.sr && !String(r.sr || '').toLowerCase().includes(filters.sr.toLowerCase())) return false;
-            if (filters.deliveredBy && !String(r.deliveredBy || '').toLowerCase().includes(filters.deliveredBy.toLowerCase())) return false;
+            if (sr && !String(r.sr || '').toLowerCase().includes(sr)) return false;
+            if (dl && !String(r.deliveredBy || '').toLowerCase().includes(dl)) return false;
             if (rateFilter.length !== RATE_OPTIONS.length) {
                 if (rateFilter.length === 0) return false;
                 const isOver = r.over > 0;
@@ -329,578 +301,440 @@ const ProfitSalesWise = () => {
     };
 
     // ===== Handlers =====
-    const handleFilterChange = (e) => {
-        setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const setFilter = (name, value) => {
+        setFilters((prev) => ({ ...prev, [name]: value }));
         setCurrentPage(1);
     };
+    const handleFilterChange = (e) => setFilter(e.target.name, e.target.value);
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', invoiceNo: '', customer: '', sr: '', deliveredBy: '', result: '' });
+        setFilters(EMPTY_FILTERS);
         setDirectOnly(false);
         setRateFilter([...RATE_OPTIONS]);
-        setIsSrOpen(false);
-        setIsDeliveryOpen(false);
         setIsRateOpen(false);
-        setIsCustomerOpen(false);
-        setCurrentPage(1);
-    };
-    const getCustomerName = (c) => c.businessName || c.name || '';
-    const filteredCustomers = customers.filter((c) => {
-        const s = filters.customer.toLowerCase();
-        return getCustomerName(c).toLowerCase().includes(s) || (c.contactNumber || '').toLowerCase().includes(s);
-    });
-    const handleSelectCustomer = (c) => {
-        setFilters((prev) => ({ ...prev, customer: getCustomerName(c) }));
-        setCurrentPage(1);
-        setIsCustomerOpen(false);
-    };
-    const handleClearCustomer = (e) => {
-        e.stopPropagation();
-        setFilters((prev) => ({ ...prev, customer: '' }));
-        setCurrentPage(1);
-        setIsCustomerOpen(false);
-    };
-    const toggleRow = (key) => setOpenRows((prev) => ({ ...prev, [key]: !prev[key] }));
-
-    const filteredSRs = users.filter(
-        (u) => u.role === 'SR' && u.name?.toLowerCase().includes(filters.sr.toLowerCase())
-    );
-    const filteredDeliveryMen = users.filter(
-        (u) => u.role === 'Delivery Man' && u.name?.toLowerCase().includes(filters.deliveredBy.toLowerCase())
-    );
-    const handleSelectSr = (u) => {
-        setFilters((prev) => ({ ...prev, sr: u.name }));
-        setIsSrOpen(false);
-        setCurrentPage(1);
-    };
-    const handleClearSr = (e) => {
-        e.stopPropagation();
-        setFilters((prev) => ({ ...prev, sr: '' }));
-        setIsSrOpen(false);
-        setCurrentPage(1);
-    };
-    const handleSelectDeliveryMan = (u) => {
-        setFilters((prev) => ({ ...prev, deliveredBy: u.name }));
-        setIsDeliveryOpen(false);
-        setCurrentPage(1);
-    };
-    const handleClearDeliveryMan = (e) => {
-        e.stopPropagation();
-        setFilters((prev) => ({ ...prev, deliveredBy: '' }));
-        setIsDeliveryOpen(false);
         setCurrentPage(1);
     };
     const handleToggleRate = (opt) => {
         setRateFilter((prev) => (prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]));
         setCurrentPage(1);
     };
+    const toggleRow = (key) => setOpenRows((prev) => ({ ...prev, [key]: !prev[key] }));
 
-    const profitColor = (v) => (v >= 0 ? 'text-emerald-600' : 'text-red-600');
+    const activeCount =
+        Object.values(filters).filter(Boolean).length + (directOnly ? 1 : 0) + (rateFilter.length !== RATE_OPTIONS.length ? 1 : 0);
+
+    const customerOptions = customers
+        .filter((c) => {
+            const s = filters.customer.toLowerCase();
+            const n = (c.businessName || c.name || '').toLowerCase();
+            return n.includes(s) || (c.contactNumber || '').toLowerCase().includes(s);
+        })
+        .slice(0, 50)
+        .map((c) => ({ key: c._id, title: c.businessName || c.name || '', sub: c.contactNumber ? `📞 ${c.contactNumber}` : '', value: c }));
+
+    const userOptions = (role, term) =>
+        users
+            .filter((u) => u.role === role && u.name?.toLowerCase().includes(term.toLowerCase()))
+            .map((u) => ({ key: u._id, title: u.name, sub: '', value: u }));
+
+    const summary = [
+        { label: 'Net Sold', value: `${fmt(totals.pcs)} pcs`, cls: 'text-orange-600', bar: 'bg-orange-400' },
+        { label: 'Total Cost', value: `৳${fmt(totals.cost)}`, cls: 'text-violet-600', bar: 'bg-violet-400' },
+        { label: 'Total Sell', value: `৳${fmt(totals.revenue)}`, cls: 'text-brand-700', bar: 'bg-brand-500' },
+        {
+            label: totals.profit >= 0 ? 'Total Profit' : 'Total Loss',
+            value: money(totals.profit),
+            cls: profitColor(totals.profit),
+            bar: totals.profit >= 0 ? 'bg-emerald-500' : 'bg-rose-500',
+        },
+    ];
+
+    const toggleBtn = (r, isOpen) => (
+        <button
+            type="button"
+            onClick={() => toggleRow(r.key)}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-bold cursor-pointer whitespace-nowrap"
+        >
+            {r.products.length} product
+            <FaChevronDown size={8} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+    );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
-
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1600px] mx-auto space-y-4">
                 {/* Header */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div>
-                        <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                            Sales Wise Profit
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">প্রতিটা sales order থেকে কত cost, কত sell আর কত profit হয়েছে</p>
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 flex items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <span className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+                            <FaChartLine size={15} />
+                        </span>
+                        <div className="min-w-0">
+                            <h1 className="text-lg sm:text-2xl font-bold text-slate-800 leading-tight">Sales Wise Profit</h1>
+                            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-snug">প্রতিটা sales order থেকে কত cost, কত sell আর কত profit হয়েছে</p>
+                        </div>
                     </div>
                     <button
                         type="button"
                         onClick={fetchAll}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white font-semibold text-xs rounded-full transition cursor-pointer"
+                        aria-label="Refresh"
+                        className="h-9 w-9 sm:h-10 sm:w-auto sm:px-4 shrink-0 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                     >
-                        <FaSyncAlt size={11} className={loading ? 'animate-spin' : ''} /> Refresh
+                        <FaSyncAlt size={12} className={loading ? 'animate-spin' : ''} />
+                        <span className="hidden sm:inline">Refresh</span>
                     </button>
                 </div>
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-                    <div className="rounded-3xl shadow-xl p-6 text-white bg-gradient-to-br from-orange-500 to-amber-600">
-                        <p className="text-sm text-white/80">Net Sold</p>
-                        <p className="text-2xl font-extrabold mt-1">{fmt(totals.pcs)} pcs</p>
+                {/* Summary */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                    {summary.map((c) => (
+                        <div key={c.label} className="relative bg-white rounded-2xl border border-slate-200 pl-4 pr-3 py-3 sm:py-4 overflow-hidden">
+                            <span className={`absolute left-0 top-0 bottom-0 w-1 ${c.bar}`} />
+                            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wide">{c.label}</p>
+                            <p className={`text-base sm:text-2xl font-extrabold mt-1 break-words leading-tight ${c.cls}`}>{c.value}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Filter */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4">
+                    <div className="flex items-center justify-between gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowFilters((v) => !v)}
+                            aria-expanded={showFilters}
+                            className="h-10 flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer lg:cursor-default"
+                        >
+                            <FaFilter className="text-brand-600" size={13} />
+                            Filter & Search
+                            {activeCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 text-[11px] font-bold">{activeCount}</span>
+                            )}
+                            <FaChevronDown size={10} className={`lg:hidden text-slate-400 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleClearFilters}
+                            className="h-10 px-3 flex items-center gap-1.5 text-xs font-semibold text-slate-600 rounded-lg hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                        >
+                            <FaRedo size={11} /> Clear
+                        </button>
                     </div>
-                    <div className="rounded-3xl shadow-xl p-6 text-white bg-gradient-to-br from-violet-500 to-purple-600">
-                        <p className="text-sm text-white/80">Total Cost</p>
-                        <p className="text-2xl font-extrabold mt-1">৳ {fmt(totals.cost)}</p>
-                    </div>
-                    <div className="rounded-3xl shadow-xl p-6 text-white bg-gradient-to-br from-indigo-500 to-blue-600">
-                        <p className="text-sm text-white/80">Total Sell</p>
-                        <p className="text-2xl font-extrabold mt-1">৳ {fmt(totals.revenue)}</p>
-                    </div>
-                    <div className={`rounded-3xl shadow-xl p-6 text-white bg-gradient-to-br ${totals.profit >= 0 ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-600'}`}>
-                        <p className="text-sm text-white/80">{totals.profit >= 0 ? 'Total Profit' : 'Total Loss'}</p>
-                        <p className="text-2xl font-extrabold mt-1">৳ {fmt(totals.profit)}</p>
+
+                    <div className={`${showFilters ? 'grid' : 'hidden'} lg:grid grid-cols-2 lg:grid-cols-4 gap-x-2.5 gap-y-3 sm:gap-3 mt-3`}>
+                        <div>
+                            <span className={labelCls}>Start Date</span>
+                            <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
+                        </div>
+                        <div>
+                            <span className={labelCls}>End Date</span>
+                            <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
+                        </div>
+                        <div>
+                            <div className="flex items-center justify-between">
+                                <label className={labelCls}>Invoice</label>
+                                <label className="flex items-center gap-1 text-[11px] font-semibold text-teal-700 cursor-pointer select-none mb-1">
+                                    <input
+                                        type="checkbox"
+                                        checked={directOnly}
+                                        onChange={(e) => {
+                                            setDirectOnly(e.target.checked);
+                                            setCurrentPage(1);
+                                        }}
+                                        className="w-3.5 h-3.5 accent-teal-600 cursor-pointer"
+                                    />
+                                    Direct Sales
+                                </label>
+                            </div>
+                            <input
+                                type="text"
+                                name="invoiceNo"
+                                placeholder="Search invoice..."
+                                value={filters.invoiceNo}
+                                onChange={handleFilterChange}
+                                className={inputCls}
+                            />
+                        </div>
+                        <div>
+                            <span className={labelCls}>Customer</span>
+                            <ComboBox
+                                value={filters.customer}
+                                placeholder="Search or select customer..."
+                                options={customerOptions}
+                                emptyText="No customer found"
+                                onType={(v) => setFilter('customer', v)}
+                                onPick={(o) => setFilter('customer', o.value.businessName || o.value.name || '')}
+                                onClear={() => setFilter('customer', '')}
+                            />
+                        </div>
+                        <div>
+                            <span className={labelCls}>SR</span>
+                            <ComboBox
+                                value={filters.sr}
+                                placeholder="Search or select SR..."
+                                options={userOptions('SR', filters.sr)}
+                                emptyText="No SR found"
+                                onType={(v) => setFilter('sr', v)}
+                                onPick={(o) => setFilter('sr', o.value.name)}
+                                onClear={() => setFilter('sr', '')}
+                            />
+                        </div>
+                        <div>
+                            <span className={labelCls}>Delivery Man</span>
+                            <ComboBox
+                                value={filters.deliveredBy}
+                                placeholder="Search or select delivery man..."
+                                options={userOptions('Delivery Man', filters.deliveredBy)}
+                                emptyText="No delivery man found"
+                                onType={(v) => setFilter('deliveredBy', v)}
+                                onPick={(o) => setFilter('deliveredBy', o.value.name)}
+                                onClear={() => setFilter('deliveredBy', '')}
+                            />
+                        </div>
+                        <div className="relative" ref={rateRef}>
+                            <span className={labelCls}>Rate</span>
+                            <button
+                                type="button"
+                                onClick={() => setIsRateOpen((p) => !p)}
+                                className={`${inputCls} flex items-center justify-between gap-2 text-left cursor-pointer`}
+                            >
+                                <span className="truncate">
+                                    {rateFilter.length === RATE_OPTIONS.length ? 'All' : rateFilter.length === 0 ? 'None' : rateFilter.join(', ')}
+                                </span>
+                                <FaChevronDown size={10} className={`shrink-0 transition-transform ${isRateOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isRateOpen && (
+                                <div className="absolute z-40 left-0 right-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-lg py-1">
+                                    {RATE_OPTIONS.map((opt) => (
+                                        <label
+                                            key={opt}
+                                            className="flex items-center gap-2.5 px-3 h-10 hover:bg-brand-50 cursor-pointer text-sm font-medium text-slate-700"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={rateFilter.includes(opt)}
+                                                onChange={() => handleToggleRate(opt)}
+                                                className="w-4 h-4 accent-brand-600 cursor-pointer"
+                                            />
+                                            {opt}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <label className={labelCls}>Result</label>
+                            <select name="result" value={filters.result} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                                <option value="">All</option>
+                                <option value="profit">Profit</option>
+                                <option value="loss">Loss</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
-                {/* Table Card */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 border border-white space-y-4">
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-gray-800">Profit Records</h3>
-                        <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full">
+                {/* List */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-1.5 sm:p-4 space-y-2 sm:space-y-3">
+                    <div className="flex items-center gap-2 px-1.5 pt-1.5 sm:p-0">
+                        <h2 className="text-base font-semibold text-slate-800">Profit Records</h2>
+                        <span className="bg-brand-50 text-brand-700 px-3 py-0.5 rounded-full text-xs font-semibold">
                             {filtered.length} of {rows.length}
                         </span>
                     </div>
 
-                    {/* Filter Panel */}
-                    <div className="bg-white shadow-lg rounded-2xl p-5 border border-indigo-100">
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                            </h3>
-                            <button
-                                onClick={handleClearFilters}
-                                className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
-                            >
-                                <FaRedo size={11} /> Clear All Filters
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                            {/* Start Date */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={startDateRef}
-                                        type="date"
-                                        name="startDate"
-                                        value={filters.startDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select start date"
-                                        value={displayFormattedDate(filters.startDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* End Date */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={endDateRef}
-                                        type="date"
-                                        name="endDate"
-                                        value={filters.endDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select end date"
-                                        value={displayFormattedDate(filters.endDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Invoice */}
-                            <div>
-                                <div className="flex items-center justify-between mb-1">
-                                    <label className="block text-gray-600 text-[11px] font-semibold">Invoice</label>
-                                    <label className="flex items-center gap-1 text-[10px] font-semibold text-teal-700 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={directOnly}
-                                            onChange={(e) => { setDirectOnly(e.target.checked); setCurrentPage(1); }}
-                                            className="w-3 h-3 accent-teal-600 cursor-pointer"
-                                        />
-                                        Direct Sales
-                                    </label>
-                                </div>
-                                <input
-                                    type="text"
-                                    name="invoiceNo"
-                                    placeholder="Search invoice..."
-                                    value={filters.invoiceNo}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                            </div>
-
-                            {/* Customer */}
-                            <div className="relative" ref={customerDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer</label>
-                                <div
-                                    onClick={() => setIsCustomerOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select customer..."
-                                        value={filters.customer}
-                                        onChange={(e) => {
-                                            setFilters((prev) => ({ ...prev, customer: e.target.value }));
-                                            setCurrentPage(1);
-                                            setIsCustomerOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.customer && (
-                                        <button type="button" onClick={handleClearCustomer} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-                                {isCustomerOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredCustomers.length > 0 ? (
-                                            filteredCustomers.map((c) => (
-                                                <div
-                                                    key={c._id}
-                                                    onClick={() => handleSelectCustomer(c)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
-                                                >
-                                                    <p className="text-xs font-semibold text-gray-800">{getCustomerName(c)}</p>
-                                                    {c.contactNumber && <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* SR */}
-                            <div className="relative" ref={srDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">SR</label>
-                                <div
-                                    onClick={() => setIsSrOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select SR..."
-                                        value={filters.sr}
-                                        onChange={(e) => {
-                                            setFilters((prev) => ({ ...prev, sr: e.target.value }));
-                                            setCurrentPage(1);
-                                            setIsSrOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.sr && (
-                                        <button type="button" onClick={handleClearSr} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-                                {isSrOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredSRs.length > 0 ? (
-                                            filteredSRs.map((u) => (
-                                                <div
-                                                    key={u._id}
-                                                    onClick={() => handleSelectSr(u)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
-                                                >
-                                                    {u.name}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No SR found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Delivery Man */}
-                            <div className="relative" ref={deliveryDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Delivery Man</label>
-                                <div
-                                    onClick={() => setIsDeliveryOpen(true)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search or select delivery man..."
-                                        value={filters.deliveredBy}
-                                        onChange={(e) => {
-                                            setFilters((prev) => ({ ...prev, deliveredBy: e.target.value }));
-                                            setCurrentPage(1);
-                                            setIsDeliveryOpen(true);
-                                        }}
-                                        className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                    />
-                                    {filters.deliveredBy && (
-                                        <button type="button" onClick={handleClearDeliveryMan} className="text-gray-400 hover:text-red-500 pl-1">
-                                            <FaTimes size={10} />
-                                        </button>
-                                    )}
-                                </div>
-                                {isDeliveryOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                        {filteredDeliveryMen.length > 0 ? (
-                                            filteredDeliveryMen.map((u) => (
-                                                <div
-                                                    key={u._id}
-                                                    onClick={() => handleSelectDeliveryMan(u)}
-                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none text-xs font-medium text-gray-700"
-                                                >
-                                                    {u.name}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="px-3 py-2 text-xs text-gray-400 text-center">No delivery man found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Rate */}
-                            <div className="relative" ref={rateDropdownRef}>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Rate</label>
-                                <div
-                                    onClick={() => setIsRateOpen((prev) => !prev)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                                >
-                                    <span className="truncate">
-                                        {rateFilter.length === RATE_OPTIONS.length
-                                            ? 'All'
-                                            : rateFilter.length === 0
-                                                ? 'None'
-                                                : rateFilter.join(', ')}
-                                    </span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-3 h-3 shrink-0 transition-transform ${isRateOpen ? 'rotate-180' : ''}`}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                    </svg>
-                                </div>
-                                {isRateOpen && (
-                                    <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 py-1">
-                                        {RATE_OPTIONS.map((opt) => (
-                                            <label
-                                                key={opt}
-                                                className="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer text-xs font-medium text-gray-700"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={rateFilter.includes(opt)}
-                                                    onChange={() => handleToggleRate(opt)}
-                                                    className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
-                                                />
-                                                {opt}
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Result */}
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Result</label>
-                                <select
-                                    name="result"
-                                    value={filters.result}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="profit">Profit</option>
-                                    <option value="loss">Loss</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Table */}
                     {loading ? (
-                        <div className="text-center py-16 text-gray-500 font-medium">Loading...</div>
+                        <div className="space-y-3">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
+                            ))}
+                        </div>
                     ) : filtered.length === 0 ? (
-                        <div className="text-center py-16 text-gray-400 font-medium">No profit record found!</div>
+                        <div className="text-center py-16 text-slate-400 text-sm">No profit record found!</div>
                     ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-gray-100">
-                            <table className="w-full text-left border-collapse min-w-[1300px]">
-                                <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-xs uppercase tracking-wide whitespace-nowrap">
-                                        <th className="py-3 px-4">#</th>
-                                        <th className="py-3 px-4">Date</th>
-                                        <th className="py-3 px-4">Customer</th>
-                                        <th className="py-3 px-4">SR</th>
-                                        <th className="py-3 px-4">Delivery Man</th>
-                                        <th className="py-3 px-4 text-right">Net Sold</th>
-                                        <th className="py-3 px-4 text-right">Cost Amount</th>
-                                        <th className="py-3 px-4 text-right">Sell Amount</th>
-                                        <th className="py-3 px-4 text-right">Over Rate</th>
-                                        <th className="py-3 px-4 text-right">Under Rate</th>
-                                        <th className="py-3 px-4 text-right">Profit</th>
-                                    </tr>
-                                </thead>
-
-                                {current.map((r, i) => {
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden space-y-1.5">
+                                {current.map((r) => {
                                     const isOpen = !!openRows[r.key];
+                                    const amts = [
+                                        ['Sold', `${fmt(r.pcs)} pcs`, 'text-orange-600'],
+                                        ['Cost', `৳${fmt(r.cost)}`, 'text-violet-600'],
+                                        ['Sell', `৳${fmt(r.revenue)}`, 'text-brand-700'],
+                                        ['Over', `৳${fmt(r.over)}`, r.over > 0 ? 'text-emerald-600' : 'text-slate-400'],
+                                        ['Under', `৳${fmt(r.under)}`, r.under > 0 ? 'text-rose-600' : 'text-slate-400'],
+                                    ];
                                     return (
-                                        <tbody key={r.key} className="border-t border-gray-100 text-sm text-gray-700">
-                                            <tr className={`transition ${isOpen ? 'bg-indigo-50' : 'bg-white hover:bg-indigo-50/40'}`}>
-                                                <td className="py-3 px-4 text-gray-400">{start + i + 1}</td>
-                                                <td className="py-3 px-4 whitespace-nowrap text-gray-600 font-medium">
-                                                    {showDate(r.ts, r.dateRaw)}
-                                                </td>
-                                                <td className="py-3 px-4 whitespace-nowrap">
-                                                    <div className="font-bold text-gray-800">{r.customer}</div>
-                                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <div key={r.key} className="relative rounded-xl border border-slate-200 bg-white pl-2.5 pr-1.5 py-1.5 shadow-sm">
+                                            <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${r.profit >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                            <div className="flex items-start gap-1.5">
+                                                <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <p className="font-bold text-[12.5px] text-slate-800 truncate leading-tight min-w-0">{r.customer}</p>
                                                         <button
                                                             type="button"
                                                             onClick={() => navigate(`/sales-details/${r.saleId}`)}
-                                                            className="font-mono text-[11px] font-semibold text-indigo-600 hover:text-pink-600 hover:underline cursor-pointer"
-                                                            title="View Invoice"
+                                                            className="shrink-0 bg-brand-50 text-brand-700 px-1.5 py-px rounded-full text-[9.5px] font-bold leading-tight cursor-pointer"
                                                         >
                                                             #{r.orderNo}
                                                         </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleRow(r.key)}
-                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-pink-500 text-white text-[10px] font-bold shadow-sm cursor-pointer"
-                                                        >
-                                                            {r.products.length} product
-                                                            <svg
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                strokeWidth={3}
-                                                                stroke="currentColor"
-                                                                className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                                                            >
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                            </svg>
-                                                        </button>
                                                     </div>
-                                                </td>
-                                                <td className="py-3 px-4 font-semibold text-gray-700 whitespace-nowrap">
+                                                    <p className="text-[10px] text-slate-500 leading-tight truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">Date: </span>
+                                                        {showDate(r.ts, r.dateRaw)}
+                                                    </p>
                                                     {r.directSales ? (
-                                                        <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-bold">Direct Sales</span>
-                                                    ) : (r.sr || 'N/A')}
-                                                </td>
-                                                <td className="py-3 px-4 font-semibold text-gray-700 whitespace-nowrap">
-                                                    {r.directSales ? (
-                                                        <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-bold">Direct Sales</span>
-                                                    ) : (r.deliveredBy || 'N/A')}
-                                                </td>
-                                                <td className="py-3 px-4 text-right font-bold text-orange-600 whitespace-nowrap">{fmt(r.pcs)} pcs</td>
-                                                <td className="py-3 px-4 text-right font-bold text-violet-600 whitespace-nowrap">৳{fmt(r.cost)}</td>
-                                                <td className="py-3 px-4 text-right font-bold text-indigo-600 whitespace-nowrap">৳{fmt(r.revenue)}</td>
-                                                <td className={`py-3 px-4 text-right font-bold whitespace-nowrap ${r.over > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>৳{fmt(r.over)}</td>
-                                                <td className={`py-3 px-4 text-right font-bold whitespace-nowrap ${r.under > 0 ? 'text-red-600' : 'text-gray-400'}`}>৳{fmt(r.under)}</td>
-                                                <td className={`py-3 px-4 text-right font-extrabold whitespace-nowrap ${profitColor(r.profit)}`}>
-                                                    {r.profit < 0 ? '-' : ''}৳{fmt(Math.abs(r.profit))}
-                                                </td>
-                                            </tr>
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <DirectPill />
+                                                            {toggleBtn(r, isOpen)}
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <p className="text-[10px] text-slate-500 leading-tight truncate">
+                                                                <span className="uppercase text-slate-400 font-bold">SR: </span>
+                                                                {r.sr || 'N/A'}
+                                                                <span className="uppercase text-slate-400 font-bold ml-2">Del: </span>
+                                                                {r.deliveredBy || 'N/A'}
+                                                            </p>
+                                                            <div>{toggleBtn(r, isOpen)}</div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <div className="shrink-0 w-[112px] flex flex-col gap-px">
+                                                    {amts.map(([l, v, c]) => (
+                                                        <div key={l} className="flex items-center justify-between rounded bg-slate-50 px-1.5 leading-[14px]">
+                                                            <span className="text-[8.5px] font-bold text-slate-400 uppercase">{l}</span>
+                                                            <span className={`text-[10px] font-bold whitespace-nowrap ${c}`}>{v}</span>
+                                                        </div>
+                                                    ))}
+                                                    <div className={`flex items-center justify-between rounded px-1.5 leading-[16px] ${r.profit >= 0 ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+                                                        <span className="text-[8.5px] font-bold text-slate-500 uppercase">{r.profit >= 0 ? 'Profit' : 'Loss'}</span>
+                                                        <span className={`text-[10.5px] font-extrabold whitespace-nowrap ${profitColor(r.profit)}`}>{money(r.profit)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                            {isOpen &&
-                                                r.products.map((p) => (
-                                                    <tr key={p.key} className="bg-gray-50/70 text-[13px] border-l-4 border-indigo-200">
-                                                        <td className="py-2 px-4"></td>
-                                                        <td className="py-2 px-4"></td>
-                                                        <td className="py-2 px-4 font-semibold text-gray-700 whitespace-nowrap">{p.name}</td>
-                                                        <td className="py-2 px-4"></td>
-                                                        <td className="py-2 px-4"></td>
-                                                        <td className="py-2 px-4 text-right font-semibold text-orange-600 whitespace-nowrap">{fmt(p.pcs)} pcs</td>
-                                                        <td className="py-2 px-4 text-right font-semibold text-violet-600 whitespace-nowrap">৳{fmt(p.cost)}</td>
-                                                        <td className="py-2 px-4 text-right font-semibold text-indigo-600 whitespace-nowrap">৳{fmt(p.revenue)}</td>
-                                                        <td className={`py-2 px-4 text-right font-semibold whitespace-nowrap ${p.over > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>৳{fmt(p.over)}</td>
-                                                        <td className={`py-2 px-4 text-right font-semibold whitespace-nowrap ${p.under > 0 ? 'text-red-600' : 'text-gray-400'}`}>৳{fmt(p.under)}</td>
-                                                        <td className={`py-2 px-4 text-right font-bold whitespace-nowrap ${profitColor(p.profit)}`}>
-                                                            {p.profit < 0 ? '-' : ''}৳{fmt(Math.abs(p.profit))}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                        </tbody>
+                                            {isOpen && (
+                                                <div className="mt-2 pt-2 border-t border-dashed border-slate-200 space-y-1.5">
+                                                    {r.products.map((p) => (
+                                                        <div key={p.key} className="rounded-lg bg-slate-50 px-2 py-1.5">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <p className="text-[11.5px] font-bold text-slate-700 truncate min-w-0">{p.name}</p>
+                                                                <span className={`shrink-0 text-[11px] font-extrabold ${profitColor(p.profit)}`}>{money(p.profit)}</span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-[10px] font-semibold">
+                                                                <span className="text-orange-600">{fmt(p.pcs)} pcs</span>
+                                                                <span className="text-violet-600">Cost ৳{fmt(p.cost)}</span>
+                                                                <span className="text-brand-700">Sell ৳{fmt(p.revenue)}</span>
+                                                                <span className={p.over > 0 ? 'text-emerald-600' : 'text-slate-400'}>Over ৳{fmt(p.over)}</span>
+                                                                <span className={p.under > 0 ? 'text-rose-600' : 'text-slate-400'}>Under ৳{fmt(p.under)}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     );
                                 })}
 
-                                <tfoot>
-                                    <tr className="bg-indigo-50/70 font-extrabold text-[13px] border-t-2 border-indigo-100">
-                                        <td className="py-3 px-4 text-gray-700" colSpan={5}>Total ({filtered.length} orders)</td>
-                                        <td className="py-3 px-4 text-right text-orange-600 whitespace-nowrap">{fmt(totals.pcs)} pcs</td>
-                                        <td className="py-3 px-4 text-right text-violet-600 whitespace-nowrap">৳{fmt(totals.cost)}</td>
-                                        <td className="py-3 px-4 text-right text-indigo-600 whitespace-nowrap">৳{fmt(totals.revenue)}</td>
-                                        <td className={`py-3 px-4 text-right whitespace-nowrap ${totals.over > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>৳{fmt(totals.over)}</td>
-                                        <td className={`py-3 px-4 text-right whitespace-nowrap ${totals.under > 0 ? 'text-red-600' : 'text-gray-400'}`}>৳{fmt(totals.under)}</td>
-                                        <td className={`py-3 px-4 text-right whitespace-nowrap ${profitColor(totals.profit)}`}>
-                                            {totals.profit < 0 ? '-' : ''}৳{fmt(Math.abs(totals.profit))}
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Pagination */}
-                    {!loading && filtered.length > 0 && (
-                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{safePage}</span> of{' '}
-                                <span className="font-bold text-gray-700">{totalPages}</span>
-                            </span>
-
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(safePage - 1)}
-                                    disabled={safePage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${safePage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
-                                </button>
-
-                                <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= safePage - 1 && pageNum <= safePage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${safePage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                        }`}
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        } else if (pageNum === safePage - 2 || pageNum === safePage + 2) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                        }
-                                        return null;
-                                    })}
+                                {/* Mobile total */}
+                                <div className="rounded-xl border border-brand-100 bg-brand-50/60 px-3 py-2">
+                                    <p className="text-[10px] font-bold uppercase text-brand-700 mb-1">Total ({filtered.length} orders)</p>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] font-bold">
+                                        <span className="flex justify-between"><span className="text-slate-500">Sold</span><span className="text-orange-600">{fmt(totals.pcs)} pcs</span></span>
+                                        <span className="flex justify-between"><span className="text-slate-500">Cost</span><span className="text-violet-600">৳{fmt(totals.cost)}</span></span>
+                                        <span className="flex justify-between"><span className="text-slate-500">Sell</span><span className="text-brand-700">৳{fmt(totals.revenue)}</span></span>
+                                        <span className="flex justify-between"><span className="text-slate-500">Profit</span><span className={profitColor(totals.profit)}>{money(totals.profit)}</span></span>
+                                        <span className="flex justify-between"><span className="text-slate-500">Over</span><span className={totals.over > 0 ? 'text-emerald-600' : 'text-slate-400'}>৳{fmt(totals.over)}</span></span>
+                                        <span className="flex justify-between"><span className="text-slate-500">Under</span><span className={totals.under > 0 ? 'text-rose-600' : 'text-slate-400'}>৳{fmt(totals.under)}</span></span>
+                                    </div>
                                 </div>
-
-                                <button
-                                    onClick={() => handlePageChange(safePage + 1)}
-                                    disabled={safePage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${safePage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
                             </div>
-                        </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[1100px] text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">
+                                        <tr>
+                                            <th className="px-3 py-3">#</th>
+                                            <th className="px-3 py-3">Date</th>
+                                            <th className="px-3 py-3">Customer</th>
+                                            <th className="px-3 py-3">SR</th>
+                                            <th className="px-3 py-3">Delivery Man</th>
+                                            <th className="px-3 py-3 text-right">Net Sold</th>
+                                            <th className="px-3 py-3 text-right">Cost</th>
+                                            <th className="px-3 py-3 text-right">Sell</th>
+                                            <th className="px-3 py-3 text-right">Over Rate</th>
+                                            <th className="px-3 py-3 text-right">Under Rate</th>
+                                            <th className="px-3 py-3 text-right">Profit</th>
+                                        </tr>
+                                    </thead>
+
+                                    {current.map((r, i) => {
+                                        const isOpen = !!openRows[r.key];
+                                        return (
+                                            <tbody key={r.key} className="border-t border-slate-100 text-slate-700">
+                                                <tr className={isOpen ? 'bg-brand-50/50' : 'hover:bg-slate-50'}>
+                                                    <td className="px-3 py-3 text-slate-400">{start + i + 1}</td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-xs font-medium text-slate-600">{showDate(r.ts, r.dateRaw)}</td>
+                                                    <td className="px-3 py-3 whitespace-nowrap">
+                                                        <div className="font-bold text-slate-800">{r.customer}</div>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => navigate(`/sales-details/${r.saleId}`)}
+                                                                title="View Invoice"
+                                                                className="font-mono text-[11px] font-semibold text-brand-700 hover:underline cursor-pointer"
+                                                            >
+                                                                #{r.orderNo}
+                                                            </button>
+                                                            {toggleBtn(r, isOpen)}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-3 whitespace-nowrap font-medium">{r.directSales ? <DirectPill /> : r.sr || 'N/A'}</td>
+                                                    <td className="px-3 py-3 whitespace-nowrap font-medium">{r.directSales ? <DirectPill /> : r.deliveredBy || 'N/A'}</td>
+                                                    <td className="px-3 py-3 text-right font-bold text-orange-600 whitespace-nowrap">{fmt(r.pcs)} pcs</td>
+                                                    <td className="px-3 py-3 text-right font-bold text-violet-600 whitespace-nowrap">৳{fmt(r.cost)}</td>
+                                                    <td className="px-3 py-3 text-right font-bold text-brand-700 whitespace-nowrap">৳{fmt(r.revenue)}</td>
+                                                    <td className={`px-3 py-3 text-right font-bold whitespace-nowrap ${r.over > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>৳{fmt(r.over)}</td>
+                                                    <td className={`px-3 py-3 text-right font-bold whitespace-nowrap ${r.under > 0 ? 'text-rose-600' : 'text-slate-300'}`}>৳{fmt(r.under)}</td>
+                                                    <td className={`px-3 py-3 text-right font-extrabold whitespace-nowrap ${profitColor(r.profit)}`}>{money(r.profit)}</td>
+                                                </tr>
+
+                                                {isOpen &&
+                                                    r.products.map((p) => (
+                                                        <tr key={p.key} className="bg-slate-50/70 text-[13px] border-l-4 border-brand-200">
+                                                            <td className="px-3 py-2" colSpan={2}></td>
+                                                            <td className="px-3 py-2 font-semibold text-slate-700 whitespace-nowrap">{p.name}</td>
+                                                            <td className="px-3 py-2" colSpan={2}></td>
+                                                            <td className="px-3 py-2 text-right font-semibold text-orange-600 whitespace-nowrap">{fmt(p.pcs)} pcs</td>
+                                                            <td className="px-3 py-2 text-right font-semibold text-violet-600 whitespace-nowrap">৳{fmt(p.cost)}</td>
+                                                            <td className="px-3 py-2 text-right font-semibold text-brand-700 whitespace-nowrap">৳{fmt(p.revenue)}</td>
+                                                            <td className={`px-3 py-2 text-right font-semibold whitespace-nowrap ${p.over > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>৳{fmt(p.over)}</td>
+                                                            <td className={`px-3 py-2 text-right font-semibold whitespace-nowrap ${p.under > 0 ? 'text-rose-600' : 'text-slate-300'}`}>৳{fmt(p.under)}</td>
+                                                            <td className={`px-3 py-2 text-right font-bold whitespace-nowrap ${profitColor(p.profit)}`}>{money(p.profit)}</td>
+                                                        </tr>
+                                                    ))}
+                                            </tbody>
+                                        );
+                                    })}
+
+                                    <tfoot>
+                                        <tr className="bg-brand-50/60 font-extrabold text-[13px] border-t-2 border-brand-100">
+                                            <td className="px-3 py-3 text-slate-700" colSpan={5}>Total ({filtered.length} orders)</td>
+                                            <td className="px-3 py-3 text-right text-orange-600 whitespace-nowrap">{fmt(totals.pcs)} pcs</td>
+                                            <td className="px-3 py-3 text-right text-violet-600 whitespace-nowrap">৳{fmt(totals.cost)}</td>
+                                            <td className="px-3 py-3 text-right text-brand-700 whitespace-nowrap">৳{fmt(totals.revenue)}</td>
+                                            <td className={`px-3 py-3 text-right whitespace-nowrap ${totals.over > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>৳{fmt(totals.over)}</td>
+                                            <td className={`px-3 py-3 text-right whitespace-nowrap ${totals.under > 0 ? 'text-rose-600' : 'text-slate-300'}`}>৳{fmt(totals.under)}</td>
+                                            <td className={`px-3 py-3 text-right whitespace-nowrap ${profitColor(totals.profit)}`}>{money(totals.profit)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            <div className="px-1 py-1">
+                                <Pager page={safePage} total={totalPages} onChange={handlePageChange} />
+                            </div>
+                        </>
                     )}
                 </div>
             </div>

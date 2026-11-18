@@ -590,7 +590,7 @@ const User = () => {
                             </button>
                         </div>
 
-                        <div className={`${filtersOpen ? 'grid' : 'hidden'} lg:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3`}>
+                       <div className={`${filtersOpen ? 'grid' : 'hidden'} lg:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-2.5 gap-y-3 sm:gap-3 mt-3`}>
                             <div className="relative" ref={nameFilterRef}>
                                 <label className="block text-slate-600 text-xs font-medium mb-1">Name</label>
                                 <div className="relative">

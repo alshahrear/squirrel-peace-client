@@ -313,10 +313,16 @@ const UserRole = () => {
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-4 text-center">
+                                                    {item.fixed && (
+                                                        <span className="inline-flex items-center gap-1 px-3 h-9 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold">
+                                                            <FaShieldAlt size={10} /> Fixed
+                                                        </span>
+                                                    )}
                                                     <button
                                                         type="button"
                                                         onClick={(e) => openMenu(e, item._id)}
                                                         aria-haspopup="menu"
+                                                        style={item.fixed ? { display: 'none' } : undefined}
                                                         aria-label="Actions"
                                                         className="action-menu-btn inline-flex items-center gap-1.5 px-3 h-9 bg-slate-50 border border-slate-300 text-slate-700 hover:bg-brand-50 hover:text-brand-700 rounded-xl text-xs font-semibold cursor-pointer"
                                                     >

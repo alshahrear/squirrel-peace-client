@@ -1,97 +1,46 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FaUser, FaCalendarAlt, FaCreditCard, FaUniversity, FaMoneyBillWave, FaStickyNote, FaTimes } from 'react-icons/fa';
-
-// ISO (YYYY-MM-DD) -> "28 Oct 2026"
-const displayFormattedDate = (dateString) => {
-    if (!dateString) return '';
-    const [year, month, day] = dateString.split('-');
-    if (!year || !month || !day) return dateString;
-    const dateObj = new Date(year, month - 1, day);
-    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-
-const inputBase =
-    'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed';
+import React, { useState, useEffect } from 'react';
+import { FaCalendarAlt, FaCreditCard, FaUniversity, FaMoneyBillWave, FaStickyNote } from 'react-icons/fa';
+import { DateInput } from '../Product/ProductUi';
+import { inputCls, labelCls, ComboField } from '../Purchase/PurchaseUi';
 
 const personName = (u) => u.name || u.userName || u.fullName || u.email || '';
 
-const PersonSelect = ({ label, placeholder, list, value, onSelect, onClear, disabled = false }) => {
-    const [search, setSearch] = useState(value || '');
-    const [open, setOpen] = useState(false);
+const PersonField = ({ label, placeholder, list, value, onSelect, onClear, disabled = false }) => {
+    const [search, setSearch] = useState('');
 
-    useEffect(() => {
-        if (!value) setSearch('');
-    }, [value]);
-
-    const filtered = list.filter((u) => {
-        const q = search.trim().toLowerCase();
-        if (!q) return true;
-        return (
-            personName(u).toLowerCase().includes(q) ||
-            String(u.phone || u.contactNumber || '').toLowerCase().includes(q)
-        );
-    });
+    const options = list
+        .filter((u) => {
+            const q = search.trim().toLowerCase();
+            if (!q) return true;
+            return personName(u).toLowerCase().includes(q) || String(u.phone || u.contactNumber || '').toLowerCase().includes(q);
+        })
+        .map((u) => ({
+            key: u._id,
+            title: personName(u),
+            sub: u.phone || u.contactNumber ? `📞 ${u.phone || u.contactNumber}` : '',
+            raw: u,
+        }));
 
     return (
-        <div className="relative">
-            <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                <FaUser className="text-indigo-500" /> {label}{' '}
-                <span className="text-gray-400 font-normal">(Optional)</span>
-            </label>
-            <div className="relative">
-                <input
-                    type="text"
-                    value={search}
-                    disabled={disabled}
-                    placeholder={disabled ? 'Disabled' : placeholder}
-                    onFocus={() => !disabled && setOpen(true)}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        setOpen(true);
-                        if (value) onClear();
-                    }}
-                    onBlur={() => setTimeout(() => setOpen(false), 150)}
-                    className={`${inputBase} pr-8`}
-                />
-                {search && !disabled && (
-                    <button
-                        type="button"
-                        onMouseDown={(e) => {
-                            e.preventDefault();
-                            setSearch('');
-                            onClear();
-                        }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-500 cursor-pointer"
-                    >
-                        <FaTimes size={12} />
-                    </button>
-                )}
-            </div>
-            {open && !disabled && (
-                <div className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
-                    {filtered.length === 0 ? (
-                        <p className="px-4 py-3 text-sm text-gray-400">No data found</p>
-                    ) : (
-                        filtered.map((u) => (
-                            <div
-                                key={u._id}
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setSearch(personName(u));
-                                    setOpen(false);
-                                    onSelect(u);
-                                }}
-                                className="px-4 py-2.5 cursor-pointer hover:bg-indigo-50 border-b border-gray-100 last:border-b-0"
-                            >
-                                <p className="text-sm font-semibold text-gray-800">{personName(u)}</p>
-                                {(u.phone || u.contactNumber) && (
-                                    <p className="text-xs text-gray-500 mt-0.5">{u.phone || u.contactNumber}</p>
-                                )}
-                            </div>
-                        ))
-                    )}
-                </div>
-            )}
+        <div className={disabled ? 'pointer-events-none opacity-50' : ''}>
+            <ComboField
+                label={`${label} (Optional)`}
+                value={search}
+                placeholder={disabled ? 'Disabled' : placeholder}
+                options={options}
+                onType={(v) => {
+                    setSearch(v);
+                    if (value) onClear();
+                }}
+                onClear={() => {
+                    setSearch('');
+                    onClear();
+                }}
+                onPick={(o) => {
+                    setSearch(personName(o.raw));
+                    onSelect(o.raw);
+                }}
+            />
         </div>
     );
 };
@@ -110,46 +59,30 @@ const SalesDuePaymentForm = ({
     srList = [],
     deliveryList = [],
 }) => {
-    const [customerSearch, setCustomerSearch] = useState('');
-    const [customerOpen, setCustomerOpen] = useState(false);
-    const dateRef = useRef(null);
+    const [customerSearch, setCustomerSearch] = useState(formData.customer || '');
     const [useDue, setUseDue] = useState(false);
 
     useEffect(() => {
         setUseDue(false);
         setFormData((prev) => ({ ...prev, amount: '' }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.customer, formData.type]);
 
     useEffect(() => {
         if (useDue) setFormData((prev) => ({ ...prev, amount: String(dueAmount) }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [useDue, dueAmount]);
 
     const customerChosen = !!formData.customer;
+    const isPay = formData.type === 'Pay';
 
-    const filteredCustomers = customers.filter((c) => {
-        const q = customerSearch.trim().toLowerCase();
-        if (!q) return true;
-        return (
-            c.businessName?.toLowerCase().includes(q) ||
-            c.contactNumber?.toLowerCase().includes(q)
-        );
-    });
-
-    const handleSelectCustomer = (c) => {
-        setFormData((prev) => ({
-            ...prev,
-            customer: c.businessName,
-            customerId: c._id,
-            customerContact: c.contactNumber || '',
-        }));
-        setCustomerSearch(c.businessName);
-        setCustomerOpen(false);
-    };
-
-    const handleClearCustomer = () => {
-        setCustomerSearch('');
-        setFormData((prev) => ({ ...prev, customer: '', customerId: '', customerContact: '' }));
-    };
+    const customerOptions = customers
+        .filter((c) => {
+            const q = customerSearch.trim().toLowerCase();
+            if (!q) return true;
+            return c.businessName?.toLowerCase().includes(q) || c.contactNumber?.toLowerCase().includes(q);
+        })
+        .map((c) => ({ key: c._id, title: c.businessName, sub: c.contactNumber ? `📞 ${c.contactNumber}` : '', raw: c }));
 
     const handleMethodChange = (e) => {
         const value = e.target.value;
@@ -160,37 +93,35 @@ const SalesDuePaymentForm = ({
         }));
     };
 
+    const lbl = 'flex items-center gap-1.5 text-slate-600 text-xs font-medium mb-1';
+
     return (
-        <div className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-indigo-100">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <span className="text-indigo-600 flex items-center gap-2"><FaMoneyBillWave /> Add Due Payment</span>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <FaMoneyBillWave className="text-brand-600" /> Add Due Payment
                 </h2>
-                <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1">
+                <div className="inline-flex bg-slate-100 rounded-xl p-1 gap-1">
                     <button
                         type="button"
                         onClick={() => setFormData((prev) => ({ ...prev, type: 'Get' }))}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${formData.type !== 'Pay' ? 'bg-sky-500 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`h-9 px-5 rounded-lg text-sm font-semibold cursor-pointer ${!isPay ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         Get
                     </button>
                     <button
                         type="button"
                         onClick={() => setFormData((prev) => ({ ...prev, type: 'Pay' }))}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${formData.type === 'Pay' ? 'bg-rose-500 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`h-9 px-5 rounded-lg text-sm font-semibold cursor-pointer ${isPay ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         Pay
                     </button>
                 </div>
-                {!customerChosen && (
-                    <span className="text-xs text-gray-400">Select a customer first</span>
-                )}
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* SR */}
-                <PersonSelect
+                <PersonField
                     label="SR"
                     placeholder="Search or select SR..."
                     list={srList}
@@ -201,7 +132,7 @@ const SalesDuePaymentForm = ({
                 />
 
                 {/* Delivery Man */}
-                <PersonSelect
+                <PersonField
                     label="Delivery Man"
                     placeholder="Search or select delivery man..."
                     list={deliveryList}
@@ -211,104 +142,53 @@ const SalesDuePaymentForm = ({
                     onClear={() => setFormData((prev) => ({ ...prev, deliveredById: '', deliveredBy: '' }))}
                 />
 
-                {/* Customer Name */}
-                <div className="relative">
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaUser className="text-indigo-500" /> Customer Name <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            value={customerSearch}
-                            placeholder="Search or select customer..."
-                            onFocus={() => setCustomerOpen(true)}
-                            onChange={(e) => {
-                                setCustomerSearch(e.target.value);
-                                setCustomerOpen(true);
-                                if (formData.customer) {
-                                    setFormData((prev) => ({ ...prev, customer: '', customerId: '', customerContact: '' }));
-                                }
-                            }}
-                            onBlur={() => setTimeout(() => setCustomerOpen(false), 150)}
-                            className={`${inputBase} pr-8`}
-                        />
-                        {customerSearch && (
-                            <button
-                                type="button"
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    handleClearCustomer();
-                                }}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-500 cursor-pointer"
-                            >
-                                <FaTimes size={12} />
-                            </button>
-                        )}
-                    </div>
-                    {customerOpen && (
-                        <div className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
-                            {filteredCustomers.length === 0 ? (
-                                <p className="px-4 py-3 text-sm text-gray-400">No customer found</p>
-                            ) : (
-                                filteredCustomers.map((c) => (
-                                    <div
-                                        key={c._id}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            handleSelectCustomer(c);
-                                        }}
-                                        className="px-4 py-2.5 cursor-pointer hover:bg-indigo-50 border-b border-gray-100 last:border-b-0"
-                                    >
-                                        <p className="text-sm font-semibold text-gray-800">{c.businessName}</p>
-                                        {c.contactNumber && (
-                                            <p className="text-xs text-gray-500 mt-0.5">{c.contactNumber}</p>
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    )}
+                {/* Customer */}
+                <div>
+                    <ComboField
+                        label="Customer Name *"
+                        value={customerSearch}
+                        placeholder="Search or select customer..."
+                        options={customerOptions}
+                        onType={(v) => {
+                            setCustomerSearch(v);
+                            if (formData.customer) {
+                                setFormData((prev) => ({ ...prev, customer: '', customerId: '', customerContact: '' }));
+                            }
+                        }}
+                        onClear={() => {
+                            setCustomerSearch('');
+                            setFormData((prev) => ({ ...prev, customer: '', customerId: '', customerContact: '' }));
+                        }}
+                        onPick={(o) => {
+                            setFormData((prev) => ({
+                                ...prev,
+                                customer: o.raw.businessName,
+                                customerId: o.raw._id,
+                                customerContact: o.raw.contactNumber || '',
+                            }));
+                            setCustomerSearch(o.raw.businessName);
+                        }}
+                    />
+                    {!customerChosen && <p className="text-[11px] text-slate-400 mt-1">Select a customer first</p>}
                 </div>
 
                 {/* Date */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaCalendarAlt className="text-indigo-500" /> Date <span className="text-red-500">*</span>
-                    </label>
-                    <div
-                        className={`relative w-full ${customerChosen ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                        onClick={() => customerChosen && (dateRef.current?.showPicker?.() || dateRef.current?.click())}
-                    >
-                        <input
-                            ref={dateRef}
-                            type="date"
+                    <span className={lbl}><FaCalendarAlt className="text-brand-500" /> Date <span className="text-rose-500">*</span></span>
+                    <div className={customerChosen ? '' : 'pointer-events-none opacity-60'}>
+                        <DateInput
+                            name="date"
                             value={formData.date}
                             onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
-                            disabled={!customerChosen}
-                            className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                        />
-                        <input
-                            type="text"
-                            readOnly
-                            disabled={!customerChosen}
                             placeholder="Select date"
-                            value={displayFormattedDate(formData.date)}
-                            className={`${inputBase} pointer-events-none`}
                         />
                     </div>
                 </div>
 
-                {/* Payment Method */}
+                {/* Method */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaCreditCard className="text-indigo-500" /> Payment Method <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                        value={formData.paymentMethod}
-                        onChange={handleMethodChange}
-                        disabled={!customerChosen}
-                        className={`${inputBase} cursor-pointer`}
-                    >
+                    <label className={lbl}><FaCreditCard className="text-brand-500" /> Payment Method <span className="text-rose-500">*</span></label>
+                    <select value={formData.paymentMethod} onChange={handleMethodChange} disabled={!customerChosen} className={`${inputCls} cursor-pointer`}>
                         <option value="">Select method...</option>
                         {accountTypes.map((type) => (
                             <option key={type} value={type}>{type}</option>
@@ -316,20 +196,16 @@ const SalesDuePaymentForm = ({
                     </select>
                 </div>
 
-                {/* Payment Account */}
+                {/* Account */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaUniversity className="text-indigo-500" /> Payment Account <span className="text-red-500">*</span>
-                    </label>
+                    <label className={lbl}><FaUniversity className="text-brand-500" /> Payment Account <span className="text-rose-500">*</span></label>
                     <select
                         value={formData.accountKey}
                         onChange={(e) => setFormData((prev) => ({ ...prev, accountKey: e.target.value }))}
                         disabled={!customerChosen || !formData.paymentMethod}
-                        className={`${inputBase} cursor-pointer`}
+                        className={`${inputCls} cursor-pointer`}
                     >
-                        <option value="">
-                            {formData.paymentMethod ? 'Select account...' : 'Select method first'}
-                        </option>
+                        <option value="">{formData.paymentMethod ? 'Select account...' : 'Select method first'}</option>
                         {uniqueAccounts.map((inv) => {
                             const key = getAccountKey(inv);
                             const label =
@@ -345,11 +221,11 @@ const SalesDuePaymentForm = ({
 
                 {/* Amount */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <span className="flex items-center gap-1.5" onClick={(e) => e.preventDefault()}>
-                            <FaMoneyBillWave className="text-indigo-500" /> Amount <span className="text-red-500">*</span>
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 mb-1">
+                        <span className="flex items-center gap-1.5 text-slate-600 text-xs font-medium">
+                            <FaMoneyBillWave className="text-brand-500" /> Amount <span className="text-rose-500">*</span>
                         </span>
-                        <span className="ml-auto flex items-center gap-1.5 text-[11px] font-bold text-gray-600 cursor-pointer">
+                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={useDue}
@@ -359,15 +235,14 @@ const SalesDuePaymentForm = ({
                                     setUseDue(checked);
                                     if (!checked) setFormData((prev) => ({ ...prev, amount: '' }));
                                 }}
-                                className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer disabled:cursor-not-allowed"
+                                className="w-4 h-4 accent-brand-600 cursor-pointer disabled:cursor-not-allowed"
                             />
-                            {formData.type === 'Pay' ? 'Pay' : 'Get'} Amount: ৳ {Number(dueAmount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                        </span>
-                    </label>
+                            {isPay ? 'Pay' : 'Get'}: ৳ {Number(dueAmount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                        </label>
+                    </div>
                     <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="0.00"
                         value={formData.amount}
                         readOnly={useDue}
@@ -378,33 +253,30 @@ const SalesDuePaymentForm = ({
                                 setFormData((prev) => ({ ...prev, amount: value }));
                             }
                         }}
-                        className={inputBase}
+                        className={inputCls}
                     />
                 </div>
 
                 {/* Note */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaStickyNote className="text-indigo-500" /> Note
-                    </label>
+                    <label className={lbl}><FaStickyNote className="text-brand-500" /> Note</label>
                     <input
                         type="text"
                         placeholder="Write additional notes here..."
                         value={formData.note}
                         disabled={!customerChosen}
                         onChange={(e) => setFormData((prev) => ({ ...prev, note: e.target.value }))}
-                        className={inputBase}
+                        className={inputCls}
                     />
                 </div>
 
-                {/* Submit Button */}
-                <div className="sm:col-span-2 md:col-span-3 flex justify-end mt-2">
+                <div className="sm:col-span-2 lg:col-span-3 flex justify-end pt-1">
                     <button
                         type="submit"
                         disabled={!canPay || isSubmitting}
-                        className="px-8 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 cursor-pointer"
+                        className="bg-brand-600 text-white text-sm font-semibold px-8 py-2.5 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
-                        {formData.type === 'Pay' ? (isSubmitting ? 'Paying...' : 'Pay') : (isSubmitting ? 'Saving...' : 'Get')}
+                        {isPay ? (isSubmitting ? 'Paying...' : 'Pay') : isSubmitting ? 'Saving...' : 'Get'}
                     </button>
                 </div>
             </form>

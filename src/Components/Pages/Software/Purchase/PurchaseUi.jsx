@@ -163,7 +163,7 @@ export const FilterPanel = ({ activeCount = 0, onClear, children, cols = 'md:gri
                     <FaRedo size={11} /> Clear
                 </button>
             </div>
-            <div className={`${open ? 'grid' : 'hidden'} md:grid grid-cols-1 sm:grid-cols-2 ${cols} gap-3 mt-3`}>{children}</div>
+            <div className={`${open ? 'grid' : 'hidden'} md:grid grid-cols-2 ${cols} gap-x-2.5 gap-y-3 sm:gap-3 mt-3`}>{children}</div>
         </div>
     );
 };

@@ -321,7 +321,7 @@ const OrderForm = ({ onAddProduct, addedProductIds = [], onFormDataChange, initi
                 customerAddress: initialData.customerAddress || initialData.address || '',
                 route: initialData.route || '',
                 date: initialData.orderDate || initialData.date || prev.date,
-                shippingAddress: initialData.shippingAddress || '',
+                shippingAddress: initialData.shippingAddress || initialData.address || '',
                 srId: initialData.srId || '',
                 sr: initialData.sr || '',
                 deliveredById: initialData.deliveredById || '',

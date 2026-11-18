@@ -182,16 +182,21 @@ const ProfitTabAll = () => {
         onClick: () => setActiveTab(t.key),
     }));
 
-    const cardBase = 'relative overflow-hidden rounded-2xl text-white px-4 py-3 sm:px-6 lg:min-w-[210px]';
+    const cardBase = 'relative overflow-hidden rounded-2xl text-white px-3 py-3 sm:px-6 lg:min-w-[210px]';
 
     return (
         <div>
             <div className="max-w-[1700px] mx-auto px-3 sm:px-5 md:px-8 pt-3 sm:pt-5">
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    {/* Tabs (mobile: sobar upore, laptop: majhkhane) */}
+                    <div className="order-1 lg:order-2 w-full lg:w-auto lg:flex-1 min-w-0">
+                        <TabBar tabs={tabs} bare align="center" />
+                    </div>
+
                     {/* Total Profit (Sales Wise) */}
                     {canSeeSummary && (
                         <div
-                            className={`order-1 flex-1 lg:flex-none ${cardBase} bg-gradient-to-br ${isSalesPositive ? 'from-brand-500 to-brand-700' : 'from-rose-500 to-rose-700'
+                            className={`order-2 lg:order-1 flex-1 lg:flex-none ${cardBase} bg-gradient-to-br ${isSalesPositive ? 'from-brand-500 to-brand-700' : 'from-rose-500 to-rose-700'
                                 }`}
                         >
                             <div className="absolute -right-6 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
@@ -199,22 +204,17 @@ const ProfitTabAll = () => {
                                 <p className="text-[10px] sm:text-[11px] font-semibold text-white/80 uppercase tracking-wide">
                                     {isSalesPositive ? 'Total Profit' : 'Total Loss'}
                                 </p>
-                                <p className="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight break-words">
+                                <p className="text-base sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight break-words">
                                     {isSalesPositive ? '' : '-'}৳ {fmt(Math.abs(net.salesProfit))}
                                 </p>
                             </div>
                         </div>
                     )}
 
-                    {/* Tabs */}
-                    <div className="order-3 lg:order-2 w-full lg:w-auto lg:flex-1 min-w-0">
-                        <TabBar tabs={tabs} bare align="center" />
-                    </div>
-
                     {/* Net Profit */}
                     {canSeeSummary && (
                         <div
-                            className={`order-2 lg:order-3 flex-1 lg:flex-none ${cardBase} bg-gradient-to-br ${isPositive ? 'from-emerald-500 to-emerald-700' : 'from-rose-500 to-rose-700'
+                            className={`order-3 flex-1 lg:flex-none ${cardBase} bg-gradient-to-br ${isPositive ? 'from-emerald-500 to-emerald-700' : 'from-rose-500 to-rose-700'
                                 }`}
                         >
                             <div className="absolute -left-6 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
@@ -222,7 +222,7 @@ const ProfitTabAll = () => {
                                 <p className="text-[10px] sm:text-[11px] font-semibold text-white/80 uppercase tracking-wide">
                                     {isPositive ? 'Net Profit' : 'Net Loss'}
                                 </p>
-                                <p className="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight break-words">
+                                <p className="text-base sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight break-words">
                                     {isPositive ? '' : '-'}৳ {fmt(Math.abs(net.profit))}
                                 </p>
                             </div>

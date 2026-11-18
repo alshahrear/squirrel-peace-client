@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import useCan from '../../../../../hooks/useCan';
+import { DateInput } from '../../Product/ProductUi';
+import { inputCls, labelCls, ComboField } from '../../Purchase/PurchaseUi';
+import { Card, QtyField } from '../../Purchase/PurchaseFormUi';
+import { labelToISO } from '../../Purchase/purchaseDate';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -29,95 +34,18 @@ const damageKey = (name, company) =>
 
 const QTY_FIELDS = ['unitQty', 'subQty', 'pcsQty', 'freeUnitQty', 'freeSubQty', 'freePcsQty'];
 
-// ---------- Local Search Select ----------
-const SearchSelect = ({
-    label, required = false, hint = '', placeholder, searchValue, onSearchChange,
-    onClear, onSelect, items, getKey, renderItem, emptyText = 'No data found', disabled = false,
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    return (
-        <div className="relative" ref={ref}>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                {label} {required && <span className="text-rose-500">*</span>}{' '}
-                {hint && <span className="text-xs text-amber-500 font-normal">{hint}</span>}
-            </label>
-            <div
-                onClick={() => !disabled && setIsOpen(true)}
-                className={`w-full px-4 py-3.5 rounded-2xl border text-sm shadow-sm flex items-center justify-between ${disabled ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75' : 'border-slate-200 bg-slate-50/70 cursor-pointer focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100'}`}
-            >
-                <input
-                    type="text"
-                    disabled={disabled}
-                    placeholder={placeholder}
-                    value={searchValue}
-                    onChange={(e) => {
-                        onSearchChange(e.target.value);
-                        setIsOpen(true);
-                    }}
-                    className="bg-transparent outline-none w-full text-sm"
-                />
-                {searchValue && !disabled && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClear();
-                            setIsOpen(false);
-                        }}
-                        className="text-slate-400 hover:text-rose-500 p-0.5"
-                    >
-                        ✕
-                    </button>
-                )}
-            </div>
-            {isOpen && !disabled && (
-                <div className="absolute z-[100] left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-red-100 max-h-60 overflow-y-auto">
-                    {items.length > 0 ? (
-                        items.map((item) => (
-                            <div
-                                key={getKey(item)}
-                                onClick={() => {
-                                    onSelect(item);
-                                    setIsOpen(false);
-                                }}
-                                className="px-4 py-3 hover:bg-red-50 cursor-pointer border-b border-slate-50 last:border-none"
-                            >
-                                {renderItem(item)}
-                            </div>
-                        ))
-                    ) : (
-                        <div className="px-4 py-3 text-sm text-slate-400 text-center">{emptyText}</div>
-                    )}
-                </div>
-            )}
+// Combo with disabled support
+const Combo = ({ disabled, label, hint, placeholder, ...rest }) =>
+    disabled ? (
+        <div>
+            <span className={labelCls}>
+                {label} {hint && <span className="text-amber-600 font-normal">{hint}</span>}
+            </span>
+            <input disabled placeholder={placeholder} className={`${inputCls} cursor-not-allowed opacity-70`} />
         </div>
+    ) : (
+        <ComboField label={hint ? `${label} ${hint}` : label} placeholder={placeholder} {...rest} />
     );
-};
-
-// ---------- Qty box ----------
-const QtyBox = ({ value, onChange, label, grad, border }) => (
-    <div className={`flex items-center border ${border} rounded-xl bg-white overflow-hidden w-full shadow-sm`}>
-        <input
-            type="number" min="0" step="1" placeholder="0"
-            value={value ?? ''}
-            onChange={(e) => /^\d*$/.test(e.target.value) && onChange(e.target.value)}
-            className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-        />
-        <span className={`flex-1 bg-gradient-to-br ${grad} text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate`} title={label}>
-            {label}
-        </span>
-    </div>
-);
 
 const applyQty = (item, field, value) => {
     const next = { ...item, [field]: value === '' ? '' : Number(value) || 0 };
@@ -151,7 +79,7 @@ const restoreItem = (item, index) => ({
 const getRowTotal = (i) => (Number(i.buyPrice) || 0) * (Number(i.totalQty) || 0);
 
 const DamageReturnAdd = () => {
-const { canAdd, canEdit } = useCan('damage_return_invoice');
+    const { canAdd, canEdit } = useCan('damage_return_invoice');
     const navigate = useNavigate();
     const location = useLocation();
     const editing = location.state?.damageReturn || null;
@@ -181,14 +109,9 @@ const { canAdd, canEdit } = useCan('damage_return_invoice');
 
     const [items, setItems] = useState([]);
     const [note, setNote] = useState(editing?.note || '');
-    const [toast, setToast] = useState({ show: false, message: '', isError: false });
     const [isSaving, setIsSaving] = useState(false);
-    const dateInputRef = useRef(null);
 
-    const showToast = (message, isError = false) => {
-        setToast({ show: true, message, isError });
-        setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
-    };
+    const showToast = (message, isError = false) => (isError ? toast.error(message) : toast.success(message));
 
     // ---------- Fetch ----------
     useEffect(() => {
@@ -508,7 +431,6 @@ const { canAdd, canEdit } = useCan('damage_return_invoice');
         return lines;
     };
 
-
     // ---------- Payment (optional, default disabled) ----------
     const savedPay = editing?.payment || null;
     const [investments, setInvestments] = useState([]);
@@ -673,41 +595,42 @@ const { canAdd, canEdit } = useCan('damage_return_invoice');
         }
     };
 
-    const inputCls =
-        'w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm text-slate-700 shadow-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100';
+    const num = (id, field) => (v) => /^\d*$/.test(v) && handleItemChange(id, field, v);
 
-    const trashIcon = (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-        </svg>
+    const borrowBtn = (active, onClick, label, tone) => (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`h-8 px-3 rounded-full text-[11px] font-extrabold cursor-pointer border transition ${active
+                ? 'bg-amber-500 border-amber-500 text-white'
+                : `bg-white ${tone}`
+                }`}
+        >
+            {label} {active ? '✓' : '+'}
+        </button>
     );
 
     return (
-        <div>
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-[200] px-5 py-3.5 rounded-2xl shadow-lg text-sm font-semibold text-white ${toast.isError ? 'bg-rose-600' : 'bg-gradient-to-br from-teal-600 to-emerald-500'}`}>
-                    {toast.message}
-                </div>
-            )}
-
-            {/* ---------------- Top Form ---------------- */}
-            <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 my-8 relative z-20">
-                <div className="bg-white rounded-3xl shadow-lg shadow-red-900/5 p-6 md:p-8 border border-red-100/70">
-                    <div className="mb-6 pb-4 border-b border-red-100">
-                        <h3 className="text-xl font-bold text-slate-800">
-                            {isEditMode ? 'Edit Damage Return' : 'Add Damage Return'}
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Select company and damaged products to return</p>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <SearchSelect
-                                label="Company"
-                                required
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1400px] mx-auto space-y-4">
+                {/* Top form */}
+                <div className="relative z-20">
+                    <Card
+                        title={isEditMode ? 'Edit Damage Return' : 'Add Damage Return'}
+                        subtitle="Select company and damaged products to return"
+                    >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <Combo
+                                label="Company *"
                                 placeholder="Search or select company..."
-                                searchValue={search.company}
-                                onSearchChange={(text) => {
+                                value={search.company}
+                                options={filteredCompanies.map((c) => ({
+                                    key: c._id,
+                                    title: c.businessName,
+                                    sub: `📞 ${c.contactNumber || ''} | 📍 ${c.address || ''}`,
+                                    raw: c,
+                                }))}
+                                onType={(text) => {
                                     updateSearch('company', text);
                                     if (formData.company) {
                                         setItems([]);
@@ -715,367 +638,275 @@ const { canAdd, canEdit } = useCan('damage_return_invoice');
                                     }
                                 }}
                                 onClear={handleClearCompany}
-                                onSelect={handleSelectCompany}
-                                items={filteredCompanies}
-                                getKey={(c) => c._id}
-                                emptyText="No company found"
-                                renderItem={(c) => (
-                                    <>
-                                        <p className="text-sm font-semibold text-slate-800">{c.businessName}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">📞 {c.contactNumber} | 📍 {c.address}</p>
-                                    </>
-                                )}
+                                onPick={(o) => handleSelectCompany(o.raw)}
                             />
 
-                            <SearchSelect
+                            <Combo
                                 label="Filter by Category"
                                 placeholder="Search or select category..."
-                                searchValue={search.category}
-                                onSearchChange={(text) => {
+                                value={search.category}
+                                options={filteredCategories.map((c) => ({ key: c._id, title: c.name, raw: c }))}
+                                onType={(text) => {
                                     updateSearch('category', text);
                                     updateForm({ category: '' });
                                 }}
                                 onClear={handleClearCategory}
-                                onSelect={handleSelectCategory}
-                                items={filteredCategories}
-                                getKey={(c) => c._id}
-                                emptyText="No active category found"
-                                renderItem={(c) => <p className="text-sm font-semibold text-slate-800">{c.name}</p>}
+                                onPick={(o) => handleSelectCategory(o.raw)}
                             />
 
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Date <span className="text-rose-500">*</span></label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => dateInputRef.current?.showPicker?.() || dateInputRef.current?.click()}
-                                >
-                                    <input ref={dateInputRef} type="date" onChange={handleDateChange} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                                    <input type="text" readOnly value={formData.date} placeholder="Select date" className={`${inputCls} cursor-pointer pointer-events-none`} />
-                                </div>
+                                <span className={labelCls}>Date *</span>
+                                <DateInput name="date" value={labelToISO(formData.date)} onChange={handleDateChange} placeholder="Select date" />
                             </div>
                         </div>
 
-                        <SearchSelect
-                            label="Select Product"
-                            required
-                            disabled={!formData.company}
-                            hint={formData.company ? '(Damage stock products of this company)' : ''}
-                            placeholder={formData.company ? 'Search or select product...' : 'Select a company first...'}
-                            searchValue={search.product}
-                            onSearchChange={(text) => updateSearch('product', text)}
-                            onClear={() => updateSearch('product', '')}
-                            onSelect={handleSelectProduct}
-                            items={filteredProducts}
-                            getKey={(s) => s.key}
-                            emptyText="No damage stock found"
-                            renderItem={(s) => (
-                                <div className="flex justify-between items-center gap-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-800">{s.productName}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">Company: {s.company}</p>
-                                    </div>
-                                    <span className="text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-lg font-medium border border-red-100 shrink-0">
-                                        Main: {s.paid} | Free: {s.free}
-                                    </span>
-                                </div>
-                            )}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* ---------------- Table + Summary ---------------- */}
-            <div className="w-full px-0 sm:px-1 my-6 relative z-0">
-                <div className="bg-white rounded-3xl shadow-xl shadow-red-900/5 p-6 md:p-8 border border-red-100/70">
-                    <form onSubmit={handleSubmit}>
-                        <div className="overflow-x-auto rounded-2xl border border-red-200">
-                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
-                                <colgroup>
-                                    <col style={{ width: '12%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '14%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '14%' }} />
-                                    <col style={{ width: '9%' }} />
-                                    <col style={{ width: '12%' }} />
-                                    <col style={{ width: '16%' }} />
-                                    <col style={{ width: '5%' }} />
-                                </colgroup>
-                                <thead>
-                                    <tr className="bg-red-100/70 border-b-2 border-red-200 text-xs font-semibold text-red-800">
-                                        <th className="py-3 px-3">Product Name</th>
-                                        <th className="py-3 px-3">Company</th>
-                                        <th className="py-3 pl-4 pr-1">Unit Qty</th>
-                                        <th className="py-3 pl-3 pr-2">PCS Qty</th>
-                                        <th className="py-3 pl-4 pr-1">Free Unit</th>
-                                        <th className="py-3 pl-3 pr-2">Free PCS</th>
-                                        <th className="py-3 px-3">Buy Price (PCS)</th>
-                                        <th className="py-3 px-3">Item Total</th>
-                                        <th className="py-3 px-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-red-100 text-sm">
-                                    {items.length > 0 ? (
-                                        items.map((item) => {
-                                            const unitLabel = item.unit || 'Pcs';
-                                            const stock = getStock(item);
-                                            const ch = (field) => (v) => handleItemChange(item.uniqueId, field, v);
-                                            return (
-                                                <tr key={item.uniqueId} className="hover:bg-red-50/40 transition">
-                                                    <td className="py-3 px-2 font-semibold text-slate-800">{item.productName}</td>
-                                                    <td className="py-3 px-2 text-slate-600 text-xs">{item.company}</td>
-
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.totalQty} | Stock: {stock ? stock.paid - calcBorrow(item).freeFromMain : '...'}
-                                                            {calcBorrow(item).mainFromFree > 0 && (
-                                                                <span className="ml-1 text-amber-600">(Free theke: {calcBorrow(item).mainFromFree})</span>
-                                                            )}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleToggleBorrow(item.uniqueId, 'borrowMain')}
-                                                                className={`pointer-events-auto ml-1.5 px-1.5 rounded-full text-[9px] font-extrabold cursor-pointer ${item.borrowMain ? 'bg-amber-500 text-white' : 'bg-white border border-red-300 text-red-600 hover:bg-red-500 hover:text-white'}`}
-                                                            >
-                                                                Free {item.borrowMain ? '✓' : '+'}
-                                                            </button>
-                                                        </div>
-                                                        <div className="p-1.5 bg-red-50 border border-r-0 border-red-200 rounded-l-2xl">
-                                                            <QtyBox value={item.unitQty} onChange={ch('unitQty')} label={unitLabel} grad="from-red-500 to-rose-500" border="border-red-200" />
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5">
-                                                                    <QtyBox value={item.subQty} onChange={ch('subQty')} label={item.subUnit} grad="from-fuchsia-500 to-pink-500" border="border-red-200" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className="p-1.5 bg-red-50 border border-l-0 border-red-200 rounded-r-2xl">
-                                                            <input
-                                                                type="number" min="0" step="1" placeholder="0"
-                                                                value={item.pcsQty}
-                                                                onChange={(e) => /^\d*$/.test(e.target.value) && ch('pcsQty')(e.target.value)}
-                                                                className="w-full px-3 py-2.5 rounded-xl border border-red-200 bg-white text-sm outline-none shadow-sm focus:border-red-500 focus:ring-2 focus:ring-red-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.freeQty} | Stock: {stock ? stock.free - calcBorrow(item).mainFromFree : '...'}
-                                                            {calcBorrow(item).freeFromMain > 0 && (
-                                                                <span className="ml-1 text-amber-600">(Main theke: {calcBorrow(item).freeFromMain})</span>
-                                                            )}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleToggleBorrow(item.uniqueId, 'borrowFree')}
-                                                                className={`pointer-events-auto ml-1.5 px-1.5 rounded-full text-[9px] font-extrabold cursor-pointer ${item.borrowFree ? 'bg-amber-500 text-white' : 'bg-white border border-emerald-300 text-emerald-600 hover:bg-emerald-500 hover:text-white'}`}
-                                                            >
-                                                                Main {item.borrowFree ? '✓' : '+'}
-                                                            </button>
-                                                        </div>
-                                                        <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
-                                                            <QtyBox value={item.freeUnitQty} onChange={ch('freeUnitQty')} label={unitLabel} grad="from-emerald-500 to-teal-500" border="border-emerald-200" />
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5">
-                                                                    <QtyBox value={item.freeSubQty} onChange={ch('freeSubQty')} label={item.subUnit} grad="from-fuchsia-500 to-pink-500" border="border-emerald-200" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                                            <input
-                                                                type="number" min="0" step="1" placeholder="0"
-                                                                value={item.freePcsQty}
-                                                                onChange={(e) => /^\d*$/.test(e.target.value) && ch('freePcsQty')(e.target.value)}
-                                                                className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="py-3 px-2">
-                                                        <input
-                                                            type="number" min="0" step="0.01"
-                                                            value={item.buyPrice}
-                                                            onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && ch('buyPrice')(e.target.value)}
-                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
-                                                        />
-                                                    </td>
-
-                                                    <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
-                                                        {getRowTotal(item).toFixed(2)}
-                                                    </td>
-
-                                                    <td className="py-3 px-1 text-center">
-                                                        <button type="button" onClick={() => handleRemoveItem(item.uniqueId)} className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition cursor-pointer">
-                                                            {trashIcon}
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="9" className="text-center py-8 text-slate-400 text-sm">
-                                                No products added yet. Please select a company and product above.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Summary */}
-                        <div className="mt-6 flex justify-end">
-                            <div className="w-full md:w-[700px] space-y-2.5 bg-red-50/40 border border-red-100 rounded-2xl p-5">
-                                <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-bold text-red-800">Return Amount</label>
-                                    <input type="text" readOnly value={damageAmount.toFixed(2)} className="flex-1 px-3 py-2.5 border border-red-200 bg-white font-bold text-red-700 text-base rounded-lg outline-none" />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Return Payment (Optional, default disabled) */}
-                        <div className="mt-8">
-                            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
-                                <div className="flex items-center justify-between flex-wrap gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="text-base font-bold text-emerald-800">Return Payment</h3>
-                                        <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
-                                            Return Amount: ৳{damageAmount.toFixed(2)}
-                                        </span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentOpen((prev) => !prev)}
-                                        className="flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
-                                    >
-                                        {paymentOpen ? 'Enabled' : 'Disabled'}
-                                        <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                                            <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
-                                        </span>
-                                    </button>
-                                </div>
-
-                                {paymentOpen && (
-                                    <div className="mt-5">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                    Payment Amount <span className="text-rose-500">*</span>
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={paymentAmount}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                            setPaymentAmount(value);
-                                                            setPaymentAmountTouched(true);
-                                                        }
-                                                    }}
-                                                    className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                    Payment Method <span className="text-rose-500">*</span>
-                                                </label>
-                                                <select
-                                                    value={paymentAccountType}
-                                                    onChange={(e) => {
-                                                        setPaymentAccountType(e.target.value);
-                                                        setSelectedAccountKey(
-                                                            e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
-                                                                ? 'cash'
-                                                                : ''
-                                                        );
-                                                    }}
-                                                    className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
-                                                >
-                                                    <option value="">Select method...</option>
-                                                    {accountTypes.map((type) => (
-                                                        <option key={type} value={type}>{type}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                    Account <span className="text-rose-500">*</span>
-                                                </label>
-                                                <select
-                                                    value={selectedAccountKey}
-                                                    onChange={(e) => setSelectedAccountKey(e.target.value)}
-                                                    disabled={!paymentAccountType}
-                                                    className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
-                                                        ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
-                                                        : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                        }`}
-                                                >
-                                                    <option value="">
-                                                        {paymentAccountType ? 'Select account...' : 'Select method first'}
-                                                    </option>
-                                                    {uniqueAccounts.map((inv) => {
-                                                        const k = getAccountKey(inv);
-                                                        const label =
-                                                            inv.accountType === 'Bank'
-                                                                ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
-                                                                : inv.accountType === 'Mobile Banking'
-                                                                    ? `${inv.accountName} - ${inv.accountNumber}`
-                                                                    : 'Cash';
-                                                        return <option key={k} value={k}>{label}</option>;
-                                                    })}
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-6">
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
-                                            </label>
-                                            <textarea
-                                                rows="2"
-                                                placeholder="Write any note about this payment..."
-                                                value={paymentNote}
-                                                onChange={(e) => setPaymentNote(e.target.value)}
-                                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Note */}
-                        <div className="mt-8">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Damage Note</label>
-                            <textarea
-                                rows="3"
-                                placeholder="Write any note about this damage return..."
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 resize-y shadow-sm"
+                        <div className="mt-4">
+                            <Combo
+                                label="Select Product *"
+                                hint={formData.company ? '(Damage stock products of this company)' : ''}
+                                disabled={!formData.company}
+                                placeholder={formData.company ? 'Search or select product...' : 'Select a company first...'}
+                                value={search.product}
+                                options={filteredProducts.map((s) => ({
+                                    key: s.key,
+                                    title: s.productName,
+                                    sub: `Company: ${s.company} | Main: ${s.paid} | Free: ${s.free}`,
+                                    raw: s,
+                                }))}
+                                onType={(text) => updateSearch('product', text)}
+                                onClear={() => updateSearch('product', '')}
+                                onPick={(o) => handleSelectProduct(o.raw)}
                             />
                         </div>
+                    </Card>
+                </div>
 
-                        {/* Button */}
-                        <div className="mt-6 flex justify-end">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Items */}
+                    {items.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+                            No products added yet. Please select a company and product above.
+                        </div>
+                    ) : (
+                        items.map((item) => {
+                            const id = item.uniqueId;
+                            const unitLabel = item.unit || 'Pcs';
+                            const st = getStock(item);
+                            const borrow = calcBorrow(item);
+                            const rowTotal = getRowTotal(item);
+                            return (
+                                <div key={id} className="bg-white rounded-2xl border border-slate-200 p-4">
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-slate-800 truncate">{item.productName}</p>
+                                            <p className="text-xs text-slate-500">{item.company}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className="text-right">
+                                                <p className="text-[11px] text-slate-400">Item Total</p>
+                                                <p className="font-bold text-emerald-700">{rowTotal.toFixed(2)}</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                aria-label="Remove product"
+                                                onClick={() => handleRemoveItem(id)}
+                                                className="w-10 h-10 flex items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                        {/* Main */}
+                                        <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-3">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                                <p className="text-xs font-bold text-brand-700">
+                                                    Main · Total {item.totalQty}
+                                                    <span className="ml-1 text-slate-500 font-semibold">
+                                                        · Stock {st ? st.paid - borrow.freeFromMain : '...'}
+                                                    </span>
+                                                    {borrow.mainFromFree > 0 && (
+                                                        <span className="ml-1 text-amber-600">(Free theke: {borrow.mainFromFree})</span>
+                                                    )}
+                                                </p>
+                                                {borrowBtn(item.borrowMain, () => handleToggleBorrow(id, 'borrowMain'), 'Free', 'border-brand-300 text-brand-700 hover:bg-brand-600 hover:text-white')}
+                                            </div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                <QtyField label={unitLabel} value={item.unitQty} onChange={num(id, 'unitQty')} />
+                                                {item.parentMode && <QtyField label={item.subUnit || 'Sub'} value={item.subQty ?? ''} onChange={num(id, 'subQty')} />}
+                                                <QtyField label="Pcs" value={item.pcsQty} onChange={num(id, 'pcsQty')} />
+                                            </div>
+                                        </div>
+
+                                        {/* Free */}
+                                        <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                                <p className="text-xs font-bold text-emerald-700">
+                                                    Free · Total {item.freeQty}
+                                                    <span className="ml-1 text-slate-500 font-semibold">
+                                                        · Stock {st ? st.free - borrow.mainFromFree : '...'}
+                                                    </span>
+                                                    {borrow.freeFromMain > 0 && (
+                                                        <span className="ml-1 text-amber-600">(Main theke: {borrow.freeFromMain})</span>
+                                                    )}
+                                                </p>
+                                                {borrowBtn(item.borrowFree, () => handleToggleBorrow(id, 'borrowFree'), 'Main', 'border-emerald-300 text-emerald-700 hover:bg-emerald-600 hover:text-white')}
+                                            </div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                <QtyField label={unitLabel} value={item.freeUnitQty} onChange={num(id, 'freeUnitQty')} />
+                                                {item.parentMode && <QtyField label={item.subUnit || 'Sub'} value={item.freeSubQty ?? ''} onChange={num(id, 'freeSubQty')} />}
+                                                <QtyField label="Pcs" value={item.freePcsQty} onChange={num(id, 'freePcsQty')} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Buy price */}
+                                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 sm:max-w-xs">
+                                        <label className="block">
+                                            <span className="block text-[11px] font-medium text-slate-500 mb-1">Buy Price (PCS)</span>
+                                            <input
+                                                type="number"
+                                                inputMode="decimal"
+                                                min="0"
+                                                step="0.01"
+                                                value={item.buyPrice}
+                                                onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && handleItemChange(id, 'buyPrice', e.target.value)}
+                                                className={inputCls}
+                                            />
+                                        </label>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+
+                    {/* Summary */}
+                    <Card>
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-bold text-rose-700">Return Amount</span>
+                            <span className="text-xl font-bold text-rose-600">৳{damageAmount.toFixed(2)}</span>
+                        </div>
+                    </Card>
+
+                    {/* Return Payment (optional, default disabled) */}
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-base font-bold text-emerald-800">Return Payment</h3>
+                                <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold">
+                                    Return Amount: ৳{damageAmount.toFixed(2)}
+                                </span>
+                            </div>
                             <button
-                                type="submit"
-                                disabled={isSaving}
-                                className="px-10 py-3 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-sm font-semibold text-white shadow-md shadow-red-200 transition cursor-pointer disabled:opacity-60"
+                                type="button"
+                                role="switch"
+                                aria-checked={paymentOpen}
+                                onClick={() => setPaymentOpen((prev) => !prev)}
+                                className="h-10 flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
                             >
-                                {isEditMode ? 'Update Damage Return' : 'Add Damage Return'}
+                                {paymentOpen ? 'Enabled' : 'Disabled'}
+                                <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                    <span className={`inline-block h-[18px] w-[18px] rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </span>
                             </button>
                         </div>
-                    </form>
-                </div>
+
+                        {paymentOpen && (
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className={labelCls}>Payment Amount *</label>
+                                    <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={paymentAmount}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                setPaymentAmount(value);
+                                                setPaymentAmountTouched(true);
+                                            }
+                                        }}
+                                        className={inputCls}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Payment Method *</label>
+                                    <select
+                                        value={paymentAccountType}
+                                        onChange={(e) => {
+                                            setPaymentAccountType(e.target.value);
+                                            setSelectedAccountKey(
+                                                e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
+                                                    ? 'cash'
+                                                    : ''
+                                            );
+                                        }}
+                                        className={`${inputCls} cursor-pointer`}
+                                    >
+                                        <option value="">Select method...</option>
+                                        {accountTypes.map((type) => (
+                                            <option key={type} value={type}>{type}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Account *</label>
+                                    <select
+                                        value={selectedAccountKey}
+                                        onChange={(e) => setSelectedAccountKey(e.target.value)}
+                                        disabled={!paymentAccountType}
+                                        className={`${inputCls} cursor-pointer`}
+                                    >
+                                        <option value="">{paymentAccountType ? 'Select account...' : 'Select method first'}</option>
+                                        {uniqueAccounts.map((inv) => {
+                                            const k = getAccountKey(inv);
+                                            const label =
+                                                inv.accountType === 'Bank'
+                                                    ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
+                                                    : inv.accountType === 'Mobile Banking'
+                                                        ? `${inv.accountName} - ${inv.accountNumber}`
+                                                        : 'Cash';
+                                            return <option key={k} value={k}>{label}</option>;
+                                        })}
+                                    </select>
+                                </div>
+                                <div className="md:col-span-3">
+                                    <label className={labelCls}>Payment Note (Optional)</label>
+                                    <textarea
+                                        rows="2"
+                                        placeholder="Write any note about this payment..."
+                                        value={paymentNote}
+                                        onChange={(e) => setPaymentNote(e.target.value)}
+                                        className={`${inputCls} resize-y`}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Note */}
+                    <Card>
+                        <label className={labelCls}>Damage Note</label>
+                        <textarea
+                            rows="3"
+                            placeholder="Write any note about this damage return..."
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            className={`${inputCls} resize-y`}
+                        />
+                    </Card>
+
+                    <div className="flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={isSaving}
+                            className="bg-brand-600 text-white text-sm font-semibold px-10 py-3 w-full sm:w-auto disabled:opacity-60 cursor-pointer"
+                        >
+                            {isSaving ? 'Saving...' : isEditMode ? 'Update Damage Return' : 'Add Damage Return'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

@@ -73,6 +73,69 @@ const MOBILE_TAG = {
     slate: 'bg-slate-100 text-slate-600',
 };
 
+const statusLabel = (item) => (isReceived(item) ? 'Received' : 'Not Received');
+
+const ExtraDropdown = ({ tags, compact = false }) => {
+    const [open, setOpen] = useState(false);
+    const [pos, setPos] = useState({ left: 0, top: 0, bottom: undefined });
+    const ref = useRef(null);
+    useEffect(() => {
+        if (!open) return;
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        const close = () => setOpen(false);
+        document.addEventListener('mousedown', h);
+        document.addEventListener('touchstart', h);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        return () => {
+            document.removeEventListener('mousedown', h);
+            document.removeEventListener('touchstart', h);
+            window.removeEventListener('scroll', close, true);
+            window.removeEventListener('resize', close);
+        };
+    }, [open]);
+
+    if (tags.length === 0) return <span className="text-xs text-slate-300">N/A</span>;
+
+    return (
+        <div className="relative inline-block" ref={ref}>
+            <button
+                type="button"
+                onClick={(e) => {
+                    if (!open) {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        const h = tags.length * 34 + 16;
+                        const up = r.bottom + h > window.innerHeight;
+                        setPos({
+                            left: Math.max(8, Math.min(r.left, window.innerWidth - 230)),
+                            top: up ? undefined : r.bottom + 4,
+                            bottom: up ? window.innerHeight - r.top + 4 : undefined,
+                        });
+                    }
+                    setOpen((p) => !p);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer ${compact ? 'px-2 py-0.5 text-[9px]' : 'px-2.5 py-1 text-xs'}`}
+            >
+                Extra
+                <span className={`rounded-full bg-brand-50 text-brand-700 font-bold ${compact ? 'px-1 text-[8px]' : 'px-1.5 text-[10px]'}`}>{tags.length}</span>
+                <FaChevronDown size={compact ? 7 : 9} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && (
+                <div
+                    style={{ position: 'fixed', left: pos.left, top: pos.top, bottom: pos.bottom }}
+                    className="z-[100] min-w-[150px] max-w-[220px] bg-white rounded-xl border border-slate-200 shadow-lg p-2 flex flex-col gap-1.5"
+                >
+                    {tags.map((t) => (
+                        <Pill key={t.label} tone={t.tone}>{t.label}</Pill>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const renderPaid = (item) => {
     if ((Number(item.payableAmount) || 0) <= 0) return <Pill tone="slate">No Bill</Pill>;
     if (!isReceived(item) || !item.paidAmount) return <Pill tone="rose">Not Paid</Pill>;
@@ -564,31 +627,22 @@ const Purchase = () => {
                                                 <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
                                                     <div className="flex items-center gap-1.5 min-w-0">
                                                         <p className="text-[10.5px] text-slate-500 leading-snug truncate min-w-0">
-                                                            <span className="uppercase text-slate-400 font-bold">Purchase: </span>
-                                                            {item.purchaseDate || 'N/A'}
+                                                            <span className="uppercase text-slate-400 text-[9px]">Purchase: </span>
+                                                            <span className="font-normal">{item.purchaseDate || 'N/A'}</span>
                                                         </p>
+                                                    </div>
+                                                    <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                        <span className="uppercase text-slate-400 text-[9px]">Received: </span>
+                                                        <span className="font-normal">{item.receiveDate || <span className="text-amber-600 font-normal">Not Received</span>}</span>
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        {tags.length > 0 && <ExtraDropdown tags={tags} compact />}
                                                         <span
                                                             className={`shrink-0 px-1.5 py-px rounded-full text-[9px] font-bold leading-tight ${rec ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
                                                         >
-                                                            {item.receiveStatus || 'No'}
+                                                            {statusLabel(item)}
                                                         </span>
                                                     </div>
-                                                    <p className="text-[10.5px] text-slate-500 leading-snug truncate">
-                                                        <span className="uppercase text-slate-400 font-bold">Received: </span>
-                                                        {item.receiveDate || <span className="text-amber-600 font-semibold">Not Received</span>}
-                                                    </p>
-                                                    {tags.length > 0 && (
-                                                        <div className="flex flex-wrap gap-x-1 gap-y-0.5">
-                                                            {tags.map((t) => (
-                                                                <span
-                                                                    key={t.label}
-                                                                    className={`inline-flex items-center px-1.5 py-px rounded-full text-[9px] font-semibold leading-tight whitespace-nowrap ${MOBILE_TAG[t.tone]}`}
-                                                                >
-                                                                    {t.label}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    )}
                                                 </div>
 
                                                 {/* Right: checkbox + actions, total, paid */}
@@ -649,18 +703,10 @@ const Purchase = () => {
                                                     <td className="px-3 py-3 font-bold text-brand-700 whitespace-nowrap">৳{item.payableAmount}</td>
                                                     <td className="px-3 py-3 whitespace-nowrap">{renderPaid(item)}</td>
                                                     <td className="px-3 py-3">
-                                                        {tags.length === 0 ? (
-                                                            <span className="text-xs text-slate-300">N/A</span>
-                                                        ) : (
-                                                            <div className="flex flex-wrap gap-1 max-w-[180px]">
-                                                                {tags.map((t) => (
-                                                                    <Pill key={t.label} tone={t.tone}>{t.label}</Pill>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                        <ExtraDropdown tags={tags} />
                                                     </td>
                                                     <td className="px-3 py-3">
-                                                        <Pill tone={isReceived(item) ? 'green' : 'slate'}>{item.receiveStatus || 'No'}</Pill>
+                                                        <Pill tone={isReceived(item) ? 'green' : 'slate'}>{statusLabel(item)}</Pill>
                                                     </td>
                                                     <td className="px-3 py-3 text-center">
                                                         <RowMenu items={menuItems(item)} />

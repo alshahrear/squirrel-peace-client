@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { FaTrash, FaStickyNote, FaTimes, FaEye, FaClock, FaFilter, FaRedo, FaChevronLeft, FaChevronRight, FaPlus, FaMinus } from 'react-icons/fa';
+import toast from 'react-hot-toast';
+import { FaStickyNote, FaTimes, FaPlus, FaMinus } from 'react-icons/fa';
 import SalesDuePaymentForm from './SalesDuePaymentForm';
-import { calcCustomerBalance } from '../../Software/Contact/Customer/CustomerAccountAc'; // path ta nijer folder onujayi thik koro
+import { calcCustomerBalance } from '../../Software/Contact/Customer/CustomerAccountAc';
 import { fetchAccountBalance } from '../../Software/Account/AccountBalance';
 import useCan from '../../../../hooks/useCan';
+import { DateInput } from '../Product/ProductUi';
+import { inputCls, labelCls, Pill, Pager, ComboField, FilterPanel, RowMenu, ListSkeleton, Empty } from '../Purchase/PurchaseUi';
+
 const getTodayISO = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -25,30 +29,6 @@ const emptyForm = () => ({
     deliveredById: '',
     deliveredBy: '',
 });
-
-// 26/08/2026, 3:19:09 pm
-const formatDateTime = (date = new Date()) => {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    let hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
-};
-
-const formatCreatedDate = (value) => {
-    if (!value) return '';
-    const datePart = value.split(/[ ,]/)[0];
-    const [day, month, year] = datePart.split('/');
-    if (!day || !month || !year) return value;
-    const dateObj = new Date(year, month - 1, day);
-    if (isNaN(dateObj)) return value;
-    return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
 
 const displayFormattedDate = (dateString) => {
     if (!dateString) return '';
@@ -102,9 +82,11 @@ const getAccountLabel = (method, acc = {}) => {
 const getDueType = (p) =>
     p?.type === 'Pay' || p?.status === 'Pay' || p?.paymentAccount?.dueType === 'Pay' ? 'Pay' : 'Get';
 
+const money = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const SalesDuePayment = () => {
-    const [payments, setPayments] = useState([]);
     const can = useCan('sales_due_payment');
+    const [payments, setPayments] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [investments, setInvestments] = useState([]);
     const [sales, setSales] = useState([]);
@@ -115,43 +97,19 @@ const SalesDuePayment = () => {
     const [formKey, setFormKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
     const submitLock = useRef(false);
-
-    const [openDropdownId, setOpenDropdownId] = useState(null);
-    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
 
     const [selectedNote, setSelectedNote] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-
-    const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
     const [filters, setFilters] = useState({ startDate: '', endDate: '', customer: '', customerContact: '', invoiceNo: '', status: '' });
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
 
-    // Customer searchable-select state (filter)
-    const [isCustomerFilterOpen, setIsCustomerFilterOpen] = useState(false);
-    const customerFilterRef = useRef(null);
+    const showToast = (message, type = 'success') => (type === 'error' ? toast.error(message) : toast.success(message));
 
-    useEffect(() => {
-        const handleClickOutsideCustomerFilter = (event) => {
-            if (customerFilterRef.current && !customerFilterRef.current.contains(event.target)) {
-                setIsCustomerFilterOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutsideCustomerFilter);
-        return () => document.removeEventListener('mousedown', handleClickOutsideCustomerFilter);
-    }, []);
-
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => setToast({ show: false, message: '', type: '' }), 3500);
-    };
-
-    // ---------------- Fetch ----------------
     const fetchPayments = async () => {
         try {
             const res = await fetch('http://localhost:5000/sales-due-payment');
@@ -159,12 +117,13 @@ const SalesDuePayment = () => {
             setPayments(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching due payments:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
     useEffect(() => {
         fetchPayments();
-
         const load = (url, setter, label) =>
             fetch(url)
                 .then((res) => res.json())
@@ -178,21 +137,6 @@ const SalesDuePayment = () => {
         load('http://localhost:5000/investment', setInvestments, 'investments');
         load('http://localhost:5000/user', setUsers, 'users');
     }, []);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.action-dropdown-container')) setOpenDropdownId(null);
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    useEffect(() => {
-        if (openDropdownId === null) return;
-        const handleScroll = () => setOpenDropdownId(null);
-        window.addEventListener('scroll', handleScroll, true);
-        return () => window.removeEventListener('scroll', handleScroll, true);
-    }, [openDropdownId]);
 
     // ---------------- SR / Delivery Man list ----------------
     const roleOf = (u) => String(u.role || u.userRole || u.designation || '').toLowerCase();
@@ -213,7 +157,7 @@ const SalesDuePayment = () => {
         });
     const uniqueAccounts = Array.from(uniqueAccountsMap.values());
 
-    // ---------------- Balance (CustomerAccountAc er final Pay / Get) ----------------
+    // ---------------- Balance ----------------
     const balance = (() => {
         const b = calcCustomerBalance(
             { sales, bulkReturns, damageReturns, duePayments: payments, customers },
@@ -262,7 +206,6 @@ const SalesDuePayment = () => {
 
         const dueType = formData.type === 'Pay' ? 'Pay' : 'Get';
 
-        // lock age set, jate slow balance check cholar somoy bar bar click e duplicate row na hoy
         submitLock.current = true;
         setIsSubmitting(true);
         const releaseLock = () => {
@@ -270,7 +213,7 @@ const SalesDuePayment = () => {
             submitLock.current = false;
         };
 
-        // Pay hole (customer ke dile) oi account e porjapto balance ache kina check
+        // Pay hole oi account e porjapto balance ache kina
         if (dueType === 'Pay') {
             const payAmt = Math.round((Number(formData.amount) || 0) * 100) / 100;
             let available = 0;
@@ -284,16 +227,13 @@ const SalesDuePayment = () => {
             }
             available = Math.round(available * 100) / 100;
             if (available <= 0 || payAmt > available) {
-                showToast(
-                    `Ei account e etoh balance nai! Available: ৳${Math.max(available, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                    'error'
-                );
+                showToast(`Ei account e etoh balance nai! Available: ৳${money(Math.max(available, 0))}`, 'error');
                 releaseLock();
                 return;
             }
         }
 
-        // Credit Limit check: customer ke Pay dile customer er Get amount creditLimit er beshi hoye jabe kina
+        // Credit limit check (Pay dile)
         if (dueType === 'Pay') {
             const custInfo =
                 customers.find((c) => String(c._id) === String(formData.customerId)) ||
@@ -337,7 +277,6 @@ const SalesDuePayment = () => {
             type: dueType,
             status: dueType,
             invoiceNo: generateInvoiceNo(),
-            createdAt: formatDateTime(new Date()),
         };
 
         try {
@@ -362,21 +301,22 @@ const SalesDuePayment = () => {
             showToast('Failed to add payment!', 'error');
         } finally {
             setIsSubmitting(false);
-            setTimeout(() => { submitLock.current = false; }, 1000);
+            setTimeout(() => {
+                submitLock.current = false;
+            }, 1000);
         }
     };
 
     // ---------------- Delete ----------------
     const handleDelete = (id) => {
         if (!can.canDelete) return showToast('আপনার Delete করার অনুমতি নেই!', 'error');
-        setOpenDropdownId(null);
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6b7280',
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
             confirmButtonText: 'Yes, delete it!',
         }).then(async (result) => {
             if (result.isConfirmed) {
@@ -404,36 +344,21 @@ const SalesDuePayment = () => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
         setCurrentPage(1);
     };
-
     const handleClearFilters = () => {
         setFilters({ startDate: '', endDate: '', customer: '', customerContact: '', invoiceNo: '', status: '' });
         setCurrentPage(1);
     };
 
-    const filteredCustomerOptions = customers.filter((c) => {
-        const s = filters.customer.toLowerCase();
-        return (
-            c.businessName?.toLowerCase().includes(s) ||
-            c.contactNumber?.toLowerCase().includes(s)
-        );
-    });
-
     const getPhoneByName = (name) =>
         customers.find((c) => (c.businessName || '').trim().toLowerCase() === (name || '').trim().toLowerCase())?.contactNumber || '';
     const getPaymentPhone = (p) => p.customerContact || getPhoneByName(p.customer);
 
-    const handleSelectCustomerFilter = (c) => {
-        setFilters({ ...filters, customer: c.businessName, customerContact: c.contactNumber || '' });
-        setCurrentPage(1);
-        setIsCustomerFilterOpen(false);
-    };
-
-    const handleClearCustomerFilter = (e) => {
-        e.stopPropagation();
-        setFilters({ ...filters, customer: '', customerContact: '' });
-        setCurrentPage(1);
-        setIsCustomerFilterOpen(false);
-    };
+    const customerFilterOptions = customers
+        .filter((c) => {
+            const s = filters.customer.toLowerCase();
+            return c.businessName?.toLowerCase().includes(s) || c.contactNumber?.toLowerCase().includes(s);
+        })
+        .map((c) => ({ key: c._id, title: c.businessName, sub: c.contactNumber ? `📞 ${c.contactNumber}` : '', raw: c }));
 
     const filteredPayments = payments.filter((p) => {
         if (filters.startDate && (!p.date || p.date < filters.startDate)) return false;
@@ -456,52 +381,44 @@ const SalesDuePayment = () => {
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentPayments = filteredPayments.slice(indexOfFirstItem, indexOfLastItem);
 
-    const handlePageChange = (pageNumber) => {
-        if (pageNumber >= 1 && pageNumber <= totalPages) setCurrentPage(pageNumber);
+    const handlePageChange = (n) => {
+        if (n >= 1 && n <= totalPages) setCurrentPage(n);
     };
 
-    const TH = 'px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider';
+    const activeCount = ['startDate', 'endDate', 'customer', 'invoiceNo', 'status'].filter((k) => filters[k]).length;
+
+    const typePill = (p) => (getDueType(p) === 'Get' ? <Pill tone="green">Get</Pill> : <Pill tone="rose">Pay</Pill>);
+    const menuItems = (p) => [{ label: 'Delete', tone: 'danger', onClick: () => handleDelete(p._id) }];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4 sm:px-6 lg:px-8 relative">
-
-            {/* Toast */}
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white font-medium transition-all duration-300 ${toast.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                    <span>{toast.message}</span>
-                </div>
-            )}
-
-            <div className="max-w-7xl mx-auto">
-
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1600px] mx-auto space-y-4">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                            Sales Due Payment
-                        </h1>
-                        <p className="text-gray-500 text-sm mt-1">Receive customer dues and keep track of every payment.</p>
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Sales Due Payment</h1>
+                        <p className="text-sm text-slate-500 mt-0.5">Receive customer dues and keep track of every payment.</p>
                     </div>
-
-                    <button
-                        onClick={() => {
-                            if (!isFormOpen && !can.canAdd) return showToast('আপনার Add করার অনুমতি নেই!', 'error');
-                            setIsFormOpen(!isFormOpen);
-                        }}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 cursor-pointer ${isFormOpen
-                            ? 'bg-red-500 hover:bg-red-600 shadow-red-200'
-                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
-                            }`}
-                    >
-                        {isFormOpen ? <><FaMinus /> Close Form</> : <><FaPlus /> Add Due Payment</>}
-                    </button>
+                    {isFormOpen ? (
+                        <button
+                            type="button"
+                            onClick={() => setIsFormOpen(false)}
+                            className="h-11 px-5 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 w-full sm:w-auto cursor-pointer"
+                        >
+                            <FaMinus size={12} /> Close Form
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => (can.canAdd ? setIsFormOpen(true) : showToast('আপনার Add করার অনুমতি নেই!', 'error'))}
+                            className="bg-brand-600 text-white text-sm font-semibold px-5 py-2.5 inline-flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
+                        >
+                            <FaPlus size={12} /> Add Due Payment
+                        </button>
+                    )}
                 </div>
 
-                {/* Collapsible Form */}
-                <div
-                    className={`transition-all duration-500 ease-in-out ${isFormOpen ? 'max-h-[1000px] opacity-100 mb-8 overflow-visible' : 'max-h-0 opacity-0 mb-0 overflow-hidden'
-                        }`}
-                >
+                {isFormOpen && (
                     <SalesDuePaymentForm
                         key={formKey}
                         formData={formData}
@@ -517,377 +434,213 @@ const SalesDuePayment = () => {
                         deliveryList={deliveryList}
                         isSubmitting={isSubmitting}
                     />
-                </div>
+                )}
 
-                {/* Filter Panel */}
-                <div className="bg-white shadow-lg rounded-2xl p-5 mb-6 border border-indigo-100">
-                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                        <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                        </h3>
-                        <button
-                            onClick={handleClearFilters}
-                            className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
-                        >
-                            <FaRedo size={11} /> Clear All Filters
-                        </button>
+                <FilterPanel activeCount={activeCount} onClear={handleClearFilters} cols="lg:grid-cols-5">
+                    <div>
+                        <span className={labelCls}>Start Date</span>
+                        <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                            <div
-                                className="relative w-full cursor-pointer"
-                                onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                            >
-                                <input
-                                    ref={startDateRef}
-                                    type="date"
-                                    name="startDate"
-                                    value={filters.startDate}
-                                    onChange={handleFilterChange}
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                />
-                                <input
-                                    type="text"
-                                    readOnly
-                                    placeholder="Select start date"
-                                    value={displayFormattedDate(filters.startDate)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                            <div
-                                className="relative w-full cursor-pointer"
-                                onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                            >
-                                <input
-                                    ref={endDateRef}
-                                    type="date"
-                                    name="endDate"
-                                    value={filters.endDate}
-                                    onChange={handleFilterChange}
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                />
-                                <input
-                                    type="text"
-                                    readOnly
-                                    placeholder="Select end date"
-                                    value={displayFormattedDate(filters.endDate)}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice Number</label>
-                            <input
-                                type="text"
-                                name="invoiceNo"
-                                placeholder="Search invoice..."
-                                value={filters.invoiceNo}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Status</label>
-                            <select
-                                name="status"
-                                value={filters.status}
-                                onChange={handleFilterChange}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 cursor-pointer"
-                            >
-                                <option value="">All</option>
-                                <option value="Get">Get</option>
-                                <option value="Pay">Pay</option>
-                            </select>
-                        </div>
-
-                        <div className="relative" ref={customerFilterRef}>
-                            <label className="block text-gray-600 text-[11px] font-semibold mb-1">Customer</label>
-                            <div
-                                onClick={() => setIsCustomerFilterOpen(true)}
-                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer flex items-center justify-between"
-                            >
-                                <input
-                                    type="text"
-                                    placeholder="Search or select customer..."
-                                    value={filters.customer}
-                                    onChange={(e) => {
-                                        setFilters({ ...filters, customer: e.target.value, customerContact: '' });
-                                        setCurrentPage(1);
-                                        setIsCustomerFilterOpen(true);
-                                    }}
-                                    className="bg-transparent outline-none w-full text-xs text-gray-700"
-                                />
-                                {filters.customer && (
-                                    <button type="button" onClick={handleClearCustomerFilter} className="text-gray-400 hover:text-red-500 pl-1">
-                                        <FaTimes size={10} />
-                                    </button>
-                                )}
-                            </div>
-
-                            {isCustomerFilterOpen && (
-                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white rounded-lg shadow-2xl border border-indigo-100 max-h-48 overflow-y-auto">
-                                    {filteredCustomerOptions.length > 0 ? (
-                                        filteredCustomerOptions.map((c) => (
-                                            <div
-                                                key={c._id}
-                                                onClick={() => handleSelectCustomerFilter(c)}
-                                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-none transition duration-150"
-                                            >
-                                                <p className="text-xs font-semibold text-gray-800">{c.businessName}</p>
-                                                {c.contactNumber && (
-                                                    <p className="text-[11px] text-gray-500 mt-0.5">📞 {c.contactNumber}</p>
-                                                )}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">No customer found</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                    <div>
+                        <span className={labelCls}>End Date</span>
+                        <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
                     </div>
-                </div>
+                    <div>
+                        <label className={labelCls}>Invoice Number</label>
+                        <input type="text" name="invoiceNo" placeholder="Search invoice..." value={filters.invoiceNo} onChange={handleFilterChange} className={inputCls} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>Status</label>
+                        <select name="status" value={filters.status} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                            <option value="">All</option>
+                            <option value="Get">Get</option>
+                            <option value="Pay">Pay</option>
+                        </select>
+                    </div>
+                    <ComboField
+                        label="Customer"
+                        value={filters.customer}
+                        placeholder="Search customer..."
+                        options={customerFilterOptions}
+                        onType={(v) => {
+                            setFilters({ ...filters, customer: v, customerContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onClear={() => {
+                            setFilters({ ...filters, customer: '', customerContact: '' });
+                            setCurrentPage(1);
+                        }}
+                        onPick={(o) => {
+                            setFilters({ ...filters, customer: o.raw.businessName, customerContact: o.raw.contactNumber || '' });
+                            setCurrentPage(1);
+                        }}
+                    />
+                </FilterPanel>
 
-                {/* Table */}
-                <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-indigo-100">
-                    <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex flex-wrap gap-2 justify-between items-center">
-                        <h2 className="text-xl font-bold">Due Payment History</h2>
-                        <div className="flex items-center gap-2">
-                            <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                                Total: ৳ {totalFilteredAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                            <span className="bg-white/20 px-3 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
-                                Showing: {filteredPayments.length > 0 ? `${indexOfFirstItem + 1}-${Math.min(indexOfLastItem, filteredPayments.length)}` : 0} of {filteredPayments.length} ({payments.length} total)
-                            </span>
+                {/* History */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-1.5 sm:p-4 space-y-2 sm:space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-base font-bold text-slate-800">Due Payment History</h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Pill tone="brand">Total: ৳ {money(totalFilteredAmount)}</Pill>
+                            <Pill tone="slate">{filteredPayments.length} of {payments.length}</Pill>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto overflow-y-visible">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className={TH}>Customer</th>
-                                    <th className={TH}>Date</th>
-                                    <th className={TH}>Invoice</th>
-                                    <th className={TH}>SR</th>
-                                    <th className={TH}>Delivery Man</th>
-                                    <th className={TH}>Payment Method</th>
-                                    <th className={TH}>Payment Account</th>
-                                    <th className={TH}>Amount</th>
-                                    <th className={TH}>Status</th>
-                                    <th className={`${TH} text-center`}>Note</th>
-                                    <th className={TH}>Created At</th>
-                                    <th className={`${TH} text-center`}>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-100">
-                                {currentPayments.length > 0 ? (
-                                    currentPayments.map((p) => (
-                                        <tr key={p._id} className="hover:bg-indigo-50/50 transition-colors">
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                                                {p.customer}
-                                                {getPaymentPhone(p) && (
-                                                    <div className="text-xs font-normal text-gray-400">📞 {getPaymentPhone(p)}</div>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {displayFormattedDate(p.date)}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 font-medium">
-                                                {getInvoiceNo(p) || 'N/A'}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {p.sr || 'N/A'}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {p.deliveredBy || 'N/A'}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-700">
-                                                    {p.paymentMethod}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {getAccountLabel(p.paymentMethod, p.paymentAccount)}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
-                                                ৳ {Number(p.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-bold border ${getDueType(p) === 'Get' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
-                                                    {getDueType(p)}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
-                                                <button
-                                                    onClick={() => handleOpenModal(p.note)}
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-lg transition-all text-xs font-semibold shadow-sm cursor-pointer"
-                                                >
-                                                    <FaEye size={12} /> View Note
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                                {p.createdAt ? (
-                                                    <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
-                                                        <FaClock className="text-indigo-400" size={11} /> {formatCreatedDate(p.createdAt)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400 italic text-xs">N/A</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium relative">
-                                                <div className="relative inline-block action-dropdown-container">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setDropdownPos({ top: rect.top - 8, left: rect.right });
-                                                            setOpenDropdownId(openDropdownId === p._id ? null : p._id);
-                                                        }}
-                                                        className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-xl transition duration-200 font-semibold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
-                                                    >
-                                                        <span>Select</span>
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={2}
-                                                            stroke="currentColor"
-                                                            className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdownId === p._id ? 'rotate-180' : ''}`}
-                                                        >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                                        </svg>
-                                                    </button>
-
-                                                    {openDropdownId === p._id && (
-                                                        <div
-                                                            style={{ top: dropdownPos.top, left: dropdownPos.left, transform: 'translate(-100%, -100%)' }}
-                                                            className="fixed w-36 bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-gray-100 py-2 z-[9999] text-left"
-                                                        >
-                                                            <button
-                                                                onClick={() => handleDelete(p._id)}
-                                                                className="w-full px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition duration-150 cursor-pointer"
-                                                            >
-                                                                <FaTrash size={12} className="text-rose-500" />
-                                                                Delete
-                                                            </button>
-                                                        </div>
+                    {loading ? (
+                        <ListSkeleton />
+                    ) : filteredPayments.length === 0 ? (
+                        <Empty text="No matching payments found!" />
+                    ) : (
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden space-y-1.5">
+                                {currentPayments.map((p) => {
+                                    const isGetRow = getDueType(p) === 'Get';
+                                    const phone = getPaymentPhone(p);
+                                    return (
+                                        <div key={p._id} className="relative rounded-xl border border-slate-200 bg-white pl-3 pr-2 py-2 shadow-sm">
+                                            <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${isGetRow ? 'bg-emerald-500' : 'bg-rose-400'}`} />
+                                            <div className="flex items-stretch gap-2">
+                                                <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <p className="font-bold text-[13px] text-brand-700 truncate leading-tight min-w-0">{p.customer}</p>
+                                                        {phone && (
+                                                            <span className="shrink-0 text-[10px] font-semibold text-slate-600 bg-slate-100 rounded-full px-1.5 py-px leading-tight">
+                                                                📞 {phone}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <span className="shrink-0 px-1.5 py-px rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold leading-tight">
+                                                            #{getInvoiceNo(p) || 'N/A'}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-500 leading-tight truncate min-w-0">{displayFormattedDate(p.date)}</span>
+                                                    </div>
+                                                    <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">{p.paymentMethod || 'Method'}: </span>
+                                                        {getAccountLabel(p.paymentMethod, p.paymentAccount)}
+                                                    </p>
+                                                    {(p.sr || p.deliveredBy) && (
+                                                        <p className="text-[10.5px] text-slate-500 leading-snug truncate">
+                                                            <span className="uppercase text-slate-400 font-bold">{p.sr ? 'SR' : 'Delivery'}: </span>
+                                                            {p.sr || p.deliveredBy}
+                                                        </p>
                                                     )}
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="12" className="text-center py-10 text-gray-400 text-sm">
-                                            No matching payments found!
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
 
-                    {/* Pagination */}
-                    {filteredPayments.length > 0 && (
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{currentPage}</span> of <span className="font-bold text-gray-700">{totalPages}</span>
-                            </span>
-
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
-                                </button>
-
-                                <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                        }`}
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                        }
-                                        return null;
-                                    })}
-                                </div>
-
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
+                                                <div className="shrink-0 w-[104px] flex flex-col items-end justify-between gap-1.5">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Note"
+                                                            onClick={() => handleOpenModal(p.note)}
+                                                            className="inline-flex items-center gap-1 h-6 px-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-[10px] font-semibold cursor-pointer"
+                                                        >
+                                                            <FaStickyNote size={9} /> Note
+                                                        </button>
+                                                        <RowMenu compact items={menuItems(p)} />
+                                                    </div>
+                                                    <div className={`w-full rounded-lg px-2 py-1.5 text-right ${isGetRow ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+                                                        <div className="flex items-center justify-between gap-1">
+                                                            <span className={`px-1.5 py-px rounded-full text-[9px] font-bold leading-tight ${isGetRow ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                                {isGetRow ? 'Get' : 'Pay'}
+                                                            </span>
+                                                            <span className="text-[9px] uppercase font-bold leading-none text-slate-400">Amount</span>
+                                                        </div>
+                                                        <p className={`text-[12.5px] font-extrabold leading-tight mt-1 whitespace-nowrap ${isGetRow ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            ৳ {money(p.amount)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[1150px] text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+                                        <tr>
+                                            <th className="px-3 py-3">Customer</th>
+                                            <th className="px-3 py-3">Date</th>
+                                            <th className="px-3 py-3">Invoice</th>
+                                            <th className="px-3 py-3">SR</th>
+                                            <th className="px-3 py-3">Delivery Man</th>
+                                            <th className="px-3 py-3">Method</th>
+                                            <th className="px-3 py-3">Account</th>
+                                            <th className="px-3 py-3">Amount</th>
+                                            <th className="px-3 py-3">Status</th>
+                                            <th className="px-3 py-3 text-center">Note</th>
+                                            <th className="px-3 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        {currentPayments.map((p) => (
+                                            <tr key={p._id} className="align-middle hover:bg-slate-50">
+                                                <td className="px-3 py-3 font-bold text-slate-800">
+                                                    {p.customer}
+                                                    {getPaymentPhone(p) && <div className="text-xs font-normal text-slate-400">📞 {getPaymentPhone(p)}</div>}
+                                                </td>
+                                                <td className="px-3 py-3 whitespace-nowrap">{displayFormattedDate(p.date)}</td>
+                                                <td className="px-3 py-3 whitespace-nowrap font-medium">{getInvoiceNo(p) || 'N/A'}</td>
+                                                <td className="px-3 py-3 whitespace-nowrap">{p.sr || 'N/A'}</td>
+                                                <td className="px-3 py-3 whitespace-nowrap">{p.deliveredBy || 'N/A'}</td>
+                                                <td className="px-3 py-3"><Pill tone="slate">{p.paymentMethod}</Pill></td>
+                                                <td className="px-3 py-3">{getAccountLabel(p.paymentMethod, p.paymentAccount)}</td>
+                                                <td className="px-3 py-3 whitespace-nowrap font-semibold text-emerald-600">৳ {money(p.amount)}</td>
+                                                <td className="px-3 py-3">{typePill(p)}</td>
+                                                <td className="px-3 py-3 text-center">
+                                                    <button type="button" onClick={() => handleOpenModal(p.note)} className="h-9 px-3 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer">
+                                                        <FaStickyNote size={11} /> View
+                                                    </button>
+                                                </td>
+                                                <td className="px-3 py-3 text-center"><RowMenu items={menuItems(p)} /></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <Pager
+                                page={currentPage}
+                                totalPages={totalPages}
+                                onChange={handlePageChange}
+                                from={indexOfFirstItem + 1}
+                                to={Math.min(indexOfLastItem, filteredPayments.length)}
+                                total={filteredPayments.length}
+                            />
+                        </>
                     )}
                 </div>
+            </div>
 
-                {/* Note Modal */}
-                <div
-                    className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-all duration-300 ${isModalOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                >
-                    <div
-                        className={`bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all duration-300 ${isModalOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}
-                    >
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <FaStickyNote className="text-indigo-600" /> Payment Note
+            {/* Note Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/50" onClick={() => setIsModalOpen(false)} />
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-5">
+                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+                            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <FaStickyNote className="text-brand-600" /> Payment Note
                             </h3>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                            >
-                                <FaTimes size={18} />
+                            <button type="button" aria-label="Close" onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 cursor-pointer">
+                                <FaTimes size={16} />
                             </button>
                         </div>
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-gray-700 text-sm min-h-[80px] whitespace-pre-wrap">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700 text-sm min-h-[80px] whitespace-pre-wrap break-words">
                             {selectedNote}
                         </div>
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all cursor-pointer"
-                            >
+                        <div className="mt-4 flex justify-end">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="bg-brand-600 text-white text-sm font-semibold px-5 py-2 cursor-pointer">
                                 Close
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

@@ -1,28 +1,53 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FiPieChart, FiX } from 'react-icons/fi';
-import { FaChevronLeft, FaChevronRight, FaFilter, FaRedo, FaSyncAlt } from 'react-icons/fa';
+import { FaFilter, FaRedo, FaSyncAlt, FaChevronDown, FaRoute } from 'react-icons/fa';
+import { inputCls, labelCls, Pager, DateInput } from '../../Product/ProductUi';
 
 const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 const parseDate = (d) => {
     if (!d) return 0;
-    const t = Date.parse(d);
-    if (!isNaN(t)) return t;
-    const m = String(d).trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+    const s = String(d).trim();
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]).getTime();
+    const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
     if (m) return new Date(+m[3], +m[2] - 1, +m[1]).getTime();
-    return 0;
+    const t = Date.parse(s);
+    return !isNaN(t) ? t : 0;
 };
 const dayOnly = (ts) => {
     if (!ts) return 0;
     const dt = new Date(ts);
     return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
 };
-const displayFormattedDate = (dateString) => {
-    if (!dateString) return '';
-    const [y, m, d] = dateString.split('-');
-    if (!y || !m || !d) return dateString;
-    return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+const EMPTY_FILTERS = {
+    startDate: '',
+    endDate: '',
+    invoice: '',
+    deliveredBy: '',
+    routeName: '',
+    category: '',
+    name: '',
+    accountType: '',
 };
+
+const TYPE_TONE = {
+    'Mobile Banking': 'bg-amber-50 text-amber-700',
+    Bank: 'bg-indigo-50 text-indigo-700',
+    Cash: 'bg-emerald-50 text-emerald-700',
+};
+
+const TypePill = ({ type }) => (
+    <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${TYPE_TONE[type] || 'bg-slate-100 text-slate-600'}`}
+    >
+        {type || 'N/A'}
+    </span>
+);
+
+const accountTitle = (i) =>
+    i.accountType === 'Mobile Banking' ? i.accountName : i.accountType === 'Bank' ? i.bankName : '';
 
 const ProfitRouteExpense = () => {
     const [routeExpenses, setRouteExpenses] = useState([]);
@@ -30,18 +55,8 @@ const ProfitRouteExpense = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 30;
 
-    const [filters, setFilters] = useState({
-        startDate: '',
-        endDate: '',
-        invoice: '',
-        deliveredBy: '',
-        routeName: '',
-        category: '',
-        name: '',
-        accountType: '',
-    });
-    const startDateRef = useRef(null);
-    const endDateRef = useRef(null);
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [showFilters, setShowFilters] = useState(false);
 
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [breakdownVisible, setBreakdownVisible] = useState(false);
@@ -122,9 +137,10 @@ const ProfitRouteExpense = () => {
         setCurrentPage(1);
     };
     const handleClearFilters = () => {
-        setFilters({ startDate: '', endDate: '', invoice: '', deliveredBy: '', routeName: '', category: '', name: '', accountType: '' });
+        setFilters(EMPTY_FILTERS);
         setCurrentPage(1);
     };
+    const activeCount = Object.values(filters).filter(Boolean).length;
 
     const hasAccountDetails = (i) => Boolean(i.bankName || i.accountNumber || i.accountBranch || i.accountName);
 
@@ -164,46 +180,57 @@ const ProfitRouteExpense = () => {
         setTimeout(() => setShowBreakdown(false), 250);
     };
 
+    const summary = [
+        { label: 'Total Route Expense (Inside)', value: `৳${fmt(totalAmount)}`, cls: 'text-rose-600', bar: 'bg-rose-500' },
+        { label: 'Total Records', value: fmt(filtered.length), cls: 'text-brand-700', bar: 'bg-brand-500' },
+    ];
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-6 md:p-8">
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
             {/* Breakdown Modal */}
             {showBreakdown && (
                 <div
-                    className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-all duration-300 ${breakdownVisible ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'bg-black/0 opacity-0'}`}
+                    className={`fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 transition-all duration-300 ${
+                        breakdownVisible ? 'bg-black/40 opacity-100' : 'bg-black/0 opacity-0'
+                    }`}
                     onClick={closeBreakdown}
                 >
                     <div
                         onClick={(e) => e.stopPropagation()}
-                        className={`bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-white overflow-hidden transform transition-all duration-300 ${breakdownVisible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}`}
+                        className={`bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[88vh] transform transition-all duration-300 ${
+                            breakdownVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+                        }`}
                     >
-                        <div className="bg-gradient-to-r from-indigo-600 to-pink-600 px-6 py-5 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-lg font-bold text-white">Route Expense Breakdown</h3>
-                                <p className="text-indigo-100 text-xs mt-0.5">Inside route expense, account wise</p>
+                        <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between border-b border-slate-200 bg-brand-50/60">
+                            <div className="min-w-0">
+                                <h3 className="text-base font-bold text-slate-800">Route Expense Breakdown</h3>
+                                <p className="text-xs text-slate-500">Inside route expense, account wise</p>
                             </div>
                             <button
+                                type="button"
+                                aria-label="Close"
                                 onClick={closeBreakdown}
-                                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition cursor-pointer"
+                                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-slate-500 hover:bg-white hover:text-rose-600 cursor-pointer"
                             >
                                 <FiX className="w-4 h-4" />
                             </button>
                         </div>
-                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                        <div className="p-3 sm:p-4 space-y-2.5 overflow-y-auto">
                             {Object.keys(breakdown).length === 0 ? (
-                                <div className="text-center py-10 text-gray-400 font-medium">No data to show!</div>
+                                <div className="text-center py-10 text-slate-400 text-sm">No data to show!</div>
                             ) : (
                                 Object.entries(breakdown).map(([type, data]) => (
-                                    <div key={type} className="bg-gray-50/70 rounded-2xl border border-gray-100 p-4">
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-bold text-gray-800 text-sm">{type}</span>
-                                            <span className="font-bold text-cyan-600 text-sm">৳ {fmt(data.total)}</span>
+                                    <div key={type} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <TypePill type={type} />
+                                            <span className="font-bold text-rose-600 text-sm whitespace-nowrap">৳{fmt(data.total)}</span>
                                         </div>
                                         {Object.keys(data.subGroups).length > 0 && (
-                                            <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-indigo-100">
+                                            <div className="mt-2 space-y-1 pl-3 border-l-2 border-brand-100">
                                                 {Object.entries(data.subGroups).map(([k, v]) => (
-                                                    <div key={k} className="flex items-center justify-between text-xs text-gray-600">
-                                                        <span className="font-medium">{k}</span>
-                                                        <span className="font-semibold text-gray-700">৳ {fmt(v)}</span>
+                                                    <div key={k} className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                                                        <span className="font-medium break-words min-w-0">{k}</span>
+                                                        <span className="font-semibold text-slate-700 whitespace-nowrap">৳{fmt(v)}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -212,364 +239,323 @@ const ProfitRouteExpense = () => {
                                 ))
                             )}
                         </div>
-                        <div className="px-6 py-4 bg-indigo-50/60 border-t border-indigo-100 flex items-center justify-between">
-                            <span className="text-sm font-bold text-gray-700">Grand Total</span>
-                            <span className="text-lg font-extrabold text-indigo-700">৳ {fmt(totalAmount)}</span>
+                        <div className="px-4 sm:px-5 py-3 bg-brand-50/60 border-t border-slate-200 flex items-center justify-between">
+                            <span className="text-sm font-bold text-slate-700">Grand Total</span>
+                            <span className="text-base sm:text-lg font-extrabold text-rose-700">৳{fmt(totalAmount)}</span>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="max-w-7xl mx-auto space-y-6">
+            <div className="max-w-[1600px] mx-auto space-y-4">
                 {/* Header */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 md:p-8 border border-white flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div>
-                        <h2 className="text-3xl font-extrabold bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                            Route Expense Net
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">শুধু Inside route expense এর হিসাব</p>
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 flex items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <span className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                            <FaRoute size={15} />
+                        </span>
+                        <div className="min-w-0">
+                            <h1 className="text-lg sm:text-2xl font-bold text-slate-800 leading-tight">Route Expense Net</h1>
+                            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-snug">শুধু Inside route expense এর হিসাব</p>
+                        </div>
                     </div>
                     <button
                         type="button"
                         onClick={fetchRouteExpenses}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white font-semibold text-xs rounded-full transition cursor-pointer"
+                        aria-label="Refresh"
+                        className="h-9 w-9 sm:h-10 sm:w-auto sm:px-4 shrink-0 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                     >
-                        <FaSyncAlt size={11} className={loading ? 'animate-spin' : ''} /> Refresh
+                        <FaSyncAlt size={12} className={loading ? 'animate-spin' : ''} />
+                        <span className="hidden sm:inline">Refresh</span>
                     </button>
                 </div>
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="rounded-3xl shadow-xl p-6 text-white bg-gradient-to-br from-cyan-500 to-blue-600">
-                        <p className="text-sm text-white/80">Total Route Expense (Inside)</p>
-                        <p className="text-2xl font-extrabold mt-1">৳ {fmt(totalAmount)}</p>
+                {/* Summary */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    {summary.map((c) => (
+                        <div key={c.label} className="relative bg-white rounded-2xl border border-slate-200 pl-4 pr-3 py-3 sm:py-4 overflow-hidden">
+                            <span className={`absolute left-0 top-0 bottom-0 w-1 ${c.bar}`} />
+                            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wide">{c.label}</p>
+                            <p className={`text-base sm:text-2xl font-extrabold mt-1 break-words leading-tight ${c.cls}`}>{c.value}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Filter */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4">
+                    <div className="flex items-center justify-between gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowFilters((v) => !v)}
+                            aria-expanded={showFilters}
+                            className="h-10 flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer lg:cursor-default"
+                        >
+                            <FaFilter className="text-brand-600" size={13} />
+                            Filter & Search
+                            {activeCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 text-[11px] font-bold">{activeCount}</span>
+                            )}
+                            <FaChevronDown size={10} className={`lg:hidden text-slate-400 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleClearFilters}
+                            className="h-10 px-3 flex items-center gap-1.5 text-xs font-semibold text-slate-600 rounded-lg hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                        >
+                            <FaRedo size={11} /> Clear
+                        </button>
                     </div>
-                    <div className="rounded-3xl shadow-xl p-6 text-white bg-gradient-to-br from-indigo-500 to-purple-600">
-                        <p className="text-sm text-white/80">Total Records</p>
-                        <p className="text-2xl font-extrabold mt-1">{filtered.length}</p>
+
+                    <div className={`${showFilters ? 'grid' : 'hidden'} lg:grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-x-2.5 gap-y-3 sm:gap-3 mt-3`}>
+                        <div>
+                            <span className={labelCls}>Start Date</span>
+                            <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />
+                        </div>
+                        <div>
+                            <span className={labelCls}>End Date</span>
+                            <DateInput name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="End date" />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Invoice</label>
+                            <input
+                                type="text"
+                                name="invoice"
+                                placeholder="Search invoice..."
+                                value={filters.invoice}
+                                onChange={handleFilterChange}
+                                className={inputCls}
+                            />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Delivered By</label>
+                            <select name="deliveredBy" value={filters.deliveredBy} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                                <option value="">All</option>
+                                {deliveredByOptions.map((c) => (
+                                    <option key={c} value={c}>{c}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Route Name</label>
+                            <select name="routeName" value={filters.routeName} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                                <option value="">All</option>
+                                {routeNameOptions.map((c) => (
+                                    <option key={c} value={c}>{c}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Category</label>
+                            <select name="category" value={filters.category} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                                <option value="">All</option>
+                                {categoryOptions.map((c) => (
+                                    <option key={c} value={c}>{c}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Name</label>
+                            <input
+                                type="text"
+                                name="name"
+                                placeholder="Search name..."
+                                value={filters.name}
+                                onChange={handleFilterChange}
+                                className={inputCls}
+                            />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Account Type</label>
+                            <select name="accountType" value={filters.accountType} onChange={handleFilterChange} className={`${inputCls} cursor-pointer`}>
+                                <option value="">All</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Bank">Bank</option>
+                                <option value="Mobile Banking">Mobile Banking</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
-                {/* Table Card */}
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-6 border border-white space-y-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <h3 className="text-xl font-bold text-gray-800">Route Expense Records</h3>
-                        <span className="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs rounded-full">
+                {/* List */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-1.5 sm:p-4 space-y-2 sm:space-y-3">
+                    <div className="flex flex-wrap items-center gap-2 px-1.5 pt-1.5 sm:p-0">
+                        <h2 className="text-base font-semibold text-slate-800">Route Expense Records</h2>
+                        <span className="bg-brand-50 text-brand-700 px-3 py-0.5 rounded-full text-xs font-semibold">
                             {filtered.length} of {insideRouteExpenses.length}
                         </span>
-                        <span className="px-3 py-1.5 bg-cyan-50 border border-cyan-100 text-cyan-700 font-bold text-xs rounded-full">
-                            Total: ৳ {fmt(totalAmount)}
+                        <span className="bg-rose-50 text-rose-700 px-3 py-0.5 rounded-full text-xs font-bold">
+                            Total: ৳{fmt(totalAmount)}
                         </span>
                         <button
+                            type="button"
                             onClick={openBreakdown}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-full shadow-sm transition cursor-pointer"
+                            className="ml-auto h-8 px-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-600 text-white text-xs font-semibold cursor-pointer"
                         >
                             <FiPieChart className="w-3.5 h-3.5" />
                             Breakdown
                         </button>
                     </div>
 
-                    {/* Filter Panel */}
-                    <div className="bg-white shadow-lg rounded-2xl p-5 border border-indigo-100">
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                <FaFilter className="text-indigo-600" /> Filter & Search Panel
-                            </h3>
-                            <button
-                                onClick={handleClearFilters}
-                                className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
-                            >
-                                <FaRedo size={11} /> Clear All Filters
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Start Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => startDateRef.current?.showPicker?.() || startDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={startDateRef}
-                                        type="date"
-                                        name="startDate"
-                                        value={filters.startDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select start date"
-                                        value={displayFormattedDate(filters.startDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">End Date</label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => endDateRef.current?.showPicker?.() || endDateRef.current?.click()}
-                                >
-                                    <input
-                                        ref={endDateRef}
-                                        type="date"
-                                        name="endDate"
-                                        value={filters.endDate}
-                                        onChange={handleFilterChange}
-                                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="Select end date"
-                                        value={displayFormattedDate(filters.endDate)}
-                                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer pointer-events-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Invoice</label>
-                                <input
-                                    type="text"
-                                    name="invoice"
-                                    placeholder="Search invoice..."
-                                    value={filters.invoice}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Delivered By</label>
-                                <select
-                                    name="deliveredBy"
-                                    value={filters.deliveredBy}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    {deliveredByOptions.map((c) => (
-                                        <option key={c} value={c}>{c}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Route Name</label>
-                                <select
-                                    name="routeName"
-                                    value={filters.routeName}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    {routeNameOptions.map((c) => (
-                                        <option key={c} value={c}>{c}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Category</label>
-                                <select
-                                    name="category"
-                                    value={filters.category}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    {categoryOptions.map((c) => (
-                                        <option key={c} value={c}>{c}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Name</label>
-                                <input
-                                    type="text"
-                                    name="name"
-                                    placeholder="Search name..."
-                                    value={filters.name}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-600 text-[11px] font-semibold mb-1">Account Type</label>
-                                <select
-                                    name="accountType"
-                                    value={filters.accountType}
-                                    onChange={handleFilterChange}
-                                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-gray-50/50 text-gray-700 cursor-pointer"
-                                >
-                                    <option value="">All</option>
-                                    <option value="Cash">Cash</option>
-                                    <option value="Bank">Bank</option>
-                                    <option value="Mobile Banking">Mobile Banking</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Table */}
                     {loading ? (
-                        <div className="text-center py-16 text-gray-500 font-medium">Loading...</div>
+                        <div className="space-y-3">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
+                            ))}
+                        </div>
                     ) : filtered.length === 0 ? (
-                        <div className="text-center py-16 text-gray-400 font-medium">No route expense record found!</div>
+                        <div className="text-center py-16 text-slate-400 text-sm">No route expense record found!</div>
                     ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-gray-100">
-                            <table className="w-full text-left border-collapse min-w-[1300px]">
-                                <thead>
-                                    <tr className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white text-xs uppercase tracking-wide whitespace-nowrap">
-                                        <th className="py-3 px-4">#</th>
-                                        <th className="py-3 px-4">Date</th>
-                                        <th className="py-3 px-4">Invoice</th>
-                                        <th className="py-3 px-4">Route Expense Type</th>
-                                        <th className="py-3 px-4">Delivered By</th>
-                                        <th className="py-3 px-4">Route Name</th>
-                                        <th className="py-3 px-4">Category</th>
-                                        <th className="py-3 px-4">Name</th>
-                                        <th className="py-3 px-4">Account Type</th>
-                                        <th className="py-3 px-4">Account Details</th>
-                                        <th className="py-3 px-4 text-right">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                                    {current.map((routeExpense, index) => (
-                                        <tr key={routeExpense._id || index} className="hover:bg-indigo-50/40 transition">
-                                            <td className="py-3 px-4 text-gray-400">{start + index + 1}</td>
-                                            <td className="py-3 px-4 whitespace-nowrap text-gray-600">{routeExpense.date || 'N/A'}</td>
-                                            <td className="py-3 px-4 font-mono text-xs text-indigo-600 font-semibold">{routeExpense.invoiceNumber || 'N/A'}</td>
-                                            <td className="py-3 px-4">
-                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border font-semibold text-xs whitespace-nowrap bg-teal-50 text-teal-700 border-teal-200">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
-                                                    Inside
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <span className="px-3 py-1 bg-sky-100 text-sky-700 rounded-full font-semibold text-xs whitespace-nowrap">
-                                                    {routeExpense.deliveredBy || 'N/A'}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-600 whitespace-nowrap">{routeExpense.routeName || 'N/A'}</td>
-                                            <td className="py-3 px-4 font-bold text-gray-800">{routeExpense.routeExpenseCategory || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-600">{routeExpense.name || 'N/A'}</td>
-                                            <td className="py-3 px-4">
-                                                {routeExpense.accountType === 'Mobile Banking' ? (
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <span className="font-semibold text-amber-700 text-sm">{routeExpense.accountName || 'N/A'}</span>
-                                                        <span className="inline-flex items-center w-fit gap-1 px-2.5 py-0.5 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border border-amber-200 rounded-full font-bold text-[10px] uppercase tracking-wide whitespace-nowrap">
-                                                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                                                            Mobile Banking
-                                                        </span>
+                        <>
+                            {/* Mobile cards */}
+                            <div className="md:hidden space-y-1.5">
+                                {current.map((routeExpense, index) => {
+                                    const title = accountTitle(routeExpense);
+                                    return (
+                                        <div
+                                            key={routeExpense._id || index}
+                                            className="relative rounded-xl border border-slate-200 bg-white pl-2.5 pr-1.5 py-1.5 shadow-sm"
+                                        >
+                                            <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-rose-500" />
+                                            <div className="flex items-start gap-1.5">
+                                                <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <p className="font-bold text-[12.5px] text-slate-800 truncate leading-tight min-w-0">
+                                                            {routeExpense.routeExpenseCategory || 'N/A'}
+                                                        </p>
+                                                        {routeExpense.invoiceNumber && (
+                                                            <span className="shrink-0 bg-brand-50 text-brand-700 px-1.5 py-px rounded-full text-[9.5px] font-bold leading-tight">
+                                                                #{routeExpense.invoiceNumber}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                ) : routeExpense.accountType === 'Bank' ? (
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <span className="font-semibold text-indigo-700 text-sm">{routeExpense.bankName || 'N/A'}</span>
-                                                        <span className="inline-flex items-center w-fit gap-1 px-2.5 py-0.5 bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-700 border border-indigo-200 rounded-full font-bold text-[10px] uppercase tracking-wide whitespace-nowrap">
-                                                            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
-                                                            Bank
-                                                        </span>
+                                                    <p className="text-[10px] text-slate-500 leading-tight truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">Date: </span>
+                                                        {routeExpense.date || 'N/A'}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-500 leading-tight truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">Route: </span>
+                                                        {routeExpense.routeName || 'N/A'}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-500 leading-tight truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">By: </span>
+                                                        {routeExpense.deliveredBy || 'N/A'}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-500 leading-tight truncate">
+                                                        <span className="uppercase text-slate-400 font-bold">Name: </span>
+                                                        {routeExpense.name || 'N/A'}
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                                        <TypePill type={routeExpense.accountType} />
+                                                        {title && <span className="text-[10px] font-semibold text-slate-600 truncate">{title}</span>}
                                                     </div>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border border-purple-200 rounded-full font-semibold text-xs whitespace-nowrap">
-                                                        <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-                                                        {routeExpense.accountType || 'N/A'}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="py-3 px-4 text-xs text-gray-500">
-                                                {hasAccountDetails(routeExpense) ? (
-                                                    <div className="space-y-0.5">
-                                                        {routeExpense.accountNumber && <p><strong className="text-gray-700">A/C:</strong> {routeExpense.accountNumber}</p>}
-                                                        {routeExpense.accountBranch && <p><strong className="text-gray-700">Branch:</strong> {routeExpense.accountBranch}</p>}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-500">Cash</span>
-                                                )}
-                                            </td>
-                                            <td className="py-3 px-4 text-right font-bold text-cyan-600 whitespace-nowrap">
-                                                ৳ {fmt(routeExpense.amount)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="bg-indigo-50/70 font-extrabold text-[13px] border-t-2 border-indigo-100">
-                                        <td className="py-3 px-4 text-gray-700" colSpan={10}>Total ({filtered.length} records)</td>
-                                        <td className="py-3 px-4 text-right text-cyan-700 whitespace-nowrap">৳ {fmt(totalAmount)}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    )}
+                                                    {hasAccountDetails(routeExpense) && (routeExpense.accountNumber || routeExpense.accountBranch) && (
+                                                        <p className="text-[10px] text-slate-500 leading-tight truncate">
+                                                            {routeExpense.accountNumber && (
+                                                                <>
+                                                                    <span className="uppercase text-slate-400 font-bold">A/C: </span>
+                                                                    {routeExpense.accountNumber}
+                                                                </>
+                                                            )}
+                                                            {routeExpense.accountBranch && (
+                                                                <>
+                                                                    <span className="uppercase text-slate-400 font-bold ml-2">Br: </span>
+                                                                    {routeExpense.accountBranch}
+                                                                </>
+                                                            )}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="shrink-0 w-[96px] rounded-md bg-rose-50 px-1.5 py-1 text-right">
+                                                    <p className="text-[8.5px] font-bold text-slate-500 uppercase leading-none">Amount</p>
+                                                    <p className="text-[12px] font-extrabold text-rose-600 whitespace-nowrap leading-tight mt-0.5">
+                                                        ৳{fmt(routeExpense.amount)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
 
-                    {/* Pagination */}
-                    {!loading && filtered.length > 0 && (
-                        <div className="px-2 py-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            <span className="text-xs text-gray-500 font-medium">
-                                Page <span className="font-bold text-gray-700">{safePage}</span> of{' '}
-                                <span className="font-bold text-gray-700">{totalPages}</span>
-                            </span>
-
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => handlePageChange(safePage - 1)}
-                                    disabled={safePage === 1}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${safePage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    <FaChevronLeft size={10} /> Previous
-                                </button>
-
-                                <div className="hidden sm:flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, index) => {
-                                        const pageNum = index + 1;
-                                        if (
-                                            pageNum === 1 ||
-                                            pageNum === totalPages ||
-                                            (pageNum >= safePage - 1 && pageNum <= safePage + 1)
-                                        ) {
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => handlePageChange(pageNum)}
-                                                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${safePage === pageNum
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                                                        }`}
-                                                >
-                                                    {pageNum}
-                                                </button>
-                                            );
-                                        } else if (pageNum === safePage - 2 || pageNum === safePage + 2) {
-                                            return <span key={pageNum} className="text-gray-400 px-1">...</span>;
-                                        }
-                                        return null;
-                                    })}
+                                {/* Mobile total */}
+                                <div className="rounded-xl border border-brand-100 bg-brand-50/60 px-3 py-2 flex items-center justify-between">
+                                    <p className="text-[10px] font-bold uppercase text-brand-700">Total ({filtered.length} records)</p>
+                                    <p className="text-sm font-extrabold text-rose-700 whitespace-nowrap">৳{fmt(totalAmount)}</p>
                                 </div>
-
-                                <button
-                                    onClick={() => handlePageChange(safePage + 1)}
-                                    disabled={safePage === totalPages}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${safePage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 shadow-sm cursor-pointer'
-                                        }`}
-                                >
-                                    Next <FaChevronRight size={10} />
-                                </button>
                             </div>
-                        </div>
+
+                            {/* Desktop table */}
+                            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[1100px] text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">
+                                        <tr>
+                                            <th className="px-3 py-3">#</th>
+                                            <th className="px-3 py-3">Date</th>
+                                            <th className="px-3 py-3">Invoice</th>
+                                            <th className="px-3 py-3">Delivered By</th>
+                                            <th className="px-3 py-3">Route</th>
+                                            <th className="px-3 py-3">Category</th>
+                                            <th className="px-3 py-3">Name</th>
+                                            <th className="px-3 py-3">Account</th>
+                                            <th className="px-3 py-3">Details</th>
+                                            <th className="px-3 py-3 text-right">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        {current.map((routeExpense, index) => {
+                                            const title = accountTitle(routeExpense);
+                                            return (
+                                                <tr key={routeExpense._id || index} className="hover:bg-slate-50">
+                                                    <td className="px-3 py-3 text-slate-400">{start + index + 1}</td>
+                                                    <td className="px-3 py-3 whitespace-nowrap text-xs font-medium text-slate-600">{routeExpense.date || 'N/A'}</td>
+                                                    <td className="px-3 py-3 font-mono text-[11px] font-semibold text-brand-700 whitespace-nowrap">
+                                                        {routeExpense.invoiceNumber || 'N/A'}
+                                                    </td>
+                                                    <td className="px-3 py-3">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[11px] font-semibold whitespace-nowrap">
+                                                            {routeExpense.deliveredBy || 'N/A'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-3 text-slate-600 whitespace-nowrap">{routeExpense.routeName || 'N/A'}</td>
+                                                    <td className="px-3 py-3 font-bold text-slate-800">{routeExpense.routeExpenseCategory || 'N/A'}</td>
+                                                    <td className="px-3 py-3 text-slate-600">{routeExpense.name || 'N/A'}</td>
+                                                    <td className="px-3 py-3">
+                                                        <div className="flex flex-col items-start gap-1">
+                                                            {title && <span className="font-semibold text-slate-700 text-xs">{title}</span>}
+                                                            <TypePill type={routeExpense.accountType} />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-3 text-xs text-slate-500">
+                                                        {hasAccountDetails(routeExpense) ? (
+                                                            <div className="space-y-0.5">
+                                                                {routeExpense.accountNumber && (
+                                                                    <p><b className="text-slate-700">A/C:</b> {routeExpense.accountNumber}</p>
+                                                                )}
+                                                                {routeExpense.accountBranch && (
+                                                                    <p><b className="text-slate-700">Branch:</b> {routeExpense.accountBranch}</p>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span>Cash</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-right font-bold text-rose-600 whitespace-nowrap">৳{fmt(routeExpense.amount)}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="bg-brand-50/60 font-extrabold text-[13px] border-t-2 border-brand-100">
+                                            <td className="px-3 py-3 text-slate-700" colSpan={9}>Total ({filtered.length} records)</td>
+                                            <td className="px-3 py-3 text-right text-rose-700 whitespace-nowrap">৳{fmt(totalAmount)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            <div className="px-1 py-1">
+                                <Pager page={safePage} total={totalPages} onChange={handlePageChange} />
+                            </div>
+                        </>
                     )}
                 </div>
             </div>

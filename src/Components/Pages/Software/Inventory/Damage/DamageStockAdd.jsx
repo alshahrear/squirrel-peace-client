@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { getBatchCostPerPcs } from '../../../Software/Inventory/Stock/StockPurchase';
 import { fetchAccountBalance } from '../../../Software/Account/AccountBalance';
 import useCan from '../../../../../hooks/useCan';
+import { DateInput } from '../../Product/ProductUi';
+import { inputCls, labelCls, ComboField } from '../../Purchase/PurchaseUi';
+import { Card, QtyField } from '../../Purchase/PurchaseFormUi';
+import { labelToISO } from '../../Purchase/purchaseDate';
 
 const roundTo2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
 
@@ -25,95 +30,18 @@ const matchesSearch = (searchText, fields) => {
     return fields.some((f) => String(f || '').toLowerCase().includes(q));
 };
 
-// ---------- Local Search Select ----------
-const SearchSelect = ({
-    label, required = false, hint = '', placeholder, searchValue, onSearchChange,
-    onClear, onSelect, items, getKey, renderItem, emptyText = 'No data found', disabled = false,
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    return (
-        <div className="relative" ref={ref}>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                {label} {required && <span className="text-rose-500">*</span>}{' '}
-                {hint && <span className="text-xs text-amber-500 font-normal">{hint}</span>}
-            </label>
-            <div
-                onClick={() => !disabled && setIsOpen(true)}
-                className={`w-full px-4 py-3.5 rounded-2xl border text-sm shadow-sm flex items-center justify-between ${disabled ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75' : 'border-slate-200 bg-slate-50/70 cursor-pointer focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100'}`}
-            >
-                <input
-                    type="text"
-                    disabled={disabled}
-                    placeholder={placeholder}
-                    value={searchValue}
-                    onChange={(e) => {
-                        onSearchChange(e.target.value);
-                        setIsOpen(true);
-                    }}
-                    className="bg-transparent outline-none w-full text-sm"
-                />
-                {searchValue && !disabled && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClear();
-                            setIsOpen(false);
-                        }}
-                        className="text-slate-400 hover:text-rose-500 p-0.5"
-                    >
-                        ✕
-                    </button>
-                )}
-            </div>
-            {isOpen && !disabled && (
-                <div className="absolute z-[100] left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-red-100 max-h-60 overflow-y-auto">
-                    {items.length > 0 ? (
-                        items.map((item) => (
-                            <div
-                                key={getKey(item)}
-                                onClick={() => {
-                                    onSelect(item);
-                                    setIsOpen(false);
-                                }}
-                                className="px-4 py-3 hover:bg-red-50 cursor-pointer border-b border-slate-50 last:border-none"
-                            >
-                                {renderItem(item)}
-                            </div>
-                        ))
-                    ) : (
-                        <div className="px-4 py-3 text-sm text-slate-400 text-center">{emptyText}</div>
-                    )}
-                </div>
-            )}
+// Combo with disabled support
+const Combo = ({ disabled, label, hint, placeholder, ...rest }) =>
+    disabled ? (
+        <div>
+            <span className={labelCls}>
+                {label} {hint && <span className="text-amber-600 font-normal">{hint}</span>}
+            </span>
+            <input disabled placeholder={placeholder} className={inputCls} />
         </div>
+    ) : (
+        <ComboField label={hint ? `${label} ${hint}` : label} placeholder={placeholder} {...rest} />
     );
-};
-
-// ---------- Qty box (number + unit label) ----------
-const QtyBox = ({ value, onChange, label, grad, border }) => (
-    <div className={`flex items-center border ${border} rounded-xl bg-white overflow-hidden w-full shadow-sm`}>
-        <input
-            type="number" min="0" step="1" placeholder="0"
-            value={value ?? ''}
-            onChange={(e) => /^\d*$/.test(e.target.value) && onChange(e.target.value)}
-            className="w-14 px-2 py-2.5 bg-transparent text-sm outline-none text-center"
-        />
-        <span className={`flex-1 bg-gradient-to-br ${grad} text-white text-xs px-2 py-2.5 text-center font-semibold select-none truncate`} title={label}>
-            {label}
-        </span>
-    </div>
-);
 
 // ---------- Item helpers ----------
 const buildItem = (product) => {
@@ -309,6 +237,29 @@ const getCostBreakdown = (stock, qty) => {
     return lines;
 };
 
+// price input with small total badge
+const PriceField = ({ label, total, tone, value, disabled, onChange }) => (
+    <label className="block min-w-0">
+        <span className="flex items-center justify-between gap-2 text-[11px] font-medium text-slate-500 mb-1">
+            <span className="truncate">{label}</span>
+            <span className={`px-1.5 rounded text-[10px] font-bold whitespace-nowrap ${total > 0 ? tone : 'bg-slate-100 text-slate-400'}`}>
+                ৳{total.toFixed(2)}
+            </span>
+        </span>
+        <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            placeholder="0"
+            disabled={disabled}
+            value={value}
+            onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && onChange(e.target.value)}
+            className={inputCls}
+        />
+    </label>
+);
+
 const DamageStockAdd = () => {
     const { canAdd, canEdit } = useCan('damage_stock_invoice');
     const navigate = useNavigate();
@@ -348,9 +299,9 @@ const DamageStockAdd = () => {
 
     const [items, setItems] = useState([]);
     const [note, setNote] = useState(editingDamage?.note || '');
-    const [toast, setToast] = useState({ show: false, message: '', isError: false });
     const [isSaving, setIsSaving] = useState(false);
-    const dateInputRef = useRef(null);
+
+    const showToast = (message, isError = false) => (isError ? toast.error(message) : toast.success(message));
 
     // ---------- Payment (shudhu customer select thakle, optional, default disabled) ----------
     const savedPay = editingDamage?.payment || null;
@@ -432,11 +383,6 @@ const DamageStockAdd = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [paymentOpen, selectedAccountKey, paymentAccountType, investments, formData.customerId]);
 
-    const showToast = (message, isError = false) => {
-        setToast({ show: true, message, isError });
-        setTimeout(() => setToast({ show: false, message: '', isError: false }), 3000);
-    };
-
     // ---------- Fetch ----------
     useEffect(() => {
         const load = (endpoint, setter, filterFn) =>
@@ -472,6 +418,7 @@ const DamageStockAdd = () => {
                 setStockMap(fixed);
             })
             .catch((e) => console.error(e));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ---------- Edit prefill ----------
@@ -483,9 +430,9 @@ const DamageStockAdd = () => {
     }, []);
 
     // ---------- Customer ----------
-    const filteredCustomers = customers
-                .filter(() => true)
-        .filter((c) => matchesSearch(search.customer, [c.businessName, c.contactNumber, c.address, c.route]));
+    const filteredCustomers = customers.filter((c) =>
+        matchesSearch(search.customer, [c.businessName, c.contactNumber, c.address, c.route])
+    );
 
     // Customer change/select/clear hole full page reset (items, note, company, category, product search)
     const resetPageData = () => {
@@ -574,8 +521,6 @@ const DamageStockAdd = () => {
     };
 
     // ---------- Product ----------
-    const isProductEnabled = true;
-
     const filteredProducts = products.filter((prod) => {
         if (!prod.productName) return false;
         if (prod.isActive !== true) return false;
@@ -783,7 +728,6 @@ const DamageStockAdd = () => {
             return showToast(isEditMode ? 'আপনার Edit করার অনুমতি নেই!' : 'আপনার Add করার অনুমতি নেই!', true);
         }
 
-
         if (!formData.date) return showToast('Date is required!', true);
         if (items.length === 0) return showToast('Please add at least one product!', true);
         if (items.some((i) => (Number(i.totalQty) || 0) <= 0 && (Number(i.freeQty) || 0) <= 0)) {
@@ -840,7 +784,6 @@ const DamageStockAdd = () => {
             if (roundTo2(paymentAmount) > available) {
                 return showToast(`Insufficient balance in the selected account! Available: ৳${available.toFixed(2)}`, true);
             }
-
 
             paymentData = {
                 amount: roundTo2(paymentAmount),
@@ -923,40 +866,29 @@ const DamageStockAdd = () => {
         }
     };
 
-    const inputCls =
-        'w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm text-slate-700 shadow-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100';
-
-    const trashIcon = (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-        </svg>
-    );
+    const num = (id, field) => (v) => /^\d*$/.test(v) && handleItemChange(id, field, v);
 
     return (
-        <div>
-            {toast.show && (
-                <div className={`fixed top-6 right-6 z-[200] px-5 py-3.5 rounded-2xl shadow-lg text-sm font-semibold text-white ${toast.isError ? 'bg-rose-600' : 'bg-gradient-to-br from-teal-600 to-emerald-500'}`}>
-                    {toast.message}
-                </div>
-            )}
-
-            {/* ---------------- Top Form ---------------- */}
-            <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 my-8 relative z-20">
-                <div className="bg-white rounded-3xl shadow-lg shadow-red-900/5 p-6 md:p-8 border border-red-100/70">
-                    <div className="mb-6 pb-4 border-b border-red-100">
-                        <h3 className="text-xl font-bold text-slate-800">
-                            {isEditMode ? 'Edit Damage' : 'Add Damage'}
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Select customer and damaged products</p>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                            <SearchSelect
+        <div className="min-h-screen p-3 sm:p-5 md:p-8">
+            <div className="max-w-[1400px] mx-auto space-y-4">
+                {/* Top form */}
+                <div className="relative z-20">
+                    <Card
+                        title={isEditMode ? 'Edit Damage' : 'Add Damage'}
+                        subtitle="Select customer and damaged products"
+                    >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <Combo
                                 label="Customer"
                                 placeholder="Search or select customer (optional)..."
-                                searchValue={search.customer}
-                                onSearchChange={(text) => {
+                                value={search.customer}
+                                options={filteredCustomers.map((c) => ({
+                                    key: c._id,
+                                    title: c.businessName,
+                                    sub: `📞 ${c.contactNumber || ''} | 📍 ${c.address || ''}`,
+                                    raw: c,
+                                }))}
+                                onType={(text) => {
                                     if (formData.customerId) {
                                         resetPageData();
                                         updateForm({ customerId: '', customer: '', customerContact: '', customerAddress: '' });
@@ -964,470 +896,336 @@ const DamageStockAdd = () => {
                                     updateSearch('customer', text);
                                 }}
                                 onClear={handleClearCustomer}
-                                onSelect={handleSelectCustomer}
-                                items={filteredCustomers}
-                                getKey={(c) => c._id}
-                                emptyText="No customer found"
-                                renderItem={(c) => (
-                                    <>
-                                        <p className="text-sm font-semibold text-slate-800">{c.businessName}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">📞 {c.contactNumber} | 📍 {c.address}</p>
-                                    </>
-                                )}
+                                onPick={(o) => handleSelectCustomer(o.raw)}
                             />
 
-                            <SearchSelect
+                            <Combo
                                 label="Filter by Company"
                                 placeholder="Search or select company (optional)..."
-                                searchValue={search.company}
-                                onSearchChange={(text) => {
+                                value={search.company}
+                                options={filteredCompanies.map((c) => ({
+                                    key: c._id,
+                                    title: c.businessName,
+                                    sub: `📞 ${c.contactNumber || ''} | 📍 ${c.address || ''}`,
+                                    raw: c,
+                                }))}
+                                onType={(text) => {
                                     updateSearch('company', text);
                                     updateForm({ company: '' });
                                 }}
                                 onClear={handleClearCompany}
-                                onSelect={handleSelectCompany}
-                                items={filteredCompanies}
-                                getKey={(c) => c._id}
-                                emptyText="No company found"
-                                renderItem={(c) => (
-                                    <>
-                                        <p className="text-sm font-semibold text-slate-800">{c.businessName}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">📞 {c.contactNumber} | 📍 {c.address}</p>
-                                    </>
-                                )}
+                                onPick={(o) => handleSelectCompany(o.raw)}
                             />
 
-                            <div className="order-last">
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Date <span className="text-rose-500">*</span></label>
-                                <div
-                                    className="relative w-full cursor-pointer"
-                                    onClick={() => dateInputRef.current?.showPicker?.() || dateInputRef.current?.click()}
-                                >
-                                    <input ref={dateInputRef} type="date" onChange={handleDateChange} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                                    <input type="text" readOnly value={formData.date} placeholder="Select date" className={`${inputCls} cursor-pointer pointer-events-none`} />
-                                </div>
-                            </div>
-
-                            <SearchSelect
-                                label="Collected By"
-                                hint={!formData.customerId ? '(Select customer first)' : '(Optional)'}
-                                placeholder={formData.customerId ? 'Search or select delivery man...' : 'Select a customer first...'}
-                                disabled={!formData.customerId}
-                                searchValue={search.collectedBy}
-                                onSearchChange={(text) => {
-                                    updateSearch('collectedBy', text);
-                                    updateForm({ collectedById: '', collectedBy: '' });
-                                }}
-                                onClear={handleClearCollectedBy}
-                                onSelect={handleSelectCollectedBy}
-                                items={filteredDeliveryMen}
-                                getKey={(u) => u._id}
-                                emptyText="No active delivery man found"
-                                renderItem={(u) => (
-                                    <>
-                                        <p className="text-sm font-semibold text-slate-800">{u.name}</p>
-                                        {u.phone && <p className="text-xs text-slate-500 mt-0.5">📞 {u.phone}</p>}
-                                    </>
-                                )}
-                            />
-
-                            <SearchSelect
+                            <Combo
                                 label="Filter by Category"
                                 placeholder="Search or select category..."
-                                searchValue={search.category}
-                                onSearchChange={(text) => {
+                                value={search.category}
+                                options={filteredCategories.map((c) => ({ key: c._id, title: c.name, raw: c }))}
+                                onType={(text) => {
                                     updateSearch('category', text);
                                     updateForm({ category: '' });
                                 }}
                                 onClear={handleClearCategory}
-                                onSelect={handleSelectCategory}
-                                items={filteredCategories}
-                                getKey={(c) => c._id}
-                                emptyText="No active category found"
-                                renderItem={(c) => <p className="text-sm font-semibold text-slate-800">{c.name}</p>}
+                                onPick={(o) => handleSelectCategory(o.raw)}
+                            />
+
+                            <div>
+                                <span className={labelCls}>Date *</span>
+                                <DateInput name="date" value={labelToISO(formData.date)} onChange={handleDateChange} placeholder="Select date" />
+                            </div>
+
+                            <Combo
+                                label="Collected By"
+                                hint={!formData.customerId ? '(Select customer first)' : '(Optional)'}
+                                disabled={!formData.customerId}
+                                placeholder={formData.customerId ? 'Search or select delivery man...' : 'Select a customer first...'}
+                                value={search.collectedBy}
+                                options={filteredDeliveryMen.map((u) => ({
+                                    key: u._id,
+                                    title: u.name,
+                                    sub: u.phone ? `📞 ${u.phone}` : '',
+                                    raw: u,
+                                }))}
+                                onType={(text) => {
+                                    updateSearch('collectedBy', text);
+                                    updateForm({ collectedById: '', collectedBy: '' });
+                                }}
+                                onClear={handleClearCollectedBy}
+                                onPick={(o) => handleSelectCollectedBy(o.raw)}
                             />
                         </div>
 
-                        <SearchSelect
-                            label="Select Product"
-                            required
-                            hint={
-                                formData.company || formData.category
-                                    ? `(Filtered by ${[formData.company, formData.category].filter(Boolean).join(' • ')})`
-                                    : ''
-                            }
-                            placeholder="Search or select product..."
-                            searchValue={search.product}
-                            onSearchChange={(text) => updateSearch('product', text)}
-                            onClear={() => updateSearch('product', '')}
-                            onSelect={handleSelectProduct}
-                            items={filteredProducts}
-                            getKey={(p) => p._id}
-                            emptyText="No matching product found"
-                            renderItem={(prod) => (
-                                <div className="flex justify-between items-center gap-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-800">{prod.productName}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">
-                                            Company: {prod.company}{prod.category ? ` | Category: ${prod.category}` : ''}
-                                        </p>
+                        <div className="mt-4">
+                            <ComboField
+                                label={`Select Product *${formData.company || formData.category ? `  (Filtered by ${[formData.company, formData.category].filter(Boolean).join(' • ')})` : ''}`}
+                                placeholder="Search or select product..."
+                                value={search.product}
+                                options={filteredProducts.map((p) => ({
+                                    key: p._id,
+                                    title: p.productName,
+                                    sub: `Company: ${p.company}${p.category ? ` | Category: ${p.category}` : ''}${p.sellingPrice ? ` | ৳${p.sellingPrice}` : ''}${p.sku ? ` | SKU: ${p.sku}` : ''}`,
+                                    raw: p,
+                                }))}
+                                onType={(text) => updateSearch('product', text)}
+                                onClear={() => updateSearch('product', '')}
+                                onPick={(o) => handleSelectProduct(o.raw)}
+                            />
+                        </div>
+                    </Card>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Items */}
+                    {items.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+                            No products added yet. Please select a product above.
+                        </div>
+                    ) : (
+                        items.map((item) => {
+                            const rowGross = getItemAmount(item);
+                            const breakdown = isStockMode ? getItemBreakdown(item) : [];
+                            const st = getStock(item);
+                            const unitLabel = item.unit || 'Pcs';
+                            const id = item.uniqueId;
+                            return (
+                                <div key={id} className="bg-white rounded-2xl border border-slate-200 p-4">
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-slate-800 truncate">{item.productName}</p>
+                                            <p className="text-xs text-slate-500">{item.company}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className="text-right">
+                                                <p className="text-[11px] text-slate-400">{isStockMode ? 'Cost Total' : 'Item Total'}</p>
+                                                <p className="font-bold text-emerald-700">{rowGross.toFixed(2)}</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                aria-label="Remove product"
+                                                onClick={() => handleRemoveItem(id)}
+                                                className="w-10 h-10 flex items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {prod.sellingPrice && (
-                                            <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg font-medium border border-emerald-100">৳{prod.sellingPrice}</span>
-                                        )}
-                                        {prod.sku && (
-                                            <span className="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg font-medium border border-amber-100">SKU: {prod.sku}</span>
-                                        )}
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                        {/* Main */}
+                                        <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-3">
+                                            <p className="text-xs font-bold text-brand-700 mb-2">
+                                                Main · Total {item.totalQty}
+                                                {isStockMode && <span className="ml-1 text-slate-500 font-semibold">· Stock {st ? st.paid : '...'}</span>}
+                                            </p>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                <QtyField label={unitLabel} value={item.unitQty} onChange={num(id, 'unitQty')} />
+                                                {item.parentMode && <QtyField label={item.subUnit || 'Sub'} value={item.subQty ?? ''} onChange={num(id, 'subQty')} />}
+                                                <QtyField label="Pcs" value={item.pcsQty} onChange={num(id, 'pcsQty')} />
+                                            </div>
+                                        </div>
+
+                                        {/* Free */}
+                                        <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                                            <p className="text-xs font-bold text-emerald-700 mb-2">
+                                                Free · Total {item.freeQty}
+                                                {isStockMode && <span className="ml-1 text-slate-500 font-semibold">· Stock {st ? st.free : '...'}</span>}
+                                            </p>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                <QtyField label={unitLabel} value={item.freeUnitQty} onChange={num(id, 'freeUnitQty')} />
+                                                {item.parentMode && <QtyField label={item.subUnit || 'Sub'} value={item.freeSubQty ?? ''} onChange={num(id, 'freeSubQty')} />}
+                                                <QtyField label="Pcs" value={item.freePcsQty} onChange={num(id, 'freePcsQty')} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Sell price (customer mode) */}
+                                    {!isStockMode && (
+                                        <div className={`mt-3 grid grid-cols-1 ${item.parentMode ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3`}>
+                                            <PriceField
+                                                label={`Sell Price (${unitLabel})`}
+                                                total={getUnitTotal(item)}
+                                                tone="bg-brand-100 text-brand-700"
+                                                value={item.sellPriceUnit}
+                                                disabled={!(Number(item.unitQty) > 0)}
+                                                onChange={(v) => handleItemChange(id, 'sellPriceUnit', v)}
+                                            />
+                                            {item.parentMode && (
+                                                <PriceField
+                                                    label={`Sell Price (${item.subUnit || 'Sub'})`}
+                                                    total={getSubTotal(item)}
+                                                    tone="bg-violet-100 text-violet-700"
+                                                    value={item.sellPriceSub}
+                                                    disabled={!(Number(item.subQty) > 0)}
+                                                    onChange={(v) => handleItemChange(id, 'sellPriceSub', v)}
+                                                />
+                                            )}
+                                            <PriceField
+                                                label="Sell Price (PCS)"
+                                                total={getPcsTotal(item)}
+                                                tone="bg-emerald-100 text-emerald-700"
+                                                value={item.sellPricePcs}
+                                                disabled={!(Number(item.pcsQty) > 0)}
+                                                onChange={(v) => handleItemChange(id, 'sellPricePcs', v)}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Cost breakdown (stock mode) */}
+                                    {breakdown.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+                                            <span className="font-bold text-slate-500 uppercase text-[10px]">Stock source:</span>
+                                            {breakdown.map((l) => (
+                                                <span key={l.batchNo} className="px-2 py-0.5 rounded-md border border-brand-100 bg-brand-50 text-brand-700 font-semibold whitespace-nowrap">
+                                                    #{l.invoiceNo}: {l.qty} × ৳{l.cost}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+
+                    {/* Summary */}
+                    <Card>
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-bold text-rose-700">Damage Amount</span>
+                            <span className="text-xl font-bold text-rose-600">৳{damageAmount.toFixed(2)}</span>
+                        </div>
+                    </Card>
+
+                    {/* Damage Payment (shudhu customer select thakle, optional) */}
+                    {formData.customerId && (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-base font-bold text-emerald-800">Damage Payment</h3>
+                                    <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold">
+                                        Damage Amount: ৳{damageAmount.toFixed(2)}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={paymentOpen}
+                                    onClick={() => setPaymentOpen((prev) => !prev)}
+                                    className="h-10 flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
+                                >
+                                    {paymentOpen ? 'Enabled' : 'Disabled'}
+                                    <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                        <span className={`inline-block h-[18px] w-[18px] rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </span>
+                                </button>
+                            </div>
+
+                            {paymentOpen && (
+                                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className={labelCls}>
+                                            Payment Amount *
+                                            {accAvailable !== null && (
+                                                <span className={`ml-2 font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                    Available: ৳{accAvailable.toFixed(2)}
+                                                </span>
+                                            )}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={paymentAmount}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                if (/^\d*\.?\d{0,2}$/.test(value)) {
+                                                    if (accAvailable !== null && Number(value) > accAvailable) {
+                                                        showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, true);
+                                                        return;
+                                                    }
+                                                    setPaymentAmount(value);
+                                                    setPaymentAmountTouched(true);
+                                                }
+                                            }}
+                                            className={inputCls}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Payment Method *</label>
+                                        <select
+                                            value={paymentAccountType}
+                                            onChange={(e) => {
+                                                setPaymentAccountType(e.target.value);
+                                                setSelectedAccountKey(
+                                                    e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
+                                                        ? 'cash'
+                                                        : ''
+                                                );
+                                            }}
+                                            className={`${inputCls} cursor-pointer`}
+                                        >
+                                            <option value="">Select method...</option>
+                                            {accountTypes.map((type) => (
+                                                <option key={type} value={type}>{type}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={labelCls}>Account *</label>
+                                        <select
+                                            value={selectedAccountKey}
+                                            onChange={(e) => setSelectedAccountKey(e.target.value)}
+                                            disabled={!paymentAccountType}
+                                            className={`${inputCls} cursor-pointer`}
+                                        >
+                                            <option value="">{paymentAccountType ? 'Select account...' : 'Select method first'}</option>
+                                            {uniqueAccounts.map((inv) => {
+                                                const k = getAccountKey(inv);
+                                                const label =
+                                                    inv.accountType === 'Bank'
+                                                        ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
+                                                        : inv.accountType === 'Mobile Banking'
+                                                            ? `${inv.accountName} - ${inv.accountNumber}`
+                                                            : 'Cash';
+                                                return <option key={k} value={k}>{label}</option>;
+                                            })}
+                                        </select>
+                                    </div>
+                                    <div className="md:col-span-3">
+                                        <label className={labelCls}>Payment Note (Optional)</label>
+                                        <textarea
+                                            rows="2"
+                                            placeholder="Write any note about this payment..."
+                                            value={paymentNote}
+                                            onChange={(e) => setPaymentNote(e.target.value)}
+                                            className={`${inputCls} resize-y`}
+                                        />
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Note */}
+                    <Card>
+                        <label className={labelCls}>Damage Note</label>
+                        <textarea
+                            rows="3"
+                            placeholder="Write any note about this damage..."
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            className={`${inputCls} resize-y`}
                         />
+                    </Card>
+
+                    <div className="flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={isSaving}
+                            className="bg-brand-600 text-white text-sm font-semibold px-10 py-3 w-full sm:w-auto disabled:opacity-60 cursor-pointer"
+                        >
+                            {isSaving ? 'Saving...' : isEditMode ? 'Update Damage' : 'Add Damage'}
+                        </button>
                     </div>
-                </div>
-            </div>
-
-            {/* ---------------- Table + Summary ---------------- */}
-            <div className="w-full px-0 sm:px-1 my-6 relative z-0">
-                <div className="bg-white rounded-3xl shadow-xl shadow-red-900/5 p-6 md:p-8 border border-red-100/70">
-                    <form onSubmit={handleSubmit}>
-                        <div className="overflow-x-auto rounded-2xl border border-red-200">
-                            <table className="w-full table-fixed text-left border-collapse [&_td>input]:w-full [&_td_input]:min-w-0">
-                                {isStockMode ? (
-                                    <colgroup>
-                                        <col style={{ width: '18%' }} />
-                                        <col style={{ width: '10%' }} />
-                                        <col style={{ width: '15%' }} />
-                                        <col style={{ width: '12%' }} />
-                                        <col style={{ width: '15%' }} />
-                                        <col style={{ width: '12%' }} />
-                                        <col style={{ width: '13%' }} />
-                                        <col style={{ width: '5%' }} />
-                                    </colgroup>
-                                ) : (
-                                    <colgroup>
-                                        <col style={{ width: '13%' }} />
-                                        <col style={{ width: '8%' }} />
-                                        <col style={{ width: '12%' }} />
-                                        <col style={{ width: '9%' }} />
-                                        <col style={{ width: '12%' }} />
-                                        <col style={{ width: '9%' }} />
-                                        <col style={{ width: '11%' }} />
-                                        <col style={{ width: '11%' }} />
-                                        <col style={{ width: '10%' }} />
-                                        <col style={{ width: '5%' }} />
-                                    </colgroup>
-                                )}
-                                <thead>
-                                    <tr className="bg-red-100/70 border-b-2 border-red-200 text-xs font-semibold text-red-800">
-                                        <th className="py-3 px-3">Product Name</th>
-                                        <th className="py-3 px-3">Company</th>
-                                        <th className="py-3 pl-4 pr-1">Unit Qty</th>
-                                        <th className="py-3 pl-3 pr-2">PCS Qty</th>
-                                        <th className="py-3 pl-4 pr-1">Free Unit</th>
-                                        <th className="py-3 pl-3 pr-2">Free PCS</th>
-                                        <th className={isStockMode ? 'hidden' : 'py-3 px-3'}>Sell Price ({sellPriceUnitLabel})</th>
-                                        <th className={isStockMode ? 'hidden' : 'py-3 px-3'}>Sell Price (PCS)</th>
-                                        <th className="py-3 px-3">{isStockMode ? 'Cost Total' : 'Item Total'}</th>
-                                        <th className="py-3 px-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-red-100 text-sm">
-                                    {items.length > 0 ? (
-                                        items.map((item) => {
-                                            const rowGross = getItemAmount(item);
-                                            const breakdown = isStockMode ? getItemBreakdown(item) : [];
-                                            const unitLabel = item.unit || 'Pcs';
-                                            const ch = (field) => (v) => handleItemChange(item.uniqueId, field, v);
-                                            return (
-                                                <tr key={item.uniqueId} className="hover:bg-red-50/40 transition">
-                                                    <td className="py-3 px-2 leading-tight">
-                                                        <div className="font-semibold text-slate-800">{item.productName}</div>
-                                                    </td>
-                                                    <td className="py-3 px-2 text-slate-600 text-xs">{item.company}</td>
-
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.totalQty) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.totalQty}{!formData.customerId && ` | Stock: ${getStock(item)?.paid ?? '...'}`}
-                                                        </div>
-                                                        <div className="p-1.5 bg-indigo-50 border border-r-0 border-indigo-200 rounded-l-2xl">
-                                                            <QtyBox value={item.unitQty} onChange={ch('unitQty')} label={unitLabel} grad="from-indigo-500 to-violet-500" border="border-indigo-200" />
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5">
-                                                                    <QtyBox value={item.subQty} onChange={ch('subQty')} label={item.subUnit} grad="from-fuchsia-500 to-pink-500" border="border-indigo-200" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className="p-1.5 bg-indigo-50 border border-l-0 border-indigo-200 rounded-r-2xl">
-                                                            <input
-                                                                type="number" min="0" step="1" placeholder="0"
-                                                                value={item.pcsQty}
-                                                                onChange={(e) => /^\d*$/.test(e.target.value) && ch('pcsQty')(e.target.value)}
-                                                                className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 bg-white text-sm outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="relative py-3 pl-2 pr-0">
-                                                        <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${Number(item.freeQty) > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            Total: {item.freeQty}{!formData.customerId && ` | Stock: ${getStock(item)?.free ?? '...'}`}
-                                                        </div>
-                                                        <div className="p-1.5 bg-emerald-50 border border-r-0 border-emerald-200 rounded-l-2xl">
-                                                            <QtyBox value={item.freeUnitQty} onChange={ch('freeUnitQty')} label={unitLabel} grad="from-emerald-500 to-teal-500" border="border-emerald-200" />
-                                                            {item.parentMode && (
-                                                                <div className="mt-1.5">
-                                                                    <QtyBox value={item.freeSubQty} onChange={ch('freeSubQty')} label={item.subUnit} grad="from-fuchsia-500 to-pink-500" border="border-emerald-200" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="py-3 pl-0 pr-2">
-                                                        <div className="p-1.5 bg-emerald-50 border border-l-0 border-emerald-200 rounded-r-2xl">
-                                                            <input
-                                                                type="number" min="0" step="1" placeholder="0"
-                                                                value={item.freePcsQty}
-                                                                onChange={(e) => /^\d*$/.test(e.target.value) && ch('freePcsQty')(e.target.value)}
-                                                                className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-sm outline-none shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                                                            />
-                                                        </div>
-                                                    </td>
-
-                                                    <td className={isStockMode ? 'hidden' : 'relative py-3 px-2'}>
-                                                        <div className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getUnitTotal(item) > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            ৳{getUnitTotal(item).toFixed(2)}
-                                                        </div>
-                                                        <input
-                                                            type="number" min="0" step="0.01" placeholder="0"
-                                                            disabled={!(Number(item.unitQty) > 0)}
-                                                            value={item.sellPriceUnit}
-                                                            onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && ch('sellPriceUnit')(e.target.value)}
-                                                            className="w-20 px-2 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
-                                                        />
-                                                        {item.parentMode && (
-                                                            <div className="relative mt-6">
-                                                                <div className={`absolute -top-4 left-2 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getSubTotal(item) > 0 ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                                    {item.subUnit}: ৳{getSubTotal(item).toFixed(2)}
-                                                                </div>
-                                                                <input
-                                                                    type="number" min="0" step="0.01" placeholder="0"
-                                                                    disabled={!(Number(item.subQty) > 0)}
-                                                                    value={item.sellPriceSub}
-                                                                    onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && ch('sellPriceSub')(e.target.value)}
-                                                                    className="w-20 px-2 py-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50/60 text-sm outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100 disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
-                                                                />
-                                                            </div>
-                                                        )}
-                                                    </td>
-
-                                                    <td className={isStockMode ? 'hidden' : 'relative py-3 px-2'}>
-                                                        <div className={`absolute top-1 left-4 z-10 pointer-events-none px-1.5 rounded text-[10px] leading-[14px] font-bold whitespace-nowrap ${getPcsTotal(item) > 0 ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                            ৳{getPcsTotal(item).toFixed(2)}
-                                                        </div>
-                                                        <input
-                                                            type="number" min="0" step="0.01"
-                                                            value={item.sellPricePcs}
-                                                            disabled={!(Number(item.pcsQty) > 0)}
-                                                            onChange={(e) => /^\d*\.?\d{0,2}$/.test(e.target.value) && ch('sellPricePcs')(e.target.value)}
-                                                            className="w-20 px-2 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                                                        />
-                                                    </td>
-
-                                                    <td className="py-3 px-2 font-bold text-emerald-700 whitespace-nowrap">
-                                                        {rowGross.toFixed(2)}
-                                                        {breakdown.length > 0 && (
-                                                            <div className="mt-1 space-y-0.5 font-normal">
-                                                                {breakdown.map((l) => (
-                                                                    <div key={l.batchNo} className="text-[10px] text-slate-500">
-                                                                        #{l.invoiceNo}: {l.qty} × ৳{l.cost}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </td>
-
-                                                    <td className="py-3 px-1 text-center">
-                                                        <button type="button" onClick={() => handleRemoveItem(item.uniqueId)} className="text-rose-500 hover:text-rose-700 p-2 rounded-xl hover:bg-rose-50 transition cursor-pointer">
-                                                            {trashIcon}
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={isStockMode ? 8 : 10} className="text-center py-8 text-slate-400 text-sm">
-                                                No products added yet. Please select a product above.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Summary */}
-                        <div className="mt-6 flex justify-end">
-                            <div className="w-full md:w-[700px] space-y-2.5 bg-red-50/40 border border-red-100 rounded-2xl p-5">
-                                <div className="flex items-center">
-                                    <label className="w-56 text-right pr-3 text-sm font-bold text-red-800">Damage Amount</label>
-                                    <input type="text" readOnly value={damageAmount.toFixed(2)} className="flex-1 px-3 py-2.5 border border-red-200 bg-white font-bold text-red-700 text-base rounded-lg outline-none" />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Damage Payment (shudhu customer select thakle, optional, default disabled) */}
-                        {formData.customerId && (
-                            <div className="mt-8">
-                                <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 md:p-6">
-                                    <div className="flex items-center justify-between flex-wrap gap-3">
-                                        <div className="flex items-center gap-3">
-                                            <h3 className="text-base font-bold text-emerald-800">Damage Payment</h3>
-                                            <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
-                                                Damage Amount: ৳{damageAmount.toFixed(2)}
-                                            </span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setPaymentOpen((prev) => !prev)}
-                                            className="flex items-center gap-2 text-xs font-semibold text-emerald-700 cursor-pointer"
-                                        >
-                                            {paymentOpen ? 'Enabled' : 'Disabled'}
-                                            <span className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${paymentOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                                                <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${paymentOpen ? 'translate-x-6' : 'translate-x-1'}`} />
-                                            </span>
-                                        </button>
-                                    </div>
-
-                                    {paymentOpen && (
-                                        <div className="mt-5">
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                        Payment Amount <span className="text-rose-500">*</span>
-                                                        {accAvailable !== null && (
-                                                            <span className={`ml-2 text-xs font-semibold ${accAvailable < (Number(paymentAmount) || 0) ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                                Available: ৳{accAvailable.toFixed(2)}
-                                                            </span>
-                                                        )}
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        value={paymentAmount}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value;
-                                                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                                                if (accAvailable !== null && Number(value) > accAvailable) {
-                                                                    showToast(`Insufficient balance in the selected account! Available: ৳${accAvailable.toFixed(2)}`, true);
-                                                                    return;
-                                                                }
-                                                                setPaymentAmount(value);
-                                                                setPaymentAmountTouched(true);
-                                                            }
-                                                        }}
-                                                        className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                        Payment Method <span className="text-rose-500">*</span>
-                                                    </label>
-                                                    <select
-                                                        value={paymentAccountType}
-                                                        onChange={(e) => {
-                                                            setPaymentAccountType(e.target.value);
-                                                            setSelectedAccountKey(
-                                                                e.target.value && e.target.value !== 'Bank' && e.target.value !== 'Mobile Banking'
-                                                                    ? 'cash'
-                                                                    : ''
-                                                            );
-                                                        }}
-                                                        className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm cursor-pointer"
-                                                    >
-                                                        <option value="">Select method...</option>
-                                                        {accountTypes.map((type) => (
-                                                            <option key={type} value={type}>{type}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                        Account <span className="text-rose-500">*</span>
-                                                    </label>
-                                                    <select
-                                                        value={selectedAccountKey}
-                                                        onChange={(e) => setSelectedAccountKey(e.target.value)}
-                                                        disabled={!paymentAccountType}
-                                                        className={`w-full px-4 py-3.5 rounded-2xl border text-sm outline-none shadow-sm ${paymentAccountType
-                                                            ? 'border-slate-200 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 cursor-pointer'
-                                                            : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                            }`}
-                                                    >
-                                                        <option value="">
-                                                            {paymentAccountType ? 'Select account...' : 'Select method first'}
-                                                        </option>
-                                                        {uniqueAccounts.map((inv) => {
-                                                            const k = getAccountKey(inv);
-                                                            const label =
-                                                                inv.accountType === 'Bank'
-                                                                    ? `${inv.bankName} - ${inv.accountNumber} (${inv.accountBranch})`
-                                                                    : inv.accountType === 'Mobile Banking'
-                                                                        ? `${inv.accountName} - ${inv.accountNumber}`
-                                                                        : 'Cash';
-                                                            return <option key={k} value={k}>{label}</option>;
-                                                        })}
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            <div className="mt-6">
-                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                                    Payment Note <span className="text-slate-400 font-normal">(Optional)</span>
-                                                </label>
-                                                <textarea
-                                                    rows="2"
-                                                    placeholder="Write any note about this payment..."
-                                                    value={paymentNote}
-                                                    onChange={(e) => setPaymentNote(e.target.value)}
-                                                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-y shadow-sm"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Note */}
-                        <div className="mt-8">
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">Damage Note</label>
-                            <textarea
-                                rows="3"
-                                placeholder="Write any note about this damage..."
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 resize-y shadow-sm"
-                            />
-                        </div>
-
-                        {/* Button */}
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                type="submit"
-                                disabled={isSaving}
-                                className="px-10 py-3 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-sm font-semibold text-white shadow-md shadow-red-200 transition cursor-pointer disabled:opacity-60"
-                            >
-                                {isEditMode ? 'Update Damage' : 'Add Damage'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
     );

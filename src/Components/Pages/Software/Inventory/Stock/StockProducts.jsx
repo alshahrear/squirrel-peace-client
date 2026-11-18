@@ -892,7 +892,7 @@ const StockProducts = () => {
                         </div>
                     </div>
 
-                    <div className={`${showFilters ? 'grid' : 'hidden'} sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3`}>
+                    <div className={`${showFilters ? 'grid' : 'hidden'} sm:grid grid-cols-2 lg:grid-cols-4 gap-x-2.5 gap-y-3 sm:gap-3 mt-3`}>
                         {/* Product */}
                         <div className="relative" ref={productDropdownRef}>
                             <label className={labelCls}>Product</label>

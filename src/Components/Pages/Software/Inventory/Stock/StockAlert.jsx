@@ -492,7 +492,7 @@ const StockAlert = () => {
                             setCurrentPage(1);
                         }}
                     />
-                    <div>
+                    <div className="col-span-2 lg:col-span-1">
                         <span className={labelCls}>Status</span>
                         <div className="grid grid-cols-3 gap-2">
                             {tabs.map((t) => (
@@ -500,7 +500,7 @@ const StockAlert = () => {
                                     key={t.key}
                                     type="button"
                                     onClick={() => handleTab(t.key)}
-                                    className={`h-10 inline-flex items-center justify-center gap-1.5 rounded-xl border text-xs font-bold cursor-pointer ${tab === t.key ? t.tabActive : t.tab}`}
+                                    className={`h-10 min-w-0 px-1 inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl border text-xs font-bold cursor-pointer ${tab === t.key ? t.tabActive : t.tab}`}
                                 >
                                     <span>{t.icon}</span>
                                     {t.short}

@@ -329,7 +329,7 @@ const Product = () => {
                         </button>
                     </div>
 
-                    <div className={`${filtersOpen ? 'grid' : 'hidden'} lg:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3`}>
+                    <div className={`${filtersOpen ? 'grid' : 'hidden'} lg:grid grid-cols-2 lg:grid-cols-4 gap-x-2.5 gap-y-3 sm:gap-3 mt-3`}>
                         <div>
                             <label className={labelCls}>Start Date</label>
                             <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />

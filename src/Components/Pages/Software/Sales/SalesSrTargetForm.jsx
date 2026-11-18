@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaUser, FaCalendarAlt, FaMoneyBillWave, FaStickyNote, FaTimes, FaEdit, FaBullseye } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaTimes, FaBullseye, FaEdit } from 'react-icons/fa';
+import { inputCls, labelCls, ComboField } from '../Purchase/PurchaseUi';
+import { Card } from '../Purchase/PurchaseFormUi';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -31,10 +33,104 @@ const formatDateTime = (date = new Date()) => {
     return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
 };
 
-const inputBase =
-    'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50/50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed';
-
 const personName = (u) => u.name || u.userName || u.fullName || u.email || '';
+
+// ---------- Month & Year picker (all browsers, mobile friendly) ----------
+export const MonthField = ({ label, value, onChange, placeholder = 'Select month', clearable = false }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    const nowYear = new Date().getFullYear();
+    const selYear = value ? Number(value.split('-')[0]) : nowYear;
+    const selMonth = value ? Number(value.split('-')[1]) - 1 : -1;
+    const [year, setYear] = useState(selYear);
+
+    useEffect(() => {
+        const h = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', h);
+        document.addEventListener('touchstart', h);
+        return () => {
+            document.removeEventListener('mousedown', h);
+            document.removeEventListener('touchstart', h);
+        };
+    }, []);
+
+    const pick = (idx) => {
+        onChange(`${year}-${String(idx + 1).padStart(2, '0')}`);
+        setOpen(false);
+    };
+
+    return (
+        <div className="relative" ref={ref}>
+            <span className={labelCls}>{label}</span>
+            <div className="relative">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setYear(selYear);
+                        setOpen((o) => !o);
+                    }}
+                    className={`${inputCls} h-[38px] text-left cursor-pointer pr-9 truncate whitespace-nowrap ${value ? 'text-slate-800' : 'text-slate-400'}`}
+                >
+                    {value ? displayMonthYear(value) : placeholder}
+                </button>
+                {clearable && value && (
+                    <button
+                        type="button"
+                        aria-label="Clear"
+                        onClick={() => onChange('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 cursor-pointer"
+                    >
+                        <FaTimes size={11} />
+                    </button>
+                )}
+            </div>
+
+            {open && (
+                <div className="absolute z-40 right-0 sm:right-auto sm:left-0 mt-1 w-[260px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-slate-200 shadow-xl p-3">
+                    <div className="flex items-center justify-between mb-3">
+                        <button
+                            type="button"
+                            aria-label="Previous year"
+                            onClick={() => setYear((y) => y - 1)}
+                            className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-brand-50 cursor-pointer"
+                        >
+                            <FaChevronLeft size={11} />
+                        </button>
+                        <span className="text-sm font-bold text-slate-800">{year}</span>
+                        <button
+                            type="button"
+                            aria-label="Next year"
+                            onClick={() => setYear((y) => y + 1)}
+                            className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-brand-50 cursor-pointer"
+                        >
+                            <FaChevronRight size={11} />
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                        {MONTHS.map((m, idx) => {
+                            const active = year === selYear && idx === selMonth;
+                            return (
+                                <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => pick(idx)}
+                                    className={`h-10 rounded-xl text-xs font-semibold cursor-pointer ${active
+                                        ? 'bg-brand-600 text-white'
+                                        : 'bg-slate-50 text-slate-700 border border-slate-200 hover:bg-brand-50 hover:text-brand-700'
+                                        }`}
+                                >
+                                    {m.slice(0, 3)}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const SalesSrTargetForm = ({
     targets,
@@ -56,50 +152,21 @@ const SalesSrTargetForm = ({
         targetAmount: editingTarget?.targetAmount !== undefined ? String(editingTarget.targetAmount) : '',
         note: editingTarget?.note || '',
     });
+    const [srSearch, setSrSearch] = useState(editingTarget?.sr || '');
     const [loading, setLoading] = useState(false);
 
-    // SR searchable select
-    const [srSearch, setSrSearch] = useState(editingTarget?.sr || '');
-    const [srOpen, setSrOpen] = useState(false);
-
-    // Month-Year picker
-    const [monthOpen, setMonthOpen] = useState(false);
-    const monthRef = useRef(null);
-    const [pickerYear, setPickerYear] = useState(Number(formData.targetMonth.split('-')[0]));
-
-    useEffect(() => {
-        const handleOutside = (e) => {
-            if (monthRef.current && !monthRef.current.contains(e.target)) setMonthOpen(false);
-        };
-        document.addEventListener('mousedown', handleOutside);
-        return () => document.removeEventListener('mousedown', handleOutside);
-    }, []);
-
-    const currentYear = new Date().getFullYear();
-    const selectedYear = Number(formData.targetMonth.split('-')[0]);
-    const selectedMonthIdx = Number(formData.targetMonth.split('-')[1]) - 1;
-
-    const yearOptions = [];
-    for (let y = currentYear - 5; y <= currentYear + 5; y++) yearOptions.push(y);
-    if (!yearOptions.includes(pickerYear)) yearOptions.push(pickerYear);
-    yearOptions.sort((a, b) => a - b);
-
-    const filteredSr = srList.filter((u) => {
-        const q = srSearch.trim().toLowerCase();
-        if (!q) return true;
-        return (
-            personName(u).toLowerCase().includes(q) ||
-            String(u.phone || u.contactNumber || '').toLowerCase().includes(q)
-        );
-    });
-
-    const handleSelectMonth = (idx) => {
-        setFormData((prev) => ({
-            ...prev,
-            targetMonth: `${pickerYear}-${String(idx + 1).padStart(2, '0')}`,
+    const srOptions = srList
+        .filter((u) => {
+            const q = srSearch.trim().toLowerCase();
+            if (!q) return true;
+            return personName(u).toLowerCase().includes(q) || String(u.phone || u.contactNumber || '').toLowerCase().includes(q);
+        })
+        .map((u) => ({
+            key: u._id,
+            title: personName(u),
+            sub: u.phone || u.contactNumber ? `📞 ${u.phone || u.contactNumber}` : '',
+            raw: u,
         }));
-        setMonthOpen(false);
-    };
 
     const handleCancelEdit = () => {
         setEditingTarget(null);
@@ -138,11 +205,10 @@ const SalesSrTargetForm = ({
         const url = isEditing
             ? `http://localhost:5000/sales-sr-target/${editingId}`
             : 'http://localhost:5000/sales-sr-target';
-        const method = isEditing ? 'PUT' : 'POST';
 
         try {
             const res = await fetch(url, {
-                method,
+                method: isEditing ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
@@ -166,194 +232,89 @@ const SalesSrTargetForm = ({
     };
 
     return (
-        <div className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-indigo-100">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    {isEditing ? (
-                        <span className="text-indigo-600 flex items-center gap-2"><FaEdit /> Edit SR Target</span>
-                    ) : (
-                        <span className="text-indigo-600 flex items-center gap-2"><FaBullseye /> Add SR Target</span>
-                    )}
-                </h2>
-                {isEditing && (
+        <Card
+            title={
+                <span className="inline-flex items-center gap-2">
+                    {isEditing ? <FaEdit className="text-amber-500" /> : <FaBullseye className="text-brand-600" />}
+                    {isEditing ? 'Edit SR Target' : 'Add SR Target'}
+                </span>
+            }
+            subtitle="Set a monthly sales target for an SR"
+            right={
+                isEditing ? (
                     <button
                         type="button"
                         onClick={handleCancelEdit}
-                        className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full transition-all cursor-pointer"
+                        className="h-10 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
                     >
-                        <FaTimes /> Cancel Edit
+                        <FaTimes size={11} /> Cancel Edit
                     </button>
-                )}
-            </div>
+                ) : null
+            }
+        >
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <ComboField
+                    label="SR *"
+                    value={srSearch}
+                    placeholder="Search or select SR..."
+                    options={srOptions}
+                    onType={(v) => {
+                        setSrSearch(v);
+                        if (formData.srId) setFormData((prev) => ({ ...prev, srId: '', sr: '' }));
+                    }}
+                    onClear={() => {
+                        setSrSearch('');
+                        setFormData((prev) => ({ ...prev, srId: '', sr: '' }));
+                    }}
+                    onPick={(o) => {
+                        setSrSearch(personName(o.raw));
+                        setFormData((prev) => ({ ...prev, srId: o.raw._id, sr: personName(o.raw) }));
+                    }}
+                />
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <MonthField
+                    label="Target Month & Year *"
+                    value={formData.targetMonth}
+                    onChange={(v) => setFormData((prev) => ({ ...prev, targetMonth: v }))}
+                />
 
-                {/* SR */}
-                <div className="relative">
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaUser className="text-indigo-500" /> SR <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            value={srSearch}
-                            placeholder="Search or select SR..."
-                            autoComplete="off"
-                            onFocus={() => setSrOpen(true)}
-                            onChange={(e) => {
-                                setSrSearch(e.target.value);
-                                setSrOpen(true);
-                                if (formData.srId) setFormData((prev) => ({ ...prev, srId: '', sr: '' }));
-                            }}
-                            onBlur={() => setTimeout(() => setSrOpen(false), 150)}
-                            className={`${inputBase} pr-8`}
-                        />
-                        {srSearch && (
-                            <button
-                                type="button"
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setSrSearch('');
-                                    setFormData((prev) => ({ ...prev, srId: '', sr: '' }));
-                                }}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-500 cursor-pointer"
-                            >
-                                <FaTimes size={12} />
-                            </button>
-                        )}
-                    </div>
-                    {srOpen && (
-                        <div className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
-                            {filteredSr.length === 0 ? (
-                                <p className="px-4 py-3 text-sm text-gray-400">No SR found</p>
-                            ) : (
-                                filteredSr.map((u) => (
-                                    <div
-                                        key={u._id}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            setSrSearch(personName(u));
-                                            setSrOpen(false);
-                                            setFormData((prev) => ({ ...prev, srId: u._id, sr: personName(u) }));
-                                        }}
-                                        className="px-4 py-2.5 cursor-pointer hover:bg-indigo-50 border-b border-gray-100 last:border-b-0"
-                                    >
-                                        <p className="text-sm font-semibold text-gray-800">{personName(u)}</p>
-                                        {(u.phone || u.contactNumber) && (
-                                            <p className="text-xs text-gray-500 mt-0.5">{u.phone || u.contactNumber}</p>
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Target Month & Year */}
-                <div className="relative" ref={monthRef}>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaCalendarAlt className="text-indigo-500" /> Target Month & Year <span className="text-red-500">*</span>
-                    </label>
-                    <div
-                        className="relative w-full cursor-pointer"
-                        onClick={() => {
-                            setPickerYear(selectedYear);
-                            setMonthOpen((o) => !o);
-                        }}
-                    >
-                        <input
-                            type="text"
-                            readOnly
-                            placeholder="Select month & year"
-                            value={displayMonthYear(formData.targetMonth)}
-                            className={`${inputBase} pointer-events-none cursor-pointer`}
-                        />
-                    </div>
-                    {monthOpen && (
-                        <div className="absolute z-30 mt-1 w-full min-w-[260px] bg-white border border-gray-200 rounded-xl shadow-lg p-3">
-                            <select
-                                value={pickerYear}
-                                onChange={(e) => setPickerYear(Number(e.target.value))}
-                                className={`${inputBase} cursor-pointer mb-3`}
-                            >
-                                {yearOptions.map((y) => (
-                                    <option key={y} value={y}>{y}</option>
-                                ))}
-                            </select>
-                            <div className="grid grid-cols-3 gap-2">
-                                {MONTHS.map((m, idx) => {
-                                    const active = pickerYear === selectedYear && idx === selectedMonthIdx;
-                                    return (
-                                        <button
-                                            key={m}
-                                            type="button"
-                                            onClick={() => handleSelectMonth(idx)}
-                                            className={`px-2 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${active
-                                                ? 'bg-indigo-600 text-white shadow'
-                                                : 'bg-gray-50 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-100'
-                                                }`}
-                                        >
-                                            {m.slice(0, 3)}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Target Amount */}
                 <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaMoneyBillWave className="text-indigo-500" /> Target Amount <span className="text-red-500">*</span>
-                    </label>
+                    <label className={labelCls}>Target Amount *</label>
                     <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="0.00"
                         value={formData.targetAmount}
                         onChange={(e) => {
-                            const value = e.target.value;
-                            if (/^\d*\.?\d{0,2}$/.test(value)) {
-                                setFormData((prev) => ({ ...prev, targetAmount: value }));
-                            }
+                            const v = e.target.value;
+                            if (/^\d*\.?\d{0,2}$/.test(v)) setFormData((prev) => ({ ...prev, targetAmount: v }));
                         }}
-                        className={inputBase}
+                        className={inputCls}
                     />
                 </div>
 
-                {/* Note */}
-                <div className="sm:col-span-2 md:col-span-3">
-                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 flex items-center gap-1.5">
-                        <FaStickyNote className="text-indigo-500" /> Note
-                    </label>
+                <div className="sm:col-span-2 lg:col-span-3">
+                    <label className={labelCls}>Note</label>
                     <input
                         type="text"
                         placeholder="Write additional notes here..."
                         value={formData.note}
                         onChange={(e) => setFormData((prev) => ({ ...prev, note: e.target.value }))}
-                        className={inputBase}
+                        className={inputCls}
                     />
                 </div>
 
-                {/* Submit */}
-                <div className="sm:col-span-2 md:col-span-3 flex justify-end mt-2">
+                <div className="sm:col-span-2 lg:col-span-3 flex justify-end pt-1">
                     <button
                         type="submit"
                         disabled={!canSubmit || loading}
-                        className={`px-8 py-2.5 rounded-xl text-white text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 cursor-pointer ${isEditing
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200'
-                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-200'
-                            }`}
+                        className={`text-white text-sm font-semibold px-8 py-2.5 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${isEditing ? 'bg-amber-500 hover:bg-amber-600' : 'bg-brand-600'}`}
                     >
-                        {loading
-                            ? isEditing ? 'Updating...' : 'Saving...'
-                            : isEditing ? 'Update Target' : 'Submit'}
+                        {loading ? (isEditing ? 'Updating...' : 'Saving...') : isEditing ? 'Update Target' : 'Submit'}
                     </button>
                 </div>
             </form>
-        </div>
+        </Card>
     );
 };
 

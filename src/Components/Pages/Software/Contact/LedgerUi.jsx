@@ -317,7 +317,7 @@ export const FilterPanel = ({ filters, onChange, onClear, methodOptions, statusO
                 </button>
             </div>
             <div
-                className={`${open ? 'grid' : 'hidden'} md:grid grid-cols-1 sm:grid-cols-2 ${statusOptions ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 mt-3`}
+                className={`${open ? 'grid' : 'hidden'} md:grid grid-cols-2 ${statusOptions ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-x-2.5 gap-y-3 sm:gap-3 mt-3`}
             >
                 <div>
                     <label className={labelCls}>Start Date</label>

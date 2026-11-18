@@ -286,7 +286,7 @@ const Customers = () => {
                     </div>
 
                     <div className={`${showFilters ? 'block' : 'hidden'} lg:block mt-4 pt-4 border-t border-slate-100`}>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-2.5 gap-y-3 sm:gap-3">
                             <div>
                                 <span className={labelCls}>Start Date</span>
                                 <DateInput name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="Start date" />

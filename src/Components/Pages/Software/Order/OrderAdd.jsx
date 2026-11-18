@@ -1707,7 +1707,7 @@ const OrderAdd = () => {
             phone: orderFormData.customerContact,
             address: orderFormData.customerAddress,
             route: orderFormData.route,
-            shippingAddress: orderFormData.shippingAddress,
+            shippingAddress: orderFormData.shippingAddress || orderFormData.customerAddress,
             orderDate: orderFormData.date,
 
             srId: orderFormData.srId,
@@ -2008,10 +2008,10 @@ const OrderAdd = () => {
             orderDate: orderFormData.date,
 
             ...(directSales
-                ? { directSales: true }
+                ? { directSales: true, shippingAddress: orderFormData.shippingAddress || orderFormData.customerAddress }
                 : {
                     route: orderFormData.route,
-                    shippingAddress: orderFormData.shippingAddress,
+                    shippingAddress: orderFormData.shippingAddress || orderFormData.customerAddress,
                     srId: orderFormData.srId,
                     sr: orderFormData.sr,
                     deliveredById: orderFormData.deliveredById,

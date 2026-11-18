@@ -9,12 +9,10 @@ const MobileBottomNav = ({ clientUser, drawerOpen, setDrawerOpen }) => {
   const canOrder = !isStaff || canAccessPath(perms, "/create-order");
 
   const tabCls = (active) =>
-    `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-[11px] font-semibold transition active:scale-95 ${
-      active ? "text-brand-700" : "text-slate-500"
+    `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-[11px] font-semibold transition active:scale-95 ${active ? "text-brand-700" : "text-slate-500"
     }`;
   const iconWrap = (active) =>
-    `h-8 w-12 rounded-full flex items-center justify-center transition ${
-      active ? "bg-brand-100" : ""
+    `h-8 w-12 rounded-full flex items-center justify-center transition ${active ? "bg-brand-100" : ""
     }`;
 
   return (
@@ -26,20 +24,6 @@ const MobileBottomNav = ({ clientUser, drawerOpen, setDrawerOpen }) => {
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="flex items-end justify-around max-w-md mx-auto px-2">
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(!drawerOpen)}
-            aria-label={drawerOpen ? "Close Menu" : "Open Menu"}
-            aria-expanded={drawerOpen}
-            className={`drawer-toggle-btn !bg-none !bg-transparent !shadow-none !rounded-none !px-0 ${tabCls(drawerOpen)}`}
-            style={{ background: "transparent", boxShadow: "none" }}
-          >
-            <span className={iconWrap(drawerOpen)}>
-              {drawerOpen ? <FaTimes className="text-[17px]" /> : <FaBars className="text-[17px]" />}
-            </span>
-            Menu
-          </button>
-
           {canDash && (
             <NavLink
               to="/dashboard"
@@ -56,6 +40,20 @@ const MobileBottomNav = ({ clientUser, drawerOpen, setDrawerOpen }) => {
               )}
             </NavLink>
           )}
+
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(!drawerOpen)}
+            aria-label={drawerOpen ? "Close Menu" : "Open Menu"}
+            aria-expanded={drawerOpen}
+            className={`drawer-toggle-btn !bg-none !bg-transparent !shadow-none !rounded-none !px-0 ${tabCls(drawerOpen)}`}
+            style={{ background: "transparent", boxShadow: "none" }}
+          >
+            <span className={iconWrap(drawerOpen)}>
+              {drawerOpen ? <FaTimes className="text-[17px]" /> : <FaBars className="text-[17px]" />}
+            </span>
+            Menu
+          </button>
 
           {canOrder && (
             <NavLink
